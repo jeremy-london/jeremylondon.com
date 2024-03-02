@@ -2,7 +2,7 @@
 title: "Understanding Hidden Layers"
 excerpt: "Dive deeper into neural network architecture by adding and understanding the computations involved in a hidden layer, laying the groundwork for more complex networks."
 publishDate: "2024-02-28T14:00:00Z"
-image: "./src/assets/images/hidden-layer.webp"
+image: "/images/hidden-layer.webp"
 category: "deep-learning-basics"
 draft: false
 author: "jeremy-london"
