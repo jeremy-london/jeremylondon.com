@@ -1,0 +1,35 @@
+---
+import { latestPosts } from "@utils/content";
+import Postlist from "./postlist.astro";
+import Link from "./ui/link.astro";
+
+const { class: className, category } = Astro.props;
+
+const postsList = latestPosts
+  ?.filter((post: any) => post?.data?.category === category?.slug)
+  ?.slice(0, 3);
+---
+
+{
+  postsList?.length ? (
+    <>
+      <section
+        class:list={["flex items-center justify-between mt-12", className]}>
+        <h1 class="  text-lg tracking-wider font-bold text-gray-500 dark:text-white">
+          {category?.title}
+        </h1>
+        <Link
+          href={`/category/${category?.slug}`}
+          style="underline"
+          size="unset">
+          See All
+        </Link>
+      </section>
+      <div class="grid gap-10 mt-4 lg:gap-10 md:grid-cols-2 xl:grid-cols-3">
+        {postsList?.map((post) => (
+          <Postlist post={post} aspect="square" />
+        ))}
+      </div>
+    </>
+  ) : null
+}

@@ -1,0 +1,22 @@
+---
+import Link from "./ui/link.astro";
+
+const { prevUrl, nextUrl } = Astro.props;
+---
+
+<nav class="flex justify-center gap-4 mt-10">
+  {
+    prevUrl && (
+      <Link href={prevUrl} size="md" style="outline">
+        ← Previous
+      </Link>
+    )
+  }
+  {
+    nextUrl && (
+      <Link href={nextUrl} size="md" style="outline">
+        Next →
+      </Link>
+    )
+  }
+</nav>

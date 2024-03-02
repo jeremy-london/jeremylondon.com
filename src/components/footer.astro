@@ -1,0 +1,28 @@
+---
+import Container from "./container.astro";
+import Themeswitch from "./themeswitch.astro";
+---
+
+<Container class="mt-10 border-t border-gray-100 dark:border-gray-800">
+  <footer class="flex flex-col items-center">
+    <div class="text-sm text-center">
+      Copyright © {new Date().getFullYear()}
+      <a
+        class="font-medium text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-orange-500"
+        href="https://github.com/jeremy-london">Jeremy London.</a
+      > All rights reserved.
+    </div>
+
+    <div class="flex items-center justify-between mt-2">
+      <Themeswitch />
+    </div>
+
+    <div class="text-sm text-center mt-2">
+      <a
+        class="px-5 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-500"
+        href="https://www.youtube.com/watch?v=Bz2-49q6DOI">
+        Made with Love from Denver ♥️
+      </a>
+    </div>
+  </footer>
+</Container>
