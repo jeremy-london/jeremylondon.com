@@ -1,0 +1,99 @@
+---
+import cx from "classnames";
+
+import Label from "@components/ui/label.astro";
+import type { Author } from "@data/authors";
+import { authors } from "@data/authors";
+import type { Category } from "@data/category";
+import { categories } from "@data/category";
+import { getFormattedDate } from "@utils/all";
+import { Icon } from "astro-icon/components";
+
+const { post, aspect, preloadImage } = Astro.props;
+const author = authors.find((item) => item.slug === post.data.author) as Author;
+const category = categories.find(
+  (item) => item.slug === post.data.category,
+) as Category;
+---
+
+<div class="cursor-pointer group">
+  <div
+    class={cx(
+      "relative overflow-hidden transition-all bg-gray-100 rounded-md dark:bg-gray-800 hover:scale-105 hover:-rotate-1",
+      aspect === "landscape" ? "aspect-video" : "aspect-square",
+    )}>
+    <a href={"/blog/" + post.slug}>
+      {
+        post.data.image ? (
+          <img
+            src={post.data.image}
+            sizes="(max-width: 640px) 90vw, 480px"
+            alt="Thumbnail"
+            loading={preloadImage ? "eager" : "lazy"}
+            class={cx(
+              "w-full h-full rounded-md",
+              aspect === "landscape" ? "object-cover" : "object-contain",
+            )}
+          />
+        ) : (
+          <span class="absolute w-16 h-16 text-gray-200 -translate-x-1/2 -translate-y-1/2 top-1/2 left-1/2">
+            <Icon
+              class="w-4 h-4 text-black"
+              name="heroicons-outline:photograph"
+            />
+          </span>
+        )
+      }
+    </a>
+  </div>
+
+  <a href={`/category/${category.slug}`}>
+    <Label theme={category.color}>{category.title}</Label>
+  </a>
+  <h2
+    class="mt-2 text-lg font-semibold tracking-normal text-brand-primary dark:text-white">
+    <a href={"/blog/" + post.slug}>
+      <span
+        class="bg-gradient-to-r from-blue-200 to-blue-100 dark:from-orange-800 dark:to-orange-900 bg-[length:0px_10px] bg-left-bottom bg-no-repeat transition-[background-size] duration-500 hover:bg-[length:100%_3px] group-hover:bg-[length:100%_10px]">
+        {post.data.title}
+      </span>
+    </a>
+  </h2>
+
+  <div class="hidden">
+    {
+      post.data.excerpt && (
+        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400 line-clamp-3">
+          <a href={"/blog/" + post.slug}>{post.data.excerpt}</a>
+        </p>
+      )
+    }
+  </div>
+
+  <div
+    class="flex items-center mt-3 space-x-3 text-gray-500 dark:text-gray-400">
+    <div class="flex items-center gap-3">
+      <div class="relative flex-shrink-0 w-5 h-5">
+        {
+          author.image && (
+            <img
+              src={author.image}
+              alt="Author Photo"
+              width={40}
+              height={40}
+              loading="lazy"
+              class="rounded-full"
+            />
+          )
+        }
+      </div>
+      <a href={`/author/${author.slug}`}>
+        <span class="text-sm">{author.name}</span>
+      </a>
+    </div>
+    <span class="text-xs text-gray-300 dark:text-gray-600"> &bull;</span>
+    <time class="text-sm" datetime={post.data.publishDate}>
+      {getFormattedDate(post.data.publishDate)}
+    </time>
+  </div>
+</div>

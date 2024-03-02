@@ -1,0 +1,50 @@
+---
+import { Icon } from "astro-icon/components";
+import Layout from "@layouts/Layout.astro";
+import Container from "@components/container.astro";
+import Contactform from "@components/contactform.astro";
+import Pagetitle from "@components/pagetitle.astro";
+---
+
+<Layout title="Contact">
+  <Container>
+    <Pagetitle>
+      <Fragment slot="title">Contact me</Fragment>
+      <Fragment slot="desc">I'm happy to help.</Fragment>
+    </Pagetitle>
+
+    <div class="grid md:grid-cols-2 gap-10 mx-auto max-w-4xl mt-16">
+      <div>
+        <p
+          class="text-lg leading-relaxed text-gray-500 mt-3 dark:text-gray-300">
+          Have something to say? I'm always happy to hear from you. Just fill
+          out the form below and I'll get back to you as soon as possible.
+        </p>
+        <div class="mt-5">
+          <div
+            class="flex items-center mt-2 space-x-2 text-gray-600 dark:text-gray-400">
+            <Icon class="text-gray-400 w-4 h-4" name="uil:envelope" /><a
+              href="mailto:jeremy.c.london@gmail.com"
+              >jeremy.c.london@gmail.com</a
+            >
+          </div>
+          <div
+            class="flex items-center mt-2 space-x-2 text-gray-600 dark:text-gray-400">
+            <Icon class="text-gray-400 w-4 h-4" name="uil:github" /><a
+              href="https://github.com/jeremy-london">jeremy-london</a
+            >
+          </div>
+          <div
+            class="flex items-center mt-2 space-x-2 text-gray-600 dark:text-gray-400">
+            <Icon class="text-gray-400 w-4 h-4" name="uil:linkedin" /><a
+              href="https://www.linkedin.com/in/jeremyclondon/">Jeremy London</a
+            >
+          </div>
+        </div>
+      </div>
+      <div>
+        <Contactform />
+      </div>
+    </div>
+  </Container>
+</Layout>

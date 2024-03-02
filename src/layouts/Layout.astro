@@ -1,0 +1,68 @@
+---
+import Footer from "@components/footer.astro";
+import Navbar from "@components/navbar.astro";
+import "@fontsource/inter";
+import { checkImageUrl } from "@utils/all";
+import { SEO } from "astro-seo";
+
+export interface Props {
+  title?: string;
+  desc?: string;
+  ogimage?: string;
+}
+
+const canonicalURL = new URL(Astro.url.pathname, Astro.site).toString();
+
+const { title, desc, ogimage = "/opengraph.png" } = Astro.props;
+
+const resolvedOGImage = checkImageUrl(ogimage, Astro.site);
+
+const makeTitle = title
+  ? `${title} | jeremyLondon`
+  : `jeremylondon | Exploring AI, Tech, and Creativity`;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="generator" content={Astro.generator} />
+    <SEO
+      title={makeTitle}
+      description={desc ||
+        "Exploring AI, tech trends, and engineering in a uniquely engaging blog for the curious mind."}
+      canonical={canonicalURL}
+      twitter={{
+        card: "summary_large_image",
+      }}
+      openGraph={{
+        basic: {
+          url: canonicalURL,
+          type: "website",
+          title: `Exploring AI, tech trends, and engineering in a uniquely engaging blog for the curious mind.`,
+          image: resolvedOGImage,
+        },
+        image: {
+          alt: "jeremylondon screenshot",
+        },
+      }}
+    />
+  </head>
+  <body>
+    <Navbar />
+    <slot />
+    <Footer />
+    <style is:global>
+      /* Improve Page speed */
+      /* https://css-tricks.com/almanac/properties/c/content-visibility/ */
+      img {
+        content-visibility: auto;
+      }
+    </style>
+  </body>
+</html>

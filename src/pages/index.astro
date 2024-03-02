@@ -1,0 +1,197 @@
+---
+import Container from "@components/container.astro";
+import Postlist from "@components/postlist.astro";
+import Link from "@components/ui/link.astro";
+import CategoryPosts from "@components/categoryposts.astro";
+import Layout from "@layouts/Layout.astro";
+import { latestPosts } from "@utils/content";
+import { categories } from "@data/category";
+// Use Astro.glob() to fetch all posts, and then sort them by date.
+// const posts = (await Astro.glob("./blog/*.{md,mdx}")).sort(
+//   (a, b) =>
+//     new Date(b.frontmatter.publishDate).valueOf() -
+//     new Date(a.frontmatter.publishDate).valueOf()
+// );
+// console.log(posts[0].frontmatter.image);
+---
+
+<style type="text/css">
+  .cool-profile {
+    display: flex;
+    height: 18rem;
+    justify-content: center;
+    position: relative;
+    width: 18rem;
+    z-index: 1000;
+  }
+  .cool-profile img {
+    object-fit: cover;
+    border-radius: 9999px;
+  }
+  .cool-profile::before,
+  .cool-profile::after {
+    border-radius: 9999px;
+    background-image: linear-gradient(-180deg, #a1deff 0%, #5ea3db 97%);
+    content: "";
+    height: 100%;
+    position: absolute;
+    transition: all 0.2s;
+    transition-delay: 0.2s;
+    transform: translateY(0px) translateX(0px);
+    width: 100%;
+    z-index: -1;
+  }
+  .cool-profile::after {
+    background-image: linear-gradient(0deg, #ffcf70 0%, #ffae3d 97%);
+  }
+  .cool-profile:hover {
+    animation-name: hoverPop;
+    animation-duration: 0.4s;
+    animation-fill-direction: forward;
+    cursor: alias;
+  }
+  .cool-profile:hover img {
+    box-shadow: 2px 2px 4px 0px rgba(10, 12, 15, 0.27);
+    box-shadow: 0px 0px 30px 0px rgba(10, 12, 15, 0.27);
+  }
+  .cool-profile:hover::before {
+    animation: slick-hover-2 3s 0.4s linear infinite;
+    transform: translateY(-20px) translateX(-20px);
+  }
+  .cool-profile:hover::after {
+    animation: slick-hover 3s 0.4s linear infinite reverse;
+    transform: translateY(20px) translateX(20px);
+  }
+
+  @keyframes hoverPop {
+    0%,
+    100% {
+      transform: scale(1);
+    }
+    33% {
+      transform: scale(1.05);
+    }
+    66% {
+      transform: scale(0.9);
+    }
+  }
+  @keyframes slick-hover {
+    0.00% {
+      transform: translateY(20px) translateX(20px);
+    }
+    16.67% {
+      transform: translateY(-13px) translateX(-9px);
+    }
+    33.33% {
+      transform: translateY(4px) translateX(12px);
+    }
+    50.00% {
+      transform: translateY(20px) translateX(-20px);
+    }
+    66.67% {
+      transform: translateY(-3px) translateX(8px);
+    }
+    83.33% {
+      transform: translateY(-15px) translateX(-11px);
+    }
+    100.00% {
+      transform: translateY(20px) translateX(20px);
+    }
+  }
+  @keyframes slick-hover-2 {
+    0.00% {
+      transform: translateY(-20px) translateX(-20px);
+    }
+    16.67% {
+      transform: translateY(3px) translateX(-5px);
+    }
+    33.33% {
+      transform: translateY(18px) translateX(-10px);
+    }
+    50.00% {
+      transform: translateY(-20px) translateX(20px);
+    }
+    66.67% {
+      transform: translateY(15px) translateX(-4px);
+    }
+    83.33% {
+      transform: translateY(-1px) translateX(15px);
+    }
+    100.00% {
+      transform: translateY(-20px) translateX(-20px);
+    }
+  }
+</style>
+
+<Layout title="">
+  <Container>
+    <header>
+      <div
+        class="mb-14 flex flex-col items-center justify-between gap-10 lg:flex-row">
+        <div
+          class="flex flex-col items-start w-full lg:w-1/2 max-lg:items-center">
+          <h1
+            class="mt-2 mb-3 text-3xl font-semibold tracking-tight text-center lg:leading-snug text-brand-primary lg:text-4xl dark:text-white">
+            Hi, I'm Jeremy.
+          </h1>
+          <p
+            class="text-lg text-gray-500 dark:text-gray-400 text-center md:px-10 lg:text-left lg:px-0">
+            Welcome to my blog. I'm a machine learning and web developer
+            enthusiast. I write about machine learning, web development, and
+            other tech-related topics.
+          </p>
+          <div class="flex flex-wrap mt-8 space-x-3">
+            <Link href="/blog">Blog Posts</Link>
+            <Link href="/about" style="outline">About me</Link>
+          </div>
+        </div>
+
+        <figure class="cool-profile">
+          <img
+            src="/jeremy.png"
+            alt="Jeremy's profile picture"
+            class="shadow-md"
+          />
+        </figure>
+      </div>
+    </header>
+
+    <main>
+      <h2
+        class="text-2xl pt-7 font-semibold tracking-tight text-center lg:leading-snug text-brand-primary lg:text-3xl dark:text-white">
+        Latest posts
+      </h2>
+      <div class="grid gap-10 pt-7 lg:gap-10 md:grid-cols-2">
+        {
+          latestPosts
+            .slice(0, 2)
+            .map((post) => (
+              <Postlist post={post} aspect="landscape" preloadImage={true} />
+            ))
+        }
+      </div>
+      <div class="grid gap-10 mt-10 lg:gap-10 md:grid-cols-2 xl:grid-cols-3">
+        {
+          latestPosts
+            .slice(2, 5)
+            .map((post) => <Postlist post={post} aspect="square" />)
+        }
+      </div>
+
+      <div class="flex justify-center mt-7 mb-7">
+        <a
+          href="/blog"
+          class="px-5 py-3 text-sm text-blue-600 transition rounded-md dark:text-orange-500 bg-orange-50 hover:bg-blue-200 dark:hover:bg-orange-200">
+          ← View all posts
+        </a>
+      </div>
+
+      <h2
+        class="text-2xl pt-14 font-semibold tracking-tight text-center lg:leading-snug text-brand-primary lg:text-3xl dark:text-white">
+        Posts by category
+      </h2>
+
+      {categories?.map((category) => <CategoryPosts category={category} />)}
+    </main>
+  </Container>
+</Layout>

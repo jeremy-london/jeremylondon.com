@@ -1,0 +1,50 @@
+---
+import Container from "@components/container.astro";
+import Pagetitle from "@components/pagetitle.astro";
+import Postlist from "@components/postlist.astro";
+import Layout from "@layouts/Layout.astro";
+import { latestPosts } from "@utils/content";
+
+import { authors } from "@data/authors";
+import type { Author } from "@data/category";
+
+export function getStaticPaths() {
+  const map = {};
+
+  authors.forEach((author: Author) => {
+    map[author.slug] = latestPosts?.filter(
+      (post) => post?.data?.author === author?.slug
+    );
+  });
+
+  return authors?.map((author) => ({
+    params: {
+      author: author?.slug,
+    },
+    props: {
+      posts: map[author?.slug],
+      author: author,
+    },
+  }));
+}
+
+const { author, posts } = Astro.props;
+---
+
+<Layout title="Category">
+  <Container>
+    <Pagetitle>
+      <Fragment slot="title">
+        All posts by {author.name}
+      </Fragment>
+      <Fragment slot="desc">
+        See all posts that were written by {author.name}.
+      </Fragment>
+    </Pagetitle>
+    <main>
+      <div class="grid gap-10 mt-10 lg:gap-10 md:grid-cols-2 xl:grid-cols-3">
+        {posts.map((post) => <Postlist post={post} aspect="square" />)}
+      </div>
+    </main>
+  </Container>
+</Layout>

@@ -1,0 +1,49 @@
+---
+import Container from "@components/container.astro";
+import Postlist from "@components/postlist.astro";
+import Link from "@components/ui/link.astro";
+import CategoryPosts from "@components/categoryposts.astro";
+import Layout from "@layouts/Layout.astro";
+import { latestPosts } from "@utils/content";
+import { categories } from "@data/category";
+// Use Astro.glob() to fetch all posts, and then sort them by date.
+// const posts = (await Astro.glob("./blog/*.{md,mdx}")).sort(
+//   (a, b) =>
+//     new Date(b.frontmatter.publishDate).valueOf() -
+//     new Date(a.frontmatter.publishDate).valueOf()
+// );
+// console.log(posts[0].frontmatter.image);
+---
+
+<Layout title="404 - Page Not Found">
+  <Container>
+    <header>
+      <div class="mb-14 flex flex-col items-center justify-between lg:flex-row">
+        <div
+          class="flex flex-col items-start w-full lg:w-1/2 max-lg:items-center">
+          <h1
+            class="mt-2 mb-3 text-3xl font-semibold tracking-tight text-center lg:leading-snug text-brand-primary lg:text-4xl dark:text-white">
+            404 - Page Not Found
+          </h1>
+          <p
+            class="text-lg text-gray-500 dark:text-gray-400 text-center md:px-10 lg:text-left lg:px-0">
+            Oops! It seems like you've ventured into uncharted territory. Let's
+            get you back on track.
+          </p>
+          <div class="flex flex-wrap mt-8 space-x-3">
+            <Link href="/">Go to Homepage</Link>
+            <Link href="/blog">Explore Blog</Link>
+          </div>
+        </div>
+
+        <figure class="w-96 h-96">
+          <img
+            src="/404.webp"
+            alt="404 Not Found"
+            class="rounded-full shadow-md"
+          />
+        </figure>
+      </div>
+    </header>
+  </Container>
+</Layout>

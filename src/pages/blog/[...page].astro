@@ -1,0 +1,40 @@
+---
+import Container from "@components/container.astro";
+import Pagetitle from "@components/pagetitle.astro";
+import Pagination from "@components/pagination.astro";
+import Postlist from "@components/postlist.astro";
+import Layout from "@layouts/Layout.astro";
+import { latestPosts } from "@utils/content";
+// Use Astro.glob() to fetch all posts, and then sort them by date.
+// const posts = (await Astro.glob("./blog/*.{md,mdx}")).sort(
+//   (a, b) =>
+//     new Date(b.frontmatter.publishDate).valueOf() -
+//     new Date(a.frontmatter.publishDate).valueOf()
+// );
+
+export async function getStaticPaths({ paginate }) {
+  return paginate(latestPosts, {
+    pageSize: 9,
+  });
+}
+
+const { page } = Astro.props;
+---
+
+<Layout title="Blog">
+  <Container>
+    <Pagetitle>
+      <Fragment slot="title">Ideas Unleashed</Fragment>
+      <Fragment slot="desc">
+        Dive into articles that blend technology insights with personal
+        experiences in the tech world.
+      </Fragment>
+    </Pagetitle>
+    <main>
+      <div class="grid gap-10 mt-10 lg:gap-10 md:grid-cols-2 xl:grid-cols-3">
+        {page.data.map((post) => <Postlist post={post} aspect="square" />)}
+      </div>
+    </main>
+    <Pagination prevUrl={page.url.prev} nextUrl={page.url.next} />
+  </Container>
+</Layout>
