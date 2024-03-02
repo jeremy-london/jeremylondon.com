@@ -20,9 +20,6 @@
       "@layouts/*": [
         "layouts/*"
       ],
-      "@assets/*": [
-        "assets/*"
-      ],
       "@pages/*": [
         "pages/*"
       ],

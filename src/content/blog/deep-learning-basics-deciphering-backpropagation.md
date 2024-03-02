@@ -2,7 +2,7 @@
 title: "Deciphering Backpropagation"
 excerpt: "Conclude our series with a deep dive into backpropagation, the essential mechanism that enables neural networks to learn from data by optimizing weights and biases."
 publishDate: "2024-03-02T17:00:00Z"
-image: "./src/assets/images/backpropagation.webp"
+image: "/images/backpropagation.webp"
 category: "deep-learning-basics"
 draft: false
 author: "jeremy-london"

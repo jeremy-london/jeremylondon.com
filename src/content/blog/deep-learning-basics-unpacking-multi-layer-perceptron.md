@@ -2,7 +2,7 @@
 title: "Unpacking Multi-Layer Perceptron (MLP)"
 excerpt: "Venture into the architecture of a multi-layer perceptron with seven layers, understanding forward propagation and activation functions in a deeper network."
 publishDate: "2024-03-01T16:00:00Z"
-image: "./src/assets/images/mlp.webp"
+image: "/images/mlp.webp"
 category: "deep-learning-basics"
 draft: false
 author: "jeremy-london"

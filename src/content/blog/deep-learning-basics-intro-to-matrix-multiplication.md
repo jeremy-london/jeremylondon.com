@@ -2,7 +2,7 @@
 title: "Intro to Matrix Multiplication Basics"
 excerpt: "Kickstart your journey into deep learning with the fundamental concept of matrix multiplication, a crucial operation behind the scenes of neural network computations."
 publishDate: "2024-02-25T11:00:00Z"
-image: "./src/assets/images/matrix-multiplication.webp"
+image: "/images/matrix-multiplication.webp"
 category: "deep-learning-basics"
 draft: false
 author: "jeremy-london"
