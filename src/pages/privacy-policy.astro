@@ -1,0 +1,80 @@
+---
+import Layout from "@layouts/Layout.astro";
+import Container from "@components/container.astro";
+import { Icon } from "astro-icon/components";
+import Pagetitle from "@components/pagetitle.astro";
+---
+
+<Layout title="Privacy Policy">
+  <Container>
+    <Pagetitle>
+      <Fragment slot="title">Privacy Policy</Fragment>
+      <Fragment slot="desc">Your privacy is important to us</Fragment>
+    </Pagetitle>
+
+    <div
+      class="flex flex-col gap-10 mx-auto max-w-lg mt-12 text-gray-700 dark:text-gray-400">
+      <h2 class="text-xl font-semibold">
+        Collection of Your Personal Information
+      </h2>
+      <p>
+        We do not collect any personal information about you unless you
+        voluntarily provide it to us. However, you may be required to provide
+        certain personal information to us when you elect to use certain
+        products or services available on the site.
+      </p>
+
+      <h2 class="text-xl font-semibold">Use of Your Personal Information</h2>
+      <p>
+        We may use the personal information you provide us for the purposes of
+        operating and maintaining our website, communicating with you, improving
+        our services, and sending you newsletters or other relevant updates.
+      </p>
+
+      <h2 class="text-xl font-semibold">
+        Sharing of Your Personal Information
+      </h2>
+      <p>
+        We will not sell, rent, or lease your personal information to any third
+        parties.
+      </p>
+
+      <h2 class="text-xl font-semibold">Tracking Technologies</h2>
+      <p>
+        We may use cookies, web beacons, and other tracking technologies to
+        collect information about your use of our website and to provide you
+        with a more personalized user experience.
+      </p>
+
+      <h2 class="text-xl font-semibold">Changes to This Privacy Policy</h2>
+      <p>
+        We reserve the right to update or change our Privacy Policy at any time.
+        Your continued use of our website after we post any modifications to the
+        Privacy Policy on this page will constitute your acknowledgment of the
+        modifications and your consent to abide and be bound by the modified
+        Privacy Policy.
+      </p>
+
+      <h2 class="text-xl font-semibold">Contact Information</h2>
+      <p>
+        If you have any questions about this Privacy Policy, please contact us
+        at
+        <span>
+          <Icon
+            class="inline-flex text-gray-400 pr-10 w-4 h-4"
+            name="uil:envelope"
+          />
+          <a
+            class="font-medium
+            text-gray-600
+            dark:text-gray-400
+            hover:text-blue-500
+            dark:hover:text-orange-500"
+            href="mailto:jeremy.c.london@gmail.com"
+            >jeremy.c.london@gmail.com
+          </a>
+        </span>
+      </p>
+    </div>
+  </Container>
+</Layout>
