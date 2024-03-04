@@ -3,6 +3,7 @@ import { defineConfig, squooshImageService } from "astro/config";
 import tailwind from "@astrojs/tailwind";
 import mdx from "@astrojs/mdx";
 import sitemap from "@astrojs/sitemap";
+import partytown from "@astrojs/partytown";
 import robotsTxt from "astro-robots-txt";
 import icon from "astro-icon";
 
@@ -18,5 +19,12 @@ export default defineConfig({
     rehypePlugins: ["rehype-plugin-image-native-lazy-loading"],
     extendDefaultPlugins: true,
   },
-  integrations: [tailwind(), icon(), mdx(), sitemap(), robotsTxt()],
+  integrations: [
+    tailwind(),
+    icon(),
+    mdx(),
+    partytown(),
+    sitemap(),
+    robotsTxt(),
+  ],
 });
