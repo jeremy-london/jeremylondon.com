@@ -1,0 +1,56 @@
+---
+title: "Intro to Matrix Multiplication Basics"
+excerpt: "Kickstart your journey into deep learning with the fundamental concept of matrix multiplication, a crucial operation behind the scenes of neural network computations."
+publishDate: "2023-12-26T11:00:00Z"
+image: "/images/matrix-multiplication.webp"
+category: "deep-learning-basics"
+draft: false
+author: "jeremy-london"
+tags: ["matrix multiplication", "linear algebra", "deep learning"]
+load_pyodide: true
+---
+
+import PythonModule from "@components/blog/PythonModule.jsx";
+
+Welcome to the inaugural entry of our Deep Learning Foundations series. Today, we embark on an exploration of matrix multiplication, a cornerstone in the architecture of neural networks. For those venturing into the realm of deep learning, a solid grasp of this fundamental linear algebra concept is indispensable.
+
+## Matrix Multiplication: The First Step
+
+- **Dimensions and Scaling:** Grasp how the dimensions of matrices influence each other and the impact of scaling.
+- **Dot Product Basics:** Uncover the mechanics of dot products in combining matrix rows and columns, crucial for neural network architectures.
+
+Matrix multiplication stands as a critical component fueling the deep learning revolution, enabling the execution of complex neural network operations with astonishing speed and scalability.
+
+Despite being a listed prerequisite for my courses, I've noticed a recurring theme: a palpable lack of confidence among students when it comes to matrix multiplication. To bridge this gap, I've developed a straightforward yet effective system for performing matrix multiplications manually.
+
+Consider the multiplication of matrices A and B to produce matrix C (A x B = C). This method illuminates several key aspects:
+
+💡 Dimensions: The dimensions of C are determined by A's height (vertical) and B's width (horizontal), providing a clear visualization of the resulting matrix size.
+
+💡 Scalability: Scaling any matrix among A, B, or C demonstrates the adaptable nature of matrix sizes, ensuring the dimensions remain compatible across operations.
+
+💡 Row vs. Column Vectors: Each element in C corresponds to a dot product of a row vector (highlighted in green) from A and a column vector (highlighted in yellow) from B, elucidating the process behind each value's computation.
+
+💡 Stackability: This system's compactness allows for the visualization of multiple matrix multiplication operations as stacked grids. This is particularly useful for conceptualizing the sequence of operations in complex neural network structures, such as multi-layer perceptrons, providing a clearer understanding of the underpinnings of deep learning architectures.
+
+By demystifying the process of matrix multiplication, we lay the groundwork for deeper exploration into the mechanics of deep learning. Stay tuned for more insights in our Deep Learning Foundations series.
+
+### Code Explanation:
+
+1. **Importing NumPy:** The code begins by importing the NumPy library, which provides a high-performance multidimensional array object and tools for working with these arrays. This library is essential for numerical computations in Python, especially for operations involving matrices and linear algebra.
+
+2. **Defining the Matrices:**
+   - `A` is a 2x2 matrix defined by an array of arrays, where each sub-array represents a row in the matrix. In this case, `A` consists of two rows: `[1, 1]` and `[-1, 1]`.
+   - `B` is a 2x3 matrix, again defined as an array of arrays. It contains two rows: `[1, 5, 2]` and `[2, 4, 2]`, with each row having three columns.
+
+3. **Matrix Multiplication:**
+   - The `np.dot` function is used to perform the matrix multiplication of `A` and `B`. The result is stored in matrix `C`. In matrix multiplication, the number of columns in the first matrix (`A`) must equal the number of rows in the second matrix (`B`). Here, `A` has 2 columns, and `B` has 2 rows, so they can be multiplied.
+   - The resulting matrix `C` will have dimensions that match the outer dimensions of the multiplied matrices. Since `A` is 2x2 and `B` is 2x3, `C` will be a 2x3 matrix.
+
+4. **Printing the Result:**
+   - The last line of the code prints the result of the multiplication, showing the contents of matrix `C`. This output demonstrates the effect of matrix multiplication on the input matrices.
+
+This example serves as a concrete demonstration of matrix multiplication, highlighting its significance in linear algebra and deep learning. Through NumPy's intuitive syntax and powerful capabilities, we can effortlessly perform complex mathematical operations, laying the groundwork for more advanced computational tasks in deep learning.
+
+<PythonModule client:load filePath="examples/basics/matrix_multiplication.py"/>
+@components/blog/PythonModule.jsx

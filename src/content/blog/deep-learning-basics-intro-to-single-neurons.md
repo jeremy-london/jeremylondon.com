@@ -1,7 +1,7 @@
 ---
 title: "Introduction to Single Neuron Networks"
 excerpt: "Continue your deep learning journey by learning about the single neuron, the fundamental unit of neural networks, through hands-on examples and code."
-publishDate: "2024-02-26T12:00:00Z"
+publishDate: "2023-12-26T12:00:00Z"
 image: "/images/single-neuron.webp"
 category: "deep-learning-basics"
 draft: false

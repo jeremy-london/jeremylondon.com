@@ -2,6 +2,7 @@
 import { defineConfig, squooshImageService } from "astro/config";
 import tailwind from "@astrojs/tailwind";
 import mdx from "@astrojs/mdx";
+import react from "@astrojs/react";
 import sitemap from "@astrojs/sitemap";
 import partytown from "@astrojs/partytown";
 import robotsTxt from "astro-robots-txt";
@@ -22,6 +23,7 @@ export default defineConfig({
   integrations: [
     tailwind(),
     icon(),
+    react(),
     mdx(),
     partytown(),
     sitemap(),
