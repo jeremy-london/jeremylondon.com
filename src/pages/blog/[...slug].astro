@@ -30,12 +30,14 @@ const author = authors.find((item) => item.slug === post.data.author) as Author;
 const category = categories.find(
   (item) => item.slug === post.data.category,
 ) as Category;
+
 ---
 
 <Layout
   title={post.data.title}
   desc={post.data.excerpt}
-  ogimage={post.data.image}>
+  ogimage={post.data.image}
+  load_pyodide={post.data.load_pyodide}>
   <Container>
     <div class="max-w-screen-md mx-auto">
       <div class="text-center">

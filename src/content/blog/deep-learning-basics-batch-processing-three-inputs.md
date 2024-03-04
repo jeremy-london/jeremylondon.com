@@ -1,7 +1,7 @@
 ---
 title: "Batch Processing Three Inputs"
 excerpt: "Learn how neural networks handle batches of inputs, using three different input vectors to demonstrate the application of weights across a batch for efficient computation."
-publishDate: "2024-02-29T15:00:00Z"
+publishDate: "2024-01-03T15:00:00Z"
 image: "/images/batch-processing.webp"
 category: "deep-learning-basics"
 draft: false

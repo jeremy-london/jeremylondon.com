@@ -1,7 +1,7 @@
 ---
 title: "Exploring Four Neuron Networks"
 excerpt: "Advance your understanding of neural networks by exploring a layer with four neurons, practicing matrix operations, and applying the ReLU activation function."
-publishDate: "2024-02-27T13:00:00Z"
+publishDate: "2023-12-27T13:00:00Z"
 image: "/images/four-neuron.webp"
 category: "deep-learning-basics"
 draft: false
