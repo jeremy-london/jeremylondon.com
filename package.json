@@ -21,6 +21,7 @@
     "astro-color-scheme": "^1.1.2",
     "astro-feather-icons": "^1.0.2",
     "astro-icon": "^1.1.0",
+    "astro-robots-txt": "^1.0.0",
     "astro-seo": "^0.8.2",
     "mdast-util-to-string": "^4.0.0",
     "reading-time": "^1.5.0",
