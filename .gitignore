@@ -10,7 +10,7 @@ dist/
 node_modules/
 
 # local drafts
-content/blog/.*
+src/content/blog/.*
 
 # logs
 npm-debug.log*
