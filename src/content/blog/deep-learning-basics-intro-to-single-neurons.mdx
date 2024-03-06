@@ -11,6 +11,7 @@ load_pyodide: true
 ---
 
 import PythonModule from "@components/blog/PythonModule.jsx";
+import SingleNeuron from "@components/blog/SingleNeuron.jsx";
 
 In the second part of my Deep Learning Foundations series, I'm peeling back the layers on one of the most fundamental units of neural networks: the single neuron. This dive is all about breaking down how a neuron takes inputs, works its magic through weights and biases, and pops out an output that's shaped by something called the ReLU function. 
 
@@ -22,6 +23,7 @@ At its heart, a single neuron is a marvel of simplicity and power. It's where th
 
 I've cooked up a Python script that mirrors the essential function of a single neuron, enhanced with the ReLU activation. Here’s the gist of it:
 
+<SingleNeuron client:load />
 <PythonModule client:load filePath="examples/basics/single_neuron_relu.py"/>
 
 This script does a bit more than just compute; it walks us through each step of the process. It starts by multiplying each input by its corresponding weight, adds them all up along with a bias, and then decides what to do based on the ReLU function.
