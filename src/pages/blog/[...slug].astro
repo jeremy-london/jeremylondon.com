@@ -39,7 +39,7 @@ const category = categories.find(
   ogimage={post.data.image}
   load_pyodide={post.data.load_pyodide}>
   <Container>
-    <div class="max-w-screen-md mx-auto">
+    <div class="max-w-screen-xl mx-auto">
       <div class="text-center">
         <a href={`/category/${category.slug}`}>
           <Label theme={category.color}>{category.title}</Label>
@@ -92,14 +92,13 @@ const category = categories.find(
   </Container>
 
   <div
-    class="relative z-0 max-w-screen-lg mx-auto overflow-hidden lg:rounded-lg aspect-video">
+    class="relative z-0 max-w-screen-xl mx-auto overflow-hidden lg:rounded-lg aspect-video">
     {
       post.data.image && (
         <img
           src={post.data.image}
-          sizes="(max-width: 640px) 90vw, 480px"
-          width={1024}
-          height={576}
+          width={1200}
+          height={630}
           alt="Thumbnail"
           loading="eager"
           class="w-full"
@@ -109,9 +108,9 @@ const category = categories.find(
   </div>
 
   <Container>
-    <article class="max-w-screen-md mx-auto">
+    <article class="max-w-screen-xl mx-auto">
       <div
-        class="mx-auto my-3 prose prose-base dark:prose-invert prose-a:text-blue-600">
+        class="display mx-3 my-3 prose prose-base dark:prose-invert prose-a:text-blue-600">
         <Content />
 
         <div class="flex flex-wrap items-center w-full gap-3 md:w-auto">

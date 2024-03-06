@@ -24,15 +24,15 @@ const { page } = Astro.props;
 <Layout title="Blog">
   <Container>
     <Pagetitle>
-      <Fragment slot="title">Ideas Unleashed</Fragment>
+      <Fragment slot="title">Blog Posts</Fragment>
       <Fragment slot="desc">
         Dive into articles that blend technology insights with personal
         experiences in the tech world.
       </Fragment>
     </Pagetitle>
     <main>
-      <div class="grid gap-10 mt-10 lg:gap-10 md:grid-cols-2 xl:grid-cols-3">
-        {page.data.map((post) => <Postlist post={post} aspect="square" />)}
+      <div class="grid gap-10 mt-10 lg:gap-10 md:grid-cols-2 xl:grid-cols-2">
+        {page.data.map((post) => <Postlist post={post} aspect="landscape" />)}
       </div>
     </main>
     <Pagination prevUrl={page.url.prev} nextUrl={page.url.next} />
