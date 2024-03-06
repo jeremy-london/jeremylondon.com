@@ -16,8 +16,6 @@ import MatrixMultiplication from "@components/blog/MatrixMultiplication.jsx";
 
 Welcome to the first chapter of my Deep Learning Foundations series. Today, I'm excited to share my insights into matrix multiplication, an essential piece in the puzzle of neural networks. For those stepping into the vast world of deep learning, understanding this key concept of linear algebra is a game-changer.
 
-Before diving into the heart of matrix multiplication, I'd like to take a moment to acknowledge the incredible work of Dr. [Tom Yeh](https://tomyeh.info) and his pioneering "AI by Hand" worksheets. My exploration and the subsequent creation of this blog post were greatly inspired by his efforts to demystify complex AI concepts through hands-on learning. Collaborating with Dr. Yeh has not only enriched my understanding but also emphasized the importance of tangible learning experiences in the field of artificial intelligence.
-
 ## Matrix Multiplication:
 
 - **Dimensions and Scaling:** Discover how matrix dimensions interact and the importance of scaling in my explorations.
@@ -27,7 +25,7 @@ Matrix multiplication is the powerhouse that drives the deep learning engine, fa
 
 Despite its critical role, I've often found myself and others hesitating when faced with matrix multiplication. This prompted me to develop a simple, yet effective approach to tackle matrix multiplications by hand.
 
-Let's consider multiplying matrices A and B to get matrix C ```(A x B = C)```. My method sheds light on several aspects:
+Let's consider multiplying matrices A and B to get matrix C `(A x B = C)`. My method sheds light on several aspects:
 
 💡 **Dimensions:** The size of C is a mix of A's rows and B's columns, offering a straightforward visualization of the outcome's dimensions.
 
@@ -35,9 +33,9 @@ Let's consider multiplying matrices A and B to get matrix C ```(A x B = C)```. M
 
 💡 **Row vs. Column Vectors:** The computation behind each element in C involves a dot product between a row from A (in green) and a column from B (in yellow), clarifying the calculation process.
 
-💡 **Stackability:** This approach's efficiency enables visualizing consecutive matrix multiplication operations, invaluable for understanding the workings of complex neural networks like multi-layer perceptrons. This clarity enhances our grasp of deep learning architecture fundamentals.
+💡 **Stackability:** This approach's efficiency enables visualizing consecutive matrix multiplication operations, invaluable for understanding the workings of complex neural networks like multi-layer perceptrons. This clarity enhances the grasp of deep learning architecture fundamentals.
 
-Through demystifying matrix multiplication, I've laid the foundation for a deeper dive into deep learning mechanics. Stick around for more discoveries in our Deep Learning Foundations series.
+Through demystifying matrix multiplication, I've laid the foundation for a deeper dive into deep learning mechanics. Stick around for more discoveries in this Deep Learning Foundations series.
 
 ### Walking Through the Code:
 
@@ -49,11 +47,11 @@ Through demystifying matrix multiplication, I've laid the foundation for a deepe
    - `B` takes form as a 2x3 matrix, similarly arrayed. It unfolds into two rows: `[1, 5, 2]` and `[2, 4, 2]`, each stretching across three columns.
 
 3. **The Heart of Multiplication:**
-   - Employing `np.dot`, I marry `A` and `B`. The offspring, matrix `C`, embodies our multiplication efforts. In this dance, `A`'s columns and `B`'s rows must mirror each other in number, enabling their union. Here, `A`'s two columns perfectly complement `B`'s two rows.
+   - Employing `np.dot`, I marry `A` and `B`. The offspring, matrix `C`, embodies the multiplication efforts. In this dance, `A`'s columns and `B`'s rows must mirror each other in number, enabling their union. Here, `A`'s two columns perfectly complement `B`'s two rows.
    - `C` inherits dimensions from the outer realms of `A` and `B`. With `A` as a 2x2 and `B` as a 2x3, `C` proudly stands as a 2x3 matrix.
 
 4. **Revealing the Magic:**
-   - The finale involves unveiling `C`'s essence, showcasing the transformative power of matrix multiplication on our initial matrices.
+   - The finale involves unveiling `C`'s essence, showcasing the transformative power of matrix multiplication on the initial matrices.
 
 By dissecting this example, I aim to illuminate the path of matrix multiplication, highlighting its critical role in both linear algebra and the deeper realms of deep learning. With NumPy's elegant syntax and potent functionality, embarking on complex mathematical adventures becomes not just feasible, but exhilarating, paving the way for advancements in deep learning.
 
