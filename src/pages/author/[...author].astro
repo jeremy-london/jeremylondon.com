@@ -42,7 +42,7 @@ const { author, posts } = Astro.props;
       </Fragment>
     </Pagetitle>
     <main>
-      <div class="grid gap-10 mt-10 lg:gap-10 md:grid-cols-2 xl:grid-cols-3">
+      <div class="grid gap-10 mt-10 lg:gap-10 md:grid-cols-2 xl:grid-cols-2">
         {posts.map((post) => <Postlist post={post} aspect="square" />)}
       </div>
     </main>
