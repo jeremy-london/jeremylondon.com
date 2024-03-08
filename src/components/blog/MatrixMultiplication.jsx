@@ -127,7 +127,6 @@ const MatrixMultiplication = () => {
           defaultValues={matrixB}
           onMatrixChange={handleMatrixBChange}
         />
-        <span className="p-2 text-black dark:text-white opacity-40">1</span>
       </div>
 
       <div className="flex flex-col items-center justify-center">
