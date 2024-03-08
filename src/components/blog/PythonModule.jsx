@@ -22,10 +22,11 @@ const PythonModule = ({children, filePath}) => {
 
   const displayPythonCode = (code) => {
     const codeElement = document.createElement('code');
-    codeElement.className = 'language-python';
+    // codeElement.className = 'language-python';
     codeElement.textContent = code; // Set the text content to the Python code
     
     const preElement = document.createElement('pre');
+    preElement.className = "bg-[#e9e9e9] dark:bg-[#333333] text-black dark:text-white rounded-md"
     preElement.appendChild(codeElement);
     
     const codeDisplay = document.getElementById('codeDisplay');
@@ -71,6 +72,28 @@ const PythonModule = ({children, filePath}) => {
       // Retrieve and display the captured output.
       const capturedOutput = pyodide.runPython('stdout.getvalue()');
       outputElement.value += ">>>\n" + capturedOutput + "\n";
+
+      (function() {
+        let _pythonOutput = ''; // Private variable to hold the value
+      
+        Object.defineProperty(window, 'pythonOutput', {
+          configurable: true, // Allows the property to be redefined
+          enumerable: true, // Allows the property to be listed in a loop
+          get: function() {
+            return _pythonOutput;
+          },
+          set: function(value) {
+            _pythonOutput = value; // Update the internal value
+            // Dispatch the custom event with the new value
+            window.dispatchEvent(new CustomEvent('pythonOutputChanged', { detail: value }));
+          }
+        });
+      })();
+      
+      // Set output to the window variable to update other components that listen to it
+      window.pythonOutput = capturedOutput;
+
+      
     } catch (err) {
       outputElement.value += "Error:\n" + err.toString() + "\n";
     } finally {
@@ -95,17 +118,17 @@ const PythonModule = ({children, filePath}) => {
           </div>
         </div>
 
-        <button id="executeButton" onClick={() => executePython()} className="hidden w-full bg-black text-white hover:bg-gray-900  border-2 border-transparent dark:bg-white dark:text-black dark:hover:bg-gray-300 rounded-md mb-4">Execute Python Code</button>
+        <button id="executeButton" onClick={() => executePython()} className="hidden w-full bg-black py-1 text-white hover:bg-gray-700  border-2 border-transparent dark:bg-white dark:text-black dark:hover:bg-gray-300 rounded-md mb-4">Execute Python Code</button>
         
-        <div id="codeDisplay" className="bg-[#1F2937] dark:bg-[#030506] rounded-md mb-4 hidden">
-          <pre>
+        <div id="codeDisplay" className="bg-[#e9e9e9] dark:bg-[#333333] rounded-md mb-4 hidden">
+          <pre className="bg-[#e9e9e9]">
             <code style={{ float: 'left' }}></code>
           </pre>
         </div>
 
-        <div id="outputDisplay" className="bg-[#1F2937] dark:bg-[#030506] text-[#f5f2f0] p-4 rounded-md hidden">
-          <div>Output:</div>
-          <textarea id="output" className="full-height w-full resize-none bg-[#1F2937] dark:bg-[#030506] text-[#f5f2f0] p-2" rows="10"></textarea>
+        <div id="outputDisplay" className="bg-[#e9e9e9] dark:bg-[#333333] text-black dark:text-white p-4 rounded-md hidden">
+          <div className="text-black dark:text-white">Output:</div>
+          <textarea id="output" className="full-height w-full resize-none bg-[#e9e9e9] dark:bg-[#333333] text-black dark:text-white p-2" rows="10"></textarea>
         </div>
       </div>
     </div>

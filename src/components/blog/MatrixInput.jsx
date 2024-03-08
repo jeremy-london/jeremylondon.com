@@ -1,7 +1,11 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useState, useEffect } from 'react';
 
-const MatrixInput = ({ columns, idPrefix, defaultValues, onMatrixChange }) => {
+const MatrixInput = ({ columns, idPrefix, defaultValues, onMatrixChange, disabled }) => {
   const [values, setValues] = useState(defaultValues);
+  
+  useEffect(() => {
+    setValues(defaultValues);
+  }, [defaultValues]);
 
   const handleInputChange = (row, column, value) => {
     let newValue = value === '' ? '' : Number(value);
@@ -28,11 +32,9 @@ const MatrixInput = ({ columns, idPrefix, defaultValues, onMatrixChange }) => {
     onMatrixChange(newValues);
   };
 
-  const gridTemplateColumns = `grid-cols-${columns}`;
-
   return (
     <div
-      className={`grid ${gridTemplateColumns} gap-2`}
+      className={`grid grid-cols-${columns} gap-2`}
       style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
     >
       {values.map((rowValues, rowIndex) => (
@@ -43,10 +45,11 @@ const MatrixInput = ({ columns, idPrefix, defaultValues, onMatrixChange }) => {
             type="text" // Use "text" for more control
             inputMode="numeric" // Ensures numeric keyboard on mobile devices
             pattern="[0-9]*" // Allows only numbers, but doesn't strictly enforce it
-            className="text-center rounded-md border border-gray-200"
+            className="text-center rounded-md border border-gray-200 text-black dark:text-white disabled:bg-[#d0d0d0] disabled:dark:bg-[#222222]"
             value={value.toString()} // Convert value to string to handle empty and '0' values
             onChange={(e) => handleInputChange(rowIndex, columnIndex, e.target.value)}
             onKeyDown={(e) => handleKeyDown(rowIndex, columnIndex, e)}
+            disabled={disabled}
           />
         ))}
         </Fragment>
