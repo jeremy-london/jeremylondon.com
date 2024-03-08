@@ -92,16 +92,16 @@ const category = categories.find(
   </Container>
 
   <div
-    class="relative z-0 max-w-screen-xl mx-auto overflow-hidden lg:rounded-lg aspect-video">
+    class="flex items-center justify-center z-0 max-w-screen-xl mx-auto overflow-hidden lg:rounded-lg">
     {
       post.data.image && (
         <img
           src={post.data.image}
-          width={1200}
-          height={630}
+          width={600}
+          height={600}
           alt="Thumbnail"
           loading="eager"
-          class="w-full"
+          class="object-cover w-auto h-[1000px]"
         />
       )
     }
