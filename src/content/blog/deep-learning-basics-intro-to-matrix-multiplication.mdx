@@ -13,6 +13,13 @@ load_pyodide: true
 
 import PythonModule from "@components/blog/PythonModule.jsx";
 import MatrixMultiplication from "@components/blog/MatrixMultiplication.jsx";
+import Link from "@components/ui/link.astro";
+
+<h2>
+  <a href="#interactive-code-environment" class="m-0 text-blue-100 dark:text-orange-400 no-underline bg-gradient-to-r from-blue-200 to-blue-100 dark:from-orange-800 dark:to-orange-900 bg-[length:0px_10px] bg-left-bottom bg-no-repeat transition-[background-size] duration-500 hover:bg-[length:100%_3px] group-hover:bg-[length:100%_10px]">
+    <span>Scroll down for Interactive Code Environment 👇</span>
+  </a>
+</h2>
 
 Welcome to the first chapter of my Deep Learning Foundations series. Today, I'm excited to share my insights into matrix multiplication, an essential piece in the puzzle of neural networks. For those stepping into the vast world of deep learning, understanding this key concept of linear algebra is a game-changer.
 
@@ -54,6 +61,8 @@ Through demystifying matrix multiplication, I've laid the foundation for a deepe
    - The finale involves unveiling `C`'s essence, showcasing the transformative power of matrix multiplication on the initial matrices.
 
 By dissecting this example, I aim to illuminate the path of matrix multiplication, highlighting its critical role in both linear algebra and the deeper realms of deep learning. With NumPy's elegant syntax and potent functionality, embarking on complex mathematical adventures becomes not just feasible, but exhilarating, paving the way for advancements in deep learning.
+
+### Interactive Code Environment
 
 <MatrixMultiplication client:load />
 <PythonModule client:load filePath="examples/basics/matrix_multiplication.py" />
