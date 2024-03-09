@@ -114,7 +114,7 @@ const SingleNeuron = () => {
 
   return (
     
-    <div id="interactiveInputs" className="hidden grid grid-rows-[2fr_1fr] grid-cols-[2fr_3fr] gap-2 sm:gap-4 mb-4 pt-4 pr-2 sm:pr-0 pl-2 sm:pl-4 pb-4 rounded-md bg-[#e9e9e9] dark:bg-[#292929] text-[#d0d0d0] dark:text-[#f5f2f0]" >
+    <div id="interactiveInputs" className="hidden grid grid-rows-[2fr_1fr] grid-cols-[2fr_3fr] gap-2 sm:gap-4 mb-4 pt-4 pr-2 sm:pr-0 pl-2 sm:pl-12 lg:pl-28 pb-4 rounded-md bg-[#e9e9e9] dark:bg-[#292929] text-[#d0d0d0] dark:text-[#f5f2f0]" >
     
       <div className="bg-transparent"></div> 
       <div className="flex flex-col items-center justify-center px-4">
@@ -138,7 +138,7 @@ const SingleNeuron = () => {
         />
       </div>
 
-      <div className="flex flex-row items-center justify-center gap-4 px-4">
+      <div className="flex flex-row items-center justify-center gap-4 px-4 pt-8 xs:pt-0">
         <div className="flex flex-col items-center justify-center">
           <span className="text-lg font-bold text-black dark:text-white text-center">Z</span>
           <MatrixInput
