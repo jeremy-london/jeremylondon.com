@@ -1,7 +1,7 @@
 import Button from '@components/ui/button.astro';
 import { useState, useEffect } from 'react';
 
-const PythonModule = ({children, filePath}) => {
+const PythonModule = ({children, filePath, outputRows = 10}) => {
   useEffect(() => {
     initPyodide();
   }, []);
@@ -128,7 +128,7 @@ const PythonModule = ({children, filePath}) => {
 
         <div id="outputDisplay" className="bg-[#e9e9e9] dark:bg-[#333333] text-black dark:text-white p-4 rounded-md hidden">
           <div className="text-black dark:text-white">Output:</div>
-          <textarea id="output" className="full-height w-full resize-none bg-[#e9e9e9] dark:bg-[#333333] text-black dark:text-white p-2" rows="10"></textarea>
+          <textarea id="output" className="h-fit w-full resize-none bg-[#e9e9e9] dark:bg-[#333333] text-black dark:text-white p-2" rows={outputRows}></textarea>
         </div>
       </div>
     </div>
