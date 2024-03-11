@@ -1,38 +1,32 @@
-import Button from '@components/ui/button.astro';
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { PrismAsyncLight as SyntaxHighlighter } from 'react-syntax-highlighter';
+import oneLight from '../../styles/prism-one-light'
+import oneDark from '../../styles/prism-one-dark'
+import CodeBlock from './CodeBlock';
 
 const PythonModule = ({children, filePath, outputRows = 10}) => {
+  const [pythonCode, setPythonCode] = useState('');
+  
   useEffect(() => {
     initPyodide();
   }, []);
 
   const initPyodide = async () => {
     window.pyodide = await loadPyodide();
-    const pythonCode = await loadPythonExample()
-    await executePython()
+    const code = await loadPythonExample()
+    await executePython(code)
   };
 
   const loadPythonExample = async () => {
     const rawFileUrl = `https://raw.githubusercontent.com/jeremy-london/solve-by-hand/main/${filePath}`;
     const response = await fetch(rawFileUrl)
     const pythonCode = await response.text();
-    displayPythonCode(pythonCode);
+    setPythonCode(pythonCode);
+    displayPythonCode();
     return pythonCode;
   };
 
-  const displayPythonCode = (code) => {
-    const codeElement = document.createElement('code');
-    // codeElement.className = 'language-python';
-    codeElement.textContent = code; // Set the text content to the Python code
-    
-    const preElement = document.createElement('pre');
-    preElement.className = "bg-[#e9e9e9] dark:bg-[#333333] text-black dark:text-white rounded-md"
-    preElement.appendChild(codeElement);
-    
-    const codeDisplay = document.getElementById('codeDisplay');
-    codeDisplay.innerHTML = ''; // Clear existing content
-    codeDisplay.appendChild(preElement);
-    
+  const displayPythonCode = () => {
     const loadingDisplay = document.getElementById('loadingDisplay');
     const outputDisplay = document.getElementById('outputDisplay');
     const executeButton = document.getElementById('executeButton');
@@ -43,12 +37,16 @@ const PythonModule = ({children, filePath, outputRows = 10}) => {
     codeDisplay.classList.remove('hidden');
     outputDisplay.classList.remove('hidden');
     loadingDisplay.classList.add('hidden');
-    
   };
 
-  const executePython = async () => {
-    const codeElement = document.querySelector('#codeDisplay pre code');
-    const code = codeElement.textContent;
+  const executePython = async (code) => {
+    let innerCode = code;
+    if (!innerCode) {
+      console.log("🚀 ~ executePython ~ !innerCode:", innerCode)
+      const codeElement = document.querySelector('#codeDisplay pre code');
+      innerCode = codeElement.textContent;
+    }
+    console.log("🚀 ~ executePython ~ innerCode:", innerCode)
     const outputElement = document.getElementById('output');
 
     // clear the output
@@ -67,8 +65,9 @@ const PythonModule = ({children, filePath, outputRows = 10}) => {
         sys.stdout = stdout
       `);
       // Execute the Python code.
-      await window.pyodide.loadPackagesFromImports(code);
-      await window.pyodide.runPythonAsync(code);
+      await window.pyodide.loadPackagesFromImports(innerCode);
+      await window.pyodide.runPythonAsync(innerCode);
+      
       // Retrieve and display the captured output.
       const capturedOutput = pyodide.runPython('stdout.getvalue()');
       outputElement.value += ">>>\n" + capturedOutput + "\n";
@@ -120,10 +119,9 @@ const PythonModule = ({children, filePath, outputRows = 10}) => {
 
         <button id="executeButton" onClick={() => executePython()} className="hidden w-full bg-black py-1 text-white hover:bg-gray-700  border-2 border-transparent dark:bg-white dark:text-black dark:hover:bg-gray-300 rounded-md mb-4">Execute Python Code</button>
         
-        <div id="codeDisplay" className="bg-[#e9e9e9] dark:bg-[#333333] rounded-md mb-4 hidden">
-          <pre className="bg-[#e9e9e9]">
-            <code style={{ float: 'left' }}></code>
-          </pre>
+        <div id="codeDisplay" className="rounded-md mb-4 hidden">
+
+          <CodeBlock code={pythonCode} />
         </div>
 
         <div id="outputDisplay" className="bg-[#e9e9e9] dark:bg-[#333333] text-black dark:text-white p-4 rounded-md hidden">

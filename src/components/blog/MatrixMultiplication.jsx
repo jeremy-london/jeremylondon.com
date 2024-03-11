@@ -1,9 +1,30 @@
 
-import{ useState, useEffect } from 'react';
-import MatrixInput from './MatrixInput';
+import{ useState, useRef, useEffect } from 'react';
+import * as ReactDOM from 'react-dom/client';
+import MatrixInput from '@components/blog/MatrixInput';
+import CodeBlock from '@components/blog/CodeBlock';
 
 
 const MatrixMultiplication = () => {
+  const codeDisplayRootRef = useRef(null);
+  
+  useEffect(() => {
+    // Cleanup function to reset the ref
+    return () => {
+      codeDisplayRootRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    // Ensure re-initialization runs every time the component is rendered
+    if (!codeDisplayRootRef.current) {
+      const container = document.getElementById('codeDisplay');
+      if (container) {
+        codeDisplayRootRef.current = ReactDOM.createRoot(container);
+      }
+    }
+  });
+
   const [matrixA, setMatrixA] = useState([
     [1, 1],
     [-1, 1]
@@ -40,8 +61,13 @@ const MatrixMultiplication = () => {
         `A = ${matrixAString}`
       );
 
-      // Set the updated code to the code element
-      codeElement.textContent = updatedCode;
+      // Render the updated code using the stored root
+      if (codeDisplayRootRef.current) {
+        const syntaxHighlighterElement = (
+          <CodeBlock code={updatedCode} />
+        );
+        codeDisplayRootRef.current.render(syntaxHighlighterElement);
+      } 
     }
   };
 
@@ -65,9 +91,15 @@ const MatrixMultiplication = () => {
         /B = np.array\(\[\[.*?\]\]\)/gs,
         `B = ${matrixBString}`
       );
+      console.log("🚀 ~ handleMatrixBChange ~ updatedCode:", updatedCode)
   
-      // Set the updated code to the code element
-      codeElement.textContent = updatedCode;
+      // Render the updated code using the stored root
+      const syntaxHighlighterElement = (
+        <CodeBlock code={updatedCode} />
+      );
+      codeDisplayRootRef.current.render(syntaxHighlighterElement);
+      // if (codeDisplayRootRef.current) {
+      // } 
     }
   };
 
