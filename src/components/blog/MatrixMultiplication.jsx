@@ -91,7 +91,6 @@ const MatrixMultiplication = () => {
         /B = np.array\(\[\[.*?\]\]\)/gs,
         `B = ${matrixBString}`
       );
-      console.log("🚀 ~ handleMatrixBChange ~ updatedCode:", updatedCode)
   
       // Render the updated code using the stored root
       const syntaxHighlighterElement = (
