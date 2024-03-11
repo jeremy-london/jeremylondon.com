@@ -1,9 +1,29 @@
 
-import{ useState, useEffect } from 'react';
-import MatrixInput from './MatrixInput';
-
+import { useState, useRef, useEffect } from 'react';
+import * as ReactDOM from 'react-dom/client';
+import MatrixInput from '@components/blog/MatrixInput';
+import CodeBlock from '@components/blog/CodeBlock';
 
 const SingleNeuron = () => {
+  const codeDisplayRootRef = useRef(null);
+  
+  useEffect(() => {
+    // Cleanup function to reset the ref
+    return () => {
+      codeDisplayRootRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    // Ensure re-initialization runs every time the component is rendered
+    if (!codeDisplayRootRef.current) {
+      const container = document.getElementById('codeDisplay');
+      if (container) {
+        codeDisplayRootRef.current = ReactDOM.createRoot(container);
+      }
+    }
+  });
+
   const [matrixWB, setMatrixWB] = useState([
     [1, -1, 1, -5],
   ]);
@@ -28,7 +48,7 @@ const SingleNeuron = () => {
       const matrixString = event.detail;
 
       // Extract values from the string
-      const { matrixZValue, matrixAValue } = extractReLUValues(event.detail);
+      const { matrixZValue, matrixAValue } = extractReLUValues(matrixString);
       
       // Update your states accordingly
       if (matrixZValue !== null) setMatrixZ([[matrixZValue]]);
@@ -82,8 +102,15 @@ const SingleNeuron = () => {
       );
   
       // Set the updated code to the code element
-      codeElement.textContent = updatedCode;
-      console.log("🚀 ~ handleMatrixWBChange ~ updatedCode:", updatedCode);
+      // codeElement.textContent = updatedCode;
+
+      // Render the updated code using the stored root
+      if (codeDisplayRootRef.current) {
+        const syntaxHighlighterElement = (
+          <CodeBlock code={updatedCode} />
+        );
+        codeDisplayRootRef.current.render(syntaxHighlighterElement);
+      } 
     }
   };
 
@@ -107,8 +134,13 @@ const SingleNeuron = () => {
         `inputs = ${inputsString}`
       );
 
-      // Set the updated code to the code element
-      codeElement.textContent = updatedCode;
+      // Render the updated code using the stored root
+      if (codeDisplayRootRef.current) {
+        const syntaxHighlighterElement = (
+          <CodeBlock code={updatedCode} />
+        );
+        codeDisplayRootRef.current.render(syntaxHighlighterElement);
+      } 
     }
   };
 
