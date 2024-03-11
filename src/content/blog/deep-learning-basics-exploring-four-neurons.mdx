@@ -1,0 +1,58 @@
+---
+title: "From Simple to Complex: Unraveling Four-Neuron Networks"
+excerpt: "Elevate your neural network knowledge by transitioning from the simplicity of a single neuron to the intricate dynamics of a four-neuron layer, complete with ReLU activation insights."
+publishDate: "2024-03-14T12:00:00Z"
+image: "/images/four_neuron_cover.png"
+category: "deep-learning-basics"
+draft: false
+author: "jeremy-london"
+tags: [neural networks, ReLU, deep learning, four-neuron network]
+load_pyodide: true
+---
+
+import PythonModule from "@components/blog/PythonModule.jsx";
+import FourNeuron from "@components/blog/FourNeuron.jsx";
+
+<h2>
+  <a href="#interactive-code-environment" class="m-0 text-blue-100 dark:text-orange-400 no-underline bg-gradient-to-r from-blue-200 to-blue-100 dark:from-orange-800 dark:to-orange-900 bg-[length:0px_10px] bg-left-bottom bg-no-repeat transition-[background-size] duration-500 hover:bg-[length:100%_3px] group-hover:bg-[length:100%_10px]">
+    <span>Scroll down for Interactive Code Environment 👇</span>
+  </a>
+</h2>
+
+After dissecting the workings of a single neuron, it's time to scale up our exploration to a network layer composed of four neurons. This advancement allows us to delve into the dynamics of multiple neurons working together, a fundamental step towards understanding complex neural networks. 
+
+## Expanding to Four Neurons
+
+The leap from a single neuron to a layer of four neurons offers a window into the interplay of multiple processing units within a neural network. This section will navigate through the intricacies of managing a four-neuron layer, emphasizing the significance of matrix operations and ReLU activation in shaping neural network behavior.
+
+### Walking Through the Code
+
+In this segment, I'll guide you through a Python script designed to simulate a four-neuron network layer. This script will illustrate how inputs are processed collectively, highlighting the enhanced computational power and complexity.
+
+1. **NumPy for Matrix Operations:**
+   - Our journey continues with NumPy, a critical tool for handling matrix operations with ease. Matrix operations form the backbone of neural network computations, especially when dealing with multiple neurons.
+
+2. **The Power of Matrix Multiplication:**
+   - I'll demonstrate how to apply matrix multiplication to calculate the outputs of a four-neuron layer. This involves multiplying the input vector by the weight matrix for the layer and then adding the bias vector, encapsulating each neuron's weights and biases.
+
+3. **Applying ReLU to the Layer:**
+   - Following the linear calculations, we apply the ReLU activation function across the output vector of the layer. This step is pivotal in introducing non-linearity, enabling the network to capture complex patterns and relationships in the data.
+
+4. **Visualizing the Interactions:**
+   - By breaking down these operations, I aim to provide a clear visualization of how individual neurons within a layer interact and contribute to the network's overall function.
+
+5. **Running the Simulation:**
+   - With the setup ready, I run the simulation, showcasing the output of our four-neuron layer post-ReLU activation. This hands-on example solidifies the theoretical concepts discussed, offering practical insights into neural network operations.
+
+### Interactive Code Environment
+
+<FourNeuron client:only />
+<PythonModule client:only filePath="examples/basics/four_neurons_relu.py" outputRows={13}/>
+
+### Original Inspiration
+My journey into the depths of neural networks continues to be inspired by the hands-on exercises created by [Dr. Tom Yeh](http://tomyeh.info). His dedication to practical learning has profoundly influenced my approach, motivating me to explore and share these foundational concepts.
+
+### Conclusion
+Exploring a four-neuron network layer has broadened our understanding of neural networks, emphasizing the critical role of matrix operations and ReLU activation in modeling complex data relationships. As we progress, we'll delve deeper into network architectures, unraveling the mysteries of deep learning layer by layer. Stay tuned for more interactive explorations and discussions on upcoming posts.
+
+LinkedIn Post: [Exploring Neural Network Layers: Four Neurons
