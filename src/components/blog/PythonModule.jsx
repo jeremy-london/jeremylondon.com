@@ -42,11 +42,9 @@ const PythonModule = ({children, filePath, outputRows = 10}) => {
   const executePython = async (code) => {
     let innerCode = code;
     if (!innerCode) {
-      console.log("🚀 ~ executePython ~ !innerCode:", innerCode)
       const codeElement = document.querySelector('#codeDisplay pre code');
       innerCode = codeElement.textContent;
     }
-    console.log("🚀 ~ executePython ~ innerCode:", innerCode)
     const outputElement = document.getElementById('output');
 
     // clear the output
