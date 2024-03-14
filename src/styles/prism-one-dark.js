@@ -25,6 +25,7 @@ export default {
     textShadow: "0 1px rgba(0, 0, 0, 0.3)",
     fontFamily:
       '"Fira Code", "Fira Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace',
+    fontSize: "16px",
     direction: "ltr",
     textAlign: "left",
     whiteSpace: "pre",
@@ -41,6 +42,7 @@ export default {
     padding: "1em",
     margin: "0.5em 0",
     overflow: "auto",
+    maxHeight: "450px",
     borderRadius: "0.3em",
   },
   'code[class*="language-"]::-moz-selection': {
