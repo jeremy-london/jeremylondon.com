@@ -1,8 +1,9 @@
-import { Fragment, useState, useEffect } from 'react';
+import { Fragment, useState, useRef, useEffect } from 'react';
 
 const MatrixInput = ({ columns, idPrefix, defaultValues, onMatrixChange, disabled }) => {
   const [values, setValues] = useState(defaultValues);
-  
+  const inputsRef = useRef([]);
+
   useEffect(() => {
     setValues(defaultValues);
   }, [defaultValues]);
@@ -14,13 +15,26 @@ const MatrixInput = ({ columns, idPrefix, defaultValues, onMatrixChange, disable
   };
 
   const handleKeyDown = (row, column, event) => {
+    const index = row * columns + column;
     if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
-      // Prevent the default input behavior
       event.preventDefault();
       const currentValue = values[row][column] || 0;
       const increment = event.key === 'ArrowUp' ? 1 : -1;
       const newValue = currentValue + increment;
       updateValue(row, column, newValue);
+      
+    } else if (event.key === 'ArrowLeft') {
+      event.preventDefault();
+      // Move focus to the previous input if not the first input
+      if (index > 0) {
+        inputsRef.current[index - 1].focus();
+      }
+    } else if (event.key === 'ArrowRight') {
+      event.preventDefault();
+      // Move focus to the next input if not the last input
+      if (index < values.flat().length - 1) {
+        inputsRef.current[index + 1].focus();
+      }
     }
   };
 
@@ -30,6 +44,14 @@ const MatrixInput = ({ columns, idPrefix, defaultValues, onMatrixChange, disable
     newValues[row][column] = newValue;
     setValues(newValues);
     onMatrixChange(newValues);
+    // Call window.executePython after the value update
+    window.executePython && window.executePython();
+  };
+
+  // Assign refs and set input properties
+  const assignRef = (element, rowIndex, columnIndex) => {
+    const index = rowIndex * columns + columnIndex;
+    inputsRef.current[index] = element;
   };
 
   return (
@@ -42,6 +64,7 @@ const MatrixInput = ({ columns, idPrefix, defaultValues, onMatrixChange, disable
         {rowValues.map((value, columnIndex) => (
           <input
             key={`${idPrefix}-${rowIndex}-${columnIndex}`}
+            ref={(element) => assignRef(element, rowIndex, columnIndex)}
             type="text" // Use "text" for more control
             inputMode="numeric" // Ensures numeric keyboard on mobile devices
             pattern="[0-9]*" // Allows only numbers, but doesn't strictly enforce it

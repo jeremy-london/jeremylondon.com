@@ -29,11 +29,11 @@ const PythonModule = ({children, filePath, outputRows = 10}) => {
   const displayPythonCode = () => {
     const loadingDisplay = document.getElementById('loadingDisplay');
     const outputDisplay = document.getElementById('outputDisplay');
-    const executeButton = document.getElementById('executeButton');
+    // const executeButton = document.getElementById('executeButton');
     const interactiveInputs = document.getElementById('interactiveInputs');
 
     interactiveInputs.classList.remove('hidden');
-    executeButton.classList.remove('hidden');
+    // executeButton.classList.remove('hidden');
     codeDisplay.classList.remove('hidden');
     outputDisplay.classList.remove('hidden');
     loadingDisplay.classList.add('hidden');
@@ -99,6 +99,9 @@ const PythonModule = ({children, filePath, outputRows = 10}) => {
     }
   };
 
+  // Attach executePython to the window object
+  window.executePython = executePython;
+
   return (
     <div className="flex">
 
@@ -115,7 +118,7 @@ const PythonModule = ({children, filePath, outputRows = 10}) => {
           </div>
         </div>
 
-        <button id="executeButton" onClick={() => executePython()} className="hidden w-full bg-black py-1 text-white hover:bg-gray-700  border-2 border-transparent dark:bg-white dark:text-black dark:hover:bg-gray-300 rounded-md mb-4">Execute Python Code</button>
+        {/* <button id="executeButton" onClick={() => executePython()} className="hidden w-full bg-black py-1 text-white hover:bg-gray-700  border-2 border-transparent dark:bg-white dark:text-black dark:hover:bg-gray-300 rounded-md mb-4">Execute Python Code</button> */}
         
         <div id="codeDisplay" className="rounded-md mb-4 hidden">
 
