@@ -23,6 +23,7 @@ export default {
     color: "hsl(230, 8%, 24%)",
     fontFamily:
       '"Fira Code", "Fira Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace',
+    fontSize: "16px",
     direction: "ltr",
     textAlign: "left",
     whiteSpace: "pre",
@@ -40,6 +41,7 @@ export default {
     margin: "0.5em 0",
     overflow: "auto",
     borderRadius: "0.3em",
+    maxHeight: "450px",
   },
   'code[class*="language-"]::-moz-selection': {
     background: "hsl(230, 1%, 90%)",
