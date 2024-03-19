@@ -1,6 +1,6 @@
 import { Fragment, useState, useRef, useEffect } from 'react';
 
-const MatrixInput = ({ columns, idPrefix, defaultValues, onMatrixChange, disabled }) => {
+const MatrixInput = ({ columns, idPrefix, defaultValues, onMatrixChange, disabled, width = "w-auto" }) => {
   const [values, setValues] = useState(defaultValues);
   const inputsRef = useRef([]);
 
@@ -56,7 +56,7 @@ const MatrixInput = ({ columns, idPrefix, defaultValues, onMatrixChange, disable
 
   return (
     <div
-      className={`grid grid-cols-${columns} gap-2`}
+      className={`grid grid-cols-${columns} gap-2 ${width}`}
       style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
     >
       {values.map((rowValues, rowIndex) => (
