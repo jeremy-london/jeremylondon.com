@@ -1,0 +1,81 @@
+---
+title: "Understanding Hidden Layers"
+excerpt: "Dive deeper into neural network architecture by adding and understanding the computations involved in a hidden layer, laying the groundwork for more complex networks."
+publishDate: "2024-03-21T14:00:00Z"
+image: "/images/hidden_layer_cover.png"
+category: "deep-learning-basics"
+draft: true
+author: "jeremy-london"
+tags: [hidden layers, ReLU, neural networks, deep learning]
+load_pyodide: true
+---
+
+import PythonModule from "@components/blog/PythonModule.jsx";
+import HiddenLayers from "@components/blog/HiddenLayers.jsx";
+
+<h2>
+  <a href="#interactive-code-environment" class="m-0 text-blue-100 dark:text-orange-400 no-underline bg-gradient-to-r from-blue-200 to-blue-100 dark:from-orange-800 dark:to-orange-900 bg-[length:0px_10px] bg-left-bottom bg-no-repeat transition-[background-size] duration-500 hover:bg-[length:100%_3px] group-hover:bg-[length:100%_10px]">
+    <span>Scroll down for Interactive Code Environment 👇</span>
+  </a>
+</h2>
+
+In the fourth chapter of our Deep Learning Foundations series, I'm thrilled to introduce the concept of hidden layers. These layers are the backbone of a neural network's ability to learn complex patterns. By weaving a hidden layer into our network, we illuminate the computations that power these sophisticated architectures, showcasing how they enhance the network's predictive prowess. Lets dive into the architectural nuances that make neural networks such potent learning machines. Building on the foundational knowledge from previous posts, I aim to enrich your understanding of neural network design and functionality.
+
+## Deep Dive into Hidden Layers
+
+The exploration of hidden layers marks a significant chapter in our understanding of neural networks. Unlike the visible input and output layers, hidden layers work behind the scenes to transform data in complex ways, enabling networks to capture and model intricate patterns. Let’s unpack the concept and computational dynamics of hidden layers, and how they empower neural networks to solve advanced problems.
+
+1. **Unveiling Hidden Layers:** At their core, hidden layers are what differentiate a superficial model from one capable of deep learning. These layers allow the network to learn features at various levels of abstraction, making them indispensable for complex problem-solving. By introducing hidden layers, we significantly boost the network’s capability to interpret data beyond what is immediately observable, facilitating a gradual, layer-by-layer transformation towards the desired output.
+   
+2. **Navigating Through Computations:** The journey from input through hidden layers to output involves a series of calculated steps. Each neuron in a hidden layer applies a weighted sum of its inputs, adds a bias, and then passes this value through an activation function like ReLU. This process not only introduces non-linearity but also allows the network to learn and adapt from data in a multi-dimensional space. Our focus will be on understanding how data is transformed as it propagates through these layers, and how activation functions play a pivotal role in shaping the network's learning behavior.
+   
+3. **Exploring the Weights and Nodes Dynamics:** The relationship between weights and nodes is fundamental to how information is processed and learned within the network. Weights determine the strength of the connection between nodes in different layers, influencing how much of the signal is passed through. Adjusting these weights is how neural networks learn from data over time. In this section, we’ll delve into the mechanics of weight adjustment and its impact on the network's accuracy and learning efficiency.
+
+For those eager to see these concepts in action, our interactive code example offers a hands-on experience with the mechanics of embedding a hidden layer within a neural network. Through this practical demonstration, you'll gain insight into the nuances of network operation and the transformative power of hidden layers.
+
+### Walking Through the Code
+
+In this segment, I'm excited to dissect a Python script that simulates a neural network with a hidden layer, emphasizing the function and impact of ReLU activation. This walkthrough is designed to shed light on the critical elements that allow a neural network to process and learn from data effectively.
+
+1. **Initiating with NumPy:**
+   - Our journey starts with importing `numpy` as `np`, a fundamental library for numerical computation in Python. This tool is crucial for managing array operations efficiently, a common task in deep learning algorithms.
+
+2. **Activating with ReLU:**
+   - I define the `relu(x)` function to apply the ReLU (Rectified Linear Unit) activation, a simple but profound mechanism that introduces non-linearity by converting negative values to zero. This step is essential for enabling the network to capture complex patterns.
+
+3. **Constructing the Two-Layer Network:**
+   - At the core of our exploration, the `two_layer_network` function orchestrates the interaction between the input, hidden layer, and output. This function illustrates how data flows through the network, undergoing transformation and activation.
+
+    - **First Layer Transformation:** The script begins by transforming the input vector `x` using the first layer's weights `W1` and biases `b1`. The dot product of `W1` and `x` plus `b1` yields the pre-activation values for the hidden layer, which are then passed through the ReLU function to achieve activation.
+
+    - **Second Layer Transformation:** The activated hidden layer output `h` is subsequently processed by the second layer's weights `W2` and biases `b2`. Similar to the first layer, we calculate the dot product of `W2` and `h` plus `b2`, followed by ReLU activation to obtain the final output `y`.
+
+4. **Examining Network Parameters:**
+   - An integral part of understanding a neural network's complexity and capacity is analyzing its parameters. The script calculates the total number of parameters by considering the weights and biases across both layers.
+
+5. **Executing and Interpreting Results:**
+   - With the network fully defined, executing the `two_layer_network` function simulates the processing of input through the hidden to the output layer. The outcomes, both before and after ReLU activation, are printed, offering insights into the network's operational dynamics.
+
+6. **Visualizing the Process:**
+   - By meticulously detailing each computational step and visualizing the data flow, this walkthrough aims to clarify how hidden layers contribute to a neural network's ability to learn. It highlights the transformational journey of input data as it moves through the network, emerging as a learned output.
+
+### Theoretical Insights and Practical Application
+
+This detailed code walkthrough bridges the gap between theoretical neural network concepts and their practical implementation. By dissecting the network layer by layer and focusing on the ReLU activation function, we gain a deeper appreciation for the intricacies of neural computations. It's a step toward demystifying the complex operations that enable neural networks to perform tasks ranging from simple classifications to understanding the nuances of human language and beyond.
+
+### Interactive Code Environment
+
+<HiddenLayers client:only />
+<PythonModule client:only filePath="examples/basics/hidden_layer_relu.py" outputRows={13}/>
+
+### Original Inspiration
+
+This journey was sparked by the insightful exercises created by [Dr. Tom Yeh](http://tomyeh.info) for his graduate courses at the University of Colorado Boulder. He's a big advocate for hands-on learning, and so am I. After realizing the scarcity of practical exercises in deep learning, he took it upon himself to develop a set that covers everything from basic concepts like the one discussed today to more advanced topics. His dedication to hands-on learning has been a huge inspiration to me.
+
+### Conclusion
+
+Understanding how a single neuron works lays the foundation for everything else in neural networks. Today, we've covered the ReLU function's role in transforming a neuron's output. In my next post, I'll be taking this foundation and building on it, moving from single neurons to how they connect and interact in larger networks. Plus, I've include a link to a LinkedIn post where we can dive into discussions and share thoughts.
+
+- Last Post: [Unraveling Four-Neuron Networks](/blog/deep-learning-basics-exploring-four-neurons)
+
+{/* LinkedIn Post: [Coding by Hand: Understanding Hidden Layers](https://www.linkedin.com/posts/jeremyclondon) */}
