@@ -111,6 +111,8 @@ const SingleNeuron = () => {
         );
         codeDisplayRootRef.current.render(syntaxHighlighterElement);
       } 
+
+      window.executePython && window.executePython(updatedCode);
     }
   };
 
@@ -141,6 +143,8 @@ const SingleNeuron = () => {
         );
         codeDisplayRootRef.current.render(syntaxHighlighterElement);
       } 
+
+      window.executePython && window.executePython(updatedCode);
     }
   };
 
