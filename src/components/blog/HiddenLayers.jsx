@@ -162,6 +162,8 @@ const HiddenLayers = () => {
         );
         codeDisplayRootRef.current.render(syntaxHighlighterElement);
       }
+
+      window.executePython && window.executePython(updatedCode);
     }
   };
   
@@ -212,6 +214,8 @@ const HiddenLayers = () => {
         );
         codeDisplayRootRef.current.render(syntaxHighlighterElement);
       }
+
+      window.executePython && window.executePython(updatedCode);
     }
   };
 
@@ -242,6 +246,8 @@ const HiddenLayers = () => {
         );
         codeDisplayRootRef.current.render(syntaxHighlighterElement);
       } 
+
+      window.executePython && window.executePython(updatedCode);
     }
   };
 
