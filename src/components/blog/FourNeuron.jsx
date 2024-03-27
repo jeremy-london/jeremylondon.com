@@ -145,6 +145,7 @@ const FourNeuron = () => {
         );
         codeDisplayRootRef.current.render(syntaxHighlighterElement);
       } 
+      window.executePython && window.executePython(updatedCode);
     }
   };
 
@@ -175,6 +176,7 @@ const FourNeuron = () => {
         );
         codeDisplayRootRef.current.render(syntaxHighlighterElement);
       } 
+      window.executePython && window.executePython(updatedCode);
     }
   };
 

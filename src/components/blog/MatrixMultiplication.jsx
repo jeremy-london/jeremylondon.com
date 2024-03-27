@@ -7,7 +7,21 @@ import CodeBlock from '@components/blog/CodeBlock';
 
 const MatrixMultiplication = () => {
   const codeDisplayRootRef = useRef(null);
-  
+  const [matrixA, setMatrixA] = useState([
+    [1, 1],
+    [-1, 1]
+  ]);
+
+  const [matrixB, setMatrixB] = useState([
+    [1, 5, 2],
+    [2, 4, 2]
+  ]);
+
+  const [matrixC, setMatrixC] = useState([
+    [0, 0, 0],
+    [0, 0, 0]
+  ]);
+
   useEffect(() => {
     // Cleanup function to reset the ref
     return () => {
@@ -24,21 +38,6 @@ const MatrixMultiplication = () => {
       }
     }
   });
-
-  const [matrixA, setMatrixA] = useState([
-    [1, 1],
-    [-1, 1]
-  ]);
-
-  const [matrixB, setMatrixB] = useState([
-    [1, 5, 2],
-    [2, 4, 2]
-  ]);
-
-  const [matrixC, setMatrixC] = useState([
-    [0, 0, 0],
-    [0, 0, 0]
-  ]);
 
   // Function to handle changes in Matrix A
   const handleMatrixAChange = (newMatrixA) => {
@@ -61,13 +60,16 @@ const MatrixMultiplication = () => {
         `A = ${matrixAString}`
       );
 
+      
+      
       // Render the updated code using the stored root
       if (codeDisplayRootRef.current) {
         const syntaxHighlighterElement = (
           <CodeBlock code={updatedCode} />
-        );
-        codeDisplayRootRef.current.render(syntaxHighlighterElement);
-      } 
+          );
+          codeDisplayRootRef.current.render(syntaxHighlighterElement);
+        } 
+      window.executePython && window.executePython(updatedCode);
     }
   };
 
@@ -93,12 +95,13 @@ const MatrixMultiplication = () => {
       );
   
       // Render the updated code using the stored root
-      const syntaxHighlighterElement = (
-        <CodeBlock code={updatedCode} />
-      );
-      codeDisplayRootRef.current.render(syntaxHighlighterElement);
-      // if (codeDisplayRootRef.current) {
-      // } 
+      if (codeDisplayRootRef.current) {
+        const syntaxHighlighterElement = (
+          <CodeBlock code={updatedCode} />
+        );
+        codeDisplayRootRef.current.render(syntaxHighlighterElement);
+      } 
+      window.executePython && window.executePython(updatedCode);
     }
   };
 
