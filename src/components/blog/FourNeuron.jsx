@@ -180,7 +180,7 @@ const FourNeuron = () => {
 
   return (
     
-    <div id="interactiveInputs" className="grid grid-rows-[1fr_1fr] grid-cols-[2fr_1fr_1fr] place-items-center gap-2 sm:gap-4 md:gap-6 lg:gap-8 mb-4 p-1 sm:p-2 rounded-md bg-[#e9e9e9] dark:bg-[#292929] text-[#d0d0d0] dark:text-[#f5f2f0]" >
+    <div id="interactiveInputs" className="hidden grid grid-rows-[1fr_1fr] grid-cols-[2fr_1fr_1fr] place-items-center gap-2 sm:gap-4 md:gap-6 lg:gap-8 mb-4 p-1 sm:p-2 rounded-md bg-[#e9e9e9] dark:bg-[#292929] text-[#d0d0d0] dark:text-[#f5f2f0]" >
     
       <div className="bg-transparent"></div> 
       <div className="text-center">
