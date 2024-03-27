@@ -1,0 +1,77 @@
+---
+title: "Batch Processing Three Inputs"
+excerpt: "Learn how neural networks handle batches of inputs, using three different input vectors to demonstrate the application of weights across a batch for efficient computation."
+publishDate: "2024-03-28T15:00:00Z"
+image: "/images/three_batch_cover.png"
+category: "deep-learning-basics"
+draft: true
+author: "jeremy-london"
+tags: [batch processing, neural networks, deep learning]
+load_pyodide: true
+---
+
+import PythonModule from "@components/blog/PythonModule.jsx";
+import BatchProcessing from "@components/blog/BatchProcessing.jsx";
+
+<h2>
+  <a href="#interactive-code-environment" class="m-0 text-blue-100 dark:text-orange-400 no-underline bg-gradient-to-r from-blue-200 to-blue-100 dark:from-orange-800 dark:to-orange-900 bg-[length:0px_10px] bg-left-bottom bg-no-repeat transition-[background-size] duration-500 hover:bg-[length:100%_3px] group-hover:bg-[length:100%_10px]">
+    <span>Scroll down for Interactive Code Environment 👇</span>
+  </a>
+</h2>
+
+Stepping into the next part of my Deep Learning Foundations Series, the spotlight turns to batch processing. This technique transforms neural network efficiency by processing multiple inputs together, sharpening the system's ability to generalize from training data. With three distinct input vectors guiding us, let's explore the underlying mechanisms of weight application in batch processing, illuminating neural computation's path to efficiency.
+
+## Exploring Batch Processing
+
+1. **Simultaneous Input Processing:** This method allows for the simultaneous handling of multiple inputs, improving computational speed. It enables more effective management of large data sets, foundational in current AI training techniques.
+
+2. **The Dynamics of Dot Product Calculations:** The efficiency of neural networks benefits significantly from the dot product operation, where weight matrices interact with input vector batches. This operation is crucial for parallel input computation.
+
+3. **Uniform Weight Application Across Batches:** One of the fascinating aspects of batch processing is how a single set of weights is applied consistently across all inputs in a batch. This uniformity ensures that the network learns cohesively from different data points, showcasing the elegance of neural computation.
+
+### Walking Through the Code:
+
+This section aims to connect theoretical understanding with tangible application through a Python script example in a two-layer neural network.
+
+#### Setting the Stage with Initial Parameters:
+
+Our journey begins with the definition of the network's architecture. We're working with a two-layer neural network, characterized by its weight matrices W1 and W2, and bias vectors b1 and b2. The weights and biases are meticulously chosen to represent the connections and thresholds at each layer of the network, setting the foundation for our computation.
+
+#### Weights and Biases:
+- `W1` and `b1` govern the transformation from the input layer to the hidden layer, outlining how input signals are weighted and adjusted before activation.
+- `W2` and `b2` take charge from the hidden layer to the output layer, determining the final computation leading to the network's predictions.
+
+#### Processing the Input Batch:
+
+An essential feature of this example is the use of a batch of inputs, `x_batch`, consisting of three vectors. This batch processing approach underscores the network's capacity to handle multiple inputs in parallel, optimizing both time and computational resources.
+
+#### Hidden Layer Dynamics:
+
+1. **Pre-Activation Computation**: The first significant step involves calculating the dot product of `W1` with `x_batch`, followed by adding the bias `b1`. This results in `h_z`, the pre-activation output of the hidden layer, representing the raw computations awaiting non-linear transformation.
+
+2. **ReLU Activation**: We then apply the ReLU (Rectified Linear Unit) function to `h_z`, producing `h`, the activated output of the hidden layer. ReLU's role is pivotal, introducing non-linearity into the system by setting all negative values to zero, allowing the network to capture complex patterns beyond linear separability.
+
+#### Output Layer Revelation:
+
+1. **Output Calculation Before Activation**: Leveraging the activated hidden layer's output `h`, we perform another round of dot product and bias addition with `W2` and `b2`, yielding `y_z`. This represents the output layer's computation before the final activation step.
+
+2. **Final Activation with ReLU**: Applying ReLU once more to `y_z` gives us `y`, the final output of the network. This activated output is crucial for the network's decision-making process, influencing predictions and actions based on the learned patterns.
+
+The script concludes with a display of both the hidden and output layers' computations before and after ReLU activation. This visualization not only solidifies our understanding of the network's internal mechanics but also showcases the transformative power of batch processing and activation functions in shaping the neural computation landscape.
+
+### Interactive Code Environment
+
+<BatchProcessing client:only />
+<PythonModule client:only filePath="examples/basics/three_input_batch_relu.py" outputRows={18} />
+
+### Original Inspiration
+
+The spark for this exploration came from [Dr. Tom Yeh](http://tomyeh.info) and his educational creations for his courses at the University of Colorado Boulder. His commitment to hands-on learning ignited my interest. Faced with a lack of practical deep learning exercises, he crafted a comprehensive set, ranging from foundational to advanced topics. His enthusiasm for hands-on learning has greatly influenced my journey.
+
+### Conclusion
+
+Batch processing stands out as a key factor in the streamlined functioning of neural networks, facilitating swift, coherent learning from extensive datasets. This session's hands-on example has closed the gap between theoretical concepts and their application, showcasing the streamlined elegance of neural computation. Exciting insights await as we delve deeper into the expansive realm of neural networks and deep learning.
+
+- Last Post: [Unraveling Four-Neuron Networks](/blog/deep-learning-basics-exploring-four-neurons)
+
+{/* LinkedIn Post: [Coding by Hand: Understanding Hidden Layers](https://www.linkedin.com/posts/jeremyclondon) */}

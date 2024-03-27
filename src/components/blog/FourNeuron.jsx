@@ -182,53 +182,56 @@ const FourNeuron = () => {
 
   return (
     
-    <div id="interactiveInputs" className="hidden grid grid-rows-[1fr_1fr] grid-cols-[2fr_3fr] gap-1 sm:gap-4 mb-4 pt-4 pr-2 sm:pr-0 pl-2 sm:pl-12 lg:pl-28 pb-4 rounded-md bg-[#e9e9e9] dark:bg-[#292929] text-[#d0d0d0] dark:text-[#f5f2f0]" >
+    <div id="interactiveInputs" className="hidden grid grid-rows-[1fr_1fr] grid-cols-[2fr_1fr_1fr] place-items-center gap-2 sm:gap-4 md:gap-6 lg:gap-8 mb-4 p-1 sm:p-2 rounded-md bg-[#e9e9e9] dark:bg-[#292929] text-[#d0d0d0] dark:text-[#f5f2f0]" >
     
       <div className="bg-transparent"></div> 
-      <div className="flex flex-col items-center justify-center pl-6 sm:pl-4 pr-28 md:pr-52">
-        <span className="text-lg font-bold text-black dark:text-white text-center">Input</span>
+      <div className="text-center">
+        <span className="text-base sm:text-lg font-bold text-black dark:text-white">Input</span>
         <MatrixInput
           columns={1}
           idPrefix="x"
           defaultValues={matrixX}
           onMatrixChange={handleMatrixXChange}
+          width='w-full sm:w-auto'
         />
         <span className="p-2 text-black dark:text-white opacity-40">1</span>
       </div>
+      <div className="bg-transparent"></div> 
 
-      <div className="flex flex-col items-center justify-center">
-        <span className="text-lg font-bold text-black dark:text-white text-center">Weight and Bias</span>
+      <div className="text-center">
+        <span className="text-base sm:text-lg font-bold text-black dark:text-white">Weight and Bias</span>
         <MatrixInput
           columns={4}
           idPrefix="w"
           defaultValues={matrixWB}
           onMatrixChange={handleMatrixWBChange}
+          width='w-full sm:w-auto'
         />
       </div>
 
-      <div className="flex flex-row items-center justify-center gap-2 px-4 pt-8 xs:pt-0">
-        <div className="flex flex-col items-center justify-center">
-          <span className="text-lg font-bold text-black dark:text-white text-center">Z</span>
-          <MatrixInput
-            columns={1}
-            idPrefix="z"
-            defaultValues={matrixZ}
-            onMatrixChange={setMatrixZ}
-            disabled
-          />
-        </div>
-        <div className="flex flex-col items-center justify-center">
-          <span className="text-lg font-bold text-black dark:text-white text-center">A</span>
-          <MatrixInput
-            columns={1}
-            idPrefix="A"
-            defaultValues={matrixA}
-            onMatrixChange={setMatrixA}
-            disabled
-          />
-        </div>
-
+      <div className="text-center">
+        <span className="text-base sm:text-lg font-bold text-black dark:text-white">Z</span>
+        <MatrixInput
+          columns={1}
+          idPrefix="z"
+          defaultValues={matrixZ}
+          onMatrixChange={setMatrixZ}
+          disabled
+          width='w-full sm:w-auto'
+        />
       </div>
+      <div className="text-center">
+        <span className="text-base sm:text-lg font-bold text-black dark:text-white">A</span>
+        <MatrixInput
+          columns={1}
+          idPrefix="A"
+          defaultValues={matrixA}
+          onMatrixChange={setMatrixA}
+          disabled
+          width='w-full sm:w-auto'
+        />
+      </div>
+      
     </div>
   );
 };
