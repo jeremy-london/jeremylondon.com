@@ -247,90 +247,92 @@ const HiddenLayers = () => {
 
   return (
     
-    <div id="interactiveInputs" className="hidden grid grid-rows-[1fr_1fr_1fr] grid-cols-[3fr_1fr_1fr] gap-[0.1rem] xs:gap-2 sm:gap-4 mb-4 p-1 rounded-md bg-[#e9e9e9] dark:bg-[#292929] text-[#d0d0d0] dark:text-[#f5f2f0]">
+    <div id="interactiveInputs" className="grid grid-rows-[1fr_1fr_1fr] grid-cols-[2fr_1fr_1fr] place-items-center gap-2 sm:gap-4 md:gap-6 lg:gap-8 mb-4 p-1 sm:p-6 rounded-md bg-[#e9e9e9] dark:bg-[#292929] text-[#d0d0d0] dark:text-[#f5f2f0]">
       
       <div className="bg-transparent"></div> 
-      <div className="flex flex-col items-center justify-center">
-        <span className="text-lg font-bold text-black dark:text-white text-center">Input</span>
+      <div className="text-center">
+        <span className="text-base sm:text-lg font-bold text-black dark:text-white">Input</span>
         <MatrixInput
           columns={1}
           idPrefix="x"
           defaultValues={matrixX}
           onMatrixChange={handleMatrixXChange}
-          width='w-12 xs:w-24 sm:w-48'
+          width='w-full sm:w-auto'
         />
         <span className="p-2 text-black dark:text-white opacity-40">1</span>
       </div>
       <div className="bg-transparent"></div> 
 
-      <div className="flex flex-col items-center justify-center">
-        <span className="text-lg font-bold text-black dark:text-white text-center">Layer 1 W/B</span>
+      <div className="text-center">
+        <span className="text-base sm:text-lg font-bold text-black dark:text-white">Layer 1 W/B</span>
         <MatrixInput
           columns={4}
           idPrefix="w1"
           defaultValues={matrixW1}
           onMatrixChange={handleMatrixW1Change}
+          width='w-full sm:w-auto'
         />
         <span className="p-2 text-black dark:text-white opacity-0">1</span>
       </div>
 
-      <div className="flex flex-col items-center justify-center">
-        <span className="text-lg font-bold text-black dark:text-white text-center">Z</span>
+      <div className="text-center">
+        <span className="text-base sm:text-lg font-bold text-black dark:text-white">Z</span>
         <MatrixInput
           columns={1}
           idPrefix="z"
           defaultValues={matrixHZ}
           onMatrixChange={setMatrixHZ}
           disabled
-          width='w-12 xs:w-24 sm:w-48'
+          width='w-full sm:w-auto'
         />
         <span className="p-2 text-black dark:text-white opacity-0">1</span>
       </div>
 
-      <div className="flex flex-col items-center justify-center">
-        <span className="text-lg font-bold text-black dark:text-white text-center">A</span>
+      <div className="text-center">
+        <span className="text-base sm:text-lg font-bold text-black dark:text-white">A</span>
         <MatrixInput
           columns={1}
           idPrefix="A"
           defaultValues={matrixHA}
           onMatrixChange={setMatrixHA}
           disabled
-          width='w-12 xs:w-24 sm:w-48'
+          width='w-full sm:w-auto'
         />
         <span className="p-2 text-black dark:text-white opacity-40">1</span>
       </div>
 
-      <div className="flex flex-col items-center justify-center">
-        <span className="text-lg font-bold text-black dark:text-white text-center">Layer 2 W/B</span>
+      <div className="text-center">
+        <span className="text-base sm:text-lg font-bold text-black dark:text-white">Layer 2 W/B</span>
         <MatrixInput
           columns={5}
           idPrefix="w2"
           defaultValues={matrixW2}
           onMatrixChange={handleMatrixW2Change}
+          width='w-full sm:w-auto'
         />
       </div>
 
-      <div className="flex flex-col items-center justify-center">
-        <span className="text-lg font-bold text-black dark:text-white text-center">Z</span>
+      <div className="text-center">
+        <span className="text-base sm:text-lg font-bold text-black dark:text-white">Z</span>
         <MatrixInput
           columns={1}
           idPrefix="y_z"
           defaultValues={matrixYZ}
           onMatrixChange={setMatrixYZ}
           disabled
-          width='w-12 xs:w-24 sm:w-48'
+          width='w-full sm:w-auto'
         />
       </div>
 
-      <div className="flex flex-col items-center justify-center">
-        <span className="text-lg font-bold text-black dark:text-white text-center">A</span>
+      <div className="text-center">
+        <span className="text-base sm:text-lg font-bold text-black dark:text-white">A</span>
         <MatrixInput
           columns={1}
           idPrefix="y_a"
           defaultValues={matrixYA}
           onMatrixChange={setMatrixYA}
           disabled
-          width='w-12 xs:w-24 sm:w-48'
+          width='w-full sm:w-auto'
         />
       </div>
 
