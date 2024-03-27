@@ -58,6 +58,7 @@ const MatrixInput = ({ columns, idPrefix, defaultValues, onMatrixChange, disable
       const currentValue = values[row][column] || 0;
       const increment = event.key === 'ArrowUp' ? 1 : -1;
       const newValue = currentValue + increment;
+      setTemporaryValue(row, column, newValue);
       updateValue(row, column, newValue);
       
     } else if (event.key === 'ArrowLeft') {
