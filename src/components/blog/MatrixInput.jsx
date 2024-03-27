@@ -2,40 +2,45 @@ import { Fragment, useState, useRef, useEffect } from 'react';
 
 const MatrixInput = ({ columns, idPrefix, defaultValues, onMatrixChange, disabled, width = "w-auto" }) => {
   const [values, setValues] = useState(defaultValues);
-  const [tempDisplayValues, setTempDisplayValues] = useState({});
+  const [temporaryValues, setTemporaryValues] = useState({});
   const inputsRef = useRef([]);
 
   useEffect(() => {
     setValues(defaultValues);
   }, [defaultValues]);
 
-  const handleInputChange = (row, column, value) => {    
-    const inputKey = `${row}-${column}`;
-    let newValue;
-
-    // Check for standalone '-', '-0', '-0.', '-0.0', or empty string
-    if (value === '-' || value === '-0' || value === '-0.' || value === '-0.0' || value === '') {
-        setTempDisplayValues(prev => ({ ...prev, [inputKey]: value }));
-        newValue = 0; // Use 0 as the value for calculations
-    } else if (value.endsWith('-')) {
-        // If the value ends with '-', clear the input and only use '-'
-        setTempDisplayValues(prev => ({ ...prev, [inputKey]: '-' }));
-        newValue = 0; // Use 0 as the calculation value, treating it as an attempt to input a negative number
-    } else if (value.endsWith('+')) {
-        // If the value ends with '-', clear the input and only use '-'
-        setTempDisplayValues(prev => ({ ...prev, [inputKey]: '+' }));
-        newValue = 0; // Use 0 as the calculation value, treating it as an attempt to input a negative number
+  const setTemporaryValue = (row, column, value) => {
+    // Store the temporary value in a way that you can identify the specific input it belongs to
+    const key = `${row}-${column}`;
+    const newTempValues = { ...temporaryValues, [key]: value };
+    setTemporaryValues(newTempValues);
+  };
+  
+  const clearTemporaryValue = (row, column) => {
+    const key = `${row}-${column}`;
+    const newTempValues = { ...temporaryValues };
+    delete newTempValues[key];
+    setTemporaryValues(newTempValues);
+  };
+  
+  const handleInputChange = (row, column, value) => {
+    // Directly handle empty input or just a "-" to allow users to clear the input or start typing a negative number
+    if (value === '' || value === '-') {
+      // Temporarily store the value as is (including just "-") in a local or component state
+      // to allow the input field to reflect the user's intent
+      setTemporaryValue(row, column, value);
+      return; // Skip further processing and avoid calling updateValue for now
+    }
+  
+    // When input is not just "-", try to convert it to a number
+    const newValue = Number(value);
+    if (!isNaN(newValue)) {
+      // If conversion is successful and we have a valid number, proceed with the update
+      
+      clearTemporaryValue(row, column); // Clear any temporary value now that we have a valid number
     } else {
-        // Clear any temporary display value when a valid number is entered
-        setTempDisplayValues(prev => {
-            const newValues = { ...prev };
-            delete newValues[inputKey];
-            return newValues;
-        });
-
-        // Convert the input value to a number, ensuring it's a valid number
-        newValue = Number(value);
-        newValue = isNaN(newValue) ? '' : newValue;
+      // If conversion fails, likely due to invalid input, do nothing or handle as needed
+      return;
     }
 
     updateValue(row, column, newValue);
@@ -95,10 +100,10 @@ const MatrixInput = ({ columns, idPrefix, defaultValues, onMatrixChange, disable
             key={`${idPrefix}-${rowIndex}-${columnIndex}`}
             ref={(element) => assignRef(element, rowIndex, columnIndex)}
             type="text" // Use "text" for more control
-            inputMode="decimal" // Ensures numeric keyboard on mobile devices
+            inputMode="numeric" // Ensures numeric keyboard on mobile devices
             pattern="-?[0-9]*" // Allows only numbers, but doesn't strictly enforce it
             className="text-sm sm:text-base text-center rounded-md border disabled:border-gray-400 disabled:dark:border-gray-600 border-gray-200 dark:border-gray-200 text-black dark:text-white disabled:bg-[#d0d0d0] disabled:dark:bg-[#222222]"
-            value={value.toString()} // Convert value to string to handle empty and '0' values
+            value={temporaryValues[`${rowIndex}-${columnIndex}`] ?? value.toString()} // Convert value to string to handle empty and '0' values
             onChange={(e) => handleInputChange(rowIndex, columnIndex, e.target.value)}
             onKeyDown={(e) => handleKeyDown(rowIndex, columnIndex, e)}
             disabled={disabled}
