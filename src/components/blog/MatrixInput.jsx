@@ -99,8 +99,8 @@ const MatrixInput = ({ columns, idPrefix, defaultValues, onMatrixChange, disable
           <input
             key={`${idPrefix}-${rowIndex}-${columnIndex}`}
             ref={(element) => assignRef(element, rowIndex, columnIndex)}
-            type="text" // Use "text" for more control
-            inputMode={/Android/i.test(navigator.userAgent) ? "decimal" : "text"} // Ensures numeric keyboard on mobile devices
+            type="number" // Use "text" for more control
+            // inputMode={/Android/i.test(navigator.userAgent) ? "decimal" : "text"} // Ensures numeric keyboard on mobile devices
             pattern="-?[0-9]*" // Allows only numbers, but doesn't strictly enforce it
             className="text-sm sm:text-base text-center rounded-md border disabled:border-gray-400 disabled:dark:border-gray-600 border-gray-200 dark:border-gray-200 text-black dark:text-white disabled:bg-[#d0d0d0] disabled:dark:bg-[#222222]"
             value={temporaryValues[`${rowIndex}-${columnIndex}`] ?? value.toString()} // Convert value to string to handle empty and '0' values
