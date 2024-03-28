@@ -4,7 +4,7 @@ excerpt: "Learn how neural networks handle batches of inputs, using three differ
 publishDate: "2024-03-28T15:00:00Z"
 image: "/images/three_batch_cover.png"
 category: "deep-learning-basics"
-draft: true
+draft: false
 author: "jeremy-london"
 tags: [batch processing, neural networks, deep learning]
 load_pyodide: true
@@ -43,7 +43,7 @@ Our journey begins with the definition of the network's architecture. We're work
 
 #### Processing the Input Batch:
 
-An essential feature of this example is the use of a batch of inputs, `x_batch`, consisting of three vectors. This batch processing approach underscores the network's capacity to handle multiple inputs in parallel, optimizing both time and computational resources.
+An essential feature of this example is the use of a batch of inputs, `x_batch`, consisting of three column vectors made from stacking `x1`, `x2`, and `x3`. This batch processing approach underscores the network's capacity to handle multiple inputs in parallel, optimizing both time and computational resources.
 
 #### Hidden Layer Dynamics:
 
@@ -62,7 +62,7 @@ The script concludes with a display of both the hidden and output layers' comput
 ### Interactive Code Environment
 
 <BatchProcessing client:only />
-<PythonModule client:only filePath="examples/basics/three_input_batch_relu.py" outputRows={18} />
+<PythonModule client:only filePath="examples/basics/three_input_batch_relu.py" outputRows={22} />
 
 ### Original Inspiration
 
@@ -74,4 +74,4 @@ Batch processing stands out as a key factor in the streamlined functioning of ne
 
 - Last Post: [Unraveling Four-Neuron Networks](/blog/deep-learning-basics-exploring-four-neurons)
 
-{/* LinkedIn Post: [Coding by Hand: Understanding Hidden Layers](https://www.linkedin.com/posts/jeremyclondon) */}
+{/* LinkedIn Post: [Coding by Hand: Batch Processing Three Inputs](https://www.linkedin.com/posts/jeremyclondon) */}
