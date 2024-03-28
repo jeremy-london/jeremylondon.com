@@ -234,34 +234,7 @@ const BatchProcessing = () => {
       
     }
   };
-
-  // const handleMatrixXChange = (newMatrixX) => {
-  //   setMatrixX(newMatrixX);
-
-  //   // Select the codeDisplay element and set its child pre code to string with inputs updated
-  //   const codeElement = document.querySelector('#codeDisplay pre code');
-  //   if (codeElement) {
-  //     // Convert newMatrixX to a string in the numpy array format with proper spacing and structure
-  //     const inputsString = `np.array([${newMatrixX.map(row => '[' + row.join(', ') + ']').join(', ')}])`;
-
-  //     // Replace the inputs in the existing code
-  //     const existingCode = codeElement.textContent;
-  //     const updatedCode = existingCode.replace(
-  //       /x_batch = np\.array\(\[.*?\]\)/s,  // Use 's' flag to match across multiple lines
-  //       `x_batch = ${inputsString}`
-  //     );
-
-  //     // Render the updated code using the stored root
-  //     if (codeDisplayRootRef.current) {
-  //       const syntaxHighlighterElement = (
-  //         <CodeBlock code={updatedCode} />
-  //       );
-  //       codeDisplayRootRef.current.render(syntaxHighlighterElement);
-  //     } 
-  //     window.executePython && window.executePython(updatedCode);
-  //   }
-  // };
-
+  
   const handleMatrixXChange = (newMatrixX) => {
     setMatrixX(newMatrixX);
   
