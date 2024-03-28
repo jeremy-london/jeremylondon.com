@@ -235,29 +235,61 @@ const BatchProcessing = () => {
     }
   };
 
+  // const handleMatrixXChange = (newMatrixX) => {
+  //   setMatrixX(newMatrixX);
+
+  //   // Select the codeDisplay element and set its child pre code to string with inputs updated
+  //   const codeElement = document.querySelector('#codeDisplay pre code');
+  //   if (codeElement) {
+  //     // Convert newMatrixX to a string in the numpy array format with proper spacing and structure
+  //     const inputsString = `np.array([${newMatrixX.map(row => '[' + row.join(', ') + ']').join(', ')}])`;
+
+  //     // Replace the inputs in the existing code
+  //     const existingCode = codeElement.textContent;
+  //     const updatedCode = existingCode.replace(
+  //       /x_batch = np\.array\(\[.*?\]\)/s,  // Use 's' flag to match across multiple lines
+  //       `x_batch = ${inputsString}`
+  //     );
+
+  //     // Render the updated code using the stored root
+  //     if (codeDisplayRootRef.current) {
+  //       const syntaxHighlighterElement = (
+  //         <CodeBlock code={updatedCode} />
+  //       );
+  //       codeDisplayRootRef.current.render(syntaxHighlighterElement);
+  //     } 
+  //     window.executePython && window.executePython(updatedCode);
+  //   }
+  // };
+
   const handleMatrixXChange = (newMatrixX) => {
     setMatrixX(newMatrixX);
-
-    // Select the codeDisplay element and set its child pre code to string with inputs updated
+  
+    // Transpose newMatrixX to get columns as individual input vectors
+    const [newX1, newX2, newX3] = newMatrixX[0].map((_, colIndex) => newMatrixX.map(row => row[colIndex]));
+  
+    // Generate the updated Python code strings for x1, x2, and x3
+    const x1String = `x1 = np.array([${newX1.map(value => `[${value}]`).join(', ')}])`;
+    const x2String = `x2 = np.array([${newX2.map(value => `[${value}]`).join(', ')}])`;
+    const x3String = `x3 = np.array([${newX3.map(value => `[${value}]`).join(', ')}])`;
+  
+    // Select the codeDisplay element and get the existing Python code
     const codeElement = document.querySelector('#codeDisplay pre code');
     if (codeElement) {
-      // Convert newMatrixX to a string in the numpy array format with proper spacing and structure
-      const inputsString = `np.array([${newMatrixX.map(row => '[' + row.join(', ') + ']').join(', ')}])`;
-
-      // Replace the inputs in the existing code
-      const existingCode = codeElement.textContent;
-      const updatedCode = existingCode.replace(
-        /x_batch = np\.array\(\[.*?\]\)/s,  // Use 's' flag to match across multiple lines
-        `x_batch = ${inputsString}`
-      );
-
+      let updatedCode = codeElement.textContent;
+  
+      // Replace the existing x1, x2, and x3 definitions with the new ones
+      updatedCode = updatedCode.replace(/x1 = np\.array\(\[\[.*?\]\]\)/s, x1String);
+      updatedCode = updatedCode.replace(/x2 = np\.array\(\[\[.*?\]\]\)/s, x2String);
+      updatedCode = updatedCode.replace(/x3 = np\.array\(\[\[.*?\]\]\)/s, x3String);
+  
       // Render the updated code using the stored root
       if (codeDisplayRootRef.current) {
         const syntaxHighlighterElement = (
           <CodeBlock code={updatedCode} />
         );
         codeDisplayRootRef.current.render(syntaxHighlighterElement);
-      } 
+      }
       window.executePython && window.executePython(updatedCode);
     }
   };
