@@ -41,7 +41,7 @@ export default {
     margin: "0.5em 0",
     overflow: "auto",
     borderRadius: "0.3em",
-    maxHeight: "450px",
+    maxHeight: "1130px",
   },
   'code[class*="language-"]::-moz-selection': {
     background: "hsl(230, 1%, 90%)",

@@ -42,7 +42,7 @@ export default {
     padding: "1em",
     margin: "0.5em 0",
     overflow: "auto",
-    maxHeight: "450px",
+    maxHeight: "1130px",
     borderRadius: "0.3em",
   },
   'code[class*="language-"]::-moz-selection': {
