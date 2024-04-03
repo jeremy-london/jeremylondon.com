@@ -1,0 +1,67 @@
+---
+title: "What is a Multi-Layer Perceptron (MLP)?"
+excerpt: "Unlock the fundamentals of Multi-Layer Perceptrons (MLPs) with a hands-on approach, exploring a seven-layer network example and exploring forward propagation."
+publishDate: "2024-04-04T01:00:00Z"
+image: "/images/mlp_cover.png"
+category: "deep-learning-basics"
+draft: true
+author: "jeremy-london"
+tags: [MLP, neural networks, deep learning, forward propagation]
+load_pyodide: true
+---
+
+import PythonModule from "@components/blog/PythonModule.jsx";
+import MultiLayerPerceptron from "@components/blog/MultiLayerPerceptron.jsx";
+
+<h2>
+  <a href="#interactive-code-environment" class="m-0 text-blue-100 dark:text-orange-400 no-underline bg-gradient-to-r from-blue-200 to-blue-100 dark:from-orange-800 dark:to-orange-900 bg-[length:0px_10px] bg-left-bottom bg-no-repeat transition-[background-size] duration-500 hover:bg-[length:100%_3px] group-hover:bg-[length:100%_10px]">
+    <span>Scroll down for Interactive Code Environment 👇</span>
+  </a>
+</h2>
+
+Diving deeper into the next part of the Deep Learning Foundations Series, I explored a way to deepen my understanding of the inner workings of Multi-Layer Perceptrons (MLPs), building on the knowledge of neural network architectures and constructing a seven layer network! Lets go through each of the layers of this complex mechanism, and explore the interactive example to demonstrating the MLP's intricate design and functionality.
+
+## What is a Multi-Layer Perceptron?
+
+1. **Understanding MLP Structure:** At its core, an MLP consists of multiple layers of nodes, each layer fully connected to the next. This structure allows for the modeling of complex, non-linear relationships between inputs and outputs.
+
+2. **Simplifying Assumptions for Clarity:** To ease this journey, I adopt two simplifications: zero biases across all nodes and direct application of the ReLU activation function, excluding the output layer. These assumptions helps me focus on the network's depth and its computational process without distrations from additional complexities.
+
+3. **Layered Computations:** The example network, with seven layers, serves as a playground for computational practice. Now I can explore how inputs transition through the network, transforming via weights and activations, to produce outputs across each layer.
+
+### Walking Through the Code:
+
+To translate the the theoretical exploration into practical understanding, I utilize an interactive Python script to model a seven-layer MLP in `numpy` and break down each weight group and layer into seperate calculations.
+
+#### Initial Setup:
+
+Lets start by defining the network's architecture, laying out the nodes in each layer, their connections, and the initial inputs. This foundation is crucial for understanding the subsequent computational steps.
+
+#### Forward Pass:
+
+- **Layer-by-Layer Transformation:** Examine how inputs are processed through each layer, with specific attention to the application of weights and the ReLU activation function. This step-by-step approach demystifies the network's operation, showcasing the transformation of inputs into outputs.
+
+- **Computational Insights:** Special focus is given to the handling of negative values by ReLU and the propagation of data through the network, culminating in the calculation of the output layer.
+
+### Interactive Code Environment
+
+Utilizing this interactive environment, you can now tweak inputs, weights, and see real-time changes in the network's output. This hands-on component emphasizes learning through doing, and help solidify the concepts of a MLP network.
+
+<MultiLayerPerceptron client:only />
+<PythonModule client:only filePath="examples/basics/multi_layer_perceptron_relu.py" outputRows={25}/>
+
+### Original Inspiration
+
+The inspiration for this deep dive came from a series of hands-on exercises shared on LinkedIn shared by [Dr. Tom Yeh](http://tomyeh.info). He designed it to break down the complexities of deep learning into manageable, understandable parts. In particular focusing on a seven-layer MLP, highlight the power of interactive learning in a nueral network. By engaging directly with the components of a neural network, it starts to show how you can see beyond the 'black box' and grasp the nuanced mechanisms at play.
+
+### Conclusion
+
+The journey through Multi-Layer Perceptrons (MLPs) in the Deep Learning Foundations Series has been an enlightening exploration, bridging the gap between abstract neural network concepts and tangible, impactful applications in our world. MLPs, with their intricate layering and computational depth, play a pivotal role in powering technologies that touch nearly every aspect of our lives—from enhancing the way we communicate through natural language processing to driving innovations in autonomous vehicles.
+
+A key to unlocking the potential of MLPs lies in understanding forward propagation, the fundamental process that underpins how these networks learn and make predictions. Forward propagation is the heartbeat of a nueral network, which enables it to pass information through the network's layers, transforming input data into actionable insights. This sequential journey from input to output, is what enables MLPs to perform tasks with astonishing accuracy and efficiency.
+
+The applications of MLPs, empowered by forward propagation, are vast! In healthcare, they underpin systems that can predict patient outcomes, personalize treatments, and even identify diseases from medical imagery with greater accuracy than ever before. In the realm of finance, MLPs contribute to fraud detection algorithms that protect consumers, and in environmental science, they model complex climate patterns, helping researchers predict changes and mitigate risks.
+
+Understanding forward propagation not only helps us understand how MLPs function but also reveals the intricate dance of mathematics and data that fuels modern AI innovations. It's this foundational process that allows us to translate theoretical knowledge into applications that can forecast weather patterns, translate languages in real-time, and even explore the potential for personalized education platforms that adapt to individual learning styles.
+
+- Last Post: [Batch Processing Three Inputs](/blog/deep-learning-basics-batch-processing-three-inputs)
