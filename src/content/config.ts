@@ -11,6 +11,7 @@ const BlogPosts = defineCollection({
     image: z.string().optional(),
     publishDate: z.string().transform((str) => new Date(str)),
     load_pyodide: z.boolean().optional(),
+    load_mathjax: z.boolean().optional(),
   }),
 });
 
