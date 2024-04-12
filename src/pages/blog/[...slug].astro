@@ -28,16 +28,16 @@ const { Content, remarkPluginFrontmatter } = await post.render();
 
 const author = authors.find((item) => item.slug === post.data.author) as Author;
 const category = categories.find(
-  (item) => item.slug === post.data.category,
+  (item) => item.slug === post.data.category
 ) as Category;
-
 ---
 
 <Layout
   title={post.data.title}
   desc={post.data.excerpt}
   ogimage={post.data.image}
-  load_pyodide={post.data.load_pyodide}>
+  load_pyodide={post.data.load_pyodide}
+  load_mathjax={post.data.load_mathjax}>
   <Container>
     <div class="max-w-screen-xl mx-auto">
       <div class="text-center">
