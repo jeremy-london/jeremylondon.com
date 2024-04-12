@@ -12,6 +12,7 @@ load_pyodide: true
 
 import PythonModule from "@components/blog/PythonModule.jsx";
 import BackPropagation from "@components/blog/BackPropagation.jsx";
+import CodeBlock from "@components/blog/CodeBlock.jsx";
 
 <h2>
   <a href="#interactive-code-environment" class="m-0 text-blue-100 dark:text-orange-400 no-underline bg-gradient-to-r from-blue-200 to-blue-100 dark:from-orange-800 dark:to-orange-900 bg-[length:0px_10px] bg-left-bottom bg-no-repeat transition-[background-size] duration-500 hover:bg-[length:100%_3px] group-hover:bg-[length:100%_10px]">
@@ -47,22 +48,17 @@ Together, they form a cycle of continuous improvement. Backpropagation identifie
 
 At the heart of neural network training lies the challenge of optimization - how do we find the set of weights and biases that minimizes the difference between the model's predictions and the true target outputs? This is where gradient descent comes into play, serving as the workhorse algorithm that guides the network towards the global minimum of the loss function.
 
-```python
-# Compute the gradient of the loss with respect to z3 (Layer 3 pre-activation)
-dL_dz3 = Y_pred - Y_target
-```
-
-
+<CodeBlock client:only="react" code={`# Compute the gradient of the loss with respect to z3 (Layer 3 pre-activation)
+dL_dz3 = Y_pred - Y_target`} />
 
 Imagine you're standing atop a hilly landscape, and your goal is to find the lowest point as quickly as possible. This is analogous to the optimization problem faced by neural networks - the "landscape" is the loss function, and the "lowest point" represents the configuration of weights and biases that result in the smallest possible error.
 
 Gradient descent works by calculating the gradients, which show the direction of the steepest loss increase. Then, it does the opposite, moving the network towards the global minimum, the optimal solution. It's like a smart hiker knowing to avoid steep climbs and finding the easiest path down.
 
-```python
-# Compute the gradients of the loss with respect to Layer 3 weights and biases
+<CodeBlock client:only="react" code={`# Compute the gradients of the loss with respect to Layer 3 weights and biases
 dL_dW3 = np.dot(dL_dz3.reshape(-1, 1), a2.T)
-dL_db3 = dL_dz3
-```
+dL_db3 = dL_dz3`
+} />
 
 The learning rate is like your hiking speed. Too fast, and we might overshoot the minimum and end up unstable. Too slow, and it will take forever to reach your destination. Finding the right balance is crucial for effective learning.
 
