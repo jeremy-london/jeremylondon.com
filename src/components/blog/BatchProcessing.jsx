@@ -73,11 +73,7 @@ const BatchProcessing = () => {
 
       // Extract values from the string
       const { outputMatrixHZ, outputMatrixHA, outputMatrixYZ, outputMatrixYA } = extractValues(matrixString);
-      // console.log("🚀 ~ handlePythonOutputChange ~ outputMatrixYA:", outputMatrixYA)
-      // console.log("🚀 ~ handlePythonOutputChange ~ outputMatrixYZ:", outputMatrixYZ)
-      // console.log("🚀 ~ handlePythonOutputChange ~ outputMatrixHA:", outputMatrixHA)
-      // console.log("🚀 ~ handlePythonOutputChange ~ outputMatrixHZ:", outputMatrixHZ)
-      
+
       // Update your states accordingly
       if (outputMatrixHZ.length > 0) setMatrixHZ(outputMatrixHZ);
       if (outputMatrixHA.length > 0) setMatrixHA(outputMatrixHA);
@@ -135,9 +131,7 @@ const BatchProcessing = () => {
   
     // Construct the new weights array
     const newWeights = newMatrixW1.map(row => row.slice(0, 3));
-    console.log("🚀 ~ handleMatrixW1Change ~ newWeights:", newWeights)
     const newBiases = newMatrixW1.map(row => row[3]);
-    console.log("🚀 ~ handleMatrixW1Change ~ newBiases:", newBiases)
   
     // Construct the weights string for numpy
     let weightsString = "W1 = np.array([";
