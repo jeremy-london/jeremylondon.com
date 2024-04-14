@@ -65,7 +65,7 @@ const mobilemenu: Menu[] = [...leftmenu, ...rightmenu];
             <div class="flex items-center">
               <Link
                 href={item.href}
-                style={item.hideLabel ? "underline" : "icon"}
+                style={item.hideLabel ? "icon" : "underline"}
                 size="unset"
                 umamiEvent={item.event ? item.event : undefined}>
                 {!item.hideLabel && item.label}
@@ -113,7 +113,7 @@ const mobilemenu: Menu[] = [...leftmenu, ...rightmenu];
             <div class="flex items-center">
               <Link
                 href={item.href}
-                style={item.hideLabel ? "underline" : "icon"}
+                style={item.hideLabel ? "icon" : "underline"}
                 size="unset"
                 umamiEvent={item.event ? item.event : undefined}>
                 {!item.hideLabel && item.label}
