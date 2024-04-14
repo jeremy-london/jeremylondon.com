@@ -1,12 +1,16 @@
 ---
 import Container from "@components/container.astro";
 import Link from "./ui/link.astro";
+import { Icon } from "astro-icon/components";
 
 interface Menu {
   label: string;
   href: string;
   external?: boolean;
   badge?: string;
+  badgeColor?: string;
+  hideLabel?: boolean;
+  event?: string;
 }
 const leftmenu: Menu[] = [
   {
@@ -32,12 +36,19 @@ const rightmenu: Menu[] = [
     label: "Github",
     href: "https://github.com/jeremy-london",
     external: true,
-    badge: "new",
   },
   {
     label: "LinkedIn",
     href: "https://www.linkedin.com/in/jeremyclondon/",
     external: true,
+  },
+  {
+    label: "Subscribe to RSS",
+    href: "/rss.xml",
+    badge: "heroicons-outline:rss",
+    badgeColor: "hover:text-blue-500 hover:dark:text-orange-500",
+    hideLabel: true,
+    event: "subscribe-to-rss-navbar",
   },
 ];
 
@@ -45,15 +56,28 @@ const mobilemenu: Menu[] = [...leftmenu, ...rightmenu];
 ---
 
 <Container>
-  <nav>
+  <nav class="flex justify-center flex-col md:flex-row">
     <div class="flex flex-wrap justify-between md:gap-5 md:flex-nowrap">
       <div
-        class="flex-col items-center justify-start order-1 hidden w-full md:flex md:flex-row md:justify-end md:w-auto md:order-none md:flex-1 gap-10">
+        class="flex-col items-center justify-cewnter order-1 hidden w-full md:flex md:flex-row md:justify-end md:w-auto md:order-none md:flex-1 gap-10">
         {
           leftmenu.map((item) => (
-            <Link href={item.href} style="underline" size="unset">
-              {item.label}
-            </Link>
+            <div class="flex items-center">
+              <Link
+                href={item.href}
+                style={item.hideLabel ? "underline" : "icon"}
+                size="unset"
+                umamiEvent={item.event ? item.event : undefined}>
+                {!item.hideLabel && item.label}
+                {item.badge && (
+                  <Icon
+                    title={item.label}
+                    class={`w-6 h-6 ${item.badgeColor}`}
+                    name={item.badge}
+                  />
+                )}
+              </Link>
+            </div>
           ))
         }
       </div>
@@ -86,9 +110,22 @@ const mobilemenu: Menu[] = [...leftmenu, ...rightmenu];
         class="flex-col gap-10 items-center justify-start order-2 hidden w-full md:flex md:flex-row md:w-auto md:flex-1 md:order-none">
         {
           rightmenu.map((item) => (
-            <Link href={item.href} style="underline" size="unset">
-              {item.label}
-            </Link>
+            <div class="flex items-center">
+              <Link
+                href={item.href}
+                style={item.hideLabel ? "underline" : "icon"}
+                size="unset"
+                umamiEvent={item.event ? item.event : undefined}>
+                {!item.hideLabel && item.label}
+                {item.badge && (
+                  <Icon
+                    title={item.label}
+                    class={`w-6 h-6 ${item.badgeColor}`}
+                    name={item.badge}
+                  />
+                )}
+              </Link>
+            </div>
           ))
         }
       </div>
