@@ -39,7 +39,7 @@ const category = categories.find(
   load_pyodide={post.data.load_pyodide}
   load_mathjax={post.data.load_mathjax}>
   <Container>
-    <div class="max-w-screen-xl mx-auto">
+    <div class="max-w-(--breakpoint-xl) mx-auto">
       <div class="text-center">
         <a href={`/category/${category.slug}`}>
           <Label theme={category.color}>{category.title}</Label>
@@ -53,7 +53,7 @@ const category = categories.find(
 
       <div class="flex justify-center mt-3 space-x-3 text-gray-500">
         <div class="flex items-center gap-3">
-          <div class="relative flex-shrink-0 w-10 h-10">
+          <div class="relative shrink-0 w-10 h-10">
             {
               author.image && (
                 <img
@@ -92,7 +92,7 @@ const category = categories.find(
   </Container>
 
   <div
-    class="flex items-center justify-center z-0 max-w-screen-xl mx-auto overflow-hidden lg:rounded-lg">
+    class="flex items-center justify-center z-0 max-w-(--breakpoint-xl) mx-auto overflow-hidden lg:rounded-lg">
     {
       post.data.image && (
         <img
@@ -108,7 +108,7 @@ const category = categories.find(
   </div>
 
   <Container>
-    <article class="max-w-screen-xl mx-auto w-full">
+    <article class="max-w-(--breakpoint-xl) mx-auto w-full">
       <div
         class="contents mx-3 my-3 prose prose-base dark:prose-invert prose-a:text-blue-600">
         <Content />
