@@ -9,7 +9,7 @@ export const latestPosts = (
 ).sort(
   (a, b) =>
     new Date(b.data.publishDate).valueOf() -
-    new Date(a.data.publishDate).valueOf()
+    new Date(a.data.publishDate).valueOf(),
 );
 
 export const cleanMDXContent = (content) => {
@@ -20,14 +20,14 @@ export const cleanMDXContent = (content) => {
     (match, componentName) => {
       componentNames.push(componentName);
       return "";
-    }
+    },
   );
 
   // Remove JSX components based on captured names
   componentNames.forEach((name) => {
     const regex = new RegExp(
       `<${name}(\\s+[^>]*)?\\/>|<${name}(\\s+[^>]*)?>.*?</${name}>`,
-      "gs"
+      "gs",
     );
     cleanedContent = cleanedContent.replace(regex, "");
   });

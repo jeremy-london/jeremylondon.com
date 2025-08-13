@@ -1,1 +1,42 @@
+/* global.css */
 @import "tailwindcss";
+
+/* Typography plugin (v4 uses @plugin in CSS) */
+@plugin "@tailwindcss/typography";
+
+/* Dark mode by class, like v3's `darkMode: "class"` */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Theme tokens that replace your JS config */
+@theme {
+  /* Breakpoints — adds your custom `xs` screen */
+  /* Use as `xs:*` in your classes */
+  --breakpoint-xs: 475px;
+
+  /* Fonts — replaces `fontFamily.sans` */
+  /* Use as `font-sans` (now with Inter first) */
+  --font-sans:
+    "InterVariable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji",
+    "Segoe UI Symbol", "Noto Color Emoji";
+
+  /* Aspect ratio presets — replaces `theme.extend.aspectRatio` */
+  /* Use as `aspect-4-3`, `aspect-3-2`, etc. */
+  --aspect-4-3: 4 / 3;
+  --aspect-3-2: 3 / 2;
+  --aspect-2-3: 2 / 3;
+  --aspect-9-16: 9 / 16;
+
+  /* Optional: alias gray to neutral (so `text-gray-500` uses neutral) */
+  --color-gray-50: var(--color-neutral-50);
+  --color-gray-100: var(--color-neutral-100);
+  --color-gray-200: var(--color-neutral-200);
+  --color-gray-300: var(--color-neutral-300);
+  --color-gray-400: var(--color-neutral-400);
+  --color-gray-500: var(--color-neutral-500);
+  --color-gray-600: var(--color-neutral-600);
+  --color-gray-700: var(--color-neutral-700);
+  --color-gray-800: var(--color-neutral-800);
+  --color-gray-900: var(--color-neutral-900);
+  --color-gray-950: var(--color-neutral-950);
+}

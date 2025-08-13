@@ -1,25 +1,25 @@
-import { useEffect, useState } from 'react';
-import { PrismAsyncLight as SyntaxHighlighter } from 'react-syntax-highlighter';
-import oneLight from '../../styles/prism-one-light'
-import oneDark from '../../styles/prism-one-dark'
-import CodeBlock from './CodeBlock';
+import { useEffect, useState } from "react";
+import { PrismAsyncLight as SyntaxHighlighter } from "react-syntax-highlighter";
+import oneLight from "../../styles/prism-one-light";
+import oneDark from "../../styles/prism-one-dark";
+import CodeBlock from "./CodeBlock";
 
-const PythonModule = ({children, filePath, outputRows = 10}) => {
-  const [pythonCode, setPythonCode] = useState('');
-  
+const PythonModule = ({ children, filePath, outputRows = 10 }) => {
+  const [pythonCode, setPythonCode] = useState("");
+
   useEffect(() => {
     initPyodide();
   }, []);
 
   const initPyodide = async () => {
     window.pyodide = await loadPyodide();
-    const code = await loadPythonExample()
-    await executePython(code)
+    const code = await loadPythonExample();
+    await executePython(code);
   };
 
   const loadPythonExample = async () => {
     const rawFileUrl = `https://raw.githubusercontent.com/jeremy-london/solve-by-hand/main/${filePath}`;
-    const response = await fetch(rawFileUrl)
+    const response = await fetch(rawFileUrl);
     const pythonCode = await response.text();
     setPythonCode(pythonCode);
     displayPythonCode();
@@ -27,28 +27,28 @@ const PythonModule = ({children, filePath, outputRows = 10}) => {
   };
 
   const displayPythonCode = () => {
-    const loadingDisplay = document.getElementById('loadingDisplay');
-    const outputDisplay = document.getElementById('outputDisplay');
+    const loadingDisplay = document.getElementById("loadingDisplay");
+    const outputDisplay = document.getElementById("outputDisplay");
     // const executeButton = document.getElementById('executeButton');
-    const interactiveInputs = document.getElementById('interactiveInputs');
+    const interactiveInputs = document.getElementById("interactiveInputs");
 
-    interactiveInputs.classList.remove('hidden');
+    interactiveInputs.classList.remove("hidden");
     // executeButton.classList.remove('hidden');
-    codeDisplay.classList.remove('hidden');
-    outputDisplay.classList.remove('hidden');
-    loadingDisplay.classList.add('hidden');
+    codeDisplay.classList.remove("hidden");
+    outputDisplay.classList.remove("hidden");
+    loadingDisplay.classList.add("hidden");
   };
 
   const executePython = async (code) => {
     let innerCode = code;
     if (!innerCode) {
-      const codeElement = document.querySelector('#codeDisplay pre code');
+      const codeElement = document.querySelector("#codeDisplay pre code");
       innerCode = codeElement.textContent;
     }
-    const outputElement = document.getElementById('output');
+    const outputElement = document.getElementById("output");
 
     // clear the output
-    outputElement.value = '';
+    outputElement.value = "";
     try {
       // Setup custom stdout to capture print statements.
       await window.pyodide.runPythonAsync(`
@@ -65,32 +65,32 @@ const PythonModule = ({children, filePath, outputRows = 10}) => {
       // Execute the Python code.
       await window.pyodide.loadPackagesFromImports(innerCode);
       await window.pyodide.runPythonAsync(innerCode);
-      
+
       // Retrieve and display the captured output.
-      const capturedOutput = pyodide.runPython('stdout.getvalue()');
+      const capturedOutput = pyodide.runPython("stdout.getvalue()");
       outputElement.value += ">>>\n" + capturedOutput + "\n";
 
-      (function() {
-        let _pythonOutput = ''; // Private variable to hold the value
-      
-        Object.defineProperty(window, 'pythonOutput', {
+      (function () {
+        let _pythonOutput = ""; // Private variable to hold the value
+
+        Object.defineProperty(window, "pythonOutput", {
           configurable: true, // Allows the property to be redefined
           enumerable: true, // Allows the property to be listed in a loop
-          get: function() {
+          get: function () {
             return _pythonOutput;
           },
-          set: function(value) {
+          set: function (value) {
             _pythonOutput = value; // Update the internal value
             // Dispatch the custom event with the new value
-            window.dispatchEvent(new CustomEvent('pythonOutputChanged', { detail: value }));
-          }
+            window.dispatchEvent(
+              new CustomEvent("pythonOutputChanged", { detail: value }),
+            );
+          },
         });
       })();
-      
+
       // Set output to the window variable to update other components that listen to it
       window.pythonOutput = capturedOutput;
-
-      
     } catch (err) {
       outputElement.value += "Error:\n" + err.toString() + "\n";
     } finally {
@@ -104,35 +104,38 @@ const PythonModule = ({children, filePath, outputRows = 10}) => {
 
   return (
     <div className="flex">
-
-      <div className="flex flex-col w-full mb-4" >
-
-        <div id="loadingDisplay" className="flex flex-col text-center items-center py-8 gap-4">
+      <div className="mb-4 flex w-full flex-col">
+        <div
+          id="loadingDisplay"
+          className="flex flex-col items-center gap-4 py-8 text-center">
           <span>Loading Interactive Coding Environment...</span>
           <div
-          className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
-          role="status">
-            <span
-              className="!absolute -m-px! h-px! w-px! overflow-hidden! whitespace-nowrap! border-0! p-0! [clip:rect(0,0,0,0)]!"
-            >Loading...</span>
+            className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-current border-r-transparent align-[-0.125em] motion-reduce:animate-[spin_1.5s_linear_infinite]"
+            role="status">
+            <span className="!absolute -m-px! h-px! w-px! overflow-hidden! border-0! p-0! whitespace-nowrap! [clip:rect(0,0,0,0)]!">
+              Loading...
+            </span>
           </div>
         </div>
 
         {/* <button id="executeButton" onClick={() => executePython()} className="hidden w-full bg-black py-1 text-white hover:bg-gray-700  border-2 border-transparent dark:bg-white dark:text-black dark:hover:bg-gray-300 rounded-md mb-4">Execute Python Code</button> */}
-        
-        <div id="codeDisplay" className="rounded-md mb-4 hidden">
 
+        <div id="codeDisplay" className="mb-4 hidden rounded-md">
           <CodeBlock code={pythonCode} />
         </div>
 
-        <div id="outputDisplay" className="bg-[#e9e9e9] dark:bg-[#333333] text-black dark:text-white p-4 rounded-md hidden">
+        <div
+          id="outputDisplay"
+          className="hidden rounded-md bg-[#e9e9e9] p-4 text-black dark:bg-[#333333] dark:text-white">
           <div className="text-black dark:text-white">Output:</div>
-          <textarea id="output" className="h-fit w-full resize-none bg-[#e9e9e9] dark:bg-[#333333] text-black dark:text-white p-2" rows={outputRows}></textarea>
+          <textarea
+            id="output"
+            className="h-fit w-full resize-none bg-[#e9e9e9] p-2 text-black dark:bg-[#333333] dark:text-white"
+            rows={outputRows}></textarea>
         </div>
       </div>
     </div>
   );
 };
-
 
 export default PythonModule;

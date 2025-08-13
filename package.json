@@ -8,7 +8,13 @@
     "start": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint . --ext .js,.jsx,.ts,.tsx,.astro --fix",
+    "lint:check": "eslint . --ext .js,.jsx,.ts,.tsx,.astro",
+    "test": "echo \"No tests specified\" && exit 0",
+    "test:watch": "echo \"No tests specified\" && exit 0"
   },
   "dependencies": {
     "@astrojs/alpinejs": "^0.4.8",
@@ -41,6 +47,8 @@
     "@tailwindcss/line-clamp": "^0.4.4",
     "@tailwindcss/typography": "^0.5.16",
     "classnames": "^2.5.1",
+    "prettier": "^3.6.2",
+    "prettier-plugin-tailwindcss": "^0.6.14",
     "rehype-plugin-image-native-lazy-loading": "^1.2.0",
     "sharp": "^0.34.3"
   }

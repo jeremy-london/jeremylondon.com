@@ -14,7 +14,7 @@ document.addEventListener("DOMContentLoaded", function () {
   function initTheme() {
     const savedTheme = localStorage.getItem("rss-theme");
     const userPrefersDark = window.matchMedia(
-      "(prefers-color-scheme: dark)"
+      "(prefers-color-scheme: dark)",
     ).matches;
     const defaultTheme = userPrefersDark ? "dark" : "light";
 

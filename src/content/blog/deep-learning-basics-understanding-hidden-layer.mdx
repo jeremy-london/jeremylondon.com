@@ -14,7 +14,9 @@ import PythonModule from "@components/blog/PythonModule.jsx";
 import HiddenLayers from "@components/blog/HiddenLayers.jsx";
 
 <h2>
-  <a href="#interactive-code-environment" class="m-0 text-blue-100 dark:text-orange-400 no-underline bg-linear-to-r from-blue-200 to-blue-100 dark:from-orange-800 dark:to-orange-900 bg-size-[0px_10px] bg-bottom-left bg-no-repeat transition-[background-size] duration-500 hover:bg-size-[100%_3px] group-hover:bg-size-[100%_10px]">
+  <a
+    href="#interactive-code-environment"
+    class="m-0 bg-linear-to-r from-blue-200 to-blue-100 bg-size-[0px_10px] bg-bottom-left bg-no-repeat text-blue-100 no-underline transition-[background-size] duration-500 group-hover:bg-size-[100%_10px] hover:bg-size-[100%_3px] dark:from-orange-800 dark:to-orange-900 dark:text-orange-400">
     <span>Scroll down for Interactive Code Environment 👇</span>
   </a>
 </h2>
@@ -26,9 +28,7 @@ In the fourth chapter of my Deep Learning Foundations series, I'm thrilled to in
 The exploration of hidden layers marks a significant chapter in understanding of neural networks. Unlike the visible input and output layers, hidden layers work behind the scenes to transform data in complex ways, enabling networks to capture and model intricate patterns. Let’s unpack the concept and computational dynamics of hidden layers, and how they empower neural networks to solve advanced problems.
 
 1. **Unveiling Hidden Layers:** At their core, hidden layers are what differentiate a superficial model from one capable of deep learning. These layers allow the network to learn features at various levels of abstraction, making them indispensable for complex problem-solving. By introducing hidden layers, we significantly boost the network’s capability to interpret data beyond what is immediately observable, facilitating a gradual, layer-by-layer transformation towards the desired output.
-   
 2. **Navigating Through Computations:** The journey from input through hidden layers to output involves a series of calculated steps. Each neuron in a hidden layer applies a weighted sum of its inputs, adds a bias, and then passes this value through an activation function like ReLU. This process not only introduces non-linearity but also allows the network to learn and adapt from data in a multi-dimensional space. Our focus will be on understanding how data is transformed as it propagates through these layers, and how activation functions play a pivotal role in shaping the network's learning behavior.
-   
 3. **Exploring the Weights and Nodes Dynamics:** The relationship between weights and nodes is fundamental to how information is processed and learned within the network. Weights determine the strength of the connection between nodes in different layers, influencing how much of the signal is passed through. Adjusting these weights is how neural networks learn from data over time. In this section, we’ll delve into the mechanics of weight adjustment and its impact on the network's accuracy and learning efficiency.
 
 For those eager to see these concepts in action, check out the interactive code example which offers a hands-on experience with the mechanics of embedding a hidden layer within a neural network. Through this practical demonstration, you'll gain insight into the nuances of network operation and the transformative power of hidden layers.
@@ -45,10 +45,9 @@ In this segment, I'm excited to dissect a Python script that simulates a neural 
 
 3. **Constructing the Two-Layer Network:**
    - At the core of this exploration, the `two_layer_network` orchestrates the interaction between the input, hidden layer, and output. This function illustrates how data flows through the network, undergoing transformation and activation.
+     - **First Layer Transformation:** The script begins by transforming the input vector `x` using the first layer's weights `W1` and biases `b1`. The dot product of `W1` and `x` plus `b1` yields the pre-activation values for the hidden layer, which are then passed through the ReLU function to achieve activation.
 
-      - **First Layer Transformation:** The script begins by transforming the input vector `x` using the first layer's weights `W1` and biases `b1`. The dot product of `W1` and `x` plus `b1` yields the pre-activation values for the hidden layer, which are then passed through the ReLU function to achieve activation.
-
-      - **Second Layer Transformation:** The activated hidden layer output `h` is subsequently processed by the second layer's weights `W2` and biases `b2`. Similar to the first layer, lets calculate the dot product of `W2` and `h` plus `b2`, followed by ReLU activation to obtain the final output `y`.
+     - **Second Layer Transformation:** The activated hidden layer output `h` is subsequently processed by the second layer's weights `W2` and biases `b2`. Similar to the first layer, lets calculate the dot product of `W2` and `h` plus `b2`, followed by ReLU activation to obtain the final output `y`.
 
 4. **Examining Network Parameters:**
    - An integral part of understanding a neural network's complexity and capacity is analyzing its parameters. The script calculates the total number of parameters by considering the weights and biases across both layers.
@@ -64,9 +63,6 @@ In this segment, I'm excited to dissect a Python script that simulates a neural 
 This detailed code walkthrough bridges the gap between theoretical neural network concepts and their practical implementation. By dissecting the network layer by layer and focusing on the ReLU activation function, I hope you gained a deeper appreciation for the intricacies of neural computations. It's a step toward demystifying the complex operations that enable neural networks to perform tasks ranging from simple classifications to understanding the nuances of human language and beyond.
 
 ### Interactive Code Environment
-
-
-
 
 ### Original Inspiration
 
