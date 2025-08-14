@@ -1,19 +1,19 @@
 ---
-import cx from "classnames";
+import cx from 'classnames'
 
 interface Props {
-  theme: "green" | "blue" | "orange" | "purple" | "pink" | "yellow";
+  theme: 'green' | 'blue' | 'orange' | 'purple' | 'pink' | 'yellow'
 }
 const color = {
-  green: "text-emerald-700",
-  blue: "text-blue-600",
-  orange: "text-orange-700",
-  purple: "text-purple-600",
-  pink: "text-pink-600",
-  yellow: "text-yellow-600",
-};
+  green: 'text-emerald-700',
+  blue: 'text-blue-600',
+  orange: 'text-orange-700',
+  purple: 'text-purple-600',
+  pink: 'text-pink-600',
+  yellow: 'text-yellow-600',
+}
 
-const { theme } = Astro.props;
+const { theme } = Astro.props
 ---
 
 <span

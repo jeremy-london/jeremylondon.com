@@ -1,41 +1,50 @@
 ---
-import { Icon } from "astro-icon/components";
-import Container from "./container.astro";
-import Themeswitch from "./themeswitch.astro";
+import Container from '@components/container.astro'
+import ThemeController from '@components/theme-control.astro'
+import { Icon } from 'astro-icon/components'
 ---
 
 <Container class="mt-10 border-t border-gray-100 dark:border-gray-800">
   <footer class="flex flex-col items-center">
-    <div class="text-sm text-center">
-      Copyright © {new Date().getFullYear()}
+    <div
+      class="flex flex-row divide-x divide-gray-300 dark:divide-gray-600 text-sm text-center w-full items-center justify-center mb-2">
+      <span class="px-2"
+        >All rights reserved. Copyright © {new Date().getFullYear()}</span
+      >
       <a
-        class="font-medium text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-orange-500"
-        href="https://github.com/jeremy-london">Jeremy London.</a
-      > All rights reserved.
-    </div>
-
-    <div class="flex items-center justify-between mt-2">
-      <Themeswitch />
+        class="px-2 font-medium text-gray-800 dark:text-gray-400 hover:text-blue-500 dark:hover:text-orange-500 pb-0.5"
+        href="https://github.com/jeremy-london">
+        Jeremy London
+      </a>
     </div>
 
     <div
-      class="flex flex-col gap-2 text-sm items-center justify-center text-center mt-2">
+      class="flex flex-col sm:flex-row sm:divide-x sm:divide-gray-300 dark:sm:divide-gray-600 w-full text-sm items-center justify-center text-center mt-2">
+      <div
+        class="flex items-center justify-center w-full py-2 sm:w-auto sm:px-4">
+        <ThemeController variant="dropdown" />
+      </div>
+
       <a
-        class="text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-500"
-        href="https://www.youtube.com/watch?v=Bz2-49q6DOI"
+        class="group w-full py-2 sm:w-auto sm:px-4 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-500"
+        href="https://youtu.be/Bz2-49q6DOI?t=2&mode=theatre"
+        target="_blank"
+        rel="noopener noreferrer"
         data-umami-event="made-with-love">
-        Made with Love from Denver ♥️
+        Made with Love from Denver
+        <span class="inline group-hover:hidden">♥️</span>
+        <span class="hidden group-hover:inline">❤️</span>
       </a>
 
       <a
-        class="flex flex-row items-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-blue-500 hover:dark:text-orange-500"
+        class="w-full py-2 sm:w-auto sm:px-4 flex flex-row items-center justify-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-blue-500 hover:dark:text-orange-500"
         href="/rss.xml"
         data-umami-event="subscribe-to-rss-footer">
         Subscribe to RSS
         <Icon
-          title=`Subscribe to RSS`
-          class=`w-4 h-4`
-          name=`heroicons-outline:rss`
+          title="Subscribe to RSS"
+          class="w-4 h-4"
+          name="heroicons-outline:rss"
         />
       </a>
     </div>

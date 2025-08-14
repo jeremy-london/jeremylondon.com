@@ -10,7 +10,7 @@ tags: [neural networks, ReLU, deep learning, four-neuron network]
 load_pyodide: true
 ---
 
-import PythonModule from "@components/blog/PythonModule.jsx";
+import PythonModule from "@components/blog/shared/PythonModule.jsx";
 import FourNeuron from "@components/blog/FourNeuron.jsx";
 
 <h2>
@@ -51,6 +51,13 @@ In this section, I'm excited to walk you through a Python script that brings to 
 ### Interactive Code Environment
 
 This code meticulously calculates the output for each neuron in the four-neuron layer before and after ReLU activation. It first computes the dot product of weights and biases with the inputs to produce the non-activated Z matrix, and then applies ReLU to derive the final output matrix A. This helps showcase the interplay of weights, biases, and inputs through mathematical operations.
+
+<FourNeuron client:only="react" />
+<PythonModule
+  client:only="react"
+  filePath="examples/basics/four_neurons_relu.py"
+  outputRows={32}
+/>
 
 ### Original Inspiration
 

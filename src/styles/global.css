@@ -1,42 +1,251 @@
-/* global.css */
 @import "tailwindcss";
 
-/* Typography plugin (v4 uses @plugin in CSS) */
 @plugin "@tailwindcss/typography";
 
-/* Dark mode by class, like v3's `darkMode: "class"` */
-@custom-variant dark (&:where(.dark, .dark *));
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
-/* Theme tokens that replace your JS config */
 @theme {
-  /* Breakpoints — adds your custom `xs` screen */
-  /* Use as `xs:*` in your classes */
   --breakpoint-xs: 475px;
 
-  /* Fonts — replaces `fontFamily.sans` */
-  /* Use as `font-sans` (now with Inter first) */
   --font-sans:
     "InterVariable", Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI",
     Roboto, "Helvetica Neue", Arial, "Apple Color Emoji", "Segoe UI Emoji",
     "Segoe UI Symbol", "Noto Color Emoji";
+}
 
-  /* Aspect ratio presets — replaces `theme.extend.aspectRatio` */
-  /* Use as `aspect-4-3`, `aspect-3-2`, etc. */
-  --aspect-4-3: 4 / 3;
-  --aspect-3-2: 3 / 2;
-  --aspect-2-3: 2 / 3;
-  --aspect-9-16: 9 / 16;
+.nav-link {
+  @apply relative my-2 text-sm font-medium text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-300;
+}
+.nav-link::after {
+  @apply absolute -bottom-[6px] left-0 h-[3.5px] w-[0%] rounded-md bg-blue-500 transition-all duration-300 content-[''];
+}
+[data-theme="dark"] .nav-link::after {
+  @apply bg-orange-500;
+}
+.nav-link:hover::after {
+  @apply w-[100%];
+}
 
-  /* Optional: alias gray to neutral (so `text-gray-500` uses neutral) */
-  --color-gray-50: var(--color-neutral-50);
-  --color-gray-100: var(--color-neutral-100);
-  --color-gray-200: var(--color-neutral-200);
-  --color-gray-300: var(--color-neutral-300);
-  --color-gray-400: var(--color-neutral-400);
-  --color-gray-500: var(--color-neutral-500);
-  --color-gray-600: var(--color-neutral-600);
-  --color-gray-700: var(--color-neutral-700);
-  --color-gray-800: var(--color-neutral-800);
-  --color-gray-900: var(--color-neutral-900);
-  --color-gray-950: var(--color-neutral-950);
+.placeholder-gray-500 {
+  &::placeholder {
+    color: theme("colors.gray.500") !important;
+    opacity: 1 !important;
+  }
+}
+
+.simple-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent; /* thumb and track colors */
+}
+.simple-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  background: transparent;
+}
+.simple-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+.simple-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.no-resizer::-webkit-resizer {
+  display: none;
+  background: transparent;
+  border-radius: 2px;
+}
+.no-resizer::-moz-resizer {
+  display: none;
+  background: transparent;
+  border-radius: 2px;
+}
+.no-resizer::-ms-resizer {
+  display: none;
+  background: transparent;
+  border-radius: 2px;
+}
+
+.cool-profile {
+  display: flex;
+  height: 24rem;
+  min-height: 24rem;
+  justify-content: center;
+  position: relative;
+  width: 24rem;
+  min-width: 24rem;
+  z-index: 1000;
+}
+.cool-profile img {
+  object-fit: cover;
+  border-radius: 9999px;
+}
+.cool-profile::before,
+.cool-profile::after {
+  border-radius: 9999px;
+  background-image: linear-gradient(-180deg, #a1deff 0%, #5ea3db 97%);
+  content: "";
+  height: 99%;
+  position: absolute;
+  transition-property: transform, opacity;
+  transition-duration: 0.2s;
+  transition-timing-function: ease;
+  transition-delay: 0.2s;
+  transform: translateY(0px) translateX(0px);
+  width: 97%;
+  z-index: -1;
+}
+.cool-profile::after {
+  background-image: linear-gradient(0deg, #ffcf70 0%, #ffae3d 97%);
+}
+.cool-profile:hover {
+  animation-name: hoverPop;
+  animation-duration: 0.4s;
+}
+.cool-profile:hover img {
+  box-shadow: 2px 2px 4px 0px rgba(10, 12, 15, 0.27);
+  box-shadow: 0px 0px 30px 0px rgba(10, 12, 15, 0.27);
+}
+.cool-profile:hover::before {
+  animation: slick-hover-2 3s 0.4s linear infinite;
+  transform: translateY(-20px) translateX(-20px);
+}
+.cool-profile:hover::after {
+  animation: slick-hover 3s 0.4s linear infinite reverse;
+  transform: translateY(20px) translateX(20px);
+}
+
+.cool-profile.intro-anim {
+  animation: hoverPop 0.4s ease both;
+}
+.cool-profile.intro-anim img {
+  box-shadow:
+    2px 2px 4px 0px rgba(10, 12, 15, 0.27),
+    0px 0px 30px 0px rgba(10, 12, 15, 0.27);
+  transition:
+    box-shadow 0.5s ease,
+    transform 0.5s ease;
+}
+.cool-profile.intro-anim::before {
+  animation: slick-hover-2 3s 0.4s linear 1 both;
+  opacity: 1;
+}
+.cool-profile.intro-anim::after {
+  animation: slick-hover 3s 0.4s linear 1 reverse both;
+  opacity: 1;
+}
+
+.cool-profile.intro-exit img {
+  box-shadow: 0 0 0 0 rgba(0, 0, 0, 0);
+}
+.cool-profile.intro-exit::before,
+.cool-profile.intro-exit::after {
+  opacity: 0;
+  transform: translate(0, 0);
+  transition:
+    opacity 0.5s ease,
+    transform 0.5s ease;
+}
+
+@keyframes hoverPop {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  33% {
+    transform: scale(1.05);
+  }
+  66% {
+    transform: scale(0.9);
+  }
+}
+@keyframes slick-hover {
+  0.00% {
+    transform: translateY(20px) translateX(20px);
+  }
+  16.67% {
+    transform: translateY(-13px) translateX(-9px);
+  }
+  33.33% {
+    transform: translateY(4px) translateX(12px);
+  }
+  50.00% {
+    transform: translateY(20px) translateX(-20px);
+  }
+  66.67% {
+    transform: translateY(-3px) translateX(8px);
+  }
+  83.33% {
+    transform: translateY(-15px) translateX(-11px);
+  }
+  100.00% {
+    transform: translateY(20px) translateX(20px);
+  }
+}
+@keyframes slick-hover-2 {
+  0.00% {
+    transform: translateY(-20px) translateX(-20px);
+  }
+  16.67% {
+    transform: translateY(3px) translateX(-5px);
+  }
+  33.33% {
+    transform: translateY(18px) translateX(-10px);
+  }
+  50.00% {
+    transform: translateY(-20px) translateX(20px);
+  }
+  66.67% {
+    transform: translateY(15px) translateX(-4px);
+  }
+  83.33% {
+    transform: translateY(-1px) translateX(15px);
+  }
+  100.00% {
+    transform: translateY(-20px) translateX(-20px);
+  }
+}
+
+@keyframes wave {
+  0% {
+    transform: rotate(0deg);
+  }
+  10% {
+    transform: rotate(14deg);
+  }
+  20% {
+    transform: rotate(-8deg);
+  }
+  30% {
+    transform: rotate(14deg);
+  }
+  40% {
+    transform: rotate(-4deg);
+  }
+  50% {
+    transform: rotate(10deg);
+  }
+  60%,
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+.wave {
+  display: inline-block;
+  transform-origin: 70% 70%;
+  transition:
+    transform 0.45s ease,
+    opacity 0.45s ease;
+}
+
+h1:hover .wave {
+  animation: wave 3s ease-in-out;
+}
+
+.wave.intro-wave {
+  animation: wave 4s ease-in-out 1 both;
+}
+
+.wave.intro-exit {
+  transform: rotate(0deg);
 }

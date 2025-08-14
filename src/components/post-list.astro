@@ -1,40 +1,41 @@
 ---
-import cx from "classnames";
+import Label from '@components/ui/label.astro'
+import type { Author } from '@data/authors'
+import { authors } from '@data/authors'
+import type { Category } from '@data/category'
+import { categories } from '@data/category'
+import { getFormattedDate } from '@utils/all'
+import { Icon } from 'astro-icon/components'
+import cx from 'classnames'
 
-import Label from "@components/ui/label.astro";
-import type { Author } from "@data/authors";
-import { authors } from "@data/authors";
-import type { Category } from "@data/category";
-import { categories } from "@data/category";
-import { getFormattedDate } from "@utils/all";
-import { Icon } from "astro-icon/components";
-
-const { post, aspect, preloadImage } = Astro.props;
-const author = authors.find((item) => item.slug === post.data.author) as Author;
+const { post, aspect, preloadImage } = Astro.props
+const author = authors.find((item) => item.slug === post.data.author) as Author
 const category = categories.find(
   (item) => item.slug === post.data.category,
-) as Category;
+) as Category
 ---
 
 <div class="cursor-pointer group">
   <div
     class={cx(
       "relative overflow-hidden transition-all bg-gray-100 rounded-md dark:bg-gray-800 hover:scale-105 hover:-rotate-1",
-      aspect === "landscape" ? "aspect-w-16 aspect-h-9" : "aspect-w-4 aspect-h-3",
+      aspect === "landscape"
+        ? "aspect-w-16 aspect-h-9"
+        : "aspect-w-4 aspect-h-3"
     )}>
     <a href={"/blog/" + post.slug}>
       {
         post.data.image ? (
           <img
             src={post.data.image}
-            // sizes="(max-width: 640px) 90vw, 480px"
+            sizes="(max-width: 640px) 90vw, 480px"
             alt="Thumbnail"
             loading={preloadImage ? "eager" : "lazy"}
             width={1200}
             height={630}
             class={cx(
               "rounded-md",
-              aspect === "landscape" ? "object-cover" : "object-contain",
+              aspect === "landscape" ? "object-cover" : "object-contain"
             )}
           />
         ) : (

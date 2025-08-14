@@ -1,21 +1,22 @@
 // https://astro.build/config
-import { defineConfig } from "astro/config";
-import tailwindcss from "@tailwindcss/vite";
-import mdx from "@astrojs/mdx";
-import react from "@astrojs/react";
-import sitemap from "@astrojs/sitemap";
-import partytown from "@astrojs/partytown";
-import robotsTxt from "astro-robots-txt";
-import icon from "astro-icon";
-import lazyLoadPlugin from "rehype-plugin-image-native-lazy-loading";
 
-import { remarkReadingTime } from "./src/utils/all";
+import mdx from '@astrojs/mdx'
+import partytown from '@astrojs/partytown'
+import react from '@astrojs/react'
+import sitemap from '@astrojs/sitemap'
+import tailwindcss from '@tailwindcss/vite'
+import { defineConfig } from 'astro/config'
+import icon from 'astro-icon'
+import robotsTxt from 'astro-robots-txt'
+import lazyLoadPlugin from 'rehype-plugin-image-native-lazy-loading'
+
+import { remarkReadingTime } from './src/utils/all'
 
 export default defineConfig({
-  site: "https://jeremylondon.com/",
+  site: 'https://jeremylondon.com/',
 
   markdown: {
-    syntaxHighlight: "prism",
+    syntaxHighlight: 'prism',
     remarkPlugins: [remarkReadingTime],
     rehypePlugins: [lazyLoadPlugin],
     extendDefaultPlugins: true,
@@ -26,4 +27,4 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
   },
-});
+})

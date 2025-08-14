@@ -10,7 +10,7 @@ tags: [batch processing, neural networks, deep learning]
 load_pyodide: true
 ---
 
-import PythonModule from "@components/blog/PythonModule.jsx";
+import PythonModule from "@components/blog/shared/PythonModule.jsx";
 import BatchProcessing from "@components/blog/BatchProcessing.jsx";
 
 <h2>
@@ -63,6 +63,13 @@ An essential feature of this example is the use of a batch of inputs, `x_batch`,
 The script concludes with a display of both the hidden and output layers' computations before and after ReLU activation. This visualization not only solidifies our understanding of the network's internal mechanics but also showcases the transformative power of batch processing and activation functions in shaping the neural computation landscape.
 
 ### Interactive Code Environment
+
+<BatchProcessing client:only="react" />
+<PythonModule
+  client:only="react"
+  filePath="examples/basics/three_input_batch_relu.py"
+  outputRows={32}
+/>
 
 ### Original Inspiration
 

@@ -10,6 +10,7 @@
       "@data/*": ["data/*"],
       "@components/*": ["components/*"],
       "@layouts/*": ["layouts/*"],
+      "@styles/*": ["styles/*"],
       "@pages/*": ["pages/*"]
     }
   }

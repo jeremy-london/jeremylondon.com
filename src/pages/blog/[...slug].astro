@@ -1,35 +1,34 @@
 ---
-import Authorcard from "@components/authorcard.astro";
-import Container from "@components/container.astro";
-import Label from "@components/ui/label.astro";
-import { authors } from "@data/authors";
-import { categories } from "@data/category";
-import Layout from "@layouts/Layout.astro";
-import { getFormattedDate } from "@utils/all";
-import { CollectionEntry, getCollection } from "astro:content";
+import { type CollectionEntry, getCollection } from 'astro:content'
+import Authorcard from '@components/author-card.astro'
+import Container from '@components/container.astro'
+import Label from '@components/ui/label.astro'
+import type { Author } from '@data/authors'
+import { authors } from '@data/authors'
+import type { Category } from '@data/category'
+import { categories } from '@data/category'
+import Layout from '@layouts/Layout.astro'
+import { getFormattedDate } from '@utils/all'
 
-import type { Author } from "@data/authors";
-import type { Category } from "@data/category";
-
-type Props = CollectionEntry<"blog">;
+type Props = CollectionEntry<'blog'>
 
 export async function getStaticPaths() {
-  const blog = await getCollection("blog");
+  const blog = await getCollection('blog')
 
   return blog.map((post) => ({
     params: { slug: post.slug },
     props: { post },
-  }));
+  }))
 }
 
-const { post } = Astro.props;
+const { post } = Astro.props
 
-const { Content, remarkPluginFrontmatter } = await post.render();
+const { Content, remarkPluginFrontmatter } = await post.render()
 
-const author = authors.find((item) => item.slug === post.data.author) as Author;
+const author = authors.find((item) => item.slug === post.data.author) as Author
 const category = categories.find(
-  (item) => item.slug === post.data.category
-) as Category;
+  (item) => item.slug === post.data.category,
+) as Category
 ---
 
 <Layout
@@ -110,7 +109,7 @@ const category = categories.find(
   <Container>
     <article class="max-w-(--breakpoint-xl) mx-auto w-full">
       <div
-        class="contents mx-3 my-3 prose prose-base dark:prose-invert prose-a:text-blue-600">
+        class="contents mx-3 my-3 prose prose-base dark:prose-invert prose-a:text-blue-600 hover:prose-a:text-blue-800 dark:prose-a:text-orange-500 dark:hover:prose-a:text-orange-400">
         <Content />
 
         <div class="flex flex-wrap items-center w-full gap-3 md:w-auto">

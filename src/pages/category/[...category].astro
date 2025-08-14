@@ -1,21 +1,20 @@
 ---
-import Container from "@components/container.astro";
-import Pagetitle from "@components/pagetitle.astro";
-import Postlist from "@components/postlist.astro";
-import Layout from "@layouts/Layout.astro";
-import { latestPosts } from "@utils/content";
-
-import { categories } from "@data/category";
-import type { Category } from "@data/category";
+import Container from '@components/container.astro'
+import PageTitle from '@components/page-title.astro'
+import PostList from '@components/post-list.astro'
+import type { Category } from '@data/category'
+import { categories } from '@data/category'
+import Layout from '@layouts/Layout.astro'
+import { latestPosts } from '@utils/content'
 
 export function getStaticPaths() {
-  const map = {};
+  const map = {}
 
   categories.forEach((category: Category) => {
     map[category.slug] = latestPosts?.filter(
-      (post) => post?.data?.category === category?.slug
-    );
-  });
+      (post) => post?.data?.category === category?.slug,
+    )
+  })
 
   return categories?.map((category) => ({
     params: {
@@ -25,25 +24,25 @@ export function getStaticPaths() {
       posts: map[category?.slug],
       category: category,
     },
-  }));
+  }))
 }
 
-const { category, posts } = Astro.props;
+const { category, posts } = Astro.props
 ---
 
 <Layout title="Category">
   <Container>
-    <Pagetitle>
+    <PageTitle>
       <Fragment slot="title">
         All posts for {category.title}
       </Fragment>
       <Fragment slot="desc">
         See all posts we have ever written for {category.title}
       </Fragment>
-    </Pagetitle>
+    </PageTitle>
     <main>
       <div class="grid gap-10 mt-10 lg:gap-10 md:grid-cols-2 xl:grid-cols-2">
-        {posts.map((post) => <Postlist post={post} aspect="square" />)}
+        {posts.map((post) => <PostList post={post} aspect="square" />)}
       </div>
     </main>
   </Container>

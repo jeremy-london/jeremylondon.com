@@ -1,16 +1,16 @@
 ---
-import Layout from "@layouts/Layout.astro";
-import Container from "@components/container.astro";
-import { Icon } from "astro-icon/components";
-import Pagetitle from "@components/pagetitle.astro";
+import Container from '@components/container.astro'
+import PageTitle from '@components/page-title.astro'
+import Layout from '@layouts/Layout.astro'
+import { Icon } from 'astro-icon/components'
 ---
 
 <Layout title="Privacy Policy">
   <Container>
-    <Pagetitle>
+    <PageTitle>
       <Fragment slot="title">Privacy Policy</Fragment>
       <Fragment slot="desc">Your privacy is important to us</Fragment>
-    </Pagetitle>
+    </PageTitle>
 
     <div
       class="flex flex-col gap-10 mx-auto max-w-xl mt-12 text-gray-700 dark:text-gray-400">
@@ -60,16 +60,14 @@ import Pagetitle from "@components/pagetitle.astro";
         If you have any questions about this Privacy Policy, please contact us
         at
         <span>
-          <Icon
-            class="inline-flex text-gray-400 pr-10 w-4 h-4"
-            name="uil:envelope"
-          />
+          <Icon class="inline-flex" name="uil:envelope" />
           <a
             class="font-medium
             text-gray-600
             dark:text-gray-400
             hover:text-blue-500
-            dark:hover:text-orange-500"
+            dark:hover:text-orange-500
+            underline"
             href="mailto:jeremy.c.london@gmail.com"
             >jeremy.c.london@gmail.com
           </a>

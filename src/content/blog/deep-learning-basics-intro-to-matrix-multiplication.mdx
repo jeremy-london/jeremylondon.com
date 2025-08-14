@@ -10,7 +10,7 @@ tags: ["matrix multiplication", "linear algebra", "deep learning"]
 load_pyodide: true
 ---
 
-import PythonModule from "@components/blog/PythonModule.jsx";
+import PythonModule from "@components/blog/shared/PythonModule.jsx";
 import MatrixMultiplication from "@components/blog/MatrixMultiplication.jsx";
 import Link from "@components/ui/link.astro";
 
@@ -64,6 +64,13 @@ Through demystifying matrix multiplication, I've laid the foundation for a deepe
 By dissecting this example, I aim to illuminate the path of matrix multiplication, highlighting its critical role in both linear algebra and the deeper realms of deep learning. With NumPy's elegant syntax and potent functionality, embarking on complex mathematical adventures becomes not just feasible, but exhilarating, paving the way for advancements in deep learning.
 
 ### Interactive Code Environment
+
+<MatrixMultiplication client:only="react" />
+<PythonModule
+  client:only="react"
+  filePath="examples/basics/matrix_multiplication.py"
+  outputRows={32}
+/>
 
 ### Original Inspiration
 

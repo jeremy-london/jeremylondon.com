@@ -1,4 +1,4 @@
-import { z, defineCollection } from "astro:content";
+import { defineCollection, z } from 'astro:content'
 
 const BlogPosts = defineCollection({
   schema: z.object({
@@ -13,8 +13,8 @@ const BlogPosts = defineCollection({
     load_pyodide: z.boolean().optional(),
     load_mathjax: z.boolean().optional(),
   }),
-});
+})
 
 export const collections = {
   blog: BlogPosts,
-};
+}

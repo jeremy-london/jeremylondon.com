@@ -10,7 +10,7 @@ tags: [neural networks, ReLU, deep learning]
 load_pyodide: true
 ---
 
-import PythonModule from "@components/blog/PythonModule.jsx";
+import PythonModule from "@components/blog/shared/PythonModule.jsx";
 import SingleNeuron from "@components/blog/SingleNeuron.jsx";
 
 <h2>
@@ -60,6 +60,13 @@ I've cooked up a Python script that mirrors the essential function of a single n
 This code walkthrough demystifies the basic operations underlying neural network functionality. Breaking down the neuron's process into digestible steps enhances the grasp of how neural networks process inputs to produce outputs, paving the way towards understanding more complex architectures.
 
 ### Interactive Code Environment
+
+<SingleNeuron client:only="react" />
+<PythonModule
+  client:only="react"
+  filePath="examples/basics/single_neuron_relu.py"
+  outputRows={32}
+/>
 
 ### Original Inspiration
 

@@ -1,39 +1,41 @@
 ---
-import Footer from "@components/footer.astro";
-import Navbar from "@components/navbar.astro";
-import "@fontsource/inter";
-import "../styles/global.css";
-import { checkImageUrl } from "@utils/all";
-import { SEO } from "astro-seo";
+import Footer from '@components/footer.astro'
+import Navbar from '@components/navbar.astro'
+import { checkImageUrl } from '@utils/all'
+import { SEO } from 'astro-seo'
+import Themes from 'astro-themes'
+import '@fontsource/inter'
+import '@styles/global.css'
 
 export interface Props {
-  title?: string;
-  desc?: string;
-  ogimage?: string;
-  load_pyodide?: boolean;
-  load_mathjax?: boolean;
+  title?: string
+  desc?: string
+  ogimage?: string
+  load_pyodide?: boolean
+  load_mathjax?: boolean
 }
 
-const canonicalURL = new URL(Astro.url.pathname, Astro.site).toString();
+const canonicalURL = new URL(Astro.url.pathname, Astro.site).toString()
 
 const {
   title,
   desc,
-  ogimage = "/opengraph.png",
+  ogimage = '/opengraph.png',
   load_pyodide = false,
   load_mathjax = false,
-} = Astro.props;
+} = Astro.props
 
-const resolvedOGImage = checkImageUrl(ogimage, Astro.site);
+const resolvedOGImage = checkImageUrl(ogimage, Astro.site)
 
 const makeTitle = title
   ? `${title} | jeremylondon`
-  : `jeremylondon | Exploring AI, Tech, and Creativity`;
+  : `jeremylondon | Exploring AI, Tech, and Creativity`
 ---
 
 <!doctype html>
 <html lang="en">
   <head>
+    <Themes defaultTheme="dark" />
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
@@ -76,7 +78,7 @@ const makeTitle = title
     {
       load_pyodide && (
         <>
-          <script src="https://cdn.jsdelivr.net/pyodide/v0.25.0/full/pyodide.js" />
+          <script src="https://cdn.jsdelivr.net/pyodide/v0.28.1/full/pyodide.js" />
           <script src="https://cdn.jsdelivr.net/npm/marked@12.0.0/lib/marked.umd.min.js" />
         </>
       )
@@ -91,7 +93,7 @@ const makeTitle = title
       )
     }
   </head>
-  <body>
+  <body class="bg-white dark:bg-gray-950 transition-colors duration-300">
     <Navbar />
     <slot />
     <Footer />
