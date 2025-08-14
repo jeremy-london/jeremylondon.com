@@ -80,7 +80,7 @@ const MatrixMultiplication = () => {
   return (
     <div
       id="interactiveInputs"
-      className="mb-4 grid hidden grid-cols-[2fr_3fr] grid-rows-[2fr_1fr] gap-2 rounded-md bg-[#e9e9e9] pt-4 pr-2 pb-8 pl-2 text-[#d0d0d0] sm:gap-4 sm:pr-0 sm:pl-4 dark:bg-[#292929] dark:text-[#f5f2f0]"
+      className="mb-4 grid grid-cols-[2fr_3fr] grid-rows-[2fr_1fr] gap-2 rounded-md bg-[#e9e9e9] pt-4 pr-2 pb-8 pl-2 text-[#d0d0d0] sm:gap-4 sm:pr-0 sm:pl-4 dark:bg-[#292929] dark:text-[#f5f2f0]"
     >
       <div className="bg-transparent"></div>
 

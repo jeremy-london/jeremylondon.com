@@ -25,15 +25,18 @@ const tcBtnSize = tcSizeMap[size]
     <>
       {showLabel && <span class="text-sm font-medium text-gray-600 dark:text-gray-300">Theme</span>}
       <div class="relative">
+        <label id={`theme-select-label-${tcId}`} for={`theme-select-${tcId}`} class="sr-only">Select theme</label>
         <select
+          id={`theme-select-${tcId}`}
+          aria-labelledby={`theme-select-label-${tcId}`}
           data-role="select"
           class="peer h-9 w-36 appearance-none rounded-lg border border-gray-200 bg-white/70 pl-3 pr-9 text-sm text-gray-800 shadow-sm outline-none transition
-                 hover:bg-white/90 focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-400 cursor-pointer
-                 dark:border-white/10 dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10 dark:focus-visible:ring-orange-500/50 dark:focus-visible:border-orange-400"
+           hover:bg-white/90 focus-visible:ring-2 focus-visible:ring-blue-500/50 focus-visible:border-blue-400 cursor-pointer
+           dark:border-white/10 dark:bg-white/5 dark:text-gray-100 dark:hover:bg-white/10 dark:focus-visible:ring-orange-500/50 dark:focus-visible:border-orange-400"
         >
-          <option value="system">System</option>
-          <option value="dark">Dark</option>
-          <option value="light">Light</option>
+          <option value="system" aria-label="System theme">System</option>
+          <option value="dark" aria-label="Dark theme">Dark</option>
+          <option value="light" aria-label="Light theme">Light</option>
         </select>
         <Icon
           name="heroicons-outline:chevron-down"

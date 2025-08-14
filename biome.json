@@ -44,9 +44,6 @@
         "noAssignInExpressions": "off",
         "noArrayIndexKey": "off",
         "noShadowRestrictedNames": "off"
-      },
-      "a11y": {
-        "useSemanticElements": "off"
       }
     }
   },

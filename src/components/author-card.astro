@@ -1,4 +1,6 @@
 ---
+import { Image } from "astro:assets"
+
 const { author } = Astro.props
 ---
 
@@ -8,13 +10,14 @@ const { author } = Astro.props
     <div class="relative shrink-0 w-24 h-24 mt-1">
       {
         author.image && (
-          <img
+          <Image
             src={author.image}
             alt="Author Photo"
             width={96}
             height={96}
             loading="eager"
             class="rounded-full"
+            format="avif"
           />
         )
       }

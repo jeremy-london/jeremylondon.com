@@ -8,7 +8,7 @@ Welcome to jeremylondon.com, a space where I share my journey, insights, and exp
 
 jeremylondon.com is my personal corner on the internet, a blog where I document my coding projects, travel diaries, and life lessons. It's a place for me to connect with like-minded individuals, share knowledge, and perhaps inspire others along the way.
 
-## [Live Demo](https://jeremylondon.com/)
+## [Live Site](https://jeremylondon.com/)
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="public/opengraph-dark.png">

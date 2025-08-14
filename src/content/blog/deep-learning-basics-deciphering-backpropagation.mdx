@@ -2,7 +2,7 @@
 title: "Backpropagation and Gradient Descent: The Backbone of Neural Network Training"
 excerpt: "How do neural networks learn? Lets explore backpropagation and gradient descent and their critical roles in updating weights through the lens of loss minimization."
 publishDate: "2024-04-12T00:00:00Z"
-image: "/images/backpropagation_cover.png"
+image: "../../assets/backpropagation_cover.png"
 category: "deep-learning-basics"
 draft: false
 author: "jeremy-london"
@@ -13,6 +13,8 @@ load_mathjax: true
 
 import PythonModule from "@components/blog/shared/PythonModule.jsx";
 import BackPropagation from "@components/blog/BackPropagation.jsx";
+import { Image } from 'astro:assets'
+import HocusPocus from "@assets/hocus-pocus-machine-learning.gif"
 
 <h2>
   <a
@@ -29,8 +31,8 @@ Neural networks have captivated the world with their remarkable ability to learn
 The key to understanding the learning process of neural networks lies in two fundamental concepts: **backpropagation** and **gradient descent**. These two ideas form the backbone of how neural networks adapt and improve over time, continuously refining their internal parameters to minimize the difference between their predictions and the true desired outputs.
 
 <div class="float-right ml-4 h-auto w-full overflow-hidden sm:w-1/2">
-  <img
-    src="/images/hocus-pocus-machine-learning.gif"
+  <Image
+    src={HocusPocus}
     alt="Hocus Pocus Machine Learning"
     class="-mt-2 block h-auto w-full"
   />

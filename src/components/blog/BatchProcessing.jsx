@@ -1,28 +1,8 @@
-import CodeBlock from '@components/blog/shared/CodeBlock'
 import MatrixInput from '@components/blog/shared/MatrixInput'
-import { useEffect, useRef, useState } from 'react'
-import * as ReactDOM from 'react-dom/client'
+import { useCallback, useEffect, useState } from 'react'
 
 const BatchProcessing = () => {
-  const codeDisplayRootRef = useRef(null)
-
-  useEffect(() => {
-    // Cleanup function to reset the ref
-    return () => {
-      codeDisplayRootRef.current = null
-    }
-  }, [])
-
-  useEffect(() => {
-    // Ensure re-initialization runs every time the component is rendered
-    if (!codeDisplayRootRef.current) {
-      const container = document.getElementById('codeDisplay')
-      if (container) {
-        codeDisplayRootRef.current = ReactDOM.createRoot(container)
-      }
-    }
-  })
-
+  // ------ state ------
   const [matrixW1, setMatrixW1] = useState([
     [1, -1, 1, -5],
     [1, 1, 0, 0],
@@ -47,235 +27,156 @@ const BatchProcessing = () => {
     [0, 0, 0],
     [0, 0, 0],
   ])
-
   const [matrixHA, setMatrixHA] = useState([
     [0, 0, 0],
     [0, 0, 0],
     [0, 0, 0],
     [0, 0, 0],
   ])
-
   const [matrixYZ, setMatrixYZ] = useState([
     [0, 0, 0],
     [0, 0, 0],
   ])
-
   const [matrixYA, setMatrixYA] = useState([
     [0, 0, 0],
     [0, 0, 0],
   ])
 
-  useEffect(() => {
-    // Define the event listener function
-    const handlePythonOutputChange = (event) => {
-      const matrixString = event.detail
+  // ------ helpers ------
+  const toNpArray2DInline = (m /* [[...],[...]] */) =>
+    `np.array([${m
+      .map((row, i) => `${i ? ' ' : ''}[${row.join(', ')}]`)
+      .join(', ')}])`
 
-      // Extract values from the string
-      const { outputMatrixHZ, outputMatrixHA, outputMatrixYZ, outputMatrixYA } =
-        extractValues(matrixString)
+  const toNpArray1D = (arr /* [a,b,c] */) => `np.array([${arr.join(', ')}])`
 
-      // Update your states accordingly
-      if (outputMatrixHZ.length > 0) setMatrixHZ(outputMatrixHZ)
-      if (outputMatrixHA.length > 0) setMatrixHA(outputMatrixHA)
-      if (outputMatrixYZ.length > 0) setMatrixYZ(outputMatrixYZ)
-      if (outputMatrixYA.length > 0) setMatrixYA(outputMatrixYA)
+  const setAndRun = useCallback((nextCode) => {
+    if (typeof window.setPythonCode === 'function') {
+      window.setPythonCode(nextCode, { run: true })
+    } else if (typeof window.executePython === 'function') {
+      window.executePython(nextCode)
     }
+  }, [])
 
-    // Add event listener when the component mounts
-    window.addEventListener('pythonOutputChanged', handlePythonOutputChange)
+  const getBaseCode = () =>
+    (typeof window.getPythonCode === 'function' && window.getPythonCode()) || ''
 
-    // Return a cleanup function to remove the event listener when the component unmounts
-    return () => {
-      window.removeEventListener(
-        'pythonOutputChanged',
-        handlePythonOutputChange,
-      )
-    }
-  }, [extractValues]) // The empty array ensures this effect runs only once after the initial render
+  // Replace W1/b1 in code (W1 is 4x3, b1 is 4)
+  const replaceLayer1 = (src, w1 /* 4x4 */) => {
+    const weights = w1.map((row) => row.slice(0, 3))
+    const biases = w1.map((row) => row[3])
+    const W1_PAT = /W1\s*=\s*np\.array\(\s*\[\s*(?:\[[^\]]*]\s*,?\s*)+]\s*\)/gms
+    const B1_PAT = /b1\s*=\s*np\.array\(\s*\[[^\]]*]\s*\)/gms
+    const W1_STR = `W1 = ${toNpArray2DInline(weights)}`
+    const B1_STR = `b1 = ${toNpArray1D(biases)}`
+    return src.replace(W1_PAT, W1_STR).replace(B1_PAT, B1_STR)
+  }
 
-  // Helper function to parse matched values into an array of arrays of numbers
-  function parseMultiDimensionalValues(match) {
+  // Replace W2/b2 in code (W2 is 2x4, b2 is 2)
+  const replaceLayer2 = (src, w2 /* 2x5 */) => {
+    const weights = w2.map((row) => row.slice(0, 4))
+    const biases = w2.map((row) => row[4])
+    const W2_PAT = /W2\s*=\s*np\.array\(\s*\[\s*(?:\[[^\]]*]\s*,?\s*)+]\s*\)/gms
+    const B2_PAT = /b2\s*=\s*np\.array\(\s*\[[^\]]*]\s*\)/gms
+    const W2_STR = `W2 = ${toNpArray2DInline(weights)}`
+    const B2_STR = `b2 = ${toNpArray1D(biases)}`
+    return src.replace(W2_PAT, W2_STR).replace(B2_PAT, B2_STR)
+  }
+
+  // Replace x1, x2, x3 (each is 3x1 presented as [[a],[b],[c]])
+  const replaceInputs = (src, X /* 3x3 */) => {
+    // transpose columns into vectors
+    const cols = X[0].map((_, c) => X.map((r) => r[c]))
+    const toColVec = (col /* [a,b,c] */) =>
+      `np.array([${col.map((v) => `[${v}]`).join(', ')}])`
+    const X1_PAT = /x1\s*=\s*np\.array\(\s*\[\s*\[(?:.|\n)*?]\s*]\s*\)/gms
+    const X2_PAT = /x2\s*=\s*np\.array\(\s*\[\s*\[(?:.|\n)*?]\s*]\s*\)/gms
+    const X3_PAT = /x3\s*=\s*np\.array\(\s*\[\s*\[(?:.|\n)*?]\s*]\s*\)/gms
+    return src
+      .replace(X1_PAT, `x1 = ${toColVec(cols[0] || [])}`)
+      .replace(X2_PAT, `x2 = ${toColVec(cols[1] || [])}`)
+      .replace(X3_PAT, `x3 = ${toColVec(cols[2] || [])}`)
+  }
+
+  // ------ output parsing ------
+  const parseMultiDimensionalValues = (match) => {
     if (!match || match.length < 2) return []
-
-    // Split the matched string into lines
     const lines = match[1].trim().split('\n')
-
-    // Process each line to extract numbers
-    return lines.map(
-      (line) =>
-        line
-          .trim() // Trim leading and trailing whitespace
-          .replace(/\s+/g, ' ') // Normalize whitespace between numbers to a single space
-          .replace(/\[/g, '') // Remove opening brackets
-          .replace(/\]/g, '') // Remove closing brackets
-          .trim() // Trim again in case of leading/trailing spaces after removing brackets
-          .split(' ') // Split by space to get individual numbers
-          .map(Number), // Convert each string to a Number
+    return lines.map((line) =>
+      line
+        .trim()
+        .replace(/\s+/g, ' ')
+        .replace(/\[/g, '')
+        .replace(/\]/g, '')
+        .trim()
+        .split(' ')
+        .map(Number),
     )
   }
 
-  function extractValues(str) {
-    // Update regular expressions to match multi-line arrays
+  const extractValues = useCallback((str) => {
     const hzRegex = /Hidden layer:\n\s*\[\s*\[([\s\S]*?)\]\]/m
     const haRegex = /ReLU Activated Hidden layer:\n\s*\[\s*\[([\s\S]*?)\]\]/m
     const yzRegex = /Output Layer:\n\s*\[\s*\[([\s\S]*?)\]\]/m
     const yaRegex = /ReLU Activated Output Layer:\n\s*\[\s*\[([\s\S]*?)\]\]/m
 
-    // Extract and parse for each matrix
     const outputMatrixHZ = parseMultiDimensionalValues(str.match(hzRegex))
     const outputMatrixHA = parseMultiDimensionalValues(str.match(haRegex))
     const outputMatrixYZ = parseMultiDimensionalValues(str.match(yzRegex))
     const outputMatrixYA = parseMultiDimensionalValues(str.match(yaRegex))
 
     return { outputMatrixHZ, outputMatrixHA, outputMatrixYZ, outputMatrixYA }
+  }, [])
+
+  // listen for python output
+  useEffect(() => {
+    const handle = (event) => {
+      const matrixString = String(event.detail ?? '')
+      const { outputMatrixHZ, outputMatrixHA, outputMatrixYZ, outputMatrixYA } =
+        extractValues(matrixString)
+
+      if (outputMatrixHZ.length) setMatrixHZ(outputMatrixHZ)
+      if (outputMatrixHA.length) setMatrixHA(outputMatrixHA)
+      if (outputMatrixYZ.length) setMatrixYZ(outputMatrixYZ)
+      if (outputMatrixYA.length) setMatrixYA(outputMatrixYA)
+    }
+    window.addEventListener('pythonOutputChanged', handle)
+    return () => window.removeEventListener('pythonOutputChanged', handle)
+  }, [extractValues])
+
+  // ------ handlers (update code via PythonModule API) ------
+  const handleMatrixW1Change = (newW1) => {
+    setMatrixW1(newW1)
+    const base = getBaseCode()
+    if (!base) return
+    const updated = replaceLayer1(base, newW1)
+    setAndRun(updated)
   }
 
-  // Function to handle changes in Matrix W1
-  const handleMatrixW1Change = (newMatrixW1) => {
-    setMatrixW1(newMatrixW1)
-
-    // Construct the new weights array
-    const newWeights = newMatrixW1.map((row) => row.slice(0, 3))
-    const newBiases = newMatrixW1.map((row) => row[3])
-
-    // Construct the weights string for numpy
-    let weightsString = 'W1 = np.array(['
-    newWeights.forEach((weight, index) => {
-      // Join elements with a comma and a space, and wrap with brackets
-      const weightString = `[${weight.join(', ')}]`
-      weightsString += index === 0 ? weightString : ` ${weightString}` // Add a space before the weightString if it's not the first weight array
-      if (index < newWeights.length - 1) {
-        weightsString += ',' // Only add a comma if it's not the last weight array
-      }
-    })
-    weightsString += '])'
-
-    // Construct the biases string for numpy
-    const biasesString = `b1 = np.array([${newBiases.join(', ')}])`
-
-    // Select the code display element
-    const codeElement = document.querySelector('#codeDisplay pre code')
-    if (codeElement) {
-      let updatedCode = codeElement.textContent
-
-      // Use regular expression to replace the W1 and b1 lines
-      // For W1, match the whole multi-line declaration
-      updatedCode = updatedCode.replace(
-        /W1 = np\.array\(\[.*?\]\)/gs, // 's' flag for matching across lines
-        weightsString,
-      )
-
-      // For b1, a simple single-line replacement works
-      updatedCode = updatedCode.replace(
-        /b1 = np\.array\(\[.*?\]\)/gs,
-        biasesString,
-      )
-
-      // Render the updated code
-      if (codeDisplayRootRef.current) {
-        const syntaxHighlighterElement = <CodeBlock code={updatedCode} />
-        codeDisplayRootRef.current.render(syntaxHighlighterElement)
-      }
-      window.executePython?.(updatedCode)
-    }
+  const handleMatrixW2Change = (newW2) => {
+    setMatrixW2(newW2)
+    const base = getBaseCode()
+    if (!base) return
+    const updated = replaceLayer2(base, newW2)
+    setAndRun(updated)
   }
 
-  const handleMatrixW2Change = (newMatrixW2) => {
-    setMatrixW2(newMatrixW2)
-
-    // Construct the new weights array
-    const newWeights = newMatrixW2.map((row) => row.slice(0, 4))
-    const newBiases = newMatrixW2.map((row) => row[4])
-
-    // Construct the weights string for numpy
-    let weightsString = 'W2 = np.array(['
-    newWeights.forEach((weight, index) => {
-      // Join elements with a comma and a space, and wrap with brackets
-      const weightString = `[${weight.join(', ')}]`
-      weightsString += index === 0 ? weightString : ` ${weightString}` // Add a space before the weightString if it's not the first weight array
-      if (index < newWeights.length - 1) {
-        weightsString += ',' // Only add a comma if it's not the last weight array
-      }
-    })
-    weightsString += '])'
-
-    // Construct the biases string for numpy
-    const biasesString = `b2 = np.array([${newBiases.join(', ')}])`
-
-    // Select the code display element
-    const codeElement = document.querySelector('#codeDisplay pre code')
-    if (codeElement) {
-      let updatedCode = codeElement.textContent
-
-      // Use regular expression to replace the W2 and b2 lines
-      // For W2, match the whole multi-line declaration
-      updatedCode = updatedCode.replace(
-        /W2 = np\.array\(\[.*?\]\)/gs, // 's' flag for matching across lines
-        weightsString,
-      )
-
-      // For b2, a simple single-line replacement works
-      updatedCode = updatedCode.replace(
-        /b2 = np\.array\(\[.*?\]\)/gs,
-        biasesString,
-      )
-
-      // Render the updated code
-      if (codeDisplayRootRef.current) {
-        const syntaxHighlighterElement = <CodeBlock code={updatedCode} />
-        codeDisplayRootRef.current.render(syntaxHighlighterElement)
-      }
-      window.executePython?.(updatedCode)
-    }
-  }
-
-  const handleMatrixXChange = (newMatrixX) => {
-    setMatrixX(newMatrixX)
-
-    // Transpose newMatrixX to get columns as individual input vectors
-    const [newX1, newX2, newX3] = newMatrixX[0].map((_, colIndex) =>
-      newMatrixX.map((row) => row[colIndex]),
-    )
-
-    // Generate the updated Python code strings for x1, x2, and x3
-    const x1String = `x1 = np.array([${newX1.map((value) => `[${value}]`).join(', ')}])`
-    const x2String = `x2 = np.array([${newX2.map((value) => `[${value}]`).join(', ')}])`
-    const x3String = `x3 = np.array([${newX3.map((value) => `[${value}]`).join(', ')}])`
-
-    // Select the codeDisplay element and get the existing Python code
-    const codeElement = document.querySelector('#codeDisplay pre code')
-    if (codeElement) {
-      let updatedCode = codeElement.textContent
-
-      // Replace the existing x1, x2, and x3 definitions with the new ones
-      updatedCode = updatedCode.replace(
-        /x1 = np\.array\(\[\[.*?\]\]\)/s,
-        x1String,
-      )
-      updatedCode = updatedCode.replace(
-        /x2 = np\.array\(\[\[.*?\]\]\)/s,
-        x2String,
-      )
-      updatedCode = updatedCode.replace(
-        /x3 = np\.array\(\[\[.*?\]\]\)/s,
-        x3String,
-      )
-
-      // Render the updated code using the stored root
-      if (codeDisplayRootRef.current) {
-        const syntaxHighlighterElement = <CodeBlock code={updatedCode} />
-        codeDisplayRootRef.current.render(syntaxHighlighterElement)
-      }
-      window.executePython?.(updatedCode)
-    }
+  const handleMatrixXChange = (newX) => {
+    setMatrixX(newX)
+    const base = getBaseCode()
+    if (!base) return
+    const updated = replaceInputs(base, newX)
+    setAndRun(updated)
   }
 
   return (
     <div
       id="interactiveInputs"
-      className="mb-4 grid hidden grid-cols-[2fr_1fr_1fr] grid-rows-[1fr_1fr_1fr] place-items-center gap-2 rounded-md bg-[#e9e9e9] p-1 text-[#d0d0d0] sm:gap-4 sm:p-6 md:gap-6 lg:gap-8 dark:bg-[#292929] dark:text-[#f5f2f0]"
+      className="mb-4 grid grid-cols-[2fr_1fr_1fr] grid-rows-[1fr_1fr_1fr] place-items-center gap-2 rounded-md bg-[#e9e9e9] p-1 text-[#d0d0d0] sm:gap-4 sm:p-6 md:gap-6 lg:gap-8 dark:bg-[#292929] dark:text-[#f5f2f0]"
     >
       <div className="sm:bg-transparent"></div>
+
+      {/* Input */}
       <div className="text-center">
         <span className="text-base font-bold text-black sm:text-lg dark:text-white">
           Input
@@ -289,8 +190,10 @@ const BatchProcessing = () => {
         />
         <span className="p-2 text-black opacity-40 dark:text-white">1</span>
       </div>
+
       <div className="bg-transparent"></div>
 
+      {/* Layer 1 W/B */}
       <div className="text-center">
         <span className="text-base font-bold text-black sm:text-lg dark:text-white">
           Layer 1 W/B
@@ -305,6 +208,7 @@ const BatchProcessing = () => {
         <span className="p-2 text-black opacity-0 dark:text-white">1</span>
       </div>
 
+      {/* Hidden Z */}
       <div className="text-center">
         <span className="text-base font-bold text-black sm:text-lg dark:text-white">
           Z
@@ -320,6 +224,7 @@ const BatchProcessing = () => {
         <span className="p-2 text-black opacity-0 dark:text-white">1</span>
       </div>
 
+      {/* Hidden A */}
       <div className="text-center">
         <span className="text-base font-bold text-black sm:text-lg dark:text-white">
           A
@@ -335,6 +240,7 @@ const BatchProcessing = () => {
         <span className="p-2 text-black opacity-40 dark:text-white">1</span>
       </div>
 
+      {/* Layer 2 W/B */}
       <div className="text-center">
         <span className="w-full text-base font-bold text-black sm:text-lg dark:text-white">
           Layer 2 W/B
@@ -348,6 +254,7 @@ const BatchProcessing = () => {
         />
       </div>
 
+      {/* Output Z */}
       <div className="text-center">
         <span className="text-base font-bold text-black sm:text-lg dark:text-white">
           Z
@@ -362,6 +269,7 @@ const BatchProcessing = () => {
         />
       </div>
 
+      {/* Output A */}
       <div className="text-center">
         <span className="text-base font-bold text-black sm:text-lg dark:text-white">
           A

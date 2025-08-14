@@ -13,10 +13,10 @@ import lazyLoadPlugin from 'rehype-plugin-image-native-lazy-loading'
 import { remarkReadingTime } from './src/utils/all'
 
 export default defineConfig({
-  site: 'https://jeremylondon.com/',
+  site: "https://jeremylondon.com/",
 
   markdown: {
-    syntaxHighlight: 'prism',
+    syntaxHighlight: "prism",
     remarkPlugins: [remarkReadingTime],
     rehypePlugins: [lazyLoadPlugin],
     extendDefaultPlugins: true,
@@ -27,4 +27,4 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
   },
-})
+});

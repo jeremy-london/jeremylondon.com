@@ -3,6 +3,8 @@ import Container from '@components/container.astro'
 import PageTitle from '@components/page-title.astro'
 import Link from '@components/ui/link.astro'
 import Layout from '@layouts/Layout.astro'
+import { Image } from 'astro:assets'
+import jeremyImg from '@assets/jeremy.webp'
 ---
 
 <Layout title="About">
@@ -15,20 +17,17 @@ import Layout from '@layouts/Layout.astro'
     <div
       class="mx-auto mt-12 max-w-4xl flex flex-col lg:flex-row items-center justify-between gap-10">
       <div class="aspect-square">
-        <!-- <img
-          src="/images/jeremy.webp"
-          width={300}
-          height={300}
-          alt="Jeremy London"
-          class="rounded-full object-cover transition hover:-translate-y-1 hover:shadow-xl"
-          loading="eager"
-          decoding="async"
-        /> -->
         <figure class="cool-profile">
-          <img
-            src="/images/jeremy.webp"
+          <Image
+            src={jeremyImg}
             alt="Jeremy's profile picture"
             class="shadow-md"
+            format='avif'
+            decoding={"sync"}
+            loading={"eager"}
+            fetchpriority={"high"}
+            width={384}
+            height={384}
           />
         </figure>
       </div>

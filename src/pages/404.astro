@@ -2,6 +2,8 @@
 import Container from '@components/container.astro'
 import Link from '@components/ui/link.astro'
 import Layout from '@layouts/Layout.astro'
+import { Image } from 'astro:assets'
+import NotFoundImg from '@assets/404.webp'
 ---
 
 <Layout title="404 - Page Not Found">
@@ -26,9 +28,10 @@ import Layout from '@layouts/Layout.astro'
         </div>
 
         <figure class="w-96 h-96 p-8">
-          <img
-            src="/images/404.webp"
+          <Image
+            src={NotFoundImg}
             alt="404 Not Found"
+            format='avif'
             class="rounded-full shadow-md"
           />
         </figure>

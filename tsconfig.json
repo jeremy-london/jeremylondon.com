@@ -11,7 +11,9 @@
       "@components/*": ["components/*"],
       "@layouts/*": ["layouts/*"],
       "@styles/*": ["styles/*"],
-      "@pages/*": ["pages/*"]
+      "@pages/*": ["pages/*"],
+      "@assets/*": ["assets/*"],
+      "@content/*": ["content/*"]
     }
   }
 }

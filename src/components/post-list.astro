@@ -6,6 +6,7 @@ import type { Category } from '@data/category'
 import { categories } from '@data/category'
 import { getFormattedDate } from '@utils/all'
 import { Icon } from 'astro-icon/components'
+import { Image } from 'astro:assets'
 import cx from 'classnames'
 
 const { post, aspect, preloadImage } = Astro.props
@@ -26,13 +27,14 @@ const category = categories.find(
     <a href={"/blog/" + post.slug}>
       {
         post.data.image ? (
-          <img
+          <Image
             src={post.data.image}
             sizes="(max-width: 640px) 90vw, 480px"
             alt="Thumbnail"
+            format="avif"
             loading={preloadImage ? "eager" : "lazy"}
-            width={1200}
-            height={630}
+            width={600}
+            height={600}
             class={cx(
               "rounded-md",
               aspect === "landscape" ? "object-cover" : "object-contain"
@@ -79,12 +81,13 @@ const category = categories.find(
       <div class="relative shrink-0 w-5 h-5">
         {
           author.image && (
-            <img
+            <Image
               src={author.image}
               alt="Author Photo"
               width={40}
               height={40}
               loading="lazy"
+              format="avif"
               class="rounded-full"
             />
           )

@@ -1,147 +1,175 @@
-import CodeBlock from '@components/blog/shared/CodeBlock'
 import MatrixInput from '@components/blog/shared/MatrixInput'
-import { useEffect, useRef, useState } from 'react'
-import * as ReactDOM from 'react-dom/client'
+import { useCallback, useEffect, useState } from 'react'
 
 const SingleNeuron = () => {
-  const codeDisplayRootRef = useRef(null)
-
+  // Gate UI until PythonModule exposes its API
+  const [uiReady, setUiReady] = useState(false)
   useEffect(() => {
-    // Cleanup function to reset the ref
+    let alive = true
+    const until = Date.now() + 15000
+    const tick = () => {
+      if (!alive) return
+      const hasAPI =
+        typeof window !== 'undefined' &&
+        (typeof window.setPythonCode === 'function' ||
+          typeof window.executePython === 'function')
+      if (hasAPI) setUiReady(true)
+      else if (Date.now() < until) requestAnimationFrame(tick)
+    }
+    tick()
     return () => {
-      codeDisplayRootRef.current = null
+      alive = false
     }
   }, [])
 
-  useEffect(() => {
-    // Ensure re-initialization runs every time the component is rendered
-    if (!codeDisplayRootRef.current) {
-      const container = document.getElementById('codeDisplay')
-      if (container) {
-        codeDisplayRootRef.current = ReactDOM.createRoot(container)
+  // -------- state --------
+  const [matrixWB, setMatrixWB] = useState([[1, -1, 1, -5]]) // [w1,w2,w3,b]
+  const [matrixX, setMatrixX] = useState([[2], [1], [3]]) // 3x1 UI
+  const [matrixZ, setMatrixZ] = useState([[0]]) // 1x1
+  const [matrixA, setMatrixA] = useState([[0]]) // 1x1
+
+  // -------- helpers: python code I/O --------
+  const getBaseCode = () =>
+    (typeof window.getPythonCode === 'function' && window.getPythonCode()) || ''
+
+  const setAndRun = useCallback((next) => {
+    if (typeof window.setPythonCode === 'function') {
+      window.setPythonCode(next, { run: true })
+    } else if (typeof window.executePython === 'function') {
+      window.executePython(next)
+    }
+  }, [])
+
+  // -------- precise patchers (surgical replacements) --------
+  // Replace ONLY the inside of np.array(...) for a given variable name.
+  const patchArrayLiteral = (src, varName, jsValue /* 1D or 2D */) => {
+    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const assignRe = new RegExp(
+      `\\b${esc(varName)}\\s*=\\s*np\\.array\\s*\\(`,
+      'm',
+    )
+    const m = assignRe.exec(src)
+    if (!m) return src
+
+    // Walk to matching ')'
+    const i = m.index + m[0].length - 1 // at '('
+    let depth = 0
+    let end = -1
+    for (let k = i; k < src.length; k++) {
+      const ch = src[k]
+      if (ch === '(') depth++
+      else if (ch === ')') {
+        depth--
+        if (depth === 0) {
+          end = k
+          break
+        }
       }
     }
-  })
+    if (end === -1) return src
 
-  const [matrixWB, setMatrixWB] = useState([[1, -1, 1, -5]])
+    // Preserve any trailing same-line comment after ')'
+    let lineEnd = src.indexOf('\n', end)
+    if (lineEnd === -1) lineEnd = src.length
+    const afterParen = src.slice(end + 1, lineEnd)
 
-  const [matrixX, setMatrixX] = useState([[2], [1], [3]])
-
-  const [matrixZ, setMatrixZ] = useState([[0]])
-
-  const [matrixA, setMatrixA] = useState([[0]])
-
-  useEffect(() => {
-    // Define the event listener function
-    const handlePythonOutputChange = (event) => {
-      const matrixString = event.detail
-
-      // Extract values from the string
-      const { matrixZValue, matrixAValue } = extractReLUValues(matrixString)
-
-      // Update your states accordingly
-      if (matrixZValue !== null) setMatrixZ([[matrixZValue]])
-      if (matrixAValue !== null) setMatrixA([[matrixAValue]])
+    const buildNp = (val) => {
+      if (Array.isArray(val[0])) {
+        const rows = val.map((row) => `[${row.join(', ')}]`).join(', ')
+        return `[${rows}]`
+      } else {
+        return `[${val.join(', ')}]`
+      }
     }
 
-    // Add event listener when the component mounts
-    window.addEventListener('pythonOutputChanged', handlePythonOutputChange)
+    const newInner = buildNp(jsValue)
+    const before = src.slice(0, i + 1)
+    const after = src.slice(end)
+    const replaced = `${before}${newInner}${after}`
 
-    // Return a cleanup function to remove the event listener when the component unmounts
-    return () => {
-      window.removeEventListener(
-        'pythonOutputChanged',
-        handlePythonOutputChange,
-      )
-    }
-  }, [extractReLUValues]) // The empty array ensures this effect runs only once after the initial render
-
-  function extractReLUValues(str) {
-    // Regular expression to match the pattern "ReLU: [value] → [value]"
-    const reluMatch = str.match(/ReLU: ([-\d]+) → ([-\d]+)/)
-    if (reluMatch) {
-      // Extracted values from the matched groups
-      const matrixZValue = Number(reluMatch[1]) // Convert to number
-      const matrixAValue = Number(reluMatch[2]) // Convert to number
-      return { matrixZValue, matrixAValue }
-    }
-    // Return null or some default values if the pattern is not matched
-    return { matrixZValue: null, matrixAValue: null }
+    return replaced.slice(0, end + 1) + afterParen + src.slice(lineEnd)
   }
 
-  // Function to handle changes in Matrix A
-  const handleMatrixWBChange = (newMatrixWB) => {
-    setMatrixWB(newMatrixWB)
-
-    const weights = newMatrixWB[0].slice(0, 3) // Extracts the first 3 values as weights
-    const bias = newMatrixWB[0][3] // Extracts the 4th value as bias
-
-    // select id codeDisplay and set its child pre code to string with weights and bias updated
-    const codeElement = document.querySelector('#codeDisplay pre code')
-    if (codeElement) {
-      const existingCode = codeElement.textContent
-
-      // Update weights in the code
-      const updatedWeightsCode = existingCode.replace(
-        /weights = np.array\(\[.*?\]\)/,
-        `weights = np.array([${weights.join(', ')}])`,
-      )
-
-      // Update bias in the code
-      const updatedCode = updatedWeightsCode.replace(
-        /bias = .*? {2}# bias should be a scalar, not an array/,
-        `bias = ${bias}  # bias should be a scalar, not an array`,
-      )
-
-      // Set the updated code to the code element
-      // codeElement.textContent = updatedCode;
-
-      // Render the updated code using the stored root
-      if (codeDisplayRootRef.current) {
-        const syntaxHighlighterElement = <CodeBlock code={updatedCode} />
-        codeDisplayRootRef.current.render(syntaxHighlighterElement)
-      }
-
-      window.executePython?.(updatedCode)
-    }
+  // Replace ONLY the numeric literal in a scalar assignment: e.g. "bias = -5  # ...".
+  const patchScalarLiteral = (src, varName, numValue) => {
+    const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const lineRe = new RegExp(
+      `^(\\s*${esc(
+        varName,
+      )}\\s*=\\s*)([+-]?\\d*\\.?\\d+(?:[eE][+-]?\\d+)?)(.*)$`,
+      'm',
+    )
+    const m = lineRe.exec(src)
+    if (!m) return src
+    const start = m.index
+    const end = start + m[0].length
+    const newLine = `${m[1]}${String(numValue)}${m[3]}`
+    return src.slice(0, start) + newLine + src.slice(end)
   }
 
-  // Function to handle changes in Matrix B
-  const handleMatrixXChange = (newMatrixX) => {
-    setMatrixX(newMatrixX)
+  // -------- output parsing --------
+  useEffect(() => {
+    const handler = (event) => {
+      const text = String(event.detail ?? '')
 
-    // Select the codeDisplay element and set its child pre code to string with inputs updated
-    const codeElement = document.querySelector('#codeDisplay pre code')
-    if (codeElement) {
-      // Flatten newMatrixX if it's a 2D array to make it compatible with the inputs format
-      const inputs = newMatrixX.flat() // This will handle multi-dimensional array to a flat array if necessary
-
-      // Convert inputs to a string in the numpy array format with spacing
-      const inputsString = `np.array([${inputs.join(', ')}])`
-
-      // Replace the inputs in the existing code
-      const existingCode = codeElement.textContent
-      const updatedCode = existingCode.replace(
-        /inputs = np.array\(\[.*?\]\)/,
-        `inputs = ${inputsString}`,
+      // Z (pre-activation) from "... = <number>" on the w*x+b line
+      const zMatch = text.match(
+        /w\*x \+ b = [^\n=]*=\s*([+-]?\d*\.?\d+(?:[eE][+-]?\d+)?)/,
+      )
+      // A (post-activation) from "ReLU: <z> → <a> ..."
+      const reluMatch = text.match(
+        /ReLU:\s*([+-]?\d*\.?\d+(?:[eE][+-]?\d+)?)\s*→\s*([+-]?\d*\.?\d+(?:[eE][+-]?\d+)?)/u,
       )
 
-      // Render the updated code using the stored root
-      if (codeDisplayRootRef.current) {
-        const syntaxHighlighterElement = <CodeBlock code={updatedCode} />
-        codeDisplayRootRef.current.render(syntaxHighlighterElement)
-      }
+      const zVal = zMatch
+        ? Number(zMatch[1])
+        : reluMatch
+          ? Number(reluMatch[1])
+          : null
+      const aVal = reluMatch ? Number(reluMatch[2]) : null
 
-      window.executePython?.(updatedCode)
+      if (zVal !== null && Number.isFinite(zVal)) setMatrixZ([[zVal]])
+      if (aVal !== null && Number.isFinite(aVal)) setMatrixA([[aVal]])
     }
+
+    window.addEventListener('pythonOutputChanged', handler)
+    return () => window.removeEventListener('pythonOutputChanged', handler)
+  }, [])
+
+  // -------- handlers: patch code precisely & run --------
+  const handleMatrixWBChange = (newWB) => {
+    setMatrixWB(newWB)
+    const base = getBaseCode()
+    if (!base) return
+
+    const weights = newWB[0].slice(0, 3) // [w1,w2,w3]
+    const bias = newWB[0][3] // scalar
+
+    let updated = patchArrayLiteral(base, 'weights', weights)
+    updated = patchScalarLiteral(updated, 'bias', bias)
+    setAndRun(updated)
+  }
+
+  const handleMatrixXChange = (newX) => {
+    setMatrixX(newX)
+    const base = getBaseCode()
+    if (!base) return
+    const flat = newX.flat() // 3x1 -> [2,1,3]
+    const updated = patchArrayLiteral(base, 'inputs', flat)
+    setAndRun(updated)
   }
 
   return (
     <div
-      id="interactiveInputs"
-      className="mb-4 grid hidden grid-cols-[2fr_3fr] grid-rows-[2fr_1fr] gap-2 rounded-md bg-[#e9e9e9] pt-4 pr-2 pb-4 pl-2 text-[#d0d0d0] sm:gap-4 sm:pr-0 sm:pl-12 lg:pl-28 dark:bg-[#292929] dark:text-[#f5f2f0]"
+      id="singleNeuronInteractiveInputs"
+      className={
+        (uiReady ? '' : 'hidden ') +
+        'mb-4 grid grid-cols-[2fr_3fr] grid-rows-[2fr_1fr] gap-2 rounded-md bg-[#e9e9e9] pt-4 pr-2 pb-4 pl-2 text-[#d0d0d0] sm:gap-4 sm:pr-0 sm:pl-12 lg:pl-28 dark:bg-[#292929] dark:text-[#f5f2f0]'
+      }
     >
       <div className="bg-transparent"></div>
+
+      {/* Input (3x1 UI; python 1D) */}
       <div className="flex flex-col items-center justify-center pr-28 pl-6 sm:pl-4 md:pr-52">
         <span className="text-center text-lg font-bold text-black dark:text-white">
           Input
@@ -155,6 +183,7 @@ const SingleNeuron = () => {
         <span className="p-2 text-black opacity-40 dark:text-white">1</span>
       </div>
 
+      {/* Weights + Bias */}
       <div className="flex flex-col items-center justify-center">
         <span className="text-center text-lg font-bold text-black dark:text-white">
           Weight and Bias
@@ -167,6 +196,7 @@ const SingleNeuron = () => {
         />
       </div>
 
+      {/* Outputs Z & A (1x1) */}
       <div className="flex flex-row items-center justify-center gap-4 px-4 pt-8 xs:pt-0">
         <div className="flex flex-col items-center justify-center">
           <span className="text-center text-lg font-bold text-black dark:text-white">

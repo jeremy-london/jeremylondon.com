@@ -1,4 +1,5 @@
 ---
+import { Image } from 'astro:assets'
 import CategoryPosts from '@components/category-posts.astro'
 import Container from '@components/container.astro'
 import PostList from '@components/post-list.astro'
@@ -6,6 +7,7 @@ import Link from '@components/ui/link.astro'
 import { categories } from '@data/category'
 import Layout from '@layouts/Layout.astro'
 import { latestPosts } from '@utils/content'
+import jeremyImg from '@assets/jeremy.webp'
 ---
 
 <Layout title="">
@@ -53,10 +55,16 @@ import { latestPosts } from '@utils/content'
         </div>
 
         <figure class="cool-profile">
-          <img
-            src="/images/jeremy.webp"
+          <Image
+            src={jeremyImg}
             alt="Jeremy's profile picture"
             class="shadow-md"
+            format='avif'
+            decoding={"sync"}
+            loading={"eager"}
+            fetchpriority={"high"}
+            width={384}
+            height={384}
           />
         </figure>
       </div>
@@ -87,7 +95,9 @@ import { latestPosts } from '@utils/content'
       <div class="flex justify-center mt-7 mb-7">
         <a
           href="/blog"
-          class="px-5 py-3 text-sm text-blue-600 transition rounded-md dark:text-orange-500 bg-orange-50 hover:bg-blue-200 dark:hover:bg-orange-200">
+          class="px-5 py-3 text-sm font-medium rounded-md transition
+        text-white bg-blue-600 hover:bg-blue-700
+        dark:bg-orange-700 dark:hover:bg-orange-900 dark:text-white">
           ← View all posts
         </a>
       </div>
