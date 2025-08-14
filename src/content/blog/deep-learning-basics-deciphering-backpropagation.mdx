@@ -11,11 +11,13 @@ load_pyodide: true
 load_mathjax: true
 ---
 
-import PythonModule from "@components/blog/PythonModule.jsx";
+import PythonModule from "@components/blog/shared/PythonModule.jsx";
 import BackPropagation from "@components/blog/BackPropagation.jsx";
 
 <h2>
-  <a href="#interactive-code-environment" class="m-0 text-blue-100 dark:text-orange-400 no-underline bg-gradient-to-r from-blue-200 to-blue-100 dark:from-orange-800 dark:to-orange-900 bg-[length:0px_10px] bg-left-bottom bg-no-repeat transition-[background-size] duration-500 hover:bg-[length:100%_3px] group-hover:bg-[length:100%_10px]">
+  <a
+    href="#interactive-code-environment"
+    class="m-0 bg-linear-to-r from-blue-200 to-blue-100 bg-size-[0px_10px] bg-bottom-left bg-no-repeat text-blue-100 no-underline transition-[background-size] duration-500 group-hover:bg-size-[100%_10px] hover:bg-size-[100%_3px] dark:from-orange-800 dark:to-orange-900 dark:text-orange-400">
     <span>Scroll down for Interactive Code Environment 👇</span>
   </a>
 </h2>
@@ -26,8 +28,12 @@ Neural networks have captivated the world with their remarkable ability to learn
 
 The key to understanding the learning process of neural networks lies in two fundamental concepts: **backpropagation** and **gradient descent**. These two ideas form the backbone of how neural networks adapt and improve over time, continuously refining their internal parameters to minimize the difference between their predictions and the true desired outputs.
 
-<div class="overflow-hidden float-right ml-4 h-auto sm:w-1/2 w-full ">
-  <img src="/images/hocus-pocus-machine-learning.gif" alt="Hocus Pocus Machine Learning" class="block w-full h-auto -mt-2" />
+<div class="float-right ml-4 h-auto w-full overflow-hidden sm:w-1/2">
+  <img
+    src="/images/hocus-pocus-machine-learning.gif"
+    alt="Hocus Pocus Machine Learning"
+    class="-mt-2 block h-auto w-full"
+  />
 </div>
 
 In this in-depth blog post, I'll get under the hood and into the mechanics of backpropagation and gradient descent, exploring how they work together to enable neural networks to learn. I'll start by breaking down the core principles behind each concept, then see how they are applied in the context of a multi-layer neural network. Along the way, I'll unpack the mathematical intuitions and dive into real-world code examples to solidify your understanding.
@@ -78,11 +84,11 @@ The mean squared error (MSE) loss function is a popular choice. It calculates th
 
 In the context of machine learning, specifically within neural networks, differential calculus plays a crucial role. Specifically, the computation of gradients of the loss function with respect to the network's weights and biases is fundamental. By using partial derivatives, we can compute the gradients needed for updating the weights and biases during optimization. These gradients guide the network to adjust its parameters and improve its predictions. It's like using calculus to navigate towards better performance!
 
-#### Z (Pre-activation Outputs): 
+#### Z (Pre-activation Outputs):
 
 This represents the output of each neuron before applying an activation function, essentially the linear combination of input data with the neuron's current weights and biases.
 
-#### A (Activations): 
+#### A (Activations):
 
 The activated output of neurons, obtained by applying an activation function to `Z`. These activations are the "decisions" made by each neuron, significantly impacting the network's overall output.
 
@@ -141,7 +147,11 @@ The synergy between backpropagation and gradient descent is what allows neural n
 ### Interactive Code Environment
 
 <BackPropagation client:only="react" />
-<PythonModule client:only="react" filePath="examples/basics/backpropagation.py" outputRows={32} />
+<PythonModule
+  client:only="react"
+  filePath="examples/basics/backpropagation.py"
+  outputRows={32}
+/>
 
 ### Original Inspiration
 

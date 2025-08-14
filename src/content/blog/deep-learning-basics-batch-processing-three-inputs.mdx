@@ -10,11 +10,13 @@ tags: [batch processing, neural networks, deep learning]
 load_pyodide: true
 ---
 
-import PythonModule from "@components/blog/PythonModule.jsx";
+import PythonModule from "@components/blog/shared/PythonModule.jsx";
 import BatchProcessing from "@components/blog/BatchProcessing.jsx";
 
 <h2>
-  <a href="#interactive-code-environment" class="m-0 text-blue-100 dark:text-orange-400 no-underline bg-gradient-to-r from-blue-200 to-blue-100 dark:from-orange-800 dark:to-orange-900 bg-[length:0px_10px] bg-left-bottom bg-no-repeat transition-[background-size] duration-500 hover:bg-[length:100%_3px] group-hover:bg-[length:100%_10px]">
+  <a
+    href="#interactive-code-environment"
+    class="m-0 bg-linear-to-r from-blue-200 to-blue-100 bg-size-[0px_10px] bg-bottom-left bg-no-repeat text-blue-100 no-underline transition-[background-size] duration-500 group-hover:bg-size-[100%_10px] hover:bg-size-[100%_3px] dark:from-orange-800 dark:to-orange-900 dark:text-orange-400">
     <span>Scroll down for Interactive Code Environment 👇</span>
   </a>
 </h2>
@@ -38,6 +40,7 @@ This section aims to connect theoretical understanding with tangible application
 Our journey begins with the definition of the network's architecture. We're working with a two-layer neural network, characterized by its weight matrices W1 and W2, and bias vectors b1 and b2. The weights and biases are meticulously chosen to represent the connections and thresholds at each layer of the network, setting the foundation for our computation.
 
 #### Weights and Biases:
+
 - `W1` and `b1` govern the transformation from the input layer to the hidden layer, outlining how input signals are weighted and adjusted before activation.
 - `W2` and `b2` take charge from the hidden layer to the output layer, determining the final computation leading to the network's predictions.
 
@@ -61,8 +64,12 @@ The script concludes with a display of both the hidden and output layers' comput
 
 ### Interactive Code Environment
 
-
-
+<BatchProcessing client:only="react" />
+<PythonModule
+  client:only="react"
+  filePath="examples/basics/three_input_batch_relu.py"
+  outputRows={32}
+/>
 
 ### Original Inspiration
 

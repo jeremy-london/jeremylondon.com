@@ -1,239 +1,211 @@
-
-import{ useState, useRef, useEffect } from 'react';
-import * as ReactDOM from 'react-dom/client';
-import MatrixInput from './MatrixInput';
-import CodeBlock from '@components/blog/CodeBlock';
+import MatrixInput from '@components/blog/shared/MatrixInput'
+import { useEffect, useState } from 'react'
 
 const FourNeuron = () => {
-  const codeDisplayRootRef = useRef(null);
-  
-  useEffect(() => {
-    // Cleanup function to reset the ref
-    return () => {
-      codeDisplayRootRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    // Ensure re-initialization runs every time the component is rendered
-    if (!codeDisplayRootRef.current) {
-      const container = document.getElementById('codeDisplay');
-      if (container) {
-        codeDisplayRootRef.current = ReactDOM.createRoot(container);
-      }
-    }
-  });
-
+  // WB is 4x4: first 3 columns = weights; last col = bias
   const [matrixWB, setMatrixWB] = useState([
-    [1, -1, 1, -5],
+    [1, -1, 1, -1],
     [1, 1, 0, 0],
     [0, 1, 1, 1],
     [1, 0, 1, -2],
-  ]);
+  ])
 
-  const [matrixX, setMatrixX] = useState([
-    [2],
-    [1],
-    [3]
-  ]);
+  // X is 3x1
+  const [matrixX, setMatrixX] = useState([[2], [1], [3]])
 
-  const [matrixZ, setMatrixZ] = useState([
-    [0],
-    [0],
-    [0],
-    [0],
-  ]);
+  // Z and A are 4x1
+  const [matrixZ, setMatrixZ] = useState([[0], [0], [0], [0]])
+  const [matrixA, setMatrixA] = useState([[0], [0], [0], [0]])
 
-  const [matrixA, setMatrixA] = useState([
-    [0],
-    [0],
-    [0],
-    [0],
-  ]);
+  // ---------- helpers ----------
+  const toNpArray1D = (arr /* [a,b,c] */) => `np.array([${arr.join(', ')}])`
+  const toNpArray2D = (m /* [[...],[...]] */) =>
+    'np.array([\n' +
+    m.map((row) => `  [${row.join(', ')}]`).join(',\n') +
+    '\n])'
 
-  useEffect(() => {
-    // Define the event listener function
-    const handlePythonOutputChange = (event) => {
-      const matrixString = event.detail;
+  // Replace weights/biases in a code string (tolerant patterns)
+  const replaceWeightsBiases = (src, wb /* 4x4 */) => {
+    const weights = wb.map((row) => row.slice(0, 3)) // 4x3
+    const biases = wb.map((row) => row[3]) // 4
 
-      // Extract values from the string
-      const { matrixZ, matrixA } = extractReLUValues(matrixString);
-      
-      // Update your states accordingly
-      if (matrixZ.length > 0) setMatrixZ([matrixZ]);
-      if (matrixA.length > 0) setMatrixA([matrixA]);
-    };
+    const weightsPattern =
+      /weights\s*=\s*np\.array\(\s*\[\s*(?:\[[^\]]*]\s*,?\s*)+]\s*\)/gms
+    const biasesPattern = /biases\s*=\s*np\.array\(\s*\[[^\]]*]\s*\)/gms
 
-    // Add event listener when the component mounts
-    window.addEventListener('pythonOutputChanged', handlePythonOutputChange);
+    const weightsString = `weights = ${toNpArray2D(weights)}`
+    const biasesString = `biases = ${toNpArray1D(biases)}`
 
-    // Return a cleanup function to remove the event listener when the component unmounts
-    return () => {
-      window.removeEventListener('pythonOutputChanged', handlePythonOutputChange);
-    };
-  }, []); // The empty array ensures this effect runs only once after the initial render
-
-  function extractReLUValues(str) {
-    // Define regular expressions to match the outputs before and after ReLU activation
-    const beforeReLURegex = /Outputs before ReLU activation:\s*\[([-,\d\s]+)\]/m;
-    const afterReLURegex = /Outputs after ReLU activation:.*?\)\s*\n\s*\[([-,\d\s]+)\]/m;
-
-    // Attempt to match the regular expressions against the input string
-    const beforeMatch = str.match(beforeReLURegex);
-    const afterMatch = str.match(afterReLURegex);
-  
-  
-    let matrixZValues = [];
-    let matrixAValues = [];
-  
-    // If matches are found, parse them into arrays of numbers
-    if (beforeMatch && beforeMatch[1]) {
-      matrixZValues = beforeMatch[1].split(',').map(s => Number(s.trim()));
-    }
-  
-    if (afterMatch && afterMatch[1]) {
-      matrixAValues = afterMatch[1].split(',').map(s => Number(s.trim()));
-    }
-  
-    // Format the arrays into the desired structure (e.g., [-1, 3, 5, 3] to [[-1], [3], [5], [3]])
-    const formattedMatrixZ = matrixZValues.map(value => [value]);
-    const formattedMatrixA = matrixAValues.map(value => [value]);
-  
-    return { matrixZ: formattedMatrixZ, matrixA: formattedMatrixA };
+    let out = src.replace(weightsPattern, weightsString)
+    out = out.replace(biasesPattern, biasesString)
+    return out
   }
-  
-  
-  // Function to handle changes in Matrix A
-  const handleMatrixWBChange = (newMatrixWB) => {
-    setMatrixWB(newMatrixWB);
-  
-    // Construct the new weights array
-    const newWeights = newMatrixWB.map(row => row.slice(0, 3));
-    const newBiases = newMatrixWB.map(row => row[3]);
 
-    // Construct the weights string for numpy
-    let weightsString = "weights = np.array(\n    [\n";
-    newWeights.forEach((weight, index) => {
-      weightsString += `        [${weight.join(', ')}],  # Neuron ${index + 1} weights\n`;
-    });
-    weightsString += "    ]\n)";
-    
-    // Select the code display element
-    const codeElement = document.querySelector('#codeDisplay pre code');
-    if (codeElement) {
-      let updatedCode = codeElement.textContent;
-  
-      // Replace the weights in the code
-      updatedCode = updatedCode.replace(
-        /weights = np.array\([\s\S]*?\]\n\)/,
-        weightsString
-      );
-  
-      // Correct the final bracket
-      updatedCode = updatedCode.replace(/\],\n\)/, '\n])');
-  
-      // Replace the biases in the code
-      updatedCode = updatedCode.replace(
-        /biases = np\.array\(\[.*?\]\)/,
-        `biases = np.array([${newBiases.join(', ')}])`
-      );
-  
-      // Render the updated code using the stored root
-      if (codeDisplayRootRef.current) {
-        const syntaxHighlighterElement = (
-          <CodeBlock code={updatedCode} />
-        );
-        codeDisplayRootRef.current.render(syntaxHighlighterElement);
-      } 
-      window.executePython && window.executePython(updatedCode);
+  // Replace inputs in a code string
+  const replaceInputs = (src, x /* [[2],[1],[3]] */) => {
+    const flat = x.flat() // -> [2,1,3]
+    const inputsPattern = /inputs\s*=\s*np\.array\(\s*\[[^\]]*]\s*\)/gms
+    const inputsString = `inputs = ${toNpArray1D(flat)}`
+    return src.replace(inputsPattern, inputsString)
+  }
+
+  // Push updated code into PythonModule & run it
+  const updateCodeAndRun = (nextCode) => {
+    if (typeof window.setPythonCode === 'function') {
+      window.setPythonCode(nextCode, { run: true })
+    } else if (typeof window.executePython === 'function') {
+      window.executePython(nextCode)
     }
-  };
+  }
 
-  // Function to handle changes in Matrix B
-  const handleMatrixXChange = (newMatrixX) => {
-    setMatrixX(newMatrixX);
+  // ---------- output parsing ----------
+  // Accepts outputs like:
+  // Outputs before ReLU activation:
+  //  [np.int32(-1), np.int32(3), np.int32(5), np.int32(3)]
+  // Outputs after ReLU activation: ...
+  //  [np.float64(0), 3, 5, 3]
+  function extractReLUValues(text) {
+    // Grab the inner list text (between the first '[' and matching ']')
+    const beforeMatch = text.match(
+      /Outputs before ReLU activation:\s*\[([\s\S]*?)\]/m,
+    )
+    const afterMatch = text.match(
+      /Outputs after ReLU activation:[\s\S]*?\[([\s\S]*?)\]/m,
+    )
 
-    // Select the codeDisplay element and set its child pre code to string with inputs updated
-    const codeElement = document.querySelector('#codeDisplay pre code');
-    if (codeElement) {
-      // Flatten newMatrixX if it's a 2D array to make it compatible with the inputs format
-      const inputs = newMatrixX.flat(); // This will handle multi-dimensional array to a flat array if necessary
-
-      // Convert inputs to a string in the numpy array format with spacing
-      const inputsString = 'np.array([' + inputs.join(', ') + '])';
-
-      // Replace the inputs in the existing code
-      const existingCode = codeElement.textContent;
-      const updatedCode = existingCode.replace(
-        /inputs = np.array\(\[.*?\]\)/,
-        `inputs = ${inputsString}`
-      );
-
-      // Render the updated code using the stored root
-      if (codeDisplayRootRef.current) {
-        const syntaxHighlighterElement = (
-          <CodeBlock code={updatedCode} />
-        );
-        codeDisplayRootRef.current.render(syntaxHighlighterElement);
-      } 
-      window.executePython && window.executePython(updatedCode);
+    const parseNumericList = (listStr) => {
+      if (!listStr) return []
+      const vals = []
+      // Matches either np.dtype(NUM) or a bare number (int/float, optional exponent), with optional signs
+      const re =
+        /np\.\w+\s*\(\s*([+-]?\d*\.?\d+(?:[eE][+-]?\d+)?)\s*\)|([+-]?\d*\.?\d+(?:[eE][+-]?\d+)?)/g
+      let m
+      while ((m = re.exec(listStr)) !== null) {
+        const s = m[1] ?? m[2]
+        if (s != null && s !== '') {
+          const n = Number(s)
+          if (Number.isFinite(n)) vals.push(n)
+        }
+      }
+      return vals
     }
-  };
+
+    const zVals = parseNumericList(beforeMatch?.[1])
+    const aVals = parseNumericList(afterMatch?.[1])
+
+    return {
+      matrixZ: zVals.length ? zVals.map((v) => [v]) : [],
+      matrixA: aVals.length ? aVals.map((v) => [v]) : [],
+    }
+  }
+
+  // listen for python output events → populate Z and A
+  useEffect(() => {
+    const handler = (event) => {
+      const txt = typeof event.detail === 'string' ? event.detail : ''
+      const { matrixZ: z, matrixA: a } = extractReLUValues(txt)
+      if (z.length === 4) setMatrixZ(z)
+      if (a.length === 4) setMatrixA(a)
+    }
+    window.addEventListener('pythonOutputChanged', handler)
+    return () => window.removeEventListener('pythonOutputChanged', handler)
+  }, [extractReLUValues])
+
+  // ---------- handlers ----------
+  const handleMatrixWBChange = (newWB) => {
+    setMatrixWB(newWB)
+
+    // read current code from PythonModule
+    const base =
+      (typeof window.getPythonCode === 'function' && window.getPythonCode()) ||
+      ''
+    if (!base) return
+
+    const updated = replaceWeightsBiases(base, newWB)
+    updateCodeAndRun(updated)
+  }
+
+  const handleMatrixXChange = (newX) => {
+    setMatrixX(newX)
+
+    const base =
+      (typeof window.getPythonCode === 'function' && window.getPythonCode()) ||
+      ''
+    if (!base) return
+
+    const updated = replaceInputs(base, newX)
+    updateCodeAndRun(updated)
+  }
 
   return (
-    
-    <div id="interactiveInputs" className="hidden grid grid-rows-[1fr_1fr] grid-cols-[2fr_1fr_1fr] place-items-center gap-2 sm:gap-4 md:gap-6 lg:gap-8 mb-4 p-1 sm:p-2 rounded-md bg-[#e9e9e9] dark:bg-[#292929] text-[#d0d0d0] dark:text-[#f5f2f0]" >
-    
-      <div className="bg-transparent"></div> 
+    <div
+      id="interactiveInputs"
+      className="mb-4 grid hidden grid-cols-[2fr_1fr_1fr] grid-rows-[1fr_1fr] place-items-center gap-2 rounded-md bg-[#e9e9e9] p-1 text-[#d0d0d0] sm:gap-4 sm:p-2 md:gap-6 lg:gap-8 dark:bg-[#292929] dark:text-[#f5f2f0]"
+    >
+      <div className="bg-transparent"></div>
+
+      {/* Input X (3x1) */}
       <div className="text-center">
-        <span className="text-base sm:text-lg font-bold text-black dark:text-white">Input</span>
+        <span className="text-base font-bold text-black sm:text-lg dark:text-white">
+          Input
+        </span>
         <MatrixInput
           columns={1}
           idPrefix="x"
           defaultValues={matrixX}
           onMatrixChange={handleMatrixXChange}
-          width='w-full sm:w-auto'
+          width="w-full sm:w-auto"
         />
-        <span className="p-2 text-black dark:text-white opacity-40">1</span>
+        <span className="p-2 text-black opacity-40 dark:text-white">3</span>
       </div>
-      <div className="bg-transparent"></div> 
 
+      <div className="bg-transparent"></div>
+
+      {/* Weights & Bias (4x4) */}
       <div className="text-center">
-        <span className="text-base sm:text-lg font-bold text-black dark:text-white">Weight and Bias</span>
+        <span className="text-base font-bold text-black sm:text-lg dark:text-white">
+          Weight and Bias
+        </span>
         <MatrixInput
           columns={4}
           idPrefix="w"
           defaultValues={matrixWB}
           onMatrixChange={handleMatrixWBChange}
-          width='w-full sm:w-auto'
+          width="w-full sm:w-auto"
         />
       </div>
 
+      {/* Z (4x1) */}
       <div className="text-center">
-        <span className="text-base sm:text-lg font-bold text-black dark:text-white">Z</span>
+        <span className="text-base font-bold text-black sm:text-lg dark:text-white">
+          Z
+        </span>
         <MatrixInput
           columns={1}
           idPrefix="z"
           defaultValues={matrixZ}
           onMatrixChange={setMatrixZ}
           disabled
-          width='w-full sm:w-auto'
+          width="w-full sm:w-auto"
         />
       </div>
+
+      {/* A (4x1) */}
       <div className="text-center">
-        <span className="text-base sm:text-lg font-bold text-black dark:text-white">A</span>
+        <span className="text-base font-bold text-black sm:text-lg dark:text-white">
+          A
+        </span>
         <MatrixInput
           columns={1}
           idPrefix="A"
           defaultValues={matrixA}
           onMatrixChange={setMatrixA}
           disabled
-          width='w-full sm:w-auto'
+          width="w-full sm:w-auto"
         />
       </div>
-      
     </div>
-  );
-};
+  )
+}
 
-export default FourNeuron;
+export default FourNeuron

@@ -1,17 +1,17 @@
 ---
-import { Icon } from "astro-icon/components";
-import Layout from "@layouts/Layout.astro";
-import Container from "@components/container.astro";
-import Contactform from "@components/contactform.astro";
-import Pagetitle from "@components/pagetitle.astro";
+import ContactForm from '@components/contact-form.astro'
+import Container from '@components/container.astro'
+import PageTitle from '@components/page-title.astro'
+import Layout from '@layouts/Layout.astro'
+import { Icon } from 'astro-icon/components'
 ---
 
 <Layout title="Contact">
   <Container>
-    <Pagetitle>
+    <PageTitle>
       <Fragment slot="title">Contact me</Fragment>
       <Fragment slot="desc">I'm happy to help.</Fragment>
-    </Pagetitle>
+    </PageTitle>
 
     <div class="grid md:grid-cols-2 gap-10 mx-auto max-w-4xl mt-16">
       <div>
@@ -20,30 +20,56 @@ import Pagetitle from "@components/pagetitle.astro";
           Have something to say? I'm always happy to hear from you. Just fill
           out the form below and I'll get back to you as soon as possible.
         </p>
-        <div class="mt-5">
+        <div class="mt-5 space-y-2">
+          <!-- Email -->
           <div
-            class="flex items-center mt-2 space-x-2 text-gray-600 dark:text-gray-400">
-            <Icon class="text-gray-400 w-4 h-4" name="uil:envelope" /><a
-              href="mailto:jeremy.c.london@gmail.com"
-              >jeremy.c.london@gmail.com</a
-            >
+            class="flex items-center space-x-2 text-gray-600 dark:text-gray-400 group">
+            <Icon
+              class="w-4 h-4 text-gray-400 group-hover:text-blue-500 dark:group-hover:text-orange-500"
+              name="uil:envelope"
+            />
+            <a
+              class="hover:underline group-hover:text-blue-500 dark:group-hover:text-orange-500"
+              href="mailto:jeremy.c.london@gmail.com">
+              jeremy.c.london@gmail.com
+            </a>
           </div>
+
+          <!-- GitHub -->
           <div
-            class="flex items-center mt-2 space-x-2 text-gray-600 dark:text-gray-400">
-            <Icon class="text-gray-400 w-4 h-4" name="uil:github" /><a
-              href="https://github.com/jeremy-london">jeremy-london</a
-            >
+            class="flex items-center space-x-2 text-gray-600 dark:text-gray-400 group">
+            <Icon
+              class="w-4 h-4 text-gray-400 group-hover:text-blue-500 dark:group-hover:text-orange-500"
+              name="uil:github"
+            />
+            <a
+              class="hover:underline group-hover:text-blue-500 dark:group-hover:text-orange-500"
+              href="https://github.com/jeremy-london"
+              target="_blank"
+              rel="noopener noreferrer">
+              jeremy-london
+            </a>
           </div>
+
+          <!-- LinkedIn -->
           <div
-            class="flex items-center mt-2 space-x-2 text-gray-600 dark:text-gray-400">
-            <Icon class="text-gray-400 w-4 h-4" name="uil:linkedin" /><a
-              href="https://www.linkedin.com/in/jeremyclondon/">Jeremy London</a
-            >
+            class="flex items-center space-x-2 text-gray-600 dark:text-gray-400 group">
+            <Icon
+              class="w-4 h-4 text-gray-400 group-hover:text-blue-500 dark:group-hover:text-orange-500"
+              name="uil:linkedin"
+            />
+            <a
+              class="hover:underline group-hover:text-blue-500 dark:group-hover:text-orange-500"
+              href="https://www.linkedin.com/in/jeremyclondon/"
+              target="_blank"
+              rel="noopener noreferrer">
+              Jeremy London
+            </a>
           </div>
         </div>
       </div>
       <div>
-        <Contactform />
+        <ContactForm />
       </div>
     </div>
   </Container>

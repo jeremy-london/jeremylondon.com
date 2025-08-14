@@ -1,35 +1,34 @@
 ---
-import Authorcard from "@components/authorcard.astro";
-import Container from "@components/container.astro";
-import Label from "@components/ui/label.astro";
-import { authors } from "@data/authors";
-import { categories } from "@data/category";
-import Layout from "@layouts/Layout.astro";
-import { getFormattedDate } from "@utils/all";
-import { CollectionEntry, getCollection } from "astro:content";
+import { type CollectionEntry, getCollection } from 'astro:content'
+import Authorcard from '@components/author-card.astro'
+import Container from '@components/container.astro'
+import Label from '@components/ui/label.astro'
+import type { Author } from '@data/authors'
+import { authors } from '@data/authors'
+import type { Category } from '@data/category'
+import { categories } from '@data/category'
+import Layout from '@layouts/Layout.astro'
+import { getFormattedDate } from '@utils/all'
 
-import type { Author } from "@data/authors";
-import type { Category } from "@data/category";
-
-type Props = CollectionEntry<"blog">;
+type Props = CollectionEntry<'blog'>
 
 export async function getStaticPaths() {
-  const blog = await getCollection("blog");
+  const blog = await getCollection('blog')
 
   return blog.map((post) => ({
     params: { slug: post.slug },
     props: { post },
-  }));
+  }))
 }
 
-const { post } = Astro.props;
+const { post } = Astro.props
 
-const { Content, remarkPluginFrontmatter } = await post.render();
+const { Content, remarkPluginFrontmatter } = await post.render()
 
-const author = authors.find((item) => item.slug === post.data.author) as Author;
+const author = authors.find((item) => item.slug === post.data.author) as Author
 const category = categories.find(
-  (item) => item.slug === post.data.category
-) as Category;
+  (item) => item.slug === post.data.category,
+) as Category
 ---
 
 <Layout
@@ -39,7 +38,7 @@ const category = categories.find(
   load_pyodide={post.data.load_pyodide}
   load_mathjax={post.data.load_mathjax}>
   <Container>
-    <div class="max-w-screen-xl mx-auto">
+    <div class="max-w-(--breakpoint-xl) mx-auto">
       <div class="text-center">
         <a href={`/category/${category.slug}`}>
           <Label theme={category.color}>{category.title}</Label>
@@ -53,7 +52,7 @@ const category = categories.find(
 
       <div class="flex justify-center mt-3 space-x-3 text-gray-500">
         <div class="flex items-center gap-3">
-          <div class="relative flex-shrink-0 w-10 h-10">
+          <div class="relative shrink-0 w-10 h-10">
             {
               author.image && (
                 <img
@@ -92,7 +91,7 @@ const category = categories.find(
   </Container>
 
   <div
-    class="flex items-center justify-center z-0 max-w-screen-xl mx-auto overflow-hidden lg:rounded-lg">
+    class="flex items-center justify-center z-0 max-w-(--breakpoint-xl) mx-auto overflow-hidden lg:rounded-lg">
     {
       post.data.image && (
         <img
@@ -108,9 +107,9 @@ const category = categories.find(
   </div>
 
   <Container>
-    <article class="max-w-screen-xl mx-auto w-full">
+    <article class="max-w-(--breakpoint-xl) mx-auto w-full">
       <div
-        class="contents mx-3 my-3 prose prose-base dark:prose-invert prose-a:text-blue-600">
+        class="contents mx-3 my-3 prose prose-base dark:prose-invert prose-a:text-blue-600 hover:prose-a:text-blue-800 dark:prose-a:text-orange-500 dark:hover:prose-a:text-orange-400">
         <Content />
 
         <div class="flex flex-wrap items-center w-full gap-3 md:w-auto">

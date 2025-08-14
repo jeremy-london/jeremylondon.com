@@ -1,54 +1,104 @@
 ---
-import Layout from "@layouts/Layout.astro";
-import Container from "@components/container.astro";
-import Pagetitle from "@components/pagetitle.astro";
-import Link from "@components/ui/link.astro";
+import Container from '@components/container.astro'
+import PageTitle from '@components/page-title.astro'
+import Link from '@components/ui/link.astro'
+import Layout from '@layouts/Layout.astro'
 ---
 
 <Layout title="About">
   <Container>
-    <Pagetitle>
+    <PageTitle>
       <Fragment slot="title">About</Fragment>
-      <Fragment slot="desc">Let me introduce myself</Fragment>
-    </Pagetitle>
+      <Fragment slot="desc">A quick introduction</Fragment>
+    </PageTitle>
 
     <div
-      class="flex flex-col items-center justify-between gap-10 lg:flex-row mx-auto max-w-4xl mt-12">
-      <div class="object-cover aspect-square">
-        <img
-          src="/images/jeremy.png"
+      class="mx-auto mt-12 max-w-4xl flex flex-col lg:flex-row items-center justify-between gap-10">
+      <div class="aspect-square">
+        <!-- <img
+          src="/images/jeremy.webp"
           width={300}
           height={300}
-          alt="Jeremy's profile picture"
-          class="object-cover rounded-full transition hover:-translate-y-1 hover:shadow-xl"
-        />
+          alt="Jeremy London"
+          class="rounded-full object-cover transition hover:-translate-y-1 hover:shadow-xl"
+          loading="eager"
+          decoding="async"
+        /> -->
+        <figure class="cool-profile">
+          <img
+            src="/images/jeremy.webp"
+            alt="Jeremy's profile picture"
+            class="shadow-md"
+          />
+        </figure>
       </div>
 
       <div class="max-w-xl">
-        <p class="mb-5 text-lg text-gray-500 dark:text-gray-400 md:px-10 lg:px-0">
-          My name is Jeremy London 👋, based in the beautiful city of Denver, Colorado 🏔️, where I merge my deep-seated passion for AI and machine learning with practical experiences from <strong><a href="https://lockheedmartin.com">Lockheed Martin</a></strong> to innovative startups like <strong><a href="https://vody.com">Vody</a></strong>. Specializing in multimodal systems and Large Language Models, I thrive on pushing the boundaries of technology to explore new solutions. When I'm not immersed in the digital world, you'll find me experimenting in the kitchen, strumming my guitar, or carving down snowy slopes.
+        <p
+          class="mb-5 text-lg text-gray-600 dark:text-gray-400 md:px-10 lg:px-0">
+          I'm Jeremy London, based in Denver, Colorado. I build practical AI
+          systems with a focus on multimodal models and LLMs and ship them into
+          secure, real-world products. My background spans large programs at
+          <strong
+            ><a
+              href="https://lockheedmartin.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-blue-500
+            dark:hover:text-orange-500"
+              >Lockheed Martin</a
+            ></strong
+          >
+          and fast-moving startups like
+          <strong
+            ><a
+              href="https://vody.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-blue-500
+            dark:hover:text-orange-500"
+              >Vody</a
+            ></strong
+          >. When I'm not coding, I'm usually cooking, playing guitar, or on a
+          snowboard.
         </p>
-      
-        <p class="mb-5 text-lg text-gray-500 dark:text-gray-400 md:px-10 lg:px-0">
-          Excitingly, I've recently taken on the role of Director of Engineering, AI &amp; Threat Analytics at <strong><a href="https://keepersecurity.com">Keeper Security</a></strong>, where I'm eager to leverage my skills in AI and cybersecurity. This new position is a testament to my commitment to ethical AI and my relentless pursuit of creating impactful, innovative solutions.
+
+        <p
+          class="mb-5 text-lg text-gray-600 dark:text-gray-400 md:px-10 lg:px-0">
+          I'm currently Director of Engineering, AI &amp; Threat Analytics at
+          <strong
+            ><a
+              href="https://keepersecurity.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-blue-500
+            dark:hover:text-orange-500"
+              >Keeper Security</a
+            ></strong
+          >. My team delivers ML-driven security features and developer tooling
+          with an emphasis on reliability, ethics, and measurable impact.
         </p>
-      
-        <p class="mb-5 text-lg text-gray-500 dark:text-gray-400 md:px-10 lg:px-0">
-          At <strong>Keeper Security</strong>, I'm steering the ship towards advanced threat analytics by implementing User Behavior Analytics and User Entity Behavior Analytics. These initiatives are crucial for enhancing our security posture, enabling proactive threat detection, and ensuring the safety of digital ecosystems. My role involves leveraging the power of AI to develop innovative solutions that address the evolving threat landscape and DevSecOps, all while ensuring the ethical use of AI and machine learning.
+
+        <p
+          class="mb-5 text-lg text-gray-600 dark:text-gray-400 md:px-10 lg:px-0">
+          At Keeper, I lead initiatives in threat analytics, including UBA/UEBA,
+          proactive detection, and secure ML in DevSecOps environments. We
+          combine strong engineering practices with modern AI to reduce risk and
+          strengthen our customers' security posture.
         </p>
-      
-        <p class="text-lg text-gray-500 dark:text-gray-400 md:px-10 lg:px-0">
-          Besides that, by creating this blog, I'm going to share all of my experiences that would be helpful to you. I'm always open to collaborating on projects that push the envelope in AI and cybersecurity. Let's explore how we can make the digital world a safer place together.
+
+        <p class="text-lg text-gray-600 dark:text-gray-400 md:px-10 lg:px-0">
+          This blog is where I share what works: patterns, code, architectures,
+          and lessons learned across ML, security, and full-stack development.
+          If you're building in this space and want to collaborate, I'd love to
+          connect.
         </p>
-      
-        
       </div>
     </div>
 
-    <div class="mx-auto max-w-xl text-center mt-14">
-      <p class="text-lg leading-relaxed text-gray-600">
-        Need assistance or collaboration? Reach out and get in touch! Together,
-        we can achieve greatness.
+    <div class="mx-auto mt-14 max-w-xl text-center">
+      <p class="text-lg leading-relaxed text-gray-700 dark:text-gray-300">
+        Have a project or idea worth exploring? Let’s talk.
       </p>
       <div class="mt-8">
         <Link href="/contact" style="primary">Get in touch</Link>

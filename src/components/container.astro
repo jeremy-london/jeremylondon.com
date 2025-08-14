@@ -1,10 +1,10 @@
 ---
-const { class: className } = Astro.props;
+const { class: className } = Astro.props
 ---
 
 <div
   class:list={[
-    "container px-4 md:px-8 xl:px-5 py-5 lg:py-8 mx-auto max-w-screen-xl",
+    "container px-4 md:px-8 xl:px-5 py-5 lg:py-8 mx-auto max-w-(--breakpoint-xl)",
     className,
   ]}>
   <slot />

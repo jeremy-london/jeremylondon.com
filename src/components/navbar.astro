@@ -1,67 +1,55 @@
 ---
-import Container from "@components/container.astro";
-import Link from "./ui/link.astro";
-import { Icon } from "astro-icon/components";
+import Container from '@components/container.astro'
+import ThemeController from '@components/theme-control.astro'
+import Link from '@components/ui/link.astro'
+import { Icon } from 'astro-icon/components'
 
 interface Menu {
-  label: string;
-  href: string;
-  external?: boolean;
-  badge?: string;
-  badgeColor?: string;
-  hideLabel?: boolean;
-  event?: string;
+  label: string
+  href: string
+  external?: boolean
+  badge?: string
+  badgeColor?: string
+  hideLabel?: boolean
+  event?: string
 }
-const leftmenu: Menu[] = [
-  {
-    label: "Home",
-    href: "/",
-  },
-  {
-    label: "Blog",
-    href: "/blog",
-  },
-  {
-    label: "About",
-    href: "/about",
-  },
-];
 
-const rightmenu: Menu[] = [
+const leftMenu: Menu[] = [
+  { label: 'Home', href: '/' },
+  { label: 'Blog', href: '/blog' },
+  { label: 'About', href: '/about' },
+]
+
+const rightMenu: Menu[] = [
+  { label: 'Contact', href: '/contact' },
+  { label: 'Github', href: 'https://github.com/jeremy-london', external: true },
   {
-    label: "Contact",
-    href: "/contact",
-  },
-  {
-    label: "Github",
-    href: "https://github.com/jeremy-london",
+    label: 'LinkedIn',
+    href: 'https://www.linkedin.com/in/jeremyclondon/',
     external: true,
   },
   {
-    label: "LinkedIn",
-    href: "https://www.linkedin.com/in/jeremyclondon/",
-    external: true,
-  },
-  {
-    label: "Subscribe to RSS",
-    href: "/rss.xml",
-    badge: "heroicons-outline:rss",
-    badgeColor: "hover:text-blue-500 hover:dark:text-orange-500",
+    label: 'Subscribe to RSS',
+    href: '/rss.xml',
+    badge: 'heroicons-outline:rss',
+    badgeColor: 'hover:text-blue-500 hover:dark:text-orange-500',
     hideLabel: true,
-    event: "subscribe-to-rss-navbar",
+    event: 'subscribe-to-rss-navbar',
+    external: true,
   },
-];
+]
 
-const mobilemenu: Menu[] = [...leftmenu, ...rightmenu];
+const mobileMenu: Menu[] = [...leftMenu, ...rightMenu]
 ---
 
 <Container>
   <nav class="flex justify-center flex-col md:flex-row">
-    <div class="flex flex-wrap justify-between md:gap-5 md:flex-nowrap">
+    <div class="flex flex-wrap justify-between md:gap-5 md:flex-nowrap w-full">
+      <!-- Left menu -->
       <div
-        class="flex-col items-center justify-cewnter order-1 hidden w-full md:flex md:flex-row md:justify-end md:w-auto md:order-none md:flex-1 gap-10">
+        class="flex-col items-center justify-center order-1 hidden w-full md:flex md:flex-row md:justify-end md:w-auto md:order-0 md:flex-1 gap-10">
         {
-          leftmenu.map((item) => (
+          leftMenu.map((item) => (
             <div class="flex items-center">
               <Link
                 href={item.href}
@@ -82,6 +70,7 @@ const mobilemenu: Menu[] = [...leftmenu, ...rightmenu];
         }
       </div>
 
+      <!-- Mobile menu toggle -->
       <div class="flex items-center justify-between w-full md:w-auto">
         <button
           id="menu"
@@ -96,7 +85,6 @@ const mobilemenu: Menu[] = [...leftmenu, ...rightmenu];
               fill-rule="evenodd"
               d="M4 5h16a1 1 0 0 1 0 2H4a1 1 0 1 1 0-2zm0 6h16a1 1 0 0 1 0 2H4a1 1 0 0 1 0-2zm0 6h16a1 1 0 0 1 0 2H4a1 1 0 0 1 0-2z"
             ></path>
-
             <path
               class="navmenu-toggle hidden"
               fill-rule="evenodd"
@@ -106,16 +94,20 @@ const mobilemenu: Menu[] = [...leftmenu, ...rightmenu];
           </svg>
         </button>
       </div>
+
+      <!-- Right menu -->
       <div
-        class="flex-col gap-10 items-center justify-start order-2 hidden w-full md:flex md:flex-row md:w-auto md:flex-1 md:order-none">
+        class="flex-col gap-6 items-center justify-start order-2 hidden w-full md:flex md:flex-row md:w-auto md:flex-1 md:order-0">
         {
-          rightmenu.map((item) => (
+          rightMenu.map((item) => (
             <div class="flex items-center">
               <Link
                 href={item.href}
                 style={item.hideLabel ? "icon" : "underline"}
                 size="unset"
-                umamiEvent={item.event ? item.event : undefined}>
+                umamiEvent={item.event ? item.event : undefined}
+                target={item.external ? "_blank" : ""}
+                rel={item.external ? "noopener noreferrer" : ""}>
                 {!item.hideLabel && item.label}
                 {item.badge && (
                   <Icon
@@ -128,22 +120,26 @@ const mobilemenu: Menu[] = [...leftmenu, ...rightmenu];
             </div>
           ))
         }
+        <ThemeController variant="icon" />
       </div>
     </div>
+
+    <!-- Mobile menu expanded -->
     <div class="navmenu-toggle hidden">
       <div
         class="flex flex-col items-center justify-start order-2 w-full md:hidden">
         {
-          mobilemenu.map((item, index) => (
+          mobileMenu.map((item) => (
             <a
               href={item.href}
               class="px-5 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-orange-500"
               target={item.external ? "_blank" : ""}
-              rel={item.external ? "noopener" : ""}>
+              rel={item.external ? "noopener noreferrer" : ""}>
               {item.label}
             </a>
           ))
         }
+        <ThemeController variant="icon" />
       </div>
     </div>
   </nav>

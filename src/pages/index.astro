@@ -1,145 +1,51 @@
 ---
-import Container from "@components/container.astro";
-import Postlist from "@components/postlist.astro";
-import Link from "@components/ui/link.astro";
-import CategoryPosts from "@components/categoryposts.astro";
-import Layout from "@layouts/Layout.astro";
-import { latestPosts } from "@utils/content";
-import { categories } from "@data/category";
-// Use Astro.glob() to fetch all posts, and then sort them by date.
-// const posts = (await Astro.glob("./blog/*.{md,mdx}")).sort(
-//   (a, b) =>
-//     new Date(b.frontmatter.publishDate).valueOf() -
-//     new Date(a.frontmatter.publishDate).valueOf()
-// );
-// console.log(posts[0].frontmatter.image);
+import CategoryPosts from '@components/category-posts.astro'
+import Container from '@components/container.astro'
+import PostList from '@components/post-list.astro'
+import Link from '@components/ui/link.astro'
+import { categories } from '@data/category'
+import Layout from '@layouts/Layout.astro'
+import { latestPosts } from '@utils/content'
 ---
-
-<style type="text/css">
-  .cool-profile {
-    display: flex;
-    height: 18rem;
-    justify-content: center;
-    position: relative;
-    width: 18rem;
-    z-index: 1000;
-  }
-  .cool-profile img {
-    object-fit: cover;
-    border-radius: 9999px;
-  }
-  .cool-profile::before,
-  .cool-profile::after {
-    border-radius: 9999px;
-    background-image: linear-gradient(-180deg, #a1deff 0%, #5ea3db 97%);
-    content: "";
-    height: 100%;
-    position: absolute;
-    transition: all 0.2s;
-    transition-delay: 0.2s;
-    transform: translateY(0px) translateX(0px);
-    width: 100%;
-    z-index: -1;
-  }
-  .cool-profile::after {
-    background-image: linear-gradient(0deg, #ffcf70 0%, #ffae3d 97%);
-  }
-  .cool-profile:hover {
-    animation-name: hoverPop;
-    animation-duration: 0.4s;
-    animation-fill-direction: forward;
-    cursor: alias;
-  }
-  .cool-profile:hover img {
-    box-shadow: 2px 2px 4px 0px rgba(10, 12, 15, 0.27);
-    box-shadow: 0px 0px 30px 0px rgba(10, 12, 15, 0.27);
-  }
-  .cool-profile:hover::before {
-    animation: slick-hover-2 3s 0.4s linear infinite;
-    transform: translateY(-20px) translateX(-20px);
-  }
-  .cool-profile:hover::after {
-    animation: slick-hover 3s 0.4s linear infinite reverse;
-    transform: translateY(20px) translateX(20px);
-  }
-
-  @keyframes hoverPop {
-    0%,
-    100% {
-      transform: scale(1);
-    }
-    33% {
-      transform: scale(1.05);
-    }
-    66% {
-      transform: scale(0.9);
-    }
-  }
-  @keyframes slick-hover {
-    0.00% {
-      transform: translateY(20px) translateX(20px);
-    }
-    16.67% {
-      transform: translateY(-13px) translateX(-9px);
-    }
-    33.33% {
-      transform: translateY(4px) translateX(12px);
-    }
-    50.00% {
-      transform: translateY(20px) translateX(-20px);
-    }
-    66.67% {
-      transform: translateY(-3px) translateX(8px);
-    }
-    83.33% {
-      transform: translateY(-15px) translateX(-11px);
-    }
-    100.00% {
-      transform: translateY(20px) translateX(20px);
-    }
-  }
-  @keyframes slick-hover-2 {
-    0.00% {
-      transform: translateY(-20px) translateX(-20px);
-    }
-    16.67% {
-      transform: translateY(3px) translateX(-5px);
-    }
-    33.33% {
-      transform: translateY(18px) translateX(-10px);
-    }
-    50.00% {
-      transform: translateY(-20px) translateX(20px);
-    }
-    66.67% {
-      transform: translateY(15px) translateX(-4px);
-    }
-    83.33% {
-      transform: translateY(-1px) translateX(15px);
-    }
-    100.00% {
-      transform: translateY(-20px) translateX(-20px);
-    }
-  }
-</style>
 
 <Layout title="">
   <Container>
-    <header>
+    <header class="mx-0 lg:mx-20">
       <div
-        class="mb-14 flex flex-col items-center justify-between gap-10 lg:flex-row">
+        class="mb-14 flex flex-col items-center justify-between gap-10 md:flex-row">
         <div
           class="flex flex-col items-start w-full lg:w-1/2 max-lg:items-center">
           <h1
             class="mt-2 mb-3 text-3xl font-semibold tracking-tight text-center lg:leading-snug text-brand-primary lg:text-4xl dark:text-white">
-            Hi, I'm Jeremy.
+            Hi, I'm Jeremy. <span class="wave">👋</span>
           </h1>
           <p
-            class="text-lg text-gray-500 dark:text-gray-400 text-center md:px-10 lg:text-left lg:px-0">
-            Welcome to my blog. I'm a machine learning and web developer
-            enthusiast. I write about machine learning, web development, and
-            other tech-related topics.
+            class="text-lg text-gray-600 dark:text-gray-400 text-center px-4 md:text-left md:px-0">
+            Director of AI & Threat Analytics at <a
+              href="https://keepersecurity.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="hover:text-blue-500
+            dark:hover:text-orange-500"
+              >Keeper Security</a
+            >. I build ML systems, secure products, and developer tools. I write
+            about machine learning, security, and full-stack engineering.
           </p>
+
+          <ul
+            class="mt-4 grid grid-cols-1 gap-4 text-md text-gray-500 dark:text-gray-400 md:grid-cols-2">
+            <li class="text-yellow-800 dark:text-yellow-200">
+              +10 Years of Experience
+            </li>
+            <li class="text-red-800 dark:text-red-200">📍 Denver, Colorado</li>
+            <li class="text-sky-800 dark:text-sky-200">
+              🔐 Exploring & building SOTA ML, LLM, and VLM models
+            </li>
+            <li class="text-gray-600 dark:text-gray-100">
+              🤏 Small models, edge deployments
+            </li>
+          </ul>
+
           <div class="flex flex-wrap mt-8 space-x-3">
             <Link href="/blog">Blog Posts</Link>
             <Link href="/about" style="outline">About me</Link>
@@ -148,7 +54,7 @@ import { categories } from "@data/category";
 
         <figure class="cool-profile">
           <img
-            src="/images/jeremy.png"
+            src="/images/jeremy.webp"
             alt="Jeremy's profile picture"
             class="shadow-md"
           />
@@ -166,7 +72,7 @@ import { categories } from "@data/category";
           latestPosts
             .slice(0, 2)
             .map((post) => (
-              <Postlist post={post} aspect="landscape" preloadImage={true} />
+              <PostList post={post} aspect="landscape" preloadImage={true} />
             ))
         }
       </div>
@@ -174,7 +80,7 @@ import { categories } from "@data/category";
         {
           latestPosts
             .slice(2, 5)
-            .map((post) => <Postlist post={post} aspect="square" />)
+            .map((post) => <PostList post={post} aspect="square" />)
         }
       </div>
 
@@ -195,3 +101,70 @@ import { categories } from "@data/category";
     </main>
   </Container>
 </Layout>
+
+<script is:inline>
+  document.addEventListener("DOMContentLoaded", () => {
+    const reduce = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    // Profile intro animation (runs once)
+    const profile = document.querySelector(".cool-profile");
+    if (!profile || reduce) return;
+
+    // Phase 1: run the intro animation once
+    profile.classList.add("intro-anim");
+
+    const introMs = 3400; // 0.4s hoverPop + 3.0s slick-hover*
+    const exitMs = 550; // fade/settle duration
+
+    let exitTimer, clearAll;
+
+    const startExit = () => {
+      // Phase 2: fade/settle to rest instead of "jumping"
+      profile.classList.add("intro-exit");
+      exitTimer = setTimeout(() => {
+        profile.classList.remove("intro-anim", "intro-exit");
+      }, exitMs);
+    };
+
+    const introTimer = setTimeout(startExit, introMs);
+
+    // If the user hovers during the intro/exit, hand control to :hover immediately
+    clearAll = () => {
+      clearTimeout(introTimer);
+      clearTimeout(exitTimer);
+      profile.classList.remove("intro-anim", "intro-exit");
+      profile.removeEventListener("mouseenter", clearAll);
+    };
+    profile.addEventListener("mouseenter", clearAll);
+
+    const wave = document.querySelector("h1 .wave");
+    if (wave && !reduce) {
+      wave.classList.add("intro-wave");
+
+      const waveIntroMs = 3000; // matches animation duration
+      const waveExitMs = 450; // fade/settle duration
+
+      let waveExitTimer;
+
+      const startWaveExit = () => {
+        wave.classList.add("intro-exit");
+        waveExitTimer = setTimeout(() => {
+          wave.classList.remove("intro-wave", "intro-exit");
+        }, waveExitMs);
+      };
+
+      const waveIntroTimer = setTimeout(startWaveExit, waveIntroMs);
+
+      // If user hovers during intro/exit, hand over to :hover immediately
+      const cancelWaveIntro = () => {
+        clearTimeout(waveIntroTimer);
+        clearTimeout(waveExitTimer);
+        wave.classList.remove("intro-wave", "intro-exit");
+        wave.removeEventListener("mouseenter", cancelWaveIntro);
+      };
+      wave.addEventListener("mouseenter", cancelWaveIntro);
+    }
+  });
+</script>

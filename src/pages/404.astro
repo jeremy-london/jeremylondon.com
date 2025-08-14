@@ -1,18 +1,7 @@
 ---
-import Container from "@components/container.astro";
-import Postlist from "@components/postlist.astro";
-import Link from "@components/ui/link.astro";
-import CategoryPosts from "@components/categoryposts.astro";
-import Layout from "@layouts/Layout.astro";
-import { latestPosts } from "@utils/content";
-import { categories } from "@data/category";
-// Use Astro.glob() to fetch all posts, and then sort them by date.
-// const posts = (await Astro.glob("./blog/*.{md,mdx}")).sort(
-//   (a, b) =>
-//     new Date(b.frontmatter.publishDate).valueOf() -
-//     new Date(a.frontmatter.publishDate).valueOf()
-// );
-// console.log(posts[0].frontmatter.image);
+import Container from '@components/container.astro'
+import Link from '@components/ui/link.astro'
+import Layout from '@layouts/Layout.astro'
 ---
 
 <Layout title="404 - Page Not Found">

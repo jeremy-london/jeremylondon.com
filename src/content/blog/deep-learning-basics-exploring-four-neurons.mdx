@@ -10,11 +10,13 @@ tags: [neural networks, ReLU, deep learning, four-neuron network]
 load_pyodide: true
 ---
 
-import PythonModule from "@components/blog/PythonModule.jsx";
+import PythonModule from "@components/blog/shared/PythonModule.jsx";
 import FourNeuron from "@components/blog/FourNeuron.jsx";
 
 <h2>
-  <a href="#interactive-code-environment" class="m-0 text-blue-100 dark:text-orange-400 no-underline bg-gradient-to-r from-blue-200 to-blue-100 dark:from-orange-800 dark:to-orange-900 bg-[length:0px_10px] bg-left-bottom bg-no-repeat transition-[background-size] duration-500 hover:bg-[length:100%_3px] group-hover:bg-[length:100%_10px]">
+  <a
+    href="#interactive-code-environment"
+    class="m-0 bg-linear-to-r from-blue-200 to-blue-100 bg-size-[0px_10px] bg-bottom-left bg-no-repeat text-blue-100 no-underline transition-[background-size] duration-500 group-hover:bg-size-[100%_10px] hover:bg-size-[100%_3px] dark:from-orange-800 dark:to-orange-900 dark:text-orange-400">
     <span>Scroll down for Interactive Code Environment 👇</span>
   </a>
 </h2>
@@ -48,15 +50,21 @@ In this section, I'm excited to walk you through a Python script that brings to 
 
 ### Interactive Code Environment
 
-
-
-
 This code meticulously calculates the output for each neuron in the four-neuron layer before and after ReLU activation. It first computes the dot product of weights and biases with the inputs to produce the non-activated Z matrix, and then applies ReLU to derive the final output matrix A. This helps showcase the interplay of weights, biases, and inputs through mathematical operations.
 
+<FourNeuron client:only="react" />
+<PythonModule
+  client:only="react"
+  filePath="examples/basics/four_neurons_relu.py"
+  outputRows={32}
+/>
+
 ### Original Inspiration
+
 This journey was sparked by the insightful exercises created by [Dr. Tom Yeh](http://tomyeh.info) for his graduate courses at the University of Colorado Boulder. He's a big advocate for hands-on learning, and so am I. After realizing the scarcity of practical exercises in deep learning, he took it upon himself to develop a set that covers everything from basic concepts like the one discussed today to more advanced topics. His dedication to hands-on learning has been a huge inspiration to me.
 
 ### Conclusion
+
 Exploring a four-neuron network layer has broadened our understanding of neural networks, emphasizing the critical role of matrix operations and ReLU activation in modeling complex data relationships. As we progress, we'll delve deeper into network architectures, unraveling the mysteries of deep learning layer by layer. Plus, I'll include a link to a LinkedIn post where we can dive into discussions and share thoughts.
 
 - Last Post: [Understanding Single Neuron Networks](/blog/deep-learning-basics-intro-to-single-neurons)

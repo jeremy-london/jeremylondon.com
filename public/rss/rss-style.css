@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400,700');
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400,700");
 
 /* Universal base styles */
 *,
@@ -74,7 +74,7 @@ main {
   margin-bottom: 30px;
 }
 
-.description>a {
+.description > a {
   margin-left: 10px;
   text-decoration: none;
 }
@@ -138,7 +138,7 @@ main {
   right: 0;
   bottom: 0;
   background-color: #abbcd8;
-  transition: .4s;
+  transition: 0.4s;
   border-radius: 34px;
   overflow: hidden;
   /* Ensure icons don't overflow */
@@ -158,8 +158,8 @@ main {
   font-size: 16px;
 }
 
-input:checked+.slider {
-  background-color: #2196F3;
+input:checked + .slider {
+  background-color: #2196f3;
 }
 
 /* Sun icon */
@@ -169,7 +169,7 @@ input:checked+.slider {
   opacity: 1;
 }
 
-input:checked+.slider:before {
+input:checked + .slider:before {
   opacity: 0;
   transition: all 0.2s ease;
 }
@@ -181,7 +181,7 @@ input:checked+.slider:before {
   opacity: 0;
 }
 
-input:checked+.slider:after {
+input:checked + .slider:after {
   opacity: 1;
   transition: all 0.2s ease;
 }
@@ -232,7 +232,7 @@ body.dark a:hover {
 
 @media (max-width: 968px) {
   body {
-    padding: 1rem
+    padding: 1rem;
   }
 
   header {
