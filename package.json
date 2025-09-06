@@ -1,7 +1,7 @@
 {
   "name": "jeremylondon-com",
   "type": "module",
-  "version": "1.13.0",
+  "version": "1.14.0",
   "private": true,
   "scripts": {
     "dev": "astro dev",
@@ -13,14 +13,14 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "@astrojs/mdx": "^4.3.3",
+    "@astrojs/mdx": "^4.3.4",
     "@astrojs/partytown": "^2.1.4",
     "@astrojs/react": "^4.3.0",
     "@astrojs/rss": "^4.0.12",
-    "@astrojs/sitemap": "^3.4.2",
+    "@astrojs/sitemap": "^3.5.1",
     "@fontsource/inter": "^5.2.6",
-    "@tailwindcss/vite": "^4.1.11",
-    "astro": "^5.12.9",
+    "@tailwindcss/vite": "^4.1.13",
+    "astro": "^5.13.5",
     "astro-icon": "^1.1.5",
     "astro-robots-txt": "^1.0.0",
     "astro-seo": "^0.8.4",
@@ -29,13 +29,12 @@
     "mdast-util-to-string": "^4.0.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-syntax-highlighter": "^15.6.1",
+    "react-syntax-highlighter": "^15.6.6",
     "reading-time": "^1.5.0",
     "sanitize-html": "^2.17.0",
-    "tailwindcss": "^4.1.11"
+    "tailwindcss": "^4.1.13"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.1.4",
     "@iconify-json/heroicons-outline": "^1.2.1",
     "@iconify-json/uil": "^1.2.3",
     "@tailwindcss/line-clamp": "^0.4.4",
