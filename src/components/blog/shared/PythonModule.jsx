@@ -1,139 +1,138 @@
-import { useEffect, useRef, useState, useCallback } from "react";
-import CodeBlock from "./CodeBlock";
+import { useCallback, useEffect, useRef, useState } from 'react'
+import CodeBlock from './CodeBlock'
 
-const LOADED_IMPORTS = new Set();
+const LOADED_IMPORTS = new Set()
 
 // ---- Pyodide singleton (only loads once) ----
-let pyodideReadyPromise = null;
+let pyodideReadyPromise = null
 async function getPyodideInstance() {
-  if (typeof window === "undefined") return null;
+  if (typeof window === 'undefined') return null
   if (!pyodideReadyPromise) {
     pyodideReadyPromise = (async () => {
-      if (typeof window.loadPyodide !== "function") {
+      if (typeof window.loadPyodide !== 'function') {
         throw new Error(
-          "Pyodide loader not found. Did you pass load_pyodide={true} to Layout.astro on this page?"
-        );
+          'Pyodide loader not found. Did you pass load_pyodide={true} to Layout.astro on this page?',
+        )
       }
       if (!window.pyodide) {
         window.pyodide = await window.loadPyodide({
-          indexURL: "https://cdn.jsdelivr.net/pyodide/v0.28.1/full",
-        });
+          indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.28.3/full',
+        })
       }
-      return window.pyodide;
-    })();
+      return window.pyodide
+    })()
   }
-  return pyodideReadyPromise;
+  return pyodideReadyPromise
 }
 
 // ---- Utilities ----
 function extractTopLevelImports(src) {
-  const lines = src.split(/\r?\n/);
-  const mods = new Set();
+  const lines = src.split(/\r?\n/)
+  const mods = new Set()
   for (const line of lines) {
-    const l = line.trim();
-    if (!l || l.startsWith("#")) continue;
+    const l = line.trim()
+    if (!l || l.startsWith('#')) continue
     if (
-      l.startsWith("def ") ||
-      l.startsWith("class ") ||
-      l.startsWith("if ") ||
-      l.startsWith("for ") ||
-      l.startsWith("while ")
+      l.startsWith('def ') ||
+      l.startsWith('class ') ||
+      l.startsWith('if ') ||
+      l.startsWith('for ') ||
+      l.startsWith('while ')
     )
-      break;
-    const m1 = l.match(/^import\s+([a-zA-Z0-9_.]+)(\s+as\s+\w+)?/);
+      break
+    const m1 = l.match(/^import\s+([a-zA-Z0-9_.]+)(\s+as\s+\w+)?/)
     if (m1) {
-      mods.add(m1[1].split(".")[0]);
-      continue;
+      mods.add(m1[1].split('.')[0])
+      continue
     }
-    const m2 = l.match(/^from\s+([a-zA-Z0-9_.]+)\s+import\s+/);
+    const m2 = l.match(/^from\s+([a-zA-Z0-9_.]+)\s+import\s+/)
     if (m2) {
-      mods.add(m2[1].split(".")[0]);
+      mods.add(m2[1].split('.')[0])
     }
   }
-  return Array.from(mods);
+  return Array.from(mods)
 }
-
 // Define window.pythonOutput once per page
-(function initPythonOutputGlobal() {
-  if (typeof window !== "undefined" && !("pythonOutput" in window)) {
-    let _pythonOutput = "";
-    Object.defineProperty(window, "pythonOutput", {
+;(function initPythonOutputGlobal() {
+  if (typeof window !== 'undefined' && !('pythonOutput' in window)) {
+    let _pythonOutput = ''
+    Object.defineProperty(window, 'pythonOutput', {
       configurable: true,
       enumerable: true,
       get: () => _pythonOutput,
       set: (val) => {
-        _pythonOutput = String(val ?? "");
+        _pythonOutput = String(val ?? '')
         window.dispatchEvent(
-          new CustomEvent("pythonOutputChanged", { detail: _pythonOutput })
-        );
+          new CustomEvent('pythonOutputChanged', { detail: _pythonOutput }),
+        )
       },
-    });
+    })
   }
-})();
+})()
 
 const PythonModule = ({ filePath }) => {
-  const [pythonCode, setPythonCode] = useState("");
-  const [ready, setReady] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const outputRef = useRef(null);
-  const autoRanRef = useRef(false);
+  const [pythonCode, setPythonCode] = useState('')
+  const [ready, setReady] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const outputRef = useRef(null)
+  const autoRanRef = useRef(false)
 
   const resizeTextarea = useCallback((el) => {
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, []);
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [])
 
   useEffect(() => {
-    resizeTextarea(outputRef.current);
-  }, [resizeTextarea]);
+    resizeTextarea(outputRef.current)
+  }, [resizeTextarea])
 
   // Fetch code + init pyodide (runs once per filePath)
   useEffect(() => {
-    let cancelled = false;
+    let cancelled = false
 
     const run = async () => {
       try {
-        setLoading(true);
+        setLoading(true)
 
-        await getPyodideInstance();
+        await getPyodideInstance()
 
         // Fetch raw python code
-        const rawFileUrl = `https://raw.githubusercontent.com/jeremy-london/solve-by-hand/main/${filePath}`;
-        const resp = await fetch(rawFileUrl, { cache: "no-store" });
-        if (!resp.ok) throw new Error(`Failed to fetch code: ${resp.status}`);
-        const code = await resp.text();
-        if (cancelled) return;
+        const rawFileUrl = `https://raw.githubusercontent.com/jeremy-london/solve-by-hand/main/${filePath}`
+        const resp = await fetch(rawFileUrl, { cache: 'no-store' })
+        if (!resp.ok) throw new Error(`Failed to fetch code: ${resp.status}`)
+        const code = await resp.text()
+        if (cancelled) return
 
-        setPythonCode(code);
-        setReady(true);
-        setError(null);
+        setPythonCode(code)
+        setReady(true)
+        setError(null)
       } catch (e) {
         if (!cancelled) {
-          setError(e?.message || String(e));
-          setReady(false);
+          setError(e?.message || String(e))
+          setReady(false)
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setLoading(false)
       }
-    };
+    }
 
-    run();
+    run()
     return () => {
-      cancelled = true;
-    };
-  }, [filePath]);
+      cancelled = true
+    }
+  }, [filePath])
 
   const executePython = useCallback(
     async (code) => {
-      const py = await getPyodideInstance();
-      if (!py) return;
+      const py = await getPyodideInstance()
+      if (!py) return
 
-      const outputEl = outputRef.current;
-      if (!outputEl) return;
+      const outputEl = outputRef.current
+      if (!outputEl) return
 
-      let firstChunk = true;
+      let firstChunk = true
 
       try {
         await py.runPythonAsync(`
@@ -148,46 +147,48 @@ class _JsTap(io.StringIO):
 _stdout_capture = _JsTap()
 _prev_stdout = sys.stdout
 sys.stdout = _stdout_capture
-`);
+`)
 
-        py.globals.set("js_write", (s) => {
+        py.globals.set('js_write', (s) => {
           if (firstChunk) {
-            outputEl.value = `>>>\n${s}`;
-            firstChunk = false;
+            outputEl.value = `>>>\n${s}`
+            firstChunk = false
           } else {
-            outputEl.value += s;
+            outputEl.value += s
           }
-          resizeTextarea(outputEl);
-        });
+          resizeTextarea(outputEl)
+        })
 
-        const inner = code ?? pythonCode ?? "";
+        const inner = code ?? pythonCode ?? ''
         const newImports = extractTopLevelImports(inner).filter(
-          (m) => !LOADED_IMPORTS.has(m)
-        );
+          (m) => !LOADED_IMPORTS.has(m),
+        )
         if (newImports.length > 0) {
-          await py.loadPackagesFromImports(inner);
-          newImports.forEach((m) => LOADED_IMPORTS.add(m));
+          await py.loadPackagesFromImports(inner)
+          for (const m of newImports) {
+            LOADED_IMPORTS.add(m)
+          }
         }
 
-        await py.runPythonAsync(inner);
+        await py.runPythonAsync(inner)
 
         if (firstChunk) {
-          const captured = py.runPython("_stdout_capture.getvalue()") || "";
+          const captured = py.runPython('_stdout_capture.getvalue()') || ''
           outputEl.value = captured
-            ? `>>>\n${captured}${captured.endsWith("\n") ? "" : "\n"}`
-            : ">>>\n";
-          resizeTextarea(outputEl);
+            ? `>>>\n${captured}${captured.endsWith('\n') ? '' : '\n'}`
+            : '>>>\n'
+          resizeTextarea(outputEl)
         }
 
         // publish to window without redefining property each time
-        window.pythonOutput = py.runPython("_stdout_capture.getvalue()") || "";
+        window.pythonOutput = py.runPython('_stdout_capture.getvalue()') || ''
       } catch (err) {
-        if (firstChunk && outputEl.value.trim() === "") {
-          outputEl.value = ">>>\n";
-          firstChunk = false;
+        if (firstChunk && outputEl.value.trim() === '') {
+          outputEl.value = '>>>\n'
+          firstChunk = false
         }
-        outputEl.value += `Error:\n${err?.toString?.() ?? String(err)}\n`;
-        resizeTextarea(outputEl);
+        outputEl.value += `Error:\n${err?.toString?.() ?? String(err)}\n`
+        resizeTextarea(outputEl)
       } finally {
         try {
           await py.runPythonAsync(`
@@ -196,43 +197,43 @@ try:
     sys.stdout = _prev_stdout
 except Exception:
     sys.stdout = sys.__stdout__
-`);
+`)
         } catch {
           /* ignore */
         }
       }
     },
-    [pythonCode, resizeTextarea]
-  );
+    [pythonCode, resizeTextarea],
+  )
 
   // Expose window helpers with stable references
   useEffect(() => {
-    const getFn = () => pythonCode;
+    const getFn = () => pythonCode
     const setFn = (newCode, { run = true } = {}) => {
-      setPythonCode(newCode);
-      if (run) executePython(newCode);
-    };
-    window.getPythonCode = getFn;
-    window.setPythonCode = setFn;
-    window.executePython = executePython;
+      setPythonCode(newCode)
+      if (run) executePython(newCode)
+    }
+    window.getPythonCode = getFn
+    window.setPythonCode = setFn
+    window.executePython = executePython
     return () => {
       try {
-        delete window.getPythonCode;
-        delete window.setPythonCode;
-        delete window.executePython;
+        delete window.getPythonCode
+        delete window.setPythonCode
+        delete window.executePython
       } catch {
         /* ignore */
       }
-    };
-  }, [pythonCode, executePython]);
+    }
+  }, [pythonCode, executePython])
 
   // Auto-run once when ready & code loaded
   useEffect(() => {
     if (ready && pythonCode && !autoRanRef.current) {
-      autoRanRef.current = true;
-      executePython(pythonCode);
+      autoRanRef.current = true
+      executePython(pythonCode)
     }
-  }, [ready, pythonCode, executePython]);
+  }, [ready, pythonCode, executePython])
 
   return (
     <div className="flex">
@@ -275,7 +276,7 @@ except Exception:
         )}
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default PythonModule;
+export default PythonModule
