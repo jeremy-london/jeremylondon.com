@@ -351,8 +351,8 @@ const siteName = 'Jeremy London'
               },
               annotations: { readOnlyHint: false },
               execute: async () => {
-                window.location.assign(pageTargets.rss);
-                return { success: true, url: pageTargets.rss };
+                window.location.assign("/rss.xml");
+                return { success: true, url: "/rss.xml" };
               },
             },
             {

@@ -27,5 +27,5 @@ export const webmcpPageTargets = {
   blog: '/blog',
   about: '/about',
   contact: '/contact',
-  rss: '/rss.xml',
+  rss: '/rss/',
 }

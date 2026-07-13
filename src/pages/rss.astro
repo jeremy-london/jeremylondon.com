@@ -1,0 +1,91 @@
+---
+import { authors } from '@data/authors'
+import { getFormattedDate } from '@utils/all'
+import { latestPosts } from '@utils/content'
+
+const site =
+  import.meta.env.DEV || !Astro.site ? new URL('/', Astro.url) : Astro.site
+const absoluteUrl = (path: string) => new URL(path, site).toString()
+const feedUrl = absoluteUrl('/rss.xml')
+const homeUrl = absoluteUrl('/')
+const authorName = (slug: string) =>
+  authors.find((author) => author.slug === slug)?.name ?? 'Jeremy London'
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>jeremylondon.com Web Feed</title>
+    <link rel="alternate" type="application/rss+xml" title="jeremylondon.com RSS Feed" href={feedUrl} />
+    <link rel="stylesheet" href="/rss/rss-style.css" />
+    <script is:inline src="/rss/toggle-theme.js"></script>
+    <script is:inline src="/rss/webmcp.js"></script>
+  </head>
+  <body>
+    <header class="banner">
+      <div class="subscribe">
+        <strong>This is a web feed preview.</strong> Subscribe by copying
+        <a href="/rss.xml">the RSS feed URL</a> into your newsreader.
+      </div>
+      <div class="theme-toggle-container">
+        <label class="theme-switch">
+          <input type="checkbox" id="theme-toggle" />
+          <span class="slider round"></span>
+        </label>
+        <span id="toggle-label">Light Mode</span>
+      </div>
+    </header>
+
+    <section>
+      <h1 class="title">jeremylondon.com RSS Feed Preview</h1>
+      <p class="description">
+        Engineering leader and builder working across AI platforms, distributed systems, security, and reliability.
+        <a href={homeUrl}>Visit Website &#x2192;</a>
+      </p>
+    </section>
+
+    <main>
+      <h2>All Posts</h2>
+      <ul class="posts">
+        {
+          latestPosts.map((post) => (
+            <li class="posts__post post">
+              <h3 class="post__title">
+                <a
+                  class="post__link"
+                  href={absoluteUrl(`/blog/${post.id}/`)}
+                  target="_blank"
+                  rel="noopener noreferrer">
+                  {post.data.title}
+                </a>
+              </h3>
+              <p>By: {authorName(post.data.author)}</p>
+              <p class="post__details">
+                <small>Published: {getFormattedDate(post.data.publishDate)}</small>
+                {' // '}
+                <small>Category: {post.data.category}</small>
+              </p>
+              <p class="post__preview">
+                <strong>Description: </strong>
+                {post.data.excerpt}
+                <a
+                  class="post__more"
+                  href={absoluteUrl(`/blog/${post.id}/`)}
+                  target="_blank"
+                  rel="noopener noreferrer">
+                  Read more
+                </a>
+              </p>
+            </li>
+          ))
+        }
+      </ul>
+
+      <p class="cta">
+        <a class="cta__link" href={homeUrl}>View all posts on <strong>jeremylondon.com</strong></a>
+      </p>
+    </main>
+  </body>
+</html>

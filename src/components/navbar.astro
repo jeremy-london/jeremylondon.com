@@ -30,7 +30,7 @@ const rightMenu: Menu[] = [
   },
   {
     label: 'Subscribe to RSS',
-    href: '/rss.xml',
+    href: '/rss/',
     badge: 'heroicons-outline:rss',
     badgeColor: 'hover:text-blue-500 hover:dark:text-orange-500',
     hideLabel: true,
@@ -48,7 +48,7 @@ const isActive = (href: string) => {
   if (href.startsWith('/blog')) return currentPath === '/blog' || currentPath.startsWith('/blog/')
   if (href.startsWith('/about')) return currentPath === '/about'
   if (href.startsWith('/contact')) return currentPath === '/contact'
-  if (href.startsWith('/rss')) return currentPath === '/rss.xml'
+  if (href.startsWith('/rss')) return currentPath === '/rss'
 
   return currentPath === href || currentPath.startsWith(`${href}/`)
 }

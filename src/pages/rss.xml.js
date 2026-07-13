@@ -39,7 +39,6 @@ export async function GET(context) {
   }))
 
   return rss({
-    stylesheet: 'rss/style.xsl',
     title: `jeremylondon.com`,
     description: `Engineering leader and builder working across AI platforms, distributed systems, security, and reliability.`,
     site,

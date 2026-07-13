@@ -7,7 +7,7 @@
     blog: '/blog',
     about: '/about',
     contact: '/contact',
-    rss: '/rss.xml',
+    rss: '/rss/',
   }
 
   const contactTargets = {
@@ -276,8 +276,8 @@
         inputSchema: { type: 'object', properties: {} },
         annotations: { readOnlyHint: false },
         execute: async () => {
-          window.location.assign(pageTargets.rss)
-          return { success: true, url: pageTargets.rss }
+          window.location.assign('/rss.xml')
+          return { success: true, url: '/rss.xml' }
         },
       },
       {
