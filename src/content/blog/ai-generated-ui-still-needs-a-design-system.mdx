@@ -8,55 +8,106 @@ author: "jeremy-london"
 tags: ["ai ui", "design systems", "quality"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete AI ui problem
-- the example surface: AI can generate interface pieces quickly, which makes design-system boundaries more important rather than less
-- the failure mode: the UI looks consistent while the underlying decisions drift apart
-- the responsibilities around the component contract
-- the tradeoff between convenience and which decisions belong in tokens, components, product copy, or one-off layout
-- the check or metric: token reuse, unsupported variants, visual regression count, and handoff ambiguity
-*/}
+AI can generate a lot of interface very quickly. That is useful, and also exactly why the design system matters more.
 
-AI can generate interface pieces quickly, which makes design-system boundaries more important rather than less.
+Speed changes the failure mode. When a person hand-builds a screen, inconsistency arrives slowly. A one-off button here, a weird empty state there, a modal with slightly different spacing. Annoying, but usually visible.
 
-The practical version starts with AI can generate interface pieces quickly, which makes design-system boundaries more important rather than less. That gives AI ui a shape you can reason about. It also keeps the AI ui post out of slogan territory, which is where a lot of technical writing goes to die politely.
+With AI-generated UI, inconsistency can arrive in a single afternoon. The model can produce ten plausible components that all look fine in isolation and quietly disagree about spacing, interaction states, copy tone, accessibility, density, and what the product thinks a "primary" action means.
 
-## What has to be true
+That is not a model problem by itself. It is a boundary problem.
 
-For AI ui to be useful, the designer or engineer needs a clear component contract. That artifact does not have to be fancy. For AI ui, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for AI ui is that it explains what happened without asking the next person to reconstruct intent from vibes.
+## a design system is a constraint, not a gallery
 
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In design systems, the annoying AI ui bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for AI ui, but the caller cannot tell whether it is safe. A script exits zero for AI ui, but the output hides the one fact the maintainer needed.
+The weak version of a design system is a component gallery. Buttons, cards, badges, tabs, maybe a color palette. That is better than nothing, but it is not enough for generated UI.
 
-## Implementation shape
+The useful version tells the system what choices are allowed.
 
-I would make the first AI ui version deliberately plain. The AI ui system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make AI ui enterprise software. It makes the work inspectable.
+What does a destructive action look like? When does a page use a table instead of cards? How dense should an admin screen be? What states does every async surface need? Which icons are allowed for common actions? How much copy belongs inside the product, and how much belongs in documentation?
 
-A useful AI ui implementation question is where the record is created. If the AI ui record is created only after success, it will miss the interesting failures. I would create the AI ui record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+Those rules sound boring until a model starts inventing alternatives.
 
-## Tradeoffs
+If the prompt says "make this polished," the model will reach for whatever it has seen most often: gradients, oversized headings, soft cards, generic empty states, decorative icons, and explanatory text that tells the user how to use the interface instead of making the interface obvious. That can be fine for a landing page. It is usually wrong for an operational tool.
 
-The AI ui tradeoff is convenience versus which decisions belong in tokens, components, product copy, or one-off layout. If the AI ui system is too strict, people route around it. If the AI ui system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For AI ui, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+The design system should give the model fewer ways to be charming.
 
-That contract can be boring. A useful AI ui shape is:
+## generated components need state discipline
 
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
-}
+The first thing I check in AI-generated UI is not whether the default state looks nice. The default state almost always looks nice.
+
+I check the states:
+
+- loading
+- empty
+- error
+- disabled
+- permission denied
+- partial data
+- long text
+- narrow viewport
+- keyboard focus
+- destructive confirmation
+
+Generated UI often skips these because the prompt did not ask for them. A human designer can forget them too, but AI makes the omission cheap and repeatable. It will happily produce a beautiful list that has no idea what happens when the list is empty.
+
+A design system should make those states non-optional. Not as a lecture. As components and patterns that are easier to use than skipping them.
+
+## visual consistency is not enough
+
+A screen can match the palette and still be wrong.
+
+This is where AI-generated UI gets sneaky. It can follow the surface style while missing the product behavior. The card radius is right. The button color is right. The typography is close enough. But the primary action is in the wrong place, the dangerous action is too casual, and the empty state explains the feature instead of giving the user a next step.
+
+Design systems need product rules, not only visual tokens.
+
+For example:
+
+- destructive actions require an object name in the confirmation
+- settings pages use compact sections, not marketing cards
+- tables keep filters visible when results update
+- empty states offer one next action, not a paragraph of encouragement
+- generated copy uses product nouns, not vague verbs like "manage" and "explore"
+
+Those rules are not there to make the interface dull. They are there so the product keeps meaning the same thing from screen to screen.
+
+## prompts should reference the system
+
+If a team is going to use AI to generate UI, the prompt should point at the design system directly. Not "make it modern." Not "make it clean." Those words are invitations to generic output.
+
+A better prompt says something like:
+
+~~~text
+Build this as a dense admin workflow.
+Use the existing table, toolbar, dialog, and form patterns.
+Include loading, empty, error, disabled, and permission states.
+Use icon-only buttons for repeated row actions.
+Do not add marketing copy or decorative cards.
 ~~~
 
-The exact fields change by system. The AI ui pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+That kind of prompt is less glamorous. It is also less likely to produce something that looks impressive in a screenshot and falls apart in use.
 
-## What I would measure
+## review the interface, not the screenshot
 
-The AI ui metric is token reuse, unsupported variants, visual regression count, and handoff ambiguity. That is more useful than asking whether AI ui "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+AI UI review has to be interactive. Screenshots catch layout. They do not catch enough.
 
-For AI ui, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those AI ui numbers usually tell the truth before the happy-path dashboard does.
+I want to tab through it. Resize it. Load it with long names. Remove all data. Simulate a failed request. Try it with a screen reader. Click the destructive action and see whether I still understand what is about to happen.
 
-If the AI ui system cannot answer those questions, I would keep the design smaller. Small AI ui systems with honest receipts are easier to improve than large systems that only report success.
+The review should ask:
+
+- does the UI use existing components?
+- did it invent a new pattern where an old one would work?
+- are all expected states present?
+- does the copy sound like the product?
+- can the user recover from the scary path?
+- does the layout still work with real data?
+
+This is where generated UI can be very good. It can produce a first pass quickly, and a strong design system can turn that first pass into something usable faster. But the system has to be real. The review has to be real too.
+
+## the point is not to slow it down
+
+I do not want AI-generated UI to be slower. I want it to be less random.
+
+A design system is how you make speed safe. It gives the model a smaller target, gives reviewers a concrete standard, and gives the product a way to keep its interface from turning into a collage of plausible screens.
+
+That is the difference between acceleration and churn.
+
+The faster the UI can be generated, the more important the boundaries become. Otherwise every prompt is a tiny design fork.

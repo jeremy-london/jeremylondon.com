@@ -8,138 +8,168 @@ author: "jeremy-london"
 tags: ["semantic search", "embeddings", "knowledge systems"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete semantic search problem
-- the example surface: a team arguing about whether the model improved or merely changed
-- the failure mode: the system succeeds once but gives the next maintainer no way to explain it
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using reproduction time, failing example coverage, queue age, and rollback confidence
-- security or ownership boundary: what must be proven before the change is trusted
-- latency, cost, and scaling implications
-*/}
+Semantic search feels magic the first time it works.
 
-Semantic search is useful, but production systems need metadata, access control, and clear retrieval behavior.
+You type the thought instead of the exact words, and the system finds the thing you meant. The document used different phrasing. The note had an old term. The support ticket buried the answer in a sentence nobody would have keyworded. Semantic search makes the archive feel less literal.
 
-The interesting part of semantic search is not the name. It is the system pressure around a team arguing about whether the model improved or merely changed. Once that pressure shows up for semantic search, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+That feeling is real. It is also where teams get careless.
 
-## The unit of work
+Production semantic search needs permissions, metadata, deletion behavior, and clear retrieval rules. Otherwise the system becomes a very polite way to leak information.
 
-I would start by naming the unit of work for semantic search. In engineering quality, the semantic search unit is usually smaller than the product surface and larger than a function call. For semantic search, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+## similarity is not authorization
 
-A useful semantic search unit has four properties:
+A vector index will happily find the nearest neighbor.
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+It does not know whether the user is allowed to see that neighbor unless the system teaches it.
 
-For semantic search, the boundary is what must be proven before the change is trusted. That boundary should be visible in the semantic search data, not only in a policy document. If a semantic search request crosses the boundary, the trace should show it.
+That means access control has to run with retrieval, not after the result is already exposed. If a user searches for "layoff plan" and the system shows a title, summary, or snippet from a restricted document before filtering it out, the product already leaked information.
 
-## Data flow
+Permissions need to be part of candidate selection.
 
-The simple semantic search flow looks like this:
-
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
-~~~
-
-The context builder gathers the minimum useful state for semantic search. The semantic search decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
-
-That receipt is the difference between a semantic search demo and an operable system. A demo can rely on a person watching closely. A semantic search system needs to explain itself after the person has moved on.
-
-A semantic search request envelope might look like this:
+For many systems, that means metadata filters:
 
 ~~~json
 {
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
+  "tenantId": "acme",
+  "visibility": "team",
+  "allowedGroups": ["engineering", "security"],
+  "sourceType": "incident_doc",
+  "sourceId": "doc_1842",
+  "deleted": false
 }
 ~~~
 
-The schema is deliberately plain. Fancy schemas do not save unclear semantic search systems. The useful semantic search work is deciding which fields are required, which are advisory, and which block the run when missing.
+The search path should narrow the index by tenant, group, source state, and policy before the user sees anything.
 
-## Implementation sketch
+## metadata is part of relevance
 
-I would implement the first semantic search pass as a narrow pipeline rather than a general platform. Start semantic search with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+Metadata does more than protect access.
+
+It helps the system rank and explain results.
+
+A chunk from current docs may beat an old forum answer. A document owned by the user's team may beat a global announcement. A recent incident may matter more than a solved one. A draft may be searchable by its author but not by the whole company. A customer-specific note should never cross tenants.
+
+Useful metadata includes:
+
+- owner
+- source system
+- created and updated dates
+- document version
+- tenant
+- project
+- access groups
+- language
+- source confidence
+- deletion state
+- retention policy
+
+Without metadata, semantic search can find the right neighborhood and still behave like a bad product.
+
+## deletion has to remove derived state
+
+Deleting a document should remove more than the original file.
+
+It should remove chunks, embeddings, cached summaries, extracted entities, rerank features, and any local or remote index entries derived from that document.
+
+This is easy to miss because embeddings feel abstract. They are still derived from content. They may not reconstruct the source directly, but they can preserve enough signal to create privacy and compliance concerns.
+
+The system should be able to answer:
+
+- which index entries came from this source?
+- when were they generated?
+- which model generated them?
+- where are they stored?
+- were they synced elsewhere?
+- how do we delete or reindex them?
+
+If the answer is "we do not know," the semantic search system is not production-ready for private data.
+
+## explainability should show the source
+
+A semantic result should not be a mysterious card.
+
+The user needs enough context to understand why it appeared: title, source, owner, updated date, matching passage, and access scope when relevant.
+
+This is partly UX and partly debugging.
+
+If the result is wrong, the team needs to know whether the query was weak, the chunk was bad, the embedding model was poor, the metadata filter failed, or the reranker favored the wrong signal.
+
+I like result records that can be inspected:
 
 ~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
+type SearchHit = {
+  sourceId: string
+  chunkId: string
+  title: string
+  score: number
+  sourceUpdatedAt: string
+  accessReason: "owner" | "group" | "public"
+  matchedTextPreview: string
 }
 ~~~
 
-For semantic search, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The semantic search system still has to decide whether the proposal is usable under the current boundary.
+The user does not need every field. The system does.
 
-## Failure modes
+## exact search still matters
 
-The main semantic search failure mode is the system succeeds once but gives the next maintainer no way to explain it. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The semantic search failure is that the next component cannot tell whether the result should be trusted.
+Semantic search is bad at some things people care about.
 
-I would test at least five semantic search cases:
+Error codes, issue IDs, stack trace fragments, product SKUs, customer names, function names, and version numbers often need exact matching. A purely semantic system can miss the one literal token that mattered.
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+That is why production search often becomes hybrid. Use exact search for anchors. Use embeddings for paraphrase. Use metadata for scope. Use reranking to combine evidence.
 
-That last semantic search case matters. A confident semantic search answer is not the same thing as a verified result. If semantic search touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+The product should not make users guess which mode they are in. If a query includes `ERR_AUTH_4017`, exact matching should have a strong voice.
 
-## Deployment shape
+## evals need permission cases
 
-I would not deploy semantic search as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For semantic search, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+Semantic search evals should include relevance and permission behavior.
 
-That gives the router real work to do. For semantic search, it should not only choose small model or big model. It should choose a risk path:
+Relevance cases:
 
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
+- paraphrased queries
+- old terminology
+- ambiguous terms
+- exact identifiers
+- stale versus current documents
+- multilingual queries if supported
 
-Each semantic search path has a different budget, verifier, and approval requirement. This is the part that makes semantic search feel less magical and more like infrastructure. The model is still important, but the semantic search route determines what kind of trust the system is asking for.
+Permission cases:
 
-## Measurement
+- user can access source
+- user cannot access source
+- source was deleted
+- source moved teams
+- source changed visibility
+- tenant boundary
+- owner-only draft
 
-The measurement surface for semantic search is reproduction time, failing example coverage, queue age, and rollback confidence. I would track semantic search per route or case type, not only as a global average. Global averages hide the exact class of semantic search problems that make these systems feel unpredictable.
+The scary failure is not "bad result." It is "good result from a place the user should not know exists."
 
-A simple eval table can carry a lot of weight:
+## reindexing is a product operation
 
-~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
-~~~
+Semantic indexes drift as content changes.
 
-The point is not to build an eval cathedral for semantic search. The point is to preserve enough semantic search structure that regressions can be clustered. If failures cluster around one route, fix the route. If semantic search failures cluster around one policy boundary, fix the boundary. If semantic search failures cluster around one model, stop pretending the prompt is the whole system.
+Documents are edited. Permissions change. Model versions change. Chunking rules improve. Metadata gets corrected. The index needs a way to catch up without turning search into a stale memory palace.
 
-## Operational concerns
+I would track index versions and reindex reasons:
 
-The operational question for semantic search is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap semantic search route becomes unreliable but the expensive route would blow the budget?
+- source content changed
+- access policy changed
+- embedding model changed
+- chunking rule changed
+- metadata backfill
+- deletion request
 
-For semantic search, I would put those answers in configuration, not in a heroic prompt. A small semantic search policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+Reindexing should be observable. How many sources are pending? How many failed? Which search surfaces are using the old index? Can the product fall back while the rebuild runs?
 
-## Scaling behavior
+Search quality depends on that maintenance path.
 
-At small scale, a human can inspect weird semantic search cases by hand. At medium scale, the semantic search system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+## useful search is disciplined search
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the semantic search system without being surprised by the downstream behavior?
+Semantic search is useful because it lets people find thoughts as well as strings.
 
-For semantic search, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the semantic search system a spine.
+But production search needs discipline around the parts the embedding model does not solve: access control, metadata, deletion, hybrid retrieval, explainable results, and evals with permission cases.
 
-## Where I land
+The model finds neighbors. The product decides which neighbors are allowed, current, useful, and explainable.
 
-Semantic search deserves depth when it changes architecture, not when it merely sounds current. The semantic search implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
-
-If the semantic search post answers those questions, it teaches something. If the semantic search post only says the topic matters, it is just a longer version of the headline.
+That decision is where production search earns trust.

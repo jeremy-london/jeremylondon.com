@@ -8,24 +8,127 @@ author: "jeremy-london"
 tags: ["private ai", "local first", "workflow"]
 ---
 
-{/*
-Depth: quick-note
-Information map:
-- the concrete private AI problem
-- the example surface: software that keeps working when the network stops helping
-- the failure mode: the app works online but loses the user when the network or device state changes
-- the small decision I would keep
-- what would make the note wrong
-*/}
+Private AI workflows want local state.
 
-Local state matters more when AI tools start reading notes, files, and drafts that were never meant for a server round trip.
+That sounds like an implementation preference, but I think it is more basic than that. Once an AI tool starts reading notes, files, drafts, screenshots, transcripts, browser context, or local project state, the product is no longer handling generic prompts. It is handling private working material.
 
-I would keep private AI small here. The useful part is software that keeps working when the network stops helping. That is enough material for a private AI note, not a manifesto.
+That material was often created under an assumption: it lives here.
 
-The private AI mistake is treating the observation as if it needs a complete theory around it. In practice, local-first software work usually gets better when the first version names the boundary and then stops. For private AI, that boundary is what must be true before the server is reachable.
+The note was not written for a cloud model. The draft was not ready to sync. The file was not meant to leave the project. The screenshot contains more than the user is asking about. The local repo has secrets in history. The browser tab has personal state. The folder has unrelated documents next to the one that matters.
 
-The private AI check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the private AI post has done its job. If the answer is no, adding three more private AI paragraphs will not fix it.
+Local state is how the product respects that assumption.
 
-The thing I would not add to private AI is a fake architecture section. A short private AI note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for private AI. The rest of private AI can wait until there is a real example to inspect.
+## scope should start small
 
-I am leaving private AI as a short note because the idea is useful at this size. A longer private AI version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.
+The most important private-workflow question is not which model runs. It is what the model can see.
+
+A useful AI tool should start with a narrow scope and expand only when the user asks.
+
+For a file assistant, that might mean the current file before the whole folder. For a notes assistant, the selected note before the whole vault. For a coding assistant, the current diff before the repository. For a writing tool, the current draft before every past draft.
+
+The local state model should make scope visible:
+
+~~~json
+{
+  "workspace": "personal-notes",
+  "allowedPaths": ["drafts/agent-control-plane.md"],
+  "excludedPaths": ["journal/", "taxes/", "secrets/"],
+  "syncDerivedOutputs": false,
+  "expiresAt": "session-end"
+}
+~~~
+
+This is not a legal checkbox. It is product behavior. A user should know which material is in the room.
+
+## derived artifacts can leak too
+
+People usually focus on whether raw input leaves the device.
+
+That is necessary, but it is incomplete.
+
+AI workflows create derived artifacts: summaries, embeddings, tags, extracted entities, vector indexes, drafts, classifications, memories, and logs. Those artifacts can contain private information even when the original file stays local.
+
+A local note summarizer may create a short summary that includes the private sentence. A local embedding index may make sensitive content searchable. A redaction tool may log the unredacted text for debugging. A draft assistant may store a "memory" of a project name that came from a confidential document.
+
+The privacy boundary has to follow the derivation.
+
+I would track derived state as deliberately as source state:
+
+- what source created it
+- whether it can sync
+- whether it expires
+- whether it can be inspected
+- whether deleting the source deletes the derivative
+- whether it can be used as context later
+
+That last point matters. A private workflow can leak through memory long after the original task is done.
+
+## local indexes need ownership
+
+Embedding search over personal material is useful.
+
+It is also a local database with a privacy story.
+
+If an app builds an embedding index over notes, files, or email, the user should know where the index lives, how it is updated, how it is deleted, and whether the embeddings leave the device. If a folder is removed from scope, the index should remove its vectors. If a note is deleted, the derived vectors should not hang around quietly.
+
+The same applies to extracted entities, cached summaries, and local memories.
+
+The product does not need to expose every internal table. It does need a credible control surface:
+
+- reindex this folder
+- exclude this folder
+- delete local AI data
+- show what sources are included
+- pause background indexing
+- keep this workflow local
+
+Private AI becomes more trustworthy when local state is inspectable enough to manage.
+
+## sync should be a choice, not a surprise
+
+Local-first does not mean never sync.
+
+Sync is useful. People use multiple devices. They want continuity. They want backups. They want collaboration. The problem is silent sync of material the user thought was local.
+
+For AI workflows, I would separate:
+
+- raw source files
+- model inputs
+- model outputs
+- derived indexes
+- logs
+- preferences
+- memories
+
+Each can have a different sync policy.
+
+A user may want drafts to sync but not prompts. They may want local embeddings but cloud backups of source notes. They may want settings synced but not model outputs. They may want a project memory on one device only. The product should not collapse all of that into one account-level switch.
+
+## receipts make private work auditable
+
+Private workflows need receipts even when everything stays local.
+
+The receipt does not have to leave the device. It can be a local record that answers:
+
+- what sources were used?
+- what model ran?
+- did anything leave the device?
+- what derived artifacts were created?
+- where was the output saved?
+- what permission scope was active?
+
+That record helps the user debug trust. If a generated draft includes a sentence from an old note, the receipt can explain why. If a local search result appears from a folder that should be excluded, the receipt exposes the scope bug. If a cloud escalation happened, the receipt should show exactly what moved.
+
+Without receipts, private AI becomes faith-based UX.
+
+## local state changes the product shape
+
+Private AI workflows are more than chat with a privacy badge.
+
+They need workspace scope, local indexes, derived-artifact rules, sync controls, deletion semantics, and visible receipts. They need to treat notes, files, drafts, and memories as state with boundaries.
+
+This is why I keep coming back to local-first patterns. They make the state real. The application can say "this was read locally," "this summary stays on this device," "this folder is excluded," or "this action will send these three snippets to the hosted model."
+
+That is the level of specificity private AI needs.
+
+The user's private work is not generic context. It is local state with expectations attached.

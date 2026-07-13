@@ -8,193 +8,109 @@ author: "jeremy-london"
 tags: ["agents", "tools", "automation"]
 ---
 
-{/*
-Depth: systems-essay
-Information map:
-- the concrete agents problem
-- the example surface: an agent that is useful precisely because its filesystem, network, credential, and time boundaries are boring
-- the failure mode: the system succeeds once but gives the next maintainer no way to explain it
-- why the obvious solution is insufficient
-- system constraints and trust boundaries
-- architecture and component responsibilities
-- request, event, and evidence flow
-- deterministic and semantic verification
-- measurement using reproduction time, failing example coverage, queue age, and rollback confidence
-- latency, cost, and scale behavior
-- governance, revocation, and escalation
-- tradeoffs I would make
-- what remains unresolved
-*/}
+The first agent demos are usually too smooth.
 
-A practical note on agents, MCP tools, identity, permissions, and why clear limits matter.
+The agent reads the request, calls a tool, edits a file, opens a browser, finishes the task, and writes a tidy summary. Everyone nods because the path looks obvious in hindsight. Of course the agent needed the file. Of course it needed the browser. Of course it needed the token. The demo worked.
 
-The hard part of agents is not making a prototype move. Prototypes move. They call tools, retrieve documents, choose models, draw diagrams, and produce agents output that looks close enough to keep going. The hard part is deciding what the agents system is allowed to do after it produces something plausible.
+Production does not care that the demo worked.
 
-I think about agents as a control problem more than a prompt problem. The prompt matters for agents, but the prompt is only one component inside a larger machine: context construction, policy, routing, tool execution, verification, storage, approval, and replay. If those pieces are missing, the agents system may still look impressive in a demo. It will just be unpleasant to operate.
+The real system has a messier question: what was the agent allowed to touch, and how would we know if it crossed the line?
 
-## The problem
+That is why agents need boring boundaries. Not clever boundaries. Not a policy paragraph hidden in a prompt. Boring ones. Boundaries that can be named in the UI, enforced in code, logged at the application edge, and explained to a human who is trying to decide whether to trust the next action.
 
-The concrete surface here is an agent that is useful precisely because its filesystem, network, credential, and time boundaries are boring. That agents surface creates pressure because it crosses from language into work. Once a agents system can affect files, route requests, inspect user state, call tools, spend money, or produce security-relevant conclusions, "the model answered" is no longer the end of the story.
+## scope should be concrete
 
-The agents system needs to answer different questions:
+"Let the agent use my files" is not a scope. It is a warning label.
 
-- What exactly was requested?
-- Which context was used?
-- Which policy boundary applied?
-- Which component made the decision?
-- What evidence supported the result?
-- What was verified deterministically?
-- What was judged semantically?
-- Who approved the action, if approval was needed?
-- How would we replay the case after a failure?
-
-Those questions sound administrative until something breaks. Then they become the only questions that matter.
-
-## Why the obvious solution is insufficient
-
-The obvious agents solution is to add a better model and a thicker prompt. That helps agents, but it does not solve the operating problem. A stronger model can still break agents: call the wrong tool, use stale context, skip a permission boundary, or produce a technically valid answer that is useless to the person who has to act on it.
-
-The second obvious agents solution is to put a human approval button at the dangerous step. That also helps agents, but only if the approval has context. A agents button that says "approve" without showing the diff, tool arguments, policy boundary, expected side effect, and rollback path is not governance. It is a liability with a nicer label.
-
-For agents, I would treat approvals as part of the data flow. The approval is not a modal. It is a signed agents decision attached to the run record.
-
-## Constraints
-
-A production agents version has to live with several constraints at once.
-
-The first is latency. Verification cannot be so slow that everyone disables it. The second is cost. Running a frontier model as judge for every small agents step may be correct and still unaffordable. The third is privacy. For agents, context windows are tempting places to dump everything, but credential material, user state, and internal documents need boundaries. The fourth is replay. If a agents failure cannot be replayed, it will be explained with folklore.
-
-The trust boundary is what must be proven before the change is trusted. I would make that boundary explicit in the request envelope rather than burying it in code comments.
+A useful scope is specific enough that the user and the system can both reason about it:
 
 ~~~json
 {
-  "runId": "run_2026_07_13_001",
-  "actor": "agent-or-human-id",
-  "input": "requested work",
-  "contextRefs": ["doc:policy", "file:target", "trace:previous-step"],
-  "scope": {
-    "filesystem": ["read:src", "write:docs"],
-    "network": ["deny"],
-    "credentials": ["none"],
-    "expiresAt": "2026-07-13T18:00:00Z"
-  },
-  "decision": null,
-  "evidence": [],
-  "approval": null
+  "files": ["src/content/blog"],
+  "network": "localhost-only",
+  "shell": ["pnpm markdown:check"],
+  "secrets": "none",
+  "duration": "this run"
 }
 ~~~
 
-That envelope is not meant to be universal. It is meant to force the design conversation. What scope exists? Who grants it? When does it expire? What evidence must be present before the next state transition?
+That is the kind of grant I want. The agent can do useful work, but the permission is not pretending to be universal. It has a directory, a network rule, a command list, a credential rule, and a lifetime.
 
-## Architecture
+The exact shape will vary by product. A coding agent needs workspace boundaries. A browser agent needs origin and account boundaries. A document agent needs file and sharing boundaries. An MCP tool runner needs tool-level grants because every tool is a different kind of side effect.
 
-The architecture I would start with has six components:
+The important part is that the boundary exists outside the model's goodwill.
 
-- context builder
-- policy engine
-- router
-- executor
-- verifier
-- run ledger
+## credentials are different
 
-The context builder gathers only the state needed for the next decision. The policy engine decides whether the requested action is allowed. The router chooses the model, tool, or human path. The executor does the work. The verifier checks the result. The run ledger stores the envelope, transitions, evidence, approvals, and outputs.
+File access is one thing. Credentials are another.
 
-The important part is separation. The component that proposes an action should not be the only component that decides whether the action is acceptable. That does not mean every verifier needs to be another model. Some of the best verifiers are boring: schema validation, type checks, path checks, diff checks, policy checks, budget checks, and deterministic tests.
+An agent with a token can become a confused deputy very quickly. The user asks for one thing. The agent has authority to do another thing. A tool accepts the request because the credential is valid, not because the action matches the user's intent.
 
-A rough state machine looks like this:
+That is where I want narrow grants and visible delegation. If an agent needs to read a GitHub issue, give it read access to that issue or repository for the run. If it needs to open a pull request, show the diff and ask. If it needs to post a comment, show the exact comment and target before it sends anything.
+
+This is not only about security. It is about debugging.
+
+When something goes wrong, "the agent had my token" is not enough information. I want to know which credential was used, which tool accepted it, which resource was targeted, and which user-facing approval preceded the action.
+
+## tool boundaries should match side effects
+
+MCP makes tool access feel nicely composable. That is useful, but it also makes tool boundaries more important because the tool list can grow faster than the user understands.
+
+Not every tool belongs in the same trust bucket.
+
+A search tool is not the same as a write tool. A local file reader is not the same as a shell command. A formatter is not the same as a deploy command. A database read is not the same as a database migration. Putting all of those behind one generic "tools enabled" switch is asking for trouble.
+
+I would rather make the categories boring:
+
+- read-only context tools
+- local edit tools
+- external write tools
+- shell tools
+- credentialed tools
+- irreversible tools
+
+Then the approval model can be boring too. Read-only tools may run automatically inside scope. Local edits produce a diff. External writes need explicit approval. Irreversible tools require a stronger confirmation or should not be available to the agent at all.
+
+The model does not get to decide that a deploy is "probably fine" because the prompt sounded confident.
+
+## time matters
+
+Permissions should expire.
+
+This is one of the easiest rules to skip in prototypes. The agent gets a grant, the grant lives somewhere, and suddenly a future run inherits authority from a past run. That is convenient right up until it is confusing.
+
+I like run-scoped permissions as the default. The user approves a task. The agent gets the minimum access needed for that task. The grant ends when the run ends. If the agent needs access again later, it asks again with current context.
+
+There are cases where longer-lived grants make sense, but they should be named as such. "Always allow this agent to read this folder" is a different product decision than "allow this run to edit this file." The UI should not blur those together.
+
+## approval needs a receipt
+
+An approval without context is mostly a liability.
+
+If the agent asks, "Can I continue?", the user is approving a mood. If the agent asks, "Can I replace these three paragraphs in `foo.mdx` and then run `pnpm markdown:check`?", the user is approving work.
+
+That approval should leave a receipt:
 
 ~~~text
-created
-  -> context_ready
-  -> policy_checked
-  -> routed
-  -> executed
-  -> verified
-  -> approved | rejected | escalated
-  -> recorded
+approved action: edit local file
+target: src/content/blog/agents-need-boring-boundaries.mdx
+visible evidence: proposed diff
+allowed follow-up: markdown check only
+expires: end of run
 ~~~
 
-Each transition should be cheap to inspect. If the system jumps from created to recorded, the architecture is lying to you.
+This is the difference between permission as a ceremony and permission as an operating surface. The receipt lets a human replay what happened. It also lets the system reject later actions that were never approved.
 
-## Operating loop
+## boring is the point
 
-The operating loop is where agents can become reliable or collapse into a pile of impressive transcripts. I would make every run produce a record that can be inspected by a human, replayed by a test harness, and summarized by an eval dashboard. Those are three different consumers, so the record cannot be only prose.
+I keep using the word boring because the safe version of agent boundaries should not require a philosophical debate every time the model wants to act.
 
-The loop I would want is:
+The boundary should be inspectable. The grant should be narrow. The approval should show the side effect. The credential should be scoped. The run should leave evidence. The permission should expire.
 
-~~~text
-capture -> propose -> check -> approve -> execute -> verify -> record -> learn
-~~~
+None of that makes a good demo. It does make a system easier to trust.
 
-Capture stores the request and context references. Propose creates the candidate action. Check runs policy and deterministic validation. Approve attaches a human decision when the action needs one. Execute performs the work. Verify compares the result with the contract. Record stores the transition. Learn turns accepted and rejected runs into future eval cases.
+Agents are going to keep getting better at using tools. That makes the boundary problem more important, not less. The more capable the agent is, the less I want the safety model to depend on everyone remembering what the prompt was supposed to mean.
 
-That last step is easy to skip and expensive to recover later. If the system only stores successes, it trains the team to forget the edge cases. The rejected runs are often more useful because they show where the boundary was unclear, where the model overreached, or where the tool contract was underspecified.
+Give the agent useful tools. Give it real context. Let it do work.
 
-## Information flow
-
-Information should move forward as evidence, not as vibes. The executor should not hand the verifier a blob of text and hope for the best. It should hand over the tool call, arguments, output, affected resources, timing, cost, and any claimed reasoning that the verifier is expected to check.
-
-For agents, I would separate three kinds of evidence:
-
-- deterministic evidence, such as tests, schemas, diffs, permissions, and checksums
-- semantic evidence, such as a judge model comparing output to intent
-- operational evidence, such as latency, cost, retries, and approval history
-
-These evidence types age differently. Deterministic evidence is easier to replay. Semantic evidence may drift when the judge model changes. Operational evidence explains whether the system was usable under the actual constraints.
-
-## Failure modes
-
-The obvious failure is the system succeeds once but gives the next maintainer no way to explain it. The less obvious failures are more interesting.
-
-A confused deputy failure happens when one component has authority another component should not inherit. An agent reads a private file, summarizes it into a shared context, and a later tool call leaks the summary. The filesystem permission looked correct, but the information boundary was already broken.
-
-A stale-context failure happens when the model acts on a snapshot that is no longer true. This is common in coding agents, dashboards, and approval workflows. The user approves an action based on one diff, but the underlying file changed before execution.
-
-A verifier collapse happens when the verifier shares too much context, too much prompt structure, or too much failure mode with the generator. It agrees because it is making the same mistake. This is where deterministic checks earn their keep.
-
-A governance failure happens when approvals exist but revocation does not. Temporary access that cannot expire is not temporary. Tool scopes that cannot be audited are not scopes. A run ledger that cannot answer who approved what is not a ledger.
-
-## Measurement
-
-The measurement surface for agents is reproduction time, failing example coverage, queue age, and rollback confidence. I would not roll that into one success score. One number will hide the shape of the system.
-
-I would track:
-
-- task acceptance rate by route
-- verifier disagreement by case type
-- deterministic failure rate
-- semantic judge variance
-- approval latency
-- retry count
-- p50 and p95 end-to-end latency
-- cost per accepted run
-- escalation rate
-- replay success rate
-
-Replay success rate is underrated. If the team cannot replay a failed run with the same inputs, context references, policy version, and model versions, the incident review becomes storytelling.
-
-## Scaling behavior
-
-At small scale, the system can be strict and noisy. A human can read every rejection. At medium scale, the noise becomes expensive. The system needs triage, clustering, and better defaults. At large scale, the risk moves again: the bottleneck is no longer whether one run was correct, but whether teams can change models, prompts, tools, and policies without creating invisible regressions.
-
-That is where versioning matters. The model version, prompt version, tool schema version, policy version, and verifier version all belong in the run record. Otherwise a future failure will be impossible to attribute.
-
-I would also expect routing to become more conservative over time. Early prototypes overuse the strongest model because it is convenient. Production systems usually end up with a portfolio: cheap classifiers, small local models, retrieval paths, frontier models, deterministic tools, and human escalation. The router becomes an economic and governance component, not only a quality component.
-
-## Tradeoffs I would make
-
-I would spend complexity on the run ledger before spending it on fancy orchestration. If the system cannot explain what happened, better orchestration just fails faster.
-
-I would prefer narrow tool scopes that are annoying but inspectable over broad scopes that feel magical. The annoyance is real. So is the cost of a broad permission that nobody can audit.
-
-I would use model judges carefully. They are useful for semantic comparison, ranking, and clustering. They are weak as the only gate on irreversible actions. When the action matters, pair the judge with deterministic checks and human escalation.
-
-I would keep approvals contextual. Show the proposed action, affected resources, evidence, expected side effect, rollback story, and expiration. If that makes the approval UI crowded, the operation may be too vague.
-
-## What remains unresolved
-
-I do not think there is one clean answer for agents. The shape depends on the cost of failure, the sensitivity of the data, the reversibility of the action, and the review capacity of the team.
-
-The unresolved question is how much friction belongs in the default path. Too much friction and people avoid the system. Too little and the system accumulates invisible risk. The answer probably changes by task class, not by company slogan.
-
-That is the part I find interesting. The future of agents is not a chat box with more buttons. It is a work surface with memory, scope, evidence, review, revocation, and enough humility to stop when it cannot prove what it just did.
+Then put boring walls around the work so the rest of us can see where it is allowed to go.

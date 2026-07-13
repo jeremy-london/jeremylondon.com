@@ -8,138 +8,146 @@ author: "jeremy-london"
 tags: ["opir", "classification", "guardrails"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete OPIR-style guardrails problem
-- the example surface: Opir put safety filtering back in the small-model conversation with encoder guardrails for toxicity, jailbreaks, and policy categories
-- the failure mode: the release sounds important without changing any concrete decision
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using route changes, eval deltas, latency movement, cost movement, and migration work
-- security or ownership boundary: what changed in the model versus what changed in the product surface
-- latency, cost, and scaling implications
-*/}
+[Opir](https://github.com/Knowledgator/Opir) was interesting because it made guardrails look like classifiers again.
 
-Opir put safety filtering back in the small-model conversation with encoder guardrails for toxicity, jailbreaks, and policy categories.
+That sounds obvious until you look at how much AI safety tooling gets pulled toward generative models. Ask a big model whether a prompt is safe. Ask a judge model whether the response violates policy. Ask another model to explain the risk. That can work, but it is a strange default for every safety decision.
 
-The interesting part of OPIR-style guardrails is not the name. It is the system pressure around Opir put safety filtering back in the small-model conversation with encoder guardrails for toxicity, jailbreaks, and policy categories. Once that pressure shows up for OPIR-style guardrails, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+Many guardrail problems are classification problems.
 
-## The unit of work
+Is this prompt safe or unsafe? Is it a jailbreak attempt? Which toxicity labels apply? Does the response refuse correctly? Which policy category is implicated? Is this a benign discussion of sensitive content or an operational request for harm?
 
-I would start by naming the unit of work for OPIR-style guardrails. In model watch, the OPIR-style guardrails unit is usually smaller than the product surface and larger than a function call. For OPIR-style guardrails, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+Opir put that framing back in the small-model conversation.
 
-A useful OPIR-style guardrails unit has four properties:
+## encoder guardrails have a different shape
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+Opir is built around encoder-style safety classification, including GLiClass-based variants. The model family covers binary safe/unsafe classification, toxicity classification, jailbreak and prompt-injection detection, prompt safety, response safety, response refusal, and taxonomy-based categorization.
 
-For OPIR-style guardrails, the boundary is what changed in the model versus what changed in the product surface. That boundary should be visible in the OPIR-style guardrails data, not only in a policy document. If a OPIR-style guardrails request crosses the boundary, the trace should show it.
+That is a different operational shape from a decoder model acting as a verbose judge.
 
-## Data flow
+An encoder classifier can be fast, cheap, and easier to place in the request path. It does not need to generate a long rationale for every decision. It can return labels and scores. Edge variants can be small enough to run near the application boundary. Multi-task variants can handle richer policy categories when the product needs more than a binary decision.
 
-The simple OPIR-style guardrails flow looks like this:
+That makes the guardrail feel like infrastructure again:
 
 ~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
+prompt or response
+  -> safety classifier
+  -> label scores
+  -> policy decision
+  -> allow, block, route, redact, or review
 ~~~
 
-The context builder gathers the minimum useful state for OPIR-style guardrails. The OPIR-style guardrails decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+The output still needs product judgment. But the primitive is clean.
 
-That receipt is the difference between a OPIR-style guardrails demo and an operable system. A demo can rely on a person watching closely. A OPIR-style guardrails system needs to explain itself after the person has moved on.
+## labels are policy surfaces
 
-A OPIR-style guardrails request envelope might look like this:
+The label taxonomy is where things get serious.
 
-~~~json
-{
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
-}
-~~~
+Opir's paper describes a three-level taxonomy with hundreds of categories across top-level, mid-level, and leaf labels. That matters because "unsafe" is too blunt for most products.
 
-The schema is deliberately plain. Fancy schemas do not save unclear OPIR-style guardrails systems. The useful OPIR-style guardrails work is deciding which fields are required, which are advisory, and which block the run when missing.
+A moderation system may need to distinguish:
 
-## Implementation sketch
+- harassment
+- self-harm
+- sexual content
+- malware
+- cyber abuse
+- regulated goods
+- hate speech
+- jailbreak attempts
+- prompt injection
+- benign educational discussion
 
-I would implement the first OPIR-style guardrails pass as a narrow pipeline rather than a general platform. Start OPIR-style guardrails with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+Those labels drive different product behavior. Some content should be blocked. Some should be allowed with care. Some should be routed to a stricter model. Some should ask for clarification. Some should be logged for review. Some should be ignored because the classifier is seeing a scary word in a harmless context.
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+The classifier score is evidence for policy. It is not the policy by itself.
 
-For OPIR-style guardrails, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The OPIR-style guardrails system still has to decide whether the proposal is usable under the current boundary.
+That distinction keeps the product from outsourcing judgment to a threshold.
 
-## Failure modes
+## binary safety is useful but incomplete
 
-The main OPIR-style guardrails failure mode is the release sounds important without changing any concrete decision. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The OPIR-style guardrails failure is that the next component cannot tell whether the result should be trusted.
+Binary safe/unsafe classification is useful because it is fast to reason about.
 
-I would test at least five OPIR-style guardrails cases:
+For many request paths, the product wants a quick first-pass answer:
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+- obviously safe
+- obviously unsafe
+- uncertain
 
-That last OPIR-style guardrails case matters. A confident OPIR-style guardrails answer is not the same thing as a verified result. If OPIR-style guardrails touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+That first pass can protect expensive models, reduce risk before tool access, or route questionable inputs to a stricter path. Edge classifiers make that even more practical because they can run with low latency and lower deployment cost.
 
-## Deployment shape
+But binary safety is not enough when the product needs a good user experience.
 
-I would not deploy OPIR-style guardrails as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For OPIR-style guardrails, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+A blocked request should have a reason. A false positive needs a path to correction. A policy-sensitive request may need a safer alternative. A compliance workflow may need the category for audit. A red-team workflow needs to know which boundary moved.
 
-That gives the router real work to do. For OPIR-style guardrails, it should not only choose small model or big model. It should choose a risk path:
+That is where multi-label classification matters. The system can separate "unsafe because malware" from "unsafe because sexual content" from "unsafe because jailbreak." Those are different decisions.
 
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
+## false positives are product damage
 
-Each OPIR-style guardrails path has a different budget, verifier, and approval requirement. This is the part that makes OPIR-style guardrails feel less magical and more like infrastructure. The model is still important, but the OPIR-style guardrails route determines what kind of trust the system is asking for.
+Guardrail conversations often focus on bypasses. That makes sense. A safety filter that misses harmful requests is dangerous.
 
-## Measurement
+But false positives are also product damage.
 
-The measurement surface for OPIR-style guardrails is route changes, eval deltas, latency movement, cost movement, and migration work. I would track OPIR-style guardrails per route or case type, not only as a global average. Global averages hide the exact class of OPIR-style guardrails problems that make these systems feel unpredictable.
+A classifier that blocks benign security education makes the product less useful. A toxicity classifier that cannot distinguish quoting hate speech for analysis from directing hate speech at a person will frustrate researchers, moderators, and journalists. A jailbreak detector that fires on any prompt mentioning "ignore previous instructions" may block legitimate debugging of prompt-injection defenses.
 
-A simple eval table can carry a lot of weight:
+Good safety classification needs hard negatives: examples that look close to the unsafe class but should be allowed.
+
+For Opir-style guardrails, I would evaluate:
+
+- unsafe recall by category
+- false positives on benign nearby content
+- jailbreak detection across paraphrases
+- multilingual performance if the product needs it
+- prompt versus response classification separately
+- threshold behavior by category
+- stability across model and taxonomy updates
+
+The threshold is part of the product. A high-risk category may tolerate more false positives. A broad internal assistant may need lower friction for benign technical content. One global cutoff rarely fits every workflow.
+
+## guardrails belong before and after generation
+
+Input moderation and output moderation solve different problems.
+
+Input classification asks whether the user request should reach the model, which model path should handle it, and whether tools should be available. Output classification asks whether the generated response is safe to show, whether it complied with refusal policy, and whether it introduced content the prompt did not require.
+
+The same classifier family may support both, but the product logic should treat them separately.
 
 ~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
+user prompt
+  -> input classifier
+  -> route or block
+  -> model response
+  -> output classifier
+  -> show, revise, block, or review
 ~~~
 
-The point is not to build an eval cathedral for OPIR-style guardrails. The point is to preserve enough OPIR-style guardrails structure that regressions can be clustered. If failures cluster around one route, fix the route. If OPIR-style guardrails failures cluster around one policy boundary, fix the boundary. If OPIR-style guardrails failures cluster around one model, stop pretending the prompt is the whole system.
+This separation matters for jailbreaks. A prompt may look safe until the response reveals that the model followed an unsafe instruction. The reverse can also happen: a prompt may discuss harmful content in a benign context, and the output may be a safe refusal or educational explanation.
 
-## Operational concerns
+Input and output guardrails should leave separate records.
 
-The operational question for OPIR-style guardrails is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap OPIR-style guardrails route becomes unreliable but the expensive route would blow the budget?
+## small guardrails change deployment options
 
-For OPIR-style guardrails, I would put those answers in configuration, not in a heroic prompt. A small OPIR-style guardrails policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+The edge variants are what make Opir feel architecturally interesting.
 
-## Scaling behavior
+A small binary classifier can run near the gateway, inside an internal tool, next to a local model, or in a lower-latency path before the expensive model wakes up. That gives teams more options than "call a large judge model after everything."
 
-At small scale, a human can inspect weird OPIR-style guardrails cases by hand. At medium scale, the OPIR-style guardrails system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+For an AI gateway, the classifier can help decide:
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the OPIR-style guardrails system without being surprised by the downstream behavior?
+- reject immediately
+- route to a safer model
+- require a stricter system prompt
+- disable tools
+- add human review
+- log for abuse monitoring
+- allow with normal path
 
-For OPIR-style guardrails, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the OPIR-style guardrails system a spine.
+This does not remove the need for deeper review on high-risk paths. It gives the system a cheap first layer.
 
-## Where I land
+## what I like about the framing
 
-OPIR-style guardrails deserves depth when it changes architecture, not when it merely sounds current. The OPIR-style guardrails implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+Opir is a useful reminder that guardrails are not mystical.
 
-If the OPIR-style guardrails post answers those questions, it teaches something. If the OPIR-style guardrails post only says the topic matters, it is just a longer version of the headline.
+They are classifiers, policies, thresholds, labels, evals, logs, and product decisions. They can be tested with false positives, false negatives, hard negatives, category slices, multilingual examples, and adversarial prompt families. They can be deployed at different points in the request path. They can be fast enough to use routinely instead of ceremonially.
+
+The model is still imperfect. Every classifier is. But the shape is understandable.
+
+That is the part I care about: guardrail systems get better when they become inspectable engineering objects instead of vibes wrapped around a giant judge prompt.

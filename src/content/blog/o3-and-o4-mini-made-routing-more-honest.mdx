@@ -8,138 +8,127 @@ author: "jeremy-london"
 tags: ["openai", "routing", "reasoning"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete openai problem
-- the example surface: a request with more than one plausible path through the system
-- the failure mode: a model choice is treated as isolated even though the surrounding system made the decision
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using task success, latency budget, memory footprint, batch behavior, and quality by route
-- security or ownership boundary: where the model stops and the serving system starts
-- latency, cost, and scaling implications
-*/}
+The o3 and o4-mini release made the model-routing conversation harder to dodge.
 
-The o-series releases made the cheap, fast, smart tradeoff harder to avoid and better to name.
+That is what I liked about it.
 
-The interesting part of openai is not the name. It is the system pressure around a request with more than one plausible path through the system. Once that pressure shows up for openai, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+The interesting part was not simply that one model was stronger and one was cheaper. We already had that pattern. The useful pressure came from both being reasoning models. The choice was no longer "small cheap model for simple text, big expensive model for serious thinking." The cheaper route could reason too. The stronger route could be reserved for places where the extra capability actually mattered.
 
-## The unit of work
+That makes the cheap, fast, smart tradeoff more honest.
 
-I would start by naming the unit of work for openai. In model systems, the openai unit is usually smaller than the product surface and larger than a function call. For openai, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+## same family, different jobs
 
-A useful openai unit has four properties:
+When a model family gives you a high-capability option and a smaller cost-efficient option, it becomes harder to justify one default route for everything.
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+The product has to ask a better question: what kind of reasoning does this task need?
 
-For openai, the boundary is where the model stops and the serving system starts. That boundary should be visible in the openai data, not only in a policy document. If a openai request crosses the boundary, the trace should show it.
+Some tasks need depth. A coding agent debugging a failing test across multiple files may need a stronger model because the cost of a shallow fix is high. A scientific or mathematical question with several interacting constraints may deserve the slower route. A security review with ambiguous evidence may need more careful reasoning and stronger refusal behavior.
 
-## Data flow
+Other tasks need competent reasoning but not the most expensive path. Extracting action items, classifying support tickets, drafting routine replies, summarizing a known document, checking a small code diff, or doing first-pass triage may be excellent fits for a smaller reasoning model.
 
-The simple openai flow looks like this:
+The release made that distinction feel less theoretical. It gave teams a reason to define task tiers instead of arguing from vibes.
 
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
+## task tiers beat model fandom
+
+I would rather see a route table than a favorite-model debate.
+
+~~~yaml
+routes:
+  routine_summary:
+    model: o4-mini
+    reason: low-risk summarization with bounded context
+    escalation: o3_on_low_confidence
+
+  code_repair_plan:
+    model: o3
+    reason: multi-file reasoning with expensive failure mode
+
+  support_triage:
+    model: o4-mini
+    reason: fast classification and draft routing
+    escalation: human_for_billing_or_policy
+
+  adversarial_review:
+    model: o3
+    reason: high-risk reasoning and policy-sensitive analysis
 ~~~
 
-The context builder gathers the minimum useful state for openai. The openai decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+The exact model names will change. The useful artifact is the task tier.
 
-That receipt is the difference between a openai demo and an operable system. A demo can rely on a person watching closely. A openai system needs to explain itself after the person has moved on.
+A task tier says why the route exists. It names the expected quality, latency, cost, and failure consequence. It also gives the team something to evaluate when a new model arrives. The question becomes "which tiers move?" rather than "should we switch everything?"
 
-A openai request envelope might look like this:
+That is a healthier maintenance conversation.
 
-~~~json
-{
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
-}
-~~~
+## cost is measured after retries
 
-The schema is deliberately plain. Fancy schemas do not save unclear openai systems. The useful openai work is deciding which fields are required, which are advisory, and which block the run when missing.
+A smaller model is not cheaper if it causes too many retries, escalations, or human corrections.
 
-## Implementation sketch
+This is the part that makes routing practical instead of aesthetic. The unit is not cost per call. The unit is cost per accepted result.
 
-I would implement the first openai pass as a narrow pipeline rather than a general platform. Start openai with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+If o4-mini handles a task correctly 95 percent of the time at much lower cost, great. If it handles a task 70 percent of the time and the failed 30 percent go to o3 anyway, the route may still be worthwhile or it may be fake savings. The answer depends on latency, user experience, and how failures are detected.
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+I would track:
 
-For openai, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The openai system still has to decide whether the proposal is usable under the current boundary.
+- first-pass success rate
+- retry rate
+- escalation rate
+- human correction rate
+- p95 latency
+- refusal rate
+- cost per accepted output
+- failure severity by task tier
 
-## Failure modes
+This is where the "mini" route has to earn its place. It is not a downgrade path. It is a production route with a measured job.
 
-The main openai failure mode is a model choice is treated as isolated even though the surrounding system made the decision. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The openai failure is that the next component cannot tell whether the result should be trusted.
+## latency is a product decision
 
-I would test at least five openai cases:
+Reasoning models make latency visible in a different way.
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+A slower answer may be fine when the user asked for a careful plan. It may be irritating when the user wanted a short rewrite. It may be unacceptable inside an interactive agent loop where each step blocks the next action.
 
-That last openai case matters. A confident openai answer is not the same thing as a verified result. If openai touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+The right model depends on where the wait happens.
 
-## Deployment shape
+For a background analysis job, o3 might be the better route even if it takes longer. For inline autocomplete, it probably is not. For a coding agent, the strong route may be appropriate for planning and diagnosis, while a faster route handles small edits or summarization of logs. For customer support, a slower model may be acceptable for internal draft generation but not for live chat.
 
-I would not deploy openai as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For openai, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+The product should decide that explicitly. Users are more tolerant of latency when the interface shows that careful work is happening and the result justifies the wait. They are less tolerant when every small request feels like a research project.
 
-That gives the router real work to do. For openai, it should not only choose small model or big model. It should choose a risk path:
+## smart defaults still need escapes
 
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
+A router should make the normal path easy, but it should also let the product escape the default.
 
-Each openai path has a different budget, verifier, and approval requirement. This is the part that makes openai feel less magical and more like infrastructure. The model is still important, but the openai route determines what kind of trust the system is asking for.
+Some requests look small and turn out to be hard. A short bug report may hide a distributed systems failure. A two-line policy question may have legal consequences. A tiny code change may touch authentication. A simple image question may require careful visual reasoning.
 
-## Measurement
+The route should be allowed to escalate when signals say the first choice was too weak.
 
-The measurement surface for openai is task success, latency budget, memory footprint, batch behavior, and quality by route. I would track openai per route or case type, not only as a global average. Global averages hide the exact class of openai problems that make these systems feel unpredictable.
+Signals might include:
 
-A simple eval table can carry a lot of weight:
+- low confidence
+- failed schema validation
+- failed tests
+- missing retrieval evidence
+- policy-sensitive content
+- user correction
+- contradiction between sources
+- unusually high ambiguity
 
-~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
-~~~
+The escalation path is what makes a cheaper route safe. Without escalation, routing becomes a bet that the first model choice was correct.
 
-The point is not to build an eval cathedral for openai. The point is to preserve enough openai structure that regressions can be clustered. If failures cluster around one route, fix the route. If openai failures cluster around one policy boundary, fix the boundary. If openai failures cluster around one model, stop pretending the prompt is the whole system.
+## evals should compare routes, not models
 
-## Operational concerns
+It is tempting to run a benchmark and declare the stronger model "better." That may be true in the abstract and still not answer the product question.
 
-The operational question for openai is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap openai route becomes unreliable but the expensive route would blow the budget?
+The eval should compare routes on product examples.
 
-For openai, I would put those answers in configuration, not in a heroic prompt. A small openai policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+For a summarization tier, compare accepted summaries, missing facts, hallucinated details, and time saved. For a coding tier, compare failing-to-passing test movement, patch size, reviewer corrections, and regressions. For a support tier, compare routing accuracy, tone, policy violations, and escalation quality.
 
-## Scaling behavior
+The route includes the model, prompt, context builder, verifier, and fallback. If o4-mini plus a tighter prompt and good escalation beats o3 for a routine tier, that is the route. If o3 is the only model that reliably handles a high-risk tier, pay for it and stop pretending the cheaper path is equivalent.
 
-At small scale, a human can inspect weird openai cases by hand. At medium scale, the openai system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+## the useful pressure
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the openai system without being surprised by the downstream behavior?
+o3 and o4-mini made routing harder to dodge because they narrowed the excuse space.
 
-For openai, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the openai system a spine.
+Teams could no longer say routing was premature because smaller models were too dumb. They also could not say the strongest model should do everything without explaining the cost and latency. The release made it natural to talk about model choice as an engineering surface.
 
-## Where I land
+That is the healthy direction.
 
-Openai deserves depth when it changes architecture, not when it merely sounds current. The openai implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
-
-If the openai post answers those questions, it teaches something. If the openai post only says the topic matters, it is just a longer version of the headline.
+The point is not to worship a specific model name. The point is to name the job, measure the route, and let capability, cost, latency, and risk decide where the request goes.

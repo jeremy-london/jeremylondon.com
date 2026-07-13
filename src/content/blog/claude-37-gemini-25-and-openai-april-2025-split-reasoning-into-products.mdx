@@ -8,55 +8,148 @@ author: "jeremy-london"
 tags: ["openai", "anthropic", "google", "reasoning-models"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete openai problem
-- the example surface: Claude 3.7 Sonnet, Gemini 2.5 Pro, GPT-4.1, o3, and o4-mini made reasoning less like one capability and more like a set of product choices
-- the failure mode: the release sounds important without changing any concrete decision
-- the responsibilities around the model decision note
-- the tradeoff between convenience and what changed in the model versus what changed in the product surface
-- the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work
-*/}
+Spring 2025 made reasoning feel less like one model capability and more like a product menu.
 
-Claude 3.7 Sonnet, Gemini 2.5 Pro, GPT-4.1, o3, and o4-mini made reasoning less like one capability and more like a set of product choices.
+Claude 3.7 Sonnet made hybrid reasoning explicit in February. Gemini 2.5 Pro arrived in March with thinking turned into part of Google's flagship story. OpenAI followed in April with GPT-4.1 as a strong coding and instruction-following API model, then o3 and o4-mini as reasoning models with different cost and speed shapes.
 
-The practical version starts with Claude 3.7 Sonnet, Gemini 2.5 Pro, GPT-4.1, o3, and o4-mini made reasoning less like one capability and more like a set of product choices. That gives openai a shape you can reason about. It also keeps the openai post out of slogan territory, which is where a lot of technical writing goes to die politely.
+The releases were easy to compare as a leaderboard. That was the least useful way to think about them.
 
-## What has to be true
+The better read was that the labs were packaging reasoning differently. Sometimes reasoning was a mode. Sometimes it was a default. Sometimes it was a separate model family. Sometimes it was tied to long context. Sometimes it was tied to tool use, coding, visual tasks, or cost-efficient smaller models.
 
-For openai to be useful, the AI systems builder needs a clear model decision note. That artifact does not have to be fancy. For openai, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for openai is that it explains what happened without asking the next person to reconstruct intent from vibes.
+That split matters for builders because "use a reasoning model" stopped being a complete design choice.
 
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In model watch, the annoying openai bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for openai, but the caller cannot tell whether it is safe. A script exits zero for openai, but the output hides the one fact the maintainer needed.
+## reasoning became a knob
 
-## Implementation shape
+Claude 3.7 made the knob visible.
 
-I would make the first openai version deliberately plain. The openai system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make openai enterprise software. It makes the work inspectable.
+The important idea was hybrid reasoning: the same model path could produce quick answers or spend more time on extended thinking. API users could control how much thinking budget the model was allowed to use.
 
-A useful openai implementation question is where the record is created. If the openai record is created only after success, it will miss the interesting failures. I would create the openai record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+That creates a product decision inside the request. Does this task deserve more time? Does the user want speed or care? Is the answer high impact? Is the latency acceptable? Should the system ask before spending the extra budget?
 
-## Tradeoffs
+Once that knob exists, teams have to decide who turns it.
 
-The openai tradeoff is convenience versus what changed in the model versus what changed in the product surface. If the openai system is too strict, people route around it. If the openai system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For openai, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+The user can turn it manually. The product can route automatically. The developer can set a default by feature. An agent can escalate to deeper reasoning when it gets stuck. Each choice creates a different product.
 
-That contract can be boring. A useful openai shape is:
+The knob is useful, but it is not free. Reasoning time has to justify itself.
 
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
-}
-~~~
+## reasoning became a default
 
-The exact fields change by system. The openai pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+Gemini 2.5 Pro pushed a different feeling.
 
-## What I would measure
+Google described Gemini 2.5 Pro Experimental as its most advanced model for complex tasks, with strong reasoning and coding performance. In the Gemini API changelog, the experimental March model was described as having thinking mode always on by default.
 
-The openai metric is route changes, eval deltas, latency movement, cost movement, and migration work. That is more useful than asking whether openai "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+That is a different product stance from "choose extended thinking when needed." It says the flagship path should reason by default.
 
-For openai, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those openai numbers usually tell the truth before the happy-path dashboard does.
+There is a lot to like about that for hard tasks. The product does not make the user decide whether the model should think. The route assumes careful work. For coding, math, science, long-context synthesis, and multimodal reasoning, that can be the right default.
 
-If the openai system cannot answer those questions, I would keep the design smaller. Small openai systems with honest receipts are easier to improve than large systems that only report success.
+The tradeoff is that default reasoning can hide cost and latency inside the model choice. If the product always sends certain work to the thinking path, the UI and budget model need to reflect that. The user should not be surprised that a complex answer takes longer or costs more.
+
+Thinking by default can be a good product bet. It still needs product accounting.
+
+## reasoning split from coding
+
+GPT-4.1 complicated the story in a useful way.
+
+OpenAI positioned GPT-4.1 as a strong API model for coding, instruction following, and long context. It was not the same product shape as o3. That mattered because it separated "better at software work" from "the reasoning model."
+
+That distinction is easy to lose.
+
+Some coding tasks need deep reasoning. Many do not. A model that follows instructions well, uses long context effectively, and edits code reliably can be the right path for a lot of engineering work without being the slowest reasoning route.
+
+For builders, GPT-4.1 made the routing question sharper:
+
+```text
+use coding model:
+  edit known file, follow explicit instructions, use long repo context
+
+use reasoning model:
+  diagnose unclear failure, compare designs, solve hard algorithmic bug
+
+use small route:
+  classify, extract, format, summarize low-risk context
+```
+
+That is the kind of split I want in a platform. Reasoning is not a synonym for "best." It is one capability among others.
+
+## reasoning got a cost-efficient lane
+
+OpenAI's o3 and o4-mini release made the cheap, fast, smart tradeoff harder to dodge.
+
+o3 was the heavier reasoning path. o4-mini was positioned as a smaller, faster, more cost-efficient reasoning model with strong performance for its size, especially in math, coding, and visual tasks.
+
+That is a real architecture question.
+
+If a smaller reasoning model is good enough for a task, the product should probably use it. If it fails on the hard slice, the system should know when to escalate. If the small reasoning model is used because it is cheaper, the product needs evals that prove the cheaper path is still acceptable.
+
+The small reasoning lane is not a consolation prize. It is where high-volume reasoning work becomes practical.
+
+I would route plenty of work there first:
+
+- structured debugging suggestions
+- lightweight math checks
+- visual triage
+- candidate plan generation
+- first-pass code review comments
+- eval grading for low-risk fixtures
+
+Then I would measure where escalation actually improves outcomes.
+
+## the product question changed
+
+By April 2025, the useful question was no longer "which lab has reasoning?"
+
+Everyone serious had some version of the story.
+
+The product question became:
+
+- is reasoning automatic or user-controlled?
+- is thinking visible or hidden?
+- is reasoning a mode, a model, or a route?
+- how much latency is acceptable?
+- what cost tier handles the default path?
+- which tasks need long context more than deeper reasoning?
+- when does a smaller reasoning model get escalated?
+- how is improvement measured by task slice?
+
+Those questions are much more useful than one blended model ranking.
+
+A support tool, coding agent, research assistant, security workflow, and analytics product should not all package reasoning the same way. The right answer depends on task shape and user expectation.
+
+## routing became the real interface
+
+The model picker shown to users is only part of the interface.
+
+The real interface is the route the product chooses when the user asks for work. A product can expose "fast" and "deep" modes. It can hide routing entirely. It can offer a manual override. It can escalate silently. It can ask before spending more. All of those choices teach the user what the product thinks the work is worth.
+
+I like explicit routing records for this reason:
+
+```text
+request: explain failing build after dependency upgrade
+route: reasoning
+model class: high-reasoning coding path
+latency budget: 30 seconds
+fallback: summarize findings and ask before deeper repair
+```
+
+That record may never appear in the main UI, but the system should have it. Otherwise teams end up debugging reasoning behavior from anecdotes.
+
+## the boring answer is evals
+
+The release wave made one thing more obvious: local evals matter more when the model menu gets richer.
+
+If there are five plausible routes, generic benchmark scores do not tell you which route should handle your workflow. You need examples from your product. Easy cases. Hard cases. Long-context cases. Visual cases. Tool-use cases. Cheap-model traps. High-impact failures.
+
+The eval should ask route questions, not only answer-quality questions:
+
+- did the fast path handle the easy case?
+- did the reasoning path improve the hard case?
+- did the small reasoning model fail safely?
+- did long context help or distract?
+- did visible thinking change user trust?
+- did cost increase without accepted quality improvement?
+
+This is where Spring 2025 actually landed for me.
+
+Reasoning stopped being a single feature to admire. It became a set of product choices that need routing, budgets, labels, and evals.
+
+That is less clean than a leaderboard. It is also much closer to how AI systems ship.

@@ -8,138 +8,157 @@ author: "jeremy-london"
 tags: ["duckdb", "analytics", "data"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete duckdb problem
-- the example surface: software that keeps working when the network stops helping
-- the failure mode: the pipeline produces output after the meaning of a field has moved
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using schema drift, null-rate changes, freshness, join quality, and contract failures
-- security or ownership boundary: where raw data becomes a product promise
-- latency, cost, and scaling implications
-*/}
+DuckDB made a particular kind of work feel less like a side quest.
 
-DuckDB 1.0 made it easier to treat local analytical work as real engineering instead of a notebook side quest.
+I mean the work where you have a folder of CSVs, Parquet files, logs, exports, or experiment results and you need answers before it deserves a warehouse table. The old options were all slightly annoying. Load it into Postgres. Write a pandas notebook. Copy it into a spreadsheet. Ask somebody with warehouse access. Build a little script and promise yourself you will delete it later.
 
-The interesting part of duckdb is not the name. It is the system pressure around software that keeps working when the network stops helping. Once that pressure shows up for duckdb, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+DuckDB sits in a useful middle place. It lets local analytical work use SQL without turning every question into infrastructure.
 
-## The unit of work
+That is the important part to me. Local analytics should still be engineering. It should leave a query, a result file, a reproducible path, and some idea of what changed. DuckDB does not automatically give you discipline, but it makes the disciplined path short enough that I am more likely to take it.
 
-I would start by naming the unit of work for duckdb. In data engineering, the duckdb unit is usually smaller than the product surface and larger than a function call. For duckdb, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+## file-shaped data is real data
 
-A useful duckdb unit has four properties:
+A lot of useful data arrives as files. Product exports, billing reports, benchmark results, crawler output, eval runs, security findings, trace samples, one-off vendor dumps, and compressed logs all start their lives somewhere outside a database.
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+The bad habit is treating that stage as temporary and therefore sloppy. The file sits in Downloads. A notebook reads it by absolute path. A chart gets pasted into Slack. Two weeks later somebody asks how the number was calculated and the answer is a shrug with a timestamp.
 
-For duckdb, the boundary is where raw data becomes a product promise. That boundary should be visible in the duckdb data, not only in a policy document. If a duckdb request crosses the boundary, the trace should show it.
+DuckDB changes the default because it can query files directly. A Parquet file can be a table for the duration of the query:
 
-## Data flow
-
-The simple duckdb flow looks like this:
-
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
+~~~sql
+SELECT
+  model,
+  count(*) AS runs,
+  avg(latency_ms) AS avg_latency_ms,
+  quantile_cont(latency_ms, 0.95) AS p95_latency_ms
+FROM 'eval-runs/*.parquet'
+GROUP BY model
+ORDER BY p95_latency_ms DESC;
 ~~~
 
-The context builder gathers the minimum useful state for duckdb. The duckdb decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+That is a small thing, but it matters. The analysis can start where the data already is. I do not have to create a database service before I know whether the question is worth keeping.
 
-That receipt is the difference between a duckdb demo and an operable system. A demo can rely on a person watching closely. A duckdb system needs to explain itself after the person has moved on.
+CSV works too, although I still prefer to convert repeated work into Parquet once the shape stabilizes. CSV is an interchange format. Parquet is where I want larger local analytical loops to settle because types, compression, columnar reads, and partitioning make the work less fragile.
 
-A duckdb request envelope might look like this:
+## sql makes the notebook less magical
+
+I like notebooks for exploration, but notebooks can hide too much state. Cells run out of order. Variables survive longer than they should. The data frame on screen may not match the code path someone else will run later. That does not make notebooks bad. It means the notebook is often the wrong artifact to preserve as the source of truth.
+
+SQL has a useful bluntness. The query says what it reads, what it groups, what it filters, and what it writes. You can put it in a file. You can review a diff. You can run it from the CLI or a small script. You can attach a comment explaining the weird filter that excludes a broken export from last Tuesday.
+
+For a local analysis, that might be enough:
+
+~~~sql
+CREATE OR REPLACE TABLE runs AS
+SELECT *
+FROM read_parquet('data/evals/2024-06/*.parquet');
+
+COPY (
+  SELECT
+    suite,
+    model,
+    count(*) AS cases,
+    avg(CASE WHEN passed THEN 1 ELSE 0 END) AS pass_rate
+  FROM runs
+  WHERE environment = 'prod-like'
+  GROUP BY suite, model
+) TO 'artifacts/eval-summary.csv' (HEADER, DELIMITER ',');
+~~~
+
+The artifact is boring in the best way. A future version of me can run the query again and compare the output. A reviewer can ask why `prod-like` is the filter. A script can fail if the expected input folder is missing. The local analysis starts behaving like a small build step.
+
+## local does not mean casual
+
+The word "local" can make people lower their standards. That is a mistake.
+
+Local analytical work still needs names. It needs folders that make sense. It needs input files that are not silently edited. It needs result files that are either ignored because they are disposable or checked in because they are part of the argument. It needs enough README context that somebody else can reproduce the number without reading your mind.
+
+I like a shape like this:
+
+~~~text
+analysis/
+  eval-latency/
+    README.md
+    queries/
+      summary.sql
+      slow-cases.sql
+    data/
+      .gitignore
+    artifacts/
+      summary.csv
+      slow-cases.parquet
+~~~
+
+The `data` folder might contain large local inputs that never get committed. The `queries` folder is reviewable. The `artifacts` folder is a choice: commit small summaries when they support a post, decision, or investigation; ignore large derived files when they are easy to regenerate.
+
+DuckDB fits that shape because the database can be ephemeral or file-backed. For many analyses, I do not need a long-lived database file at all. The query reads source files and writes a result. For repeated work, a `.duckdb` file can cache intermediate tables and make exploration faster. The trick is to decide which mode you are in instead of letting state accumulate accidentally.
+
+## schemas still matter
+
+Direct file querying is convenient until a column changes under you.
+
+CSV inference can guess wrong. Dates become strings. IDs become numbers and lose leading zeros. Empty columns look like nulls until a later file fills them. Parquet is better, but a directory of Parquet files can still drift when producers add fields, change meanings, or backfill old data with a different writer.
+
+The local workflow needs a schema check when the result matters. That can be as simple as a query that fails loudly:
+
+~~~sql
+SELECT
+  assert_true(count(*) = 0, 'missing model') AS model_check
+FROM runs
+WHERE model IS NULL;
+~~~
+
+Or it can be a small validation query that reports the shape before the real summary runs:
+
+~~~sql
+SELECT
+  typeof(model) AS model_type,
+  typeof(latency_ms) AS latency_type,
+  min(created_at) AS first_run,
+  max(created_at) AS last_run,
+  count(*) AS rows
+FROM runs;
+~~~
+
+The point is not to build a warehouse governance program around one local analysis. The point is to catch the cheap mistakes. If a chart decides whether a model route changes, I want to know whether half the rows had null labels before I trust the chart.
+
+## where duckdb fits in ai work
+
+DuckDB is handy around AI systems because AI work produces piles of semi-structured evidence.
+
+Eval runs create rows. Agent traces create rows. Tool calls create rows. Retrieval experiments create rows. Human review queues create rows. Prompt variants create rows. Most of that data starts life as JSONL, CSV, or Parquet before anyone knows which part will matter.
+
+The loop I like is:
+
+1. Capture events as append-only files.
+2. Query them locally while the question is still forming.
+3. Save the SQL that produced a useful answer.
+4. Promote the dataset or metric only when it repeats.
+
+That keeps early analysis close to the engineer doing the work. It also prevents the warehouse from becoming a junk drawer for every experiment.
+
+For example, an agent eval might dump one JSON object per case:
 
 ~~~json
-{
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
-}
+{"case_id":"a17","model":"small-router","route":"docs","passed":true,"latency_ms":42}
+{"case_id":"a18","model":"small-router","route":"code","passed":false,"latency_ms":39}
 ~~~
 
-The schema is deliberately plain. Fancy schemas do not save unclear duckdb systems. The useful duckdb work is deciding which fields are required, which are advisory, and which block the run when missing.
+DuckDB can read that into a table, join it against case metadata, and write a failure slice without a service migration. If that slice becomes an official metric, then it deserves stronger ownership. Until then, local SQL is enough to learn.
 
-## Implementation sketch
+## when local stops being enough
 
-I would implement the first duckdb pass as a narrow pipeline rather than a general platform. Start duckdb with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+DuckDB does not remove the need for shared infrastructure. It delays the decision until there is evidence.
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+Local analytics starts to break down when the dataset is too large for the machine, when multiple people need concurrent writes, when access control matters, when freshness has a service-level expectation, or when downstream systems depend on the result. At that point the work has become a data product, and it should move into a warehouse, lakehouse, or application database with the usual boring machinery around ownership and lineage.
 
-For duckdb, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The duckdb system still has to decide whether the proposal is usable under the current boundary.
+That promotion should be a design decision, not a reflex. Plenty of analysis should die as a local folder. Some should become a scheduled job. A smaller amount should become shared data infrastructure.
 
-## Failure modes
+DuckDB is useful because it makes the first stage respectable. You can answer a question locally without pretending the answer is production infrastructure. You can also keep enough structure that, if the question keeps coming back, the path to production is visible.
 
-The main duckdb failure mode is the pipeline produces output after the meaning of a field has moved. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The duckdb failure is that the next component cannot tell whether the result should be trusted.
+## the habit i want
 
-I would test at least five duckdb cases:
+The habit is simple: write the query down.
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+If a number matters enough to mention in a meeting, a post, a PR, or a decision record, the query that produced it should probably exist somewhere. DuckDB makes that easy for file-backed analytical work. It lets the first honest version of the analysis happen before the platform conversation starts.
 
-That last duckdb case matters. A confident duckdb answer is not the same thing as a verified result. If duckdb touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
-
-## Deployment shape
-
-I would not deploy duckdb as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For duckdb, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
-
-That gives the router real work to do. For duckdb, it should not only choose small model or big model. It should choose a risk path:
-
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
-
-Each duckdb path has a different budget, verifier, and approval requirement. This is the part that makes duckdb feel less magical and more like infrastructure. The model is still important, but the duckdb route determines what kind of trust the system is asking for.
-
-## Measurement
-
-The measurement surface for duckdb is schema drift, null-rate changes, freshness, join quality, and contract failures. I would track duckdb per route or case type, not only as a global average. Global averages hide the exact class of duckdb problems that make these systems feel unpredictable.
-
-A simple eval table can carry a lot of weight:
-
-~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
-~~~
-
-The point is not to build an eval cathedral for duckdb. The point is to preserve enough duckdb structure that regressions can be clustered. If failures cluster around one route, fix the route. If duckdb failures cluster around one policy boundary, fix the boundary. If duckdb failures cluster around one model, stop pretending the prompt is the whole system.
-
-## Operational concerns
-
-The operational question for duckdb is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap duckdb route becomes unreliable but the expensive route would blow the budget?
-
-For duckdb, I would put those answers in configuration, not in a heroic prompt. A small duckdb policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
-
-## Scaling behavior
-
-At small scale, a human can inspect weird duckdb cases by hand. At medium scale, the duckdb system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
-
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the duckdb system without being surprised by the downstream behavior?
-
-For duckdb, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the duckdb system a spine.
-
-## Where I land
-
-Duckdb deserves depth when it changes architecture, not when it merely sounds current. The duckdb implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
-
-If the duckdb post answers those questions, it teaches something. If the duckdb post only says the topic matters, it is just a longer version of the headline.
+That is why DuckDB 1.0 felt bigger than a database release to me. It made local analytics feel normal: SQL over local files, result artifacts on disk, and fewer excuses for spreadsheet archaeology.

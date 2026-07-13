@@ -8,138 +8,164 @@ author: "jeremy-london"
 tags: ["gemini", "long context", "reasoning"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete gemini problem
-- the example surface: Gemini 2.5 Pro pushed long-context reasoning further into ordinary developer planning and product work
-- the failure mode: the system succeeds once but gives the next maintainer no way to explain it
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using reproduction time, failing example coverage, queue age, and rollback confidence
-- security or ownership boundary: what must be proven before the change is trusted
-- latency, cost, and scaling implications
-*/}
+[Gemini 2.5 Pro](https://blog.google/innovation-and-ai/models-and-research/google-deepmind/gemini-model-thinking-updates-march-2025/) made long context feel less like a lab stunt and more like something a product team could plan around.
 
-Gemini 2.5 Pro pushed long-context reasoning further into ordinary developer planning and product work.
+Gemini 1.5 made the long-context headline unavoidable. Gemini 2.5 made the operational question sharper: what do you do when a thinking model can take a million-token context window, handle mixed inputs, and reason across large code repositories or document sets?
 
-The interesting part of gemini is not the name. It is the system pressure around Gemini 2.5 Pro pushed long-context reasoning further into ordinary developer planning and product work. Once that pressure shows up for gemini, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+The answer is not "send everything." That answer gets expensive and sloppy. The useful answer is more like: decide when preserving the original material beats retrieval, build a context plan, and evaluate whether the model actually used the extra material.
 
-## The unit of work
+That is the shift. Long context stopped being only capacity. It became routing behavior.
 
-I would start by naming the unit of work for gemini. In engineering quality, the gemini unit is usually smaller than the product surface and larger than a function call. For gemini, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+## repositories are a good stress test
 
-A useful gemini unit has four properties:
+Code repositories show why this matters.
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+Small-context coding agents have to guess what matters. They read a file, search for a symbol, inspect a test, then maybe miss the configuration or helper that explains the bug. Retrieval helps, but retrieval can select the wrong neighbor. Summaries help, but summaries can flatten the weird detail that matters.
 
-For gemini, the boundary is what must be proven before the change is trusted. That boundary should be visible in the gemini data, not only in a policy document. If a gemini request crosses the boundary, the trace should show it.
+Large context lets the system carry more of the repository at once: the target file, tests, route definitions, package config, docs, and a handful of related modules. That does not make the model omniscient. It does reduce the number of brittle handoffs between search, summarization, and reasoning.
 
-## Data flow
-
-The simple gemini flow looks like this:
+For planning work, that can be useful:
 
 ~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
+task: update auth callback behavior
+context:
+  - src/routes/auth/callback.ts
+  - src/lib/session.ts
+  - src/lib/oauth/*
+  - tests/auth/*
+  - docs/auth-flow.md
+  - package.json
+goal:
+  identify files likely to change and tests likely to fail
 ~~~
 
-The context builder gathers the minimum useful state for gemini. The gemini decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+The context is still curated. The difference is that the curated set can be larger and more coherent.
 
-That receipt is the difference between a gemini demo and an operable system. A demo can rely on a person watching closely. A gemini system needs to explain itself after the person has moved on.
+## context planning becomes a feature
 
-A gemini request envelope might look like this:
+Once long context is practical, the context builder becomes a product component.
+
+It should know what kind of task is being attempted. A code review needs diffs, nearby tests, owners, and relevant docs. A contract review needs the contract, amendments, policies, and a question-specific section map. A support investigation needs the ticket, account state, recent incidents, and product docs. A video analysis task needs source video, transcript, timestamps, and any user-selected region.
+
+I would represent that plan explicitly:
 
 ~~~json
 {
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
+  "task_type": "repository_planning",
+  "context_strategy": "large_curated_context",
+  "sources": [
+    { "path": "src/routes/auth/callback.ts", "role": "target" },
+    { "path": "src/lib/session.ts", "role": "dependency" },
+    { "path": "tests/auth/callback.test.ts", "role": "verification" },
+    { "path": "docs/auth-flow.md", "role": "domain_context" }
+  ],
+  "excluded": [
+    { "path": "dist/", "reason": "generated" },
+    { "path": ".env", "reason": "secret" }
+  ]
 }
 ~~~
 
-The schema is deliberately plain. Fancy schemas do not save unclear gemini systems. The useful gemini work is deciding which fields are required, which are advisory, and which block the run when missing.
+That plan is a receipt. It tells the user and the system what the model saw and what it intentionally did not see.
 
-## Implementation sketch
+Without a plan, long context becomes a junk drawer with a larger token budget.
 
-I would implement the first gemini pass as a narrow pipeline rather than a general platform. Start gemini with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+## retrieval still earns its keep
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+I would still use retrieval with Gemini 2.5-style long context.
 
-For gemini, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The gemini system still has to decide whether the proposal is usable under the current boundary.
+The difference is where retrieval sits. Instead of retrieving three tiny chunks and hoping they are enough, retrieval can assemble a source set. Then long context lets the model inspect larger pieces of that set with less pre-compression.
 
-## Failure modes
-
-The main gemini failure mode is the system succeeds once but gives the next maintainer no way to explain it. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The gemini failure is that the next component cannot tell whether the result should be trusted.
-
-I would test at least five gemini cases:
-
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
-
-That last gemini case matters. A confident gemini answer is not the same thing as a verified result. If gemini touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
-
-## Deployment shape
-
-I would not deploy gemini as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For gemini, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
-
-That gives the router real work to do. For gemini, it should not only choose small model or big model. It should choose a risk path:
-
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
-
-Each gemini path has a different budget, verifier, and approval requirement. This is the part that makes gemini feel less magical and more like infrastructure. The model is still important, but the gemini route determines what kind of trust the system is asking for.
-
-## Measurement
-
-The measurement surface for gemini is reproduction time, failing example coverage, queue age, and rollback confidence. I would track gemini per route or case type, not only as a global average. Global averages hide the exact class of gemini problems that make these systems feel unpredictable.
-
-A simple eval table can carry a lot of weight:
+This is a better division of labor:
 
 ~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
+permissions decide what can be used
+retrieval proposes candidate sources
+context planning chooses coherent source units
+long context preserves enough original material
+reasoning produces an answer with citations or actions
+verification checks the result against the sources
 ~~~
 
-The point is not to build an eval cathedral for gemini. The point is to preserve enough gemini structure that regressions can be clustered. If failures cluster around one route, fix the route. If gemini failures cluster around one policy boundary, fix the boundary. If gemini failures cluster around one model, stop pretending the prompt is the whole system.
+The permission step is important. Large context makes it easier to over-share. A model that can read an entire repository should not automatically receive secrets, generated files, unrelated customer records, or documents outside the user's scope.
 
-## Operational concerns
+Context size is not authorization.
 
-The operational question for gemini is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap gemini route becomes unreliable but the expensive route would blow the budget?
+## thinking budget and context budget interact
 
-For gemini, I would put those answers in configuration, not in a heroic prompt. A small gemini policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+Gemini 2.5 also pushed the "thinking model" framing. That matters because long context and reasoning budget compound each other.
 
-## Scaling behavior
+A model asked to reason over a huge input may need more time. More time may improve the answer. It may also make the product feel slow or too expensive. If the system adds a large context window and high reasoning effort to every ambiguous request, the cost curve gets ugly fast.
 
-At small scale, a human can inspect weird gemini cases by hand. At medium scale, the gemini system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+The router needs to decide two budgets:
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the gemini system without being surprised by the downstream behavior?
+- how much source material to include
+- how much reasoning effort to spend
 
-For gemini, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the gemini system a spine.
+Those choices should be related but not identical. A simple extraction from a long document may need a lot of context and modest reasoning. A hard debugging task may need moderate context and high reasoning. A quick classification may need neither.
 
-## Where I land
+I would log both:
 
-Gemini deserves depth when it changes architecture, not when it merely sounds current. The gemini implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+~~~text
+case: auth-callback-plan-018
+context_tokens: 214000
+thinking: medium
+result: accepted
+review_note: missed one test file, otherwise useful
+~~~
 
-If the gemini post answers those questions, it teaches something. If the gemini post only says the topic matters, it is just a longer version of the headline.
+That lets the team learn whether the extra context or the extra reasoning did the work.
+
+## operational long context needs compression points
+
+Large context does not remove summarization. It moves summarization to better places.
+
+During a long workflow, the system may read a lot of material, make a plan, inspect files, run tools, and revise the plan. It cannot keep appending everything forever. Even with a million tokens, the useful question is what should remain live.
+
+I like compression points that produce named artifacts:
+
+~~~text
+repository map
+source manifest
+risk list
+open questions
+test plan
+decision log
+~~~
+
+Those artifacts can be reviewed. They can also be reused without carrying the entire raw context into every later step.
+
+The mistake is invisible compression: the model silently summarizes and the next step treats the summary as the source. If a later decision depends on a compressed artifact, the artifact should say what it omitted or link back to source material.
+
+## evals should test use, not capacity
+
+A million-token window is impressive. It is not an eval.
+
+The eval should ask whether the system used the long context well. For repository tasks, that might mean:
+
+- identifies the right files to edit
+- avoids generated or unrelated files
+- finds tests that cover the changed behavior
+- detects config or dependency constraints
+- cites source files accurately
+- handles conflicts between docs and code
+
+For document tasks:
+
+- finds clauses across long documents
+- detects contradictions
+- preserves page or section citations
+- resists irrelevant repeated language
+- explains uncertainty when evidence conflicts
+
+The point is to test the workflow, not the theoretical window size. A model can accept the context and still ignore the key source.
+
+## what felt operational
+
+Gemini 2.5 made long context feel operational because it combined the pieces product teams actually care about: large context, multimodal inputs, stronger reasoning, developer availability, and enough performance that the question moved from "is this possible?" to "where should this route be used?"
+
+That is a practical shift.
+
+The hard part is no longer imagining a model reading a giant input. The hard part is deciding which giant input it should read, what it is allowed to see, how much reasoning budget it gets, how the answer cites evidence, and when a smaller route would have been better.
+
+Long context is most useful when it is treated like infrastructure. It needs budgets, manifests, permissions, evals, and reviewable compression. Without those, it is a very large prompt with a very large hiding place for mistakes.

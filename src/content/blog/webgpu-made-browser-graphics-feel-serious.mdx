@@ -8,24 +8,136 @@ author: "jeremy-london"
 tags: ["webgpu", "graphics", "creative coding"]
 ---
 
-{/*
-Depth: quick-note
-Information map:
-- the concrete WebGPU problem
-- the example surface: Chrome 113 shipping WebGPU made high-performance browser graphics feel like a practical surface to learn from
-- the failure mode: the visual is interesting but does not teach the system underneath
-- the small decision I would keep
-- what would make the note wrong
-*/}
+Chrome 113 shipping WebGPU made browser graphics feel like a serious learning surface.
 
-Chrome 113 shipping WebGPU made high-performance browser graphics feel like a practical surface to learn from.
+Before that, browser graphics often felt split between two worlds. Canvas was friendly but limited. WebGL was powerful but carried a lot of historical OpenGL texture. Native graphics APIs were serious but far away from the web page where many visual ideas needed to live.
 
-I would keep WebGPU small here. The useful part is Chrome 113 shipping WebGPU made high-performance browser graphics feel like a practical surface to learn from. That is enough material for a WebGPU note, not a manifesto.
+WebGPU changed the feel of that tradeoff. It did not make graphics easy. It made the browser feel like a reasonable place to learn modern GPU-shaped thinking: adapters, devices, buffers, pipelines, shaders, command encoders, and explicit resource setup.
 
-The WebGPU mistake is treating the observation as if it needs a complete theory around it. In practice, creative coding work usually gets better when the first version names the boundary and then stops. For WebGPU, that boundary is what the user can manipulate versus what the system hides.
+That matters because the browser is where a lot of people can actually share the experiment.
 
-The WebGPU check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the WebGPU post has done its job. If the answer is no, adding three more WebGPU paragraphs will not fix it.
+## the setup teaches the model
 
-The thing I would not add to WebGPU is a fake architecture section. A short WebGPU note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for WebGPU. The rest of WebGPU can wait until there is a real example to inspect.
+WebGPU starts with a more explicit setup than most web APIs.
 
-I am leaving WebGPU as a short note because the idea is useful at this size. A longer WebGPU version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.
+~~~ts
+const adapter = await navigator.gpu.requestAdapter()
+const device = await adapter?.requestDevice()
+~~~
+
+That small sequence teaches an important idea: the browser is mediating access to real hardware. The page asks for an adapter, then a device, then creates resources through that device. This is not a canvas context where drawing starts immediately.
+
+The explicitness is useful. A learner sees that GPU work has a boundary. The browser may not provide an adapter. The device can be lost. Features and limits matter. Hardware differences are part of the programming model.
+
+That is a good lesson to learn early.
+
+## the canvas is only one target
+
+WebGPU is easy to introduce through drawing to a canvas, but rendering is only part of the story.
+
+The canvas path usually looks like this:
+
+~~~ts
+const context = canvas.getContext("webgpu")
+const format = navigator.gpu.getPreferredCanvasFormat()
+
+context?.configure({
+  device,
+  format,
+})
+~~~
+
+Then the program creates a render pipeline, records commands, and submits work to the queue.
+
+That is already more explicit than many browser developers are used to. You do not draw a rectangle. You describe resources, bind them, encode work, and submit commands.
+
+The same shape also opens the door to compute. A browser page can run GPU workloads that are not directly about pixels: simulations, particle updates, image processing, data transforms, and parts of machine learning workloads.
+
+That is why WebGPU felt bigger than another graphics API. It gave the browser a more serious compute story.
+
+## wgsl makes shaders feel closer
+
+WebGPU uses WGSL for shaders.
+
+Shader languages always feel a little alien at first because they force the programmer to think about data moving through many parallel invocations. WGSL does not remove that. It does make the learning path feel tied to the web platform instead of borrowed from a native graphics stack.
+
+~~~wgsl
+@vertex
+fn vertexMain(@location(0) position: vec2f) -> @builtin(position) vec4f {
+  return vec4f(position, 0.0, 1.0);
+}
+
+@fragment
+fn fragmentMain() -> @location(0) vec4f {
+  return vec4f(0.1, 0.4, 0.9, 1.0);
+}
+~~~
+
+That snippet is tiny, but it teaches two useful concepts: vertex work produces positions, and fragment work produces color. From there, uniforms, storage buffers, textures, and compute shaders have somewhere to attach in the reader's head.
+
+I like that as a teaching surface.
+
+## explicit pipelines make performance visible
+
+WebGPU makes you create pipelines.
+
+That can feel verbose in a small demo. In a bigger system, it makes performance decisions harder to hide. Pipeline creation, bind groups, buffer usage, texture formats, and command submission are visible parts of the program.
+
+This is good for learning because performance is no longer a vague complaint about "the browser being slow." The program has concrete places to inspect:
+
+- are buffers recreated every frame?
+- is pipeline creation happening during interaction?
+- are large transfers crossing the CPU and GPU boundary?
+- are commands batched sensibly?
+- is the shader doing too much per fragment?
+- is the canvas drawing at a reasonable resolution?
+
+Those are real graphics questions. WebGPU brings them into ordinary web development instead of leaving them behind a native tooling wall.
+
+## device differences are the lesson
+
+The browser does not erase hardware differences.
+
+A WebGPU demo may run beautifully on a desktop GPU and struggle on an integrated laptop GPU. Limits differ. Feature support differs. Memory budgets differ. Thermal behavior differs. The browser adds validation and safety constraints that native code may not have in the same way.
+
+That is not a reason to avoid WebGPU. It is part of what makes it useful to learn from. The web forces portability into the conversation early.
+
+For product work, that means designing fallbacks:
+
+~~~ts
+if (!navigator.gpu) {
+  renderStaticPreview()
+} else {
+  await renderWebGpuExperience()
+}
+~~~
+
+The fallback is not a failure. It is the product admitting that graphics capability is part of the user's environment.
+
+## creative coding gets a better feedback loop
+
+Creative coding benefits from short feedback loops.
+
+If I can write a shader, refresh the page, share a URL, and inspect the result with browser tools, I will try more ideas. Some of those ideas will be useless. That is fine. The cost of trying them is low.
+
+WebGPU matters because it makes heavier experiments plausible in that loop: particle fields, procedural textures, signed distance field experiments, GPU simulations, interactive diagrams, and visual explanations that would be painful in plain Canvas.
+
+The browser also gives the experiment context. The visual can live beside prose, controls, source snippets, and state. That is useful for teaching. A shader toy is fun; a shader toy embedded in an explanation can become a real learning object.
+
+## ai and graphics meet in the browser
+
+The browser GPU story also intersects with AI.
+
+Running every serious model in a browser is still constrained by memory, bandwidth, model size, quantization, and device variation. But WebGPU gives web applications a path for local accelerated compute that did not feel as practical before.
+
+That changes the shape of demos and prototypes. Image transforms, embeddings experiments, small model inference, visualization of model internals, and local privacy-preserving workflows all become more interesting when the browser can use the GPU through a modern API.
+
+I would not treat WebGPU as a magic answer for browser AI. I would treat it as a real substrate worth understanding.
+
+## serious does not mean simple
+
+WebGPU made browser graphics feel serious because it exposed serious concepts.
+
+That is the trade. The API asks for more explicit setup than the friendly parts of the web. It makes the programmer think about resources, pipelines, queues, shaders, validation, and device capability. In return, it gives the browser a much stronger graphics and compute surface.
+
+I like that exchange. It makes the web feel less like the backup option for visual systems and more like a place where the hard parts can be learned in public.

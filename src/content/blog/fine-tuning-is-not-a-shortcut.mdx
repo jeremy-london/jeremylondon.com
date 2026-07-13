@@ -8,193 +8,206 @@ author: "jeremy-london"
 tags: ["fine-tuning", "training", "datasets"]
 ---
 
-{/*
-Depth: systems-essay
-Information map:
-- the concrete fine tuning problem
-- the example surface: a team arguing about whether the model improved or merely changed
-- the failure mode: the system succeeds once but gives the next maintainer no way to explain it
-- why the obvious solution is insufficient
-- system constraints and trust boundaries
-- architecture and component responsibilities
-- request, event, and evidence flow
-- deterministic and semantic verification
-- measurement using reproduction time, failing example coverage, queue age, and rollback confidence
-- latency, cost, and scale behavior
-- governance, revocation, and escalation
-- tradeoffs I would make
-- what remains unresolved
-*/}
+Fine-tuning is useful when the team already knows what behavior it wants.
 
-Fine-tuning can help, but it works best after the task, data, evals, and product behavior are already clear.
+It is a mess when the team is hoping training will discover the product requirement for them.
 
-The hard part of fine tuning is not making a prototype move. Prototypes move. They call tools, retrieve documents, choose models, draw diagrams, and produce fine tuning output that looks close enough to keep going. The hard part is deciding what the fine tuning system is allowed to do after it produces something plausible.
+That distinction sounds small, but it changes the whole project. A fine-tune can make a narrow task cheaper, faster, more consistent, or less dependent on a long prompt. It can help a model emit a stable schema, classify a domain-specific label set, follow a house style, extract entities in a particular format, or handle a recurring task that the base model almost understands.
 
-I think about fine tuning as a control problem more than a prompt problem. The prompt matters for fine tuning, but the prompt is only one component inside a larger machine: context construction, policy, routing, tool execution, verification, storage, approval, and replay. If those pieces are missing, the fine tuning system may still look impressive in a demo. It will just be unpleasant to operate.
+What it cannot do is rescue a vague objective. If the instruction is "make the assistant better," the model will still learn something. The problem is that nobody can say whether it learned the intended thing.
 
-## The problem
+## freeze the baseline first
 
-The concrete surface here is a team arguing about whether the model improved or merely changed. That fine tuning surface creates pressure because it crosses from language into work. Once a fine tuning system can affect files, route requests, inspect user state, call tools, spend money, or produce security-relevant conclusions, "the model answered" is no longer the end of the story.
+The first step is not training. It is freezing the baseline.
 
-The fine tuning system needs to answer different questions:
+Before touching a dataset, I want a record of the current system: model, prompt, retrieval path, tool constraints if any, eval set, grading method, and known failure slices. Without that, the fine-tune has no honest comparison. It can feel better because the examples are friendlier, the prompt changed, the grader got looser, or the eval leaked into training.
 
-- What exactly was requested?
-- Which context was used?
-- Which policy boundary applied?
-- Which component made the decision?
-- What evidence supported the result?
-- What was verified deterministically?
-- What was judged semantically?
-- Who approved the action, if approval was needed?
-- How would we replay the case after a failure?
-
-Those questions sound administrative until something breaks. Then they become the only questions that matter.
-
-## Why the obvious solution is insufficient
-
-The obvious fine tuning solution is to add a better model and a thicker prompt. That helps fine tuning, but it does not solve the operating problem. A stronger model can still break fine tuning: call the wrong tool, use stale context, skip a permission boundary, or produce a technically valid answer that is useless to the person who has to act on it.
-
-The second obvious fine tuning solution is to put a human approval button at the dangerous step. That also helps fine tuning, but only if the approval has context. A fine tuning button that says "approve" without showing the diff, tool arguments, policy boundary, expected side effect, and rollback path is not governance. It is a liability with a nicer label.
-
-For fine tuning, I would treat approvals as part of the data flow. The approval is not a modal. It is a signed fine tuning decision attached to the run record.
-
-## Constraints
-
-A production fine tuning version has to live with several constraints at once.
-
-The first is latency. Verification cannot be so slow that everyone disables it. The second is cost. Running a frontier model as judge for every small fine tuning step may be correct and still unaffordable. The third is privacy. For fine tuning, context windows are tempting places to dump everything, but credential material, user state, and internal documents need boundaries. The fourth is replay. If a fine tuning failure cannot be replayed, it will be explained with folklore.
-
-The trust boundary is what must be proven before the change is trusted. I would make that boundary explicit in the request envelope rather than burying it in code comments.
+A baseline record can be small:
 
 ~~~json
 {
-  "runId": "run_2026_07_13_001",
-  "actor": "agent-or-human-id",
-  "input": "requested work",
-  "contextRefs": ["doc:policy", "file:target", "trace:previous-step"],
-  "scope": {
-    "filesystem": ["read:src", "write:docs"],
-    "network": ["deny"],
-    "credentials": ["none"],
-    "expiresAt": "2026-07-13T18:00:00Z"
-  },
-  "decision": null,
-  "evidence": [],
-  "approval": null
+  "task": "classify customer escalation risk",
+  "baseline_model": "frontier-base-2026-05",
+  "prompt_version": "escalation-risk-v3",
+  "retrieval": "none",
+  "eval_set": "escalation-holdout-042",
+  "primary_metric": "macro_f1",
+  "must_not_regress": ["security", "ambiguous_policy", "vip_customer"],
+  "latency_budget_ms": 150
 }
 ~~~
 
-That envelope is not meant to be universal. It is meant to force the design conversation. What scope exists? Who grants it? When does it expire? What evidence must be present before the next state transition?
+The important part is that the baseline is reproducible. If the tuned checkpoint improves the target slice by 4 points but the prompt also changed, the result is muddy. If the baseline eval was never saved, the comparison becomes a memory exercise.
 
-## Architecture
+Fine-tuning already has enough ways to fool you. Do not start by moving the measuring stick.
 
-The architecture I would start with has six components:
+## name the behavioral delta
 
-- context builder
-- policy engine
-- router
-- executor
-- verifier
-- run ledger
+"Better" is not a training objective.
 
-The context builder gathers only the state needed for the next decision. The policy engine decides whether the requested action is allowed. The router chooses the model, tool, or human path. The executor does the work. The verifier checks the result. The run ledger stores the envelope, transitions, evidence, approvals, and outputs.
+A useful fine-tuning objective names the behavioral delta:
 
-The important part is separation. The component that proposes an action should not be the only component that decides whether the action is acceptable. That does not mean every verifier needs to be another model. Some of the best verifiers are boring: schema validation, type checks, path checks, diff checks, policy checks, budget checks, and deterministic tests.
+- reduce false negatives for security escalations
+- normalize messy vendor names into a fixed entity schema
+- emit shorter support summaries without dropping required fields
+- classify internal documents into a stable taxonomy
+- produce JSON that matches a schema without repeated repair passes
+- follow a specific editing style for one kind of document
 
-A rough state machine looks like this:
+Each of those goals implies a different dataset. The security-escalation model needs hard negatives and ambiguous policy cases. The entity model needs label definitions and disagreement review. The JSON-formatting model needs examples of valid output and ugly input. The style model needs before-and-after pairs from the actual style, not generic "write professionally" examples.
 
-~~~text
-created
-  -> context_ready
-  -> policy_checked
-  -> routed
-  -> executed
-  -> verified
-  -> approved | rejected | escalated
-  -> recorded
-~~~
+The delta also tells you what should not change. If the fine-tune improves escalation recall but floods billing with false positives, maybe it failed. If it writes in the right style but invents missing facts more often, it failed. If it outputs perfect JSON only on examples shaped like the training set, it failed outside the demo.
 
-Each transition should be cheap to inspect. If the system jumps from created to recorded, the architecture is lying to you.
+Fine-tuning should change a defined behavior, not the whole personality of the system.
 
-## Operating loop
+## the dataset is the product work
 
-The operating loop is where fine tuning can become reliable or collapse into a pile of impressive transcripts. I would make every run produce a record that can be inspected by a human, replayed by a test harness, and summarized by an eval dashboard. Those are three different consumers, so the record cannot be only prose.
+The dataset is where the real arguments happen.
 
-The loop I would want is:
+Labels need definitions. Edge cases need decisions. Duplicate examples need removal. Synthetic examples need inspection. Real examples need privacy handling. Class imbalance needs a plan. Ambiguous examples need either a label, an `unknown` class, or exclusion with a note explaining why.
+
+If the dataset is sloppy, the model learns the slop.
+
+For a classifier, I would want a dataset summary before training:
 
 ~~~text
-capture -> propose -> check -> approve -> execute -> verify -> record -> learn
+class                 train   validation   holdout
+security_high          420       80          120
+security_medium        610      100          140
+billing_escalation     980      160          220
+product_bug            740      120          180
+unknown                300       60          100
 ~~~
 
-Capture stores the request and context references. Propose creates the candidate action. Check runs policy and deterministic validation. Approve attaches a human decision when the action needs one. Execute performs the work. Verify compares the result with the contract. Record stores the transition. Learn turns accepted and rejected runs into future eval cases.
+The counts are only the start. I also want to know where the examples came from. Production tickets? Synthetic generation? Human-authored fixtures? Historical labels? If synthetic data exists, which prompt created it? Were synthetic examples kept out of the adversarial holdout? Did labelers disagree? Were labels reviewed by someone who understands the product?
 
-That last step is easy to skip and expensive to recover later. If the system only stores successes, it trains the team to forget the edge cases. The rejected runs are often more useful because they show where the boundary was unclear, where the model overreached, or where the tool contract was underspecified.
+Label disagreement is not a nuisance to hide. It is a signal. If two reviewers disagree on whether a ticket is security-high or security-medium, the model may learn whichever label happened to win the spreadsheet. The better move might be to clarify the label policy or add an ambiguity class.
 
-## Information flow
+The training run cannot fix a taxonomy that the team has not defined.
 
-Information should move forward as evidence, not as vibes. The executor should not hand the verifier a blob of text and hope for the best. It should hand over the tool call, arguments, output, affected resources, timing, cost, and any claimed reasoning that the verifier is expected to check.
+## keep the holdout away from the generator
 
-For fine tuning, I would separate three kinds of evidence:
+Synthetic data can be useful. It can fill rare slices, produce adversarial phrasing, and cover cases that production has not produced yet. It can also contaminate the eval in subtle ways.
 
-- deterministic evidence, such as tests, schemas, diffs, permissions, and checksums
-- semantic evidence, such as a judge model comparing output to intent
-- operational evidence, such as latency, cost, retries, and approval history
+If the same teacher model, prompt style, or generation recipe creates the training data and the holdout, the tuned model can look stronger than it is. It learns the generator's accent. Then real users arrive with different wording, broken grammar, pasted logs, mixed intents, and context the synthetic prompt never imagined.
 
-These evidence types age differently. Deterministic evidence is easier to replay. Semantic evidence may drift when the judge model changes. Operational evidence explains whether the system was usable under the actual constraints.
+I would separate the sets by source:
 
-## Failure modes
+~~~text
+training:
+  - reviewed production examples
+  - synthetic rare-class examples
+  - cleaned historical labels
 
-The obvious failure is the system succeeds once but gives the next maintainer no way to explain it. The less obvious failures are more interesting.
+validation:
+  - production examples from a separate time window
+  - reviewed synthetic examples from a different prompt recipe
 
-A confused deputy failure happens when one component has authority another component should not inherit. An agent reads a private file, summarizes it into a shared context, and a later tool call leaks the summary. The filesystem permission looked correct, but the information boundary was already broken.
+adversarial holdout:
+  - real failures
+  - label-disagreement cases
+  - hand-authored edge cases
+  - examples from documents the generator never saw
+~~~
 
-A stale-context failure happens when the model acts on a snapshot that is no longer true. This is common in coding agents, dashboards, and approval workflows. The user approves an action based on one diff, but the underlying file changed before execution.
+The holdout should make the team nervous. If every case looks like the training set, it is a rehearsal, not an exam.
 
-A verifier collapse happens when the verifier shares too much context, too much prompt structure, or too much failure mode with the generator. It agrees because it is making the same mistake. This is where deterministic checks earn their keep.
+## checkpoints deserve suspicion
 
-A governance failure happens when approvals exist but revocation does not. Temporary access that cannot expire is not temporary. Tool scopes that cannot be audited are not scopes. A run ledger that cannot answer who approved what is not a ledger.
+The final checkpoint is not automatically the best checkpoint.
 
-## Measurement
+Fine-tuning can overfit fast, especially on narrow tasks and small datasets. A later checkpoint may score better on training loss while getting worse on adversarial cases. The model may learn to imitate label phrasing, output length, or formatting quirks instead of the task itself.
 
-The measurement surface for fine tuning is reproduction time, failing example coverage, queue age, and rollback confidence. I would not roll that into one success score. One number will hide the shape of the system.
+I want checkpoint comparison by slice:
 
-I would track:
+~~~text
+slice                  baseline   ckpt_1   ckpt_2   ckpt_3
+security_high_recall     0.82     0.86     0.90     0.91
+billing_precision        0.88     0.87     0.84     0.79
+ambiguous_policy_f1      0.63     0.65     0.61     0.55
+out_of_domain_f1         0.74     0.73     0.68     0.60
+schema_validity          0.91     0.96     0.98     0.98
+~~~
 
-- task acceptance rate by route
-- verifier disagreement by case type
-- deterministic failure rate
-- semantic judge variance
-- approval latency
-- retry count
-- p50 and p95 end-to-end latency
-- cost per accepted run
-- escalation rate
-- replay success rate
+Checkpoint 3 looks great if the only story is security recall and schema validity. It looks worse if the product cannot afford billing false positives or ambiguous-policy regressions. Checkpoint 1 may be the better product choice, even though it is less impressive on the headline metric.
 
-Replay success rate is underrated. If the team cannot replay a failed run with the same inputs, context references, policy version, and model versions, the incident review becomes storytelling.
+This is also where a prompted baseline matters. If a careful prompt and a schema validator get you most of the benefit with no training job, that might be the better system. Fine-tuning has to beat the strong boring option.
 
-## Scaling behavior
+## regressions outside the task still count
 
-At small scale, the system can be strict and noisy. A human can read every rejection. At medium scale, the noise becomes expensive. The system needs triage, clustering, and better defaults. At large scale, the risk moves again: the bottleneck is no longer whether one run was correct, but whether teams can change models, prompts, tools, and policies without creating invisible regressions.
+A fine-tune narrows behavior. That is the point. It can also damage behavior the team assumed would stay intact.
 
-That is where versioning matters. The model version, prompt version, tool schema version, policy version, and verifier version all belong in the run record. Otherwise a future failure will be impossible to attribute.
+A model tuned for terse summaries might stop preserving uncertainty. A model tuned for JSON might become worse at explaining why a field is missing. A model tuned for a support taxonomy might overroute unusual but legitimate requests into the nearest known label. A style fine-tune might make the output sound right while weakening factual caution.
 
-I would also expect routing to become more conservative over time. Early prototypes overuse the strongest model because it is convenient. Production systems usually end up with a portfolio: cheap classifiers, small local models, retrieval paths, frontier models, deterministic tools, and human escalation. The router becomes an economic and governance component, not only a quality component.
+Those regressions count even when the target metric improves.
 
-## Tradeoffs I would make
+I would always keep some out-of-domain and adjacent-domain checks. They do not need to be huge. They need to catch the obvious "we trained the model into a corner" failures.
 
-I would spend complexity on the run ledger before spending it on fancy orchestration. If the system cannot explain what happened, better orchestration just fails faster.
+For example:
 
-I would prefer narrow tool scopes that are annoying but inspectable over broad scopes that feel magical. The annoyance is real. So is the cost of a broad permission that nobody can audit.
+~~~text
+target task:
+  classify escalation risk
 
-I would use model judges carefully. They are useful for semantic comparison, ranking, and clustering. They are weak as the only gate on irreversible actions. When the action matters, pair the judge with deterministic checks and human escalation.
+adjacent checks:
+  normal billing request should remain low risk
+  vague security mention should ask for clarification
+  pasted stack trace should not become a policy escalation
+  unsupported refund claim should stay unsupported
+  multilingual short message should not default to high risk
+~~~
 
-I would keep approvals contextual. Show the proposed action, affected resources, evidence, expected side effect, rollback story, and expiration. If that makes the approval UI crowded, the operation may be too vague.
+The fine-tune earns trust by improving the target behavior without breaking the neighbors.
 
-## What remains unresolved
+## fine-tuning can simplify the product
 
-I do not think there is one clean answer for fine tuning. The shape depends on the cost of failure, the sensitivity of the data, the reversibility of the action, and the review capacity of the team.
+The best reason to fine-tune is usually simplification.
 
-The unresolved question is how much friction belongs in the default path. Too much friction and people avoid the system. Too little and the system accumulates invisible risk. The answer probably changes by task class, not by company slogan.
+Maybe the prompt shrinks from 2,000 tokens to 200. Maybe the model stops needing a repair loop for schema output. Maybe latency drops because a smaller tuned model can replace a larger prompted one. Maybe the system stops carrying twenty few-shot examples in every request. Maybe the output becomes consistent enough that downstream code gets simpler.
 
-That is the part I find interesting. The future of fine tuning is not a chat box with more buttons. It is a work surface with memory, scope, evidence, review, revocation, and enough humility to stop when it cannot prove what it just did.
+That is a real architectural win.
+
+The bad reason is impatience. The team does not want to define labels, so it trains. The prompt is a mess, so it trains. The eval is weak, so it trains. The product behavior is disputed, so it trains. That route usually produces a checkpoint that encodes confusion in a harder-to-debug form.
+
+Before fine-tuning, I would ask:
+
+- Is the task stable enough to train against?
+- Do we have labels we trust?
+- Does a strong prompted baseline already solve it?
+- What behavior should change?
+- What behavior must stay unchanged?
+- What will own rollback and versioning?
+- How will we know the checkpoint has drifted?
+
+If those answers are vague, training is early.
+
+## the checkpoint becomes infrastructure
+
+Once the checkpoint ships, it is part of the system.
+
+It needs a version. It needs a dataset lineage. It needs an eval record. It needs a rollback plan. It needs ownership for future data. It needs monitoring for changes in input distribution. It needs a way to compare new checkpoints against the current one.
+
+That sounds heavy, but it is the cost of making model behavior a dependency.
+
+A small release note might say:
+
+~~~text
+checkpoint: escalation-risk-ft-2026-05-19
+base: frontier-base-2026-05
+dataset: escalation-train-017
+selected checkpoint: epoch 2
+reason: best tradeoff between security recall and billing precision
+known weakness: ambiguous policy language remains below target
+rollback: route to prompted baseline risk-v3
+next data work: review 100 ambiguous-policy cases
+~~~
+
+That note is more useful than "fine-tuned the model." It tells the next person what decision was made and where to look when it starts failing.
+
+## where i land
+
+Fine-tuning is not a shortcut around product thinking. It is a way to compress product thinking into weights after the team has done the harder work in examples, labels, evals, and baselines.
+
+When the task is stable and the dataset is good, it can be excellent. It can make a system faster, cheaper, more consistent, and easier to operate. When the task is vague, it mostly hides the vagueness.
+
+The model will learn something. Make sure it is the thing you meant to teach.

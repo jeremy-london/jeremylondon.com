@@ -8,138 +8,143 @@ author: "jeremy-london"
 tags: ["data cleaning", "datasets", "machine learning"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete data cleaning problem
-- the example surface: Better data often improves AI systems more than another round of prompt tweaks
-- the failure mode: the system succeeds once but gives the next maintainer no way to explain it
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using reproduction time, failing example coverage, queue age, and rollback confidence
-- security or ownership boundary: what must be proven before the change is trusted
-- latency, cost, and scaling implications
-*/}
+Data cleaning is model work.
 
-Better data often improves AI systems more than another round of prompt tweaks.
+That sounds obvious when the project is a traditional ML pipeline. It gets weirdly easy to forget in LLM systems because the model feels separate from the data. The prompt is visible. The response is visible. The messy dataset, retrieval index, labeled examples, or evaluation fixture sits one layer back, quietly deciding how much the model has to fight.
 
-The interesting part of data cleaning is not the name. It is the system pressure around Better data often improves AI systems more than another round of prompt tweaks. Once that pressure shows up for data cleaning, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+Better data often improves an AI system more than another round of prompt tweaking.
 
-## The unit of work
+Prompt changes can hide data problems for a while. They can ask the model to be careful, ignore bad rows, prefer recent examples, deduplicate entities, handle missing fields, and infer labels from inconsistent text. Sometimes that is good enough. Often it is the system asking the most expensive component to compensate for the cheapest part to fix.
 
-I would start by naming the unit of work for data cleaning. In engineering quality, the data cleaning unit is usually smaller than the product surface and larger than a function call. For data cleaning, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+If the input data is confused, the model will spend capability on confusion.
 
-A useful data cleaning unit has four properties:
+## duplicates teach the wrong frequency
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+Duplicates are not harmless.
 
-For data cleaning, the boundary is what must be proven before the change is trusted. That boundary should be visible in the data cleaning data, not only in a policy document. If a data cleaning request crosses the boundary, the trace should show it.
+If a dataset contains repeated examples, the model or evaluator sees those examples as more common than they are. In retrieval, duplicates can crowd out better sources. In classification, repeated rows can make a label look more stable than it is. In evals, duplicates can make a score look better because the system memorizes the common shape.
 
-## Data flow
+The duplicate problem is especially annoying when the duplicates are near-duplicates.
 
-The simple data cleaning flow looks like this:
+One support ticket gets copied into an incident note, then summarized into a knowledge article, then pasted into a training set. A document appears as PDF text, OCR text, and extracted Markdown. A security alert lands in raw form, enriched form, and analyst-comment form. They are not byte-identical, but they describe the same event.
 
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
-~~~
+Cleaning has to decide whether those are separate examples or one example with multiple views.
 
-The context builder gathers the minimum useful state for data cleaning. The data cleaning decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+That decision changes the model's world. If the same incident appears five times, the system learns that pattern five times. If the duplicates cross train and eval splits, the evaluation gets dishonest.
 
-That receipt is the difference between a data cleaning demo and an operable system. A demo can rely on a person watching closely. A data cleaning system needs to explain itself after the person has moved on.
+## labels are part of the system
 
-A data cleaning request envelope might look like this:
+Bad labels are model behavior waiting to happen.
 
-~~~json
-{
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
-}
-~~~
+If "urgent" means customer impact in one part of the dataset and executive visibility in another, the model will learn the conflict. If two reviewers label the same alert differently and nobody resolves it, the model learns disagreement as noise. If synthetic labels come from a prompt that also shaped the eval set, the system may learn the generator's habits instead of the task.
 
-The schema is deliberately plain. Fancy schemas do not save unclear data cleaning systems. The useful data cleaning work is deciding which fields are required, which are advisory, and which block the run when missing.
+Cleaning labels is not clerical work. It is deciding what the product means.
 
-## Implementation sketch
+For a classification task, I want to know:
 
-I would implement the first data cleaning pass as a narrow pipeline rather than a general platform. Start data cleaning with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+- what each label means
+- what examples sit near the boundary
+- where reviewers disagree
+- which labels are underrepresented
+- which labels are too broad
+- whether the label taxonomy changed over time
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+The boundary examples are the most useful. They show where the model will struggle and where the product needs a rule, a new label, or a human review path.
 
-For data cleaning, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The data cleaning system still has to decide whether the proposal is usable under the current boundary.
+If the team cannot explain the labels, the model will not rescue them.
 
-## Failure modes
+## nulls have meaning
 
-The main data cleaning failure mode is the system succeeds once but gives the next maintainer no way to explain it. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The data cleaning failure is that the next component cannot tell whether the result should be trusted.
+Missing data is rarely just missing.
 
-I would test at least five data cleaning cases:
+A null field can mean the value was unknown, unavailable, not applicable, redacted, not collected yet, or accidentally dropped. Those are different states. Models and downstream features often treat them as the same empty hole.
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+That matters.
 
-That last data cleaning case matters. A confident data cleaning answer is not the same thing as a verified result. If data cleaning touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+A blank `closed_at` timestamp may mean a ticket is still open. A missing `owner_id` may mean unassigned, deleted owner, imported legacy record, or permission redaction. A missing `severity` may mean low severity by default in one source and incomplete triage in another.
 
-## Deployment shape
+Cleaning data should preserve that difference when the difference changes behavior.
 
-I would not deploy data cleaning as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For data cleaning, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
-
-That gives the router real work to do. For data cleaning, it should not only choose small model or big model. It should choose a risk path:
-
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
-
-Each data cleaning path has a different budget, verifier, and approval requirement. This is the part that makes data cleaning feel less magical and more like infrastructure. The model is still important, but the data cleaning route determines what kind of trust the system is asking for.
-
-## Measurement
-
-The measurement surface for data cleaning is reproduction time, failing example coverage, queue age, and rollback confidence. I would track data cleaning per route or case type, not only as a global average. Global averages hide the exact class of data cleaning problems that make these systems feel unpredictable.
-
-A simple eval table can carry a lot of weight:
+Sometimes the fix is a richer field:
 
 ~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
+owner_state:
+  assigned
+  unassigned
+  owner_deleted
+  redacted
+  unknown
 ~~~
 
-The point is not to build an eval cathedral for data cleaning. The point is to preserve enough data cleaning structure that regressions can be clustered. If failures cluster around one route, fix the route. If data cleaning failures cluster around one policy boundary, fix the boundary. If data cleaning failures cluster around one model, stop pretending the prompt is the whole system.
+That kind of field makes the model's job easier because the ambiguity is represented before inference begins.
 
-## Operational concerns
+## source drift beats clever prompts
 
-The operational question for data cleaning is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap data cleaning route becomes unreliable but the expensive route would blow the budget?
+Data sources change.
 
-For data cleaning, I would put those answers in configuration, not in a heroic prompt. A small data cleaning policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+A vendor adds a field. A product changes event names. A logging pipeline starts truncating messages. A support team updates the way it writes summaries. A crawler starts extracting navigation text into document chunks. A database migration changes null behavior. Nobody tells the AI feature because the feature is downstream and still technically working.
 
-## Scaling behavior
+Then model quality drifts.
 
-At small scale, a human can inspect weird data cleaning cases by hand. At medium scale, the data cleaning system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+The prompt did not change. The model did not change. The input shape did.
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the data cleaning system without being surprised by the downstream behavior?
+That is why data cleaning should include source checks:
 
-For data cleaning, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the data cleaning system a spine.
+~~~text
+source: support_tickets
+row_count_change: +18 percent week over week
+null_priority: 2 percent -> 19 percent
+new_status_values: waiting_on_vendor
+average_body_length: 1400 chars -> 520 chars
+duplicate_rate: 4 percent -> 22 percent
+~~~
 
-## Where I land
+Those are model-quality signals. They tell you the world the model sees has changed.
 
-Data cleaning deserves depth when it changes architecture, not when it merely sounds current. The data cleaning implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+## leakage makes evals lie
 
-If the data cleaning post answers those questions, it teaches something. If the data cleaning post only says the topic matters, it is just a longer version of the headline.
+Data cleaning is also how evals stay honest.
+
+Leakage can be obvious, like the exact answer appearing in the prompt. More often it is subtle. The same customer issue appears in both train and holdout. A synthetic generator creates examples for training and evaluation with the same phrasing. Retrieval indexes include documents that were created after the supposed evaluation date. A benchmark answer is embedded in a source chunk.
+
+When leakage happens, the system looks smarter than it is.
+
+The check is not only "did we split the rows?" It is "did we split the underlying situations?"
+
+For many AI systems, that means grouping by incident, customer, document, repository, time window, or source object before splitting. It also means keeping generated examples out of the holdout unless the eval is specifically testing generated examples.
+
+Clean eval data is not glamorous. It is the only reason the score means anything.
+
+## cleaning should leave a changelog
+
+Data cleaning changes model behavior, so the cleaning steps should be recorded.
+
+I want to know what changed between dataset versions:
+
+- removed exact duplicates
+- merged near-duplicate incident groups
+- normalized label names
+- split `unknown` from `not_applicable`
+- removed examples after cutoff date
+- excluded rows with missing source permissions
+- fixed broken document extraction
+
+That changelog helps explain score movement. If recall improved after merging duplicate positives, maybe the model got better. If precision dropped after adding boundary cases, maybe the eval got more honest. Without the changelog, every metric movement turns into guessing.
+
+Data versioning does not have to be elaborate at first. A dataset id, source snapshot, cleaning script version, and notes file can be enough.
+
+The important part is that the cleaned dataset is treated as an artifact, not an invisible side effect.
+
+## the model learns the mess
+
+AI systems are good at absorbing mess and making it look fluent.
+
+That is part of the appeal. It is also why data problems can survive too long. The model will produce an answer even when the labels are inconsistent, the retrieval chunks are duplicated, the nulls are ambiguous, and the eval set leaked.
+
+The output may still look reasonable.
+
+This is why I do not separate data cleaning from model work. Cleaning changes what the model sees, what the evaluator measures, what retrieval returns, and what the product can safely claim.
+
+Sometimes the best model improvement is deleting duplicate examples. Sometimes it is renaming a label. Sometimes it is separating null states. Sometimes it is fixing a parser that polluted chunks with sidebar text.
+
+Those changes feel small until the model stops fighting the data.

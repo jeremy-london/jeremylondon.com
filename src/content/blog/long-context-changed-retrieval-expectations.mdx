@@ -8,138 +8,148 @@ author: "jeremy-london"
 tags: ["long context", "gemini", "retrieval"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete long context problem
-- the example surface: a team arguing about whether the model improved or merely changed
-- the failure mode: a model choice is treated as isolated even though the surrounding system made the decision
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using task success, latency budget, memory footprint, batch behavior, and quality by route
-- security or ownership boundary: where the model stops and the serving system starts
-- latency, cost, and scaling implications
-*/}
+Long context changed what retrieval is expected to do.
 
-Gemini 1.5 made long-context work feel less theoretical, but it did not remove the need for retrieval judgment.
+It did not make retrieval disappear. It made the old version of retrieval feel too small.
 
-The interesting part of long context is not the name. It is the system pressure around a team arguing about whether the model improved or merely changed. Once that pressure shows up for long context, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+When context windows were tight, retrieval had to be aggressive. Chop documents into small chunks, rank the chunks, send the top few, and hope the answer was inside them. That design was often necessary, but it created its own failures. The right section might be split across chunks. The answer might need a table header that was not retrieved. The model might see a paragraph without the surrounding caveats.
 
-## The unit of work
+Larger context windows changed the tradeoff. Retrieval can now select broader source units. The model can inspect more of the original material. The system can choose a chapter, file, transcript segment, or policy section instead of a paragraph-sized shard.
 
-I would start by naming the unit of work for long context. In model systems, the long context unit is usually smaller than the product surface and larger than a function call. For long context, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+That is a better place to be, but it still requires judgment.
 
-A useful long context unit has four properties:
+## retrieval chooses eligibility
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+Retrieval has to care about eligibility as much as relevance.
 
-For long context, the boundary is where the model stops and the serving system starts. That boundary should be visible in the long context data, not only in a policy document. If a long context request crosses the boundary, the trace should show it.
+The model should not receive every document that might be semantically related. It should receive documents the user is allowed to use, documents fresh enough to trust, documents that match the current product surface, and documents that belong to the requested task.
 
-## Data flow
+Long context makes this more important because the system can now include more material. More room means more opportunity to leak stale or unauthorized context into the prompt.
 
-The simple long context flow looks like this:
-
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
-~~~
-
-The context builder gathers the minimum useful state for long context. The long context decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
-
-That receipt is the difference between a long context demo and an operable system. A demo can rely on a person watching closely. A long context system needs to explain itself after the person has moved on.
-
-A long context request envelope might look like this:
+A retrieval record should carry why a source was eligible:
 
 ~~~json
 {
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
+  "source": "docs/billing/refund-policy.md",
+  "reason": "current_policy_source",
+  "freshness": "current",
+  "permission": "workspace_support_agent",
+  "selected_unit": "full_section"
 }
 ~~~
 
-The schema is deliberately plain. Fancy schemas do not save unclear long context systems. The useful long context work is deciding which fields are required, which are advisory, and which block the run when missing.
+That is a different mindset than nearest-neighbor search alone. Similarity proposes. Eligibility decides.
 
-## Implementation sketch
+## chunking can get less desperate
 
-I would implement the first long context pass as a narrow pipeline rather than a general platform. Start long context with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+Long context lets chunking be more respectful of the source.
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+Instead of slicing every 800 tokens with overlap, the system can preserve natural boundaries: headings, functions, classes, tickets, transcript turns, policy sections, PDF pages, or test files. This often produces better inputs because the model sees the context around the fact.
 
-For long context, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The long context system still has to decide whether the proposal is usable under the current boundary.
+For code, that might mean retrieving the whole function plus its tests. For policy, the full section and exceptions. For support, the initial ticket, resolution, and final customer reply. For video, a contiguous time window with transcript and frame references.
 
-## Failure modes
-
-The main long context failure mode is a model choice is treated as isolated even though the surrounding system made the decision. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The long context failure is that the next component cannot tell whether the result should be trusted.
-
-I would test at least five long context cases:
-
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
-
-That last long context case matters. A confident long context answer is not the same thing as a verified result. If long context touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
-
-## Deployment shape
-
-I would not deploy long context as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For long context, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
-
-That gives the router real work to do. For long context, it should not only choose small model or big model. It should choose a risk path:
-
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
-
-Each long context path has a different budget, verifier, and approval requirement. This is the part that makes long context feel less magical and more like infrastructure. The model is still important, but the long context route determines what kind of trust the system is asking for.
-
-## Measurement
-
-The measurement surface for long context is task success, latency budget, memory footprint, batch behavior, and quality by route. I would track long context per route or case type, not only as a global average. Global averages hide the exact class of long context problems that make these systems feel unpredictable.
-
-A simple eval table can carry a lot of weight:
+The chunk should match the reasoning task.
 
 ~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
+bad unit:
+  paragraph 42 of a cancellation policy
+
+better unit:
+  full cancellation section with exceptions and effective date
 ~~~
 
-The point is not to build an eval cathedral for long context. The point is to preserve enough long context structure that regressions can be clustered. If failures cluster around one route, fix the route. If long context failures cluster around one policy boundary, fix the boundary. If long context failures cluster around one model, stop pretending the prompt is the whole system.
+The larger window does not mean the unit should be huge by default. It means the unit can be coherent.
 
-## Operational concerns
+## citations still need precision
 
-The operational question for long context is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap long context route becomes unreliable but the expensive route would blow the budget?
+A model can read a long source and still answer vaguely.
 
-For long context, I would put those answers in configuration, not in a heroic prompt. A small long context policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+That is why citation requirements become more important, not less. If the model receives a 40-page policy document, the answer should cite the section. If it receives a code file, the answer should point to the function or line range if the product supports it. If it receives a transcript, the answer should include a timestamp.
 
-## Scaling behavior
+Without precise citations, long context can make answers harder to audit. The user knows the source was somewhere in the giant prompt, but not where the claim came from.
 
-At small scale, a human can inspect weird long context cases by hand. At medium scale, the long context system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+A retrieval system should preserve anchors:
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the long context system without being surprised by the downstream behavior?
+- document path
+- heading path
+- page number
+- timestamp
+- function name
+- record ID
+- byte or character offset when useful
 
-For long context, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the long context system a spine.
+Long context gives the model more evidence. Anchors let the product show which evidence mattered.
 
-## Where I land
+## source packing becomes a product decision
 
-Long context deserves depth when it changes architecture, not when it merely sounds current. The long context implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+Once the system can include many sources, ordering and grouping start to matter.
 
-If the long context post answers those questions, it teaches something. If the long context post only says the topic matters, it is just a longer version of the headline.
+Should current docs appear before archived docs? Should the user’s selected file appear before retrieved neighbors? Should contradictory sources be placed together? Should a summary sit above the raw source or below it? Should the model see metadata before content?
+
+Those choices can change the answer.
+
+I like source manifests because they make packing visible:
+
+~~~text
+context order:
+  1. user question
+  2. selected source file
+  3. current policy docs
+  4. related tickets
+  5. archived docs excluded
+~~~
+
+That order is a product decision. It encodes trust and priority. If the model answers from the wrong source, the manifest gives the team something to debug.
+
+## long context needs negative examples
+
+Long-context retrieval evals should include cases where the nearest related document is wrong.
+
+That is common in real systems. The archived policy uses the same words as the current one. A migration guide resembles the current API docs. A test fixture contains a fake secret. A support ticket mentions a product feature but was resolved under old behavior.
+
+The eval should ask whether retrieval excludes the tempting wrong source:
+
+~~~json
+{
+  "query": "Can a canceled annual plan get a refund?",
+  "must_include": ["docs/billing/current-refund-policy.md"],
+  "must_exclude": ["docs/archive/refund-policy-2022.md"],
+  "reason": "archive uses similar language but old rules"
+}
+~~~
+
+This is where long context can hurt. If the system includes both current and archived policies without telling the model which one wins, the answer may blend them.
+
+## retrieval still reduces cost
+
+Large windows are useful, but they cost time and money.
+
+Retrieval remains the mechanism for avoiding waste. It decides when a small source is enough, when a coherent larger source is worth including, and when the task deserves a huge context route.
+
+The router can be simple:
+
+~~~text
+known source selected by user:
+  include selected source plus nearby metadata
+
+ambiguous source:
+  retrieve candidate set, rerank, include coherent units
+
+cross-source reasoning:
+  include multiple full sections with manifest
+
+broad exploratory search:
+  retrieve summaries first, expand on demand
+~~~
+
+That is a better strategy than treating long context as the new default.
+
+## the expectation changed
+
+Long context raised the bar for retrieval.
+
+Users will reasonably expect the system to preserve more of the source, avoid silly chunk misses, and answer from coherent context. They will also expect the answer to remain grounded, cited, permissioned, and current.
+
+That is the new retrieval expectation: less desperate compression, more source judgment.
+
+The system still has to decide what belongs in front of the model. Bigger windows make that decision more important, not less.

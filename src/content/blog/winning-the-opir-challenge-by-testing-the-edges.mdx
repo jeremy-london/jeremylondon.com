@@ -8,138 +8,141 @@ author: "jeremy-london"
 tags: ["opir", "ai security", "red teaming"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete OPIR problem
-- the example surface: I was one of the first-place winners of Wordcab's Opir Challenge after probing where semantic guardrails get thin
-- the failure mode: the happy path works while the unsafe path stays unnamed
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using denied unsafe actions, ownership check coverage, secret exposure rate, and review latency
-- security or ownership boundary: who is allowed to act on which resource, with which evidence
-- latency, cost, and scaling implications
-*/}
+I was one of the first-place winners of Wordcab's OPIR Challenge, and the part that stayed with me was not the scoreboard.
 
-I was one of the first-place winners of Wordcab's Opir Challenge after probing where semantic guardrails get thin.
+It was the shape of the testing.
 
-The interesting part of OPIR is not the name. It is the system pressure around I was one of the first-place winners of Wordcab's Opir Challenge after probing where semantic guardrails get thin. Once that pressure shows up for OPIR, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+The challenge forced a useful kind of pressure: treat a semantic guardrail like a system with seams, then find where the seams stop lining up. That is a much better exercise than writing one dramatic jailbreak string and pretending the lesson is the string.
 
-## The unit of work
+In the interview afterward, Aleks Smechov said my approach was one of the more unusual ones he had seen in the challenge. That made sense to me. I was not trying to overpower the model with prompt theater. I was trying to understand where the classifier's representation of the request diverged from the base model's ability to infer intent.
 
-I would start by naming the unit of work for OPIR. In security systems, the OPIR unit is usually smaller than the product surface and larger than a function call. For OPIR, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+That is a more interesting problem.
 
-A useful OPIR unit has four properties:
+## the guardrail looked like a classifier
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+OPIR made the safety layer feel like a classifier problem again.
 
-For OPIR, the boundary is who is allowed to act on which resource, with which evidence. That boundary should be visible in the OPIR data, not only in a policy document. If a OPIR request crosses the boundary, the trace should show it.
+That framing matters. A classifier has decision boundaries, false positives, false negatives, calibration behavior, brittle features, and coverage gaps. If you test it only with obvious examples, you learn almost nothing.
 
-## Data flow
+The obvious unsafe prompt gets blocked. Fine. The obvious benign prompt gets allowed. Also fine. The useful behavior lives near the boundary, where a prompt is paraphrased, translated, quoted, framed as code, split across structure, or surrounded by harmless context.
 
-The simple OPIR flow looks like this:
+That is where guardrails get thin.
 
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
-~~~
+## i started with representation
 
-The context builder gathers the minimum useful state for OPIR. The OPIR decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+The first question I cared about was representation.
 
-That receipt is the difference between a OPIR demo and an operable system. A demo can rely on a person watching closely. A OPIR system needs to explain itself after the person has moved on.
+If the tokenizer and encoder do not represent the input well, the classifier starts from bad footing. That is especially true for multilingual and low-corpus inputs. A guardrail may look strong in common English phrasing and become much less stable when the same intent moves through a language, script, or format the model handles poorly.
 
-A OPIR request envelope might look like this:
+So I leaned into multilingual input and obscure forms. I wanted to know where the model stopped seeing clean semantic signal and started seeing noise.
+
+That is not because multilingual input is magically unsafe. It is because coverage gaps are where classifiers reveal themselves. If the model has strong training support for one region of language and weak support for another, the boundary may move in ways the product owner does not expect.
+
+## i changed one thing at a time
+
+The useful testing pattern was controlled variation.
+
+Take a request family. Change one feature. Keep the intent close enough that a human reviewer would expect a stable safety outcome. Then watch whether the guardrail decision moves.
 
 ~~~json
 {
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
+  "family": "same_intent_multiform",
+  "variants": [
+    "plain_english",
+    "translated_low_resource_language",
+    "quoted_instruction",
+    "code_comment_framing",
+    "encoded_payload_reference"
+  ],
+  "expected_behavior": "stable safety decision",
+  "review_focus": "decision movement across semantically nearby variants"
 }
 ~~~
 
-The schema is deliberately plain. Fancy schemas do not save unclear OPIR systems. The useful OPIR work is deciding which fields are required, which are advisory, and which block the run when missing.
+That is the difference between a bypass hunt and boundary testing.
 
-## Implementation sketch
+A single bypass is a bug report. A family of related bypasses is a map of the decision surface.
 
-I would implement the first OPIR pass as a narrow pipeline rather than a general platform. Start OPIR with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+## the break was architectural
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+The attack path that mattered to me was not purely linguistic.
 
-For OPIR, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The OPIR system still has to decide whether the proposal is usable under the current boundary.
+It was architectural. I was probing the gap between the safety classifier and the model behind it. Could the classifier miss the risky intent while the base model still had enough information to recover the task? Could the request be shaped so one part of the system saw noise and another part saw instructions?
 
-## Failure modes
+That is a seam.
 
-The main OPIR failure mode is the happy path works while the unsafe path stays unnamed. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The OPIR failure is that the next component cannot tell whether the result should be trusted.
+In a safety stack, the classifier and generator do not necessarily fail the same way. The classifier may care about surface features, token coverage, threshold behavior, or taxonomy labels. The generator may be better at inference across weird structure. If those two components disagree about what the input means, the system can behave badly while each component looks locally understandable.
 
-I would test at least five OPIR cases:
+That is the kind of failure I was looking for.
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+## obscure does not mean clever
 
-That last OPIR case matters. A confident OPIR answer is not the same thing as a verified result. If OPIR touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+Using obscure languages, encodings, or programming-language framing can sound like a parlor trick.
 
-## Deployment shape
+It is only useful when it exposes a general weakness. If the attack depends on one magical string, it is fragile. If several related transformations move the decision in the same direction, the test has found something about the model's coverage or boundary.
 
-I would not deploy OPIR as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For OPIR, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+I kept iterating after finding a working path because I wanted to know whether the weakness was specific or broad. Does the behavior survive paraphrase? Does it survive translation? Does the blocked or allowed decision change when the risky part appears as quoted material? Does a code wrapper change the outcome? Does the classifier treat encoded content as harmless while the generator can still reason about it?
 
-That gives the router real work to do. For OPIR, it should not only choose small model or big model. It should choose a risk path:
+Those questions are more useful than the payload.
 
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
+## false positives matter too
 
-Each OPIR path has a different budget, verifier, and approval requirement. This is the part that makes OPIR feel less magical and more like infrastructure. The model is still important, but the OPIR route determines what kind of trust the system is asking for.
+Red teaming often focuses on bypasses, but false positives are part of the same boundary problem.
 
-## Measurement
+If a guardrail blocks nearby benign prompts, the product becomes arbitrary. Users learn to route around it. Internal teams stop trusting the safety layer. Support gets weird tickets. Security teams get noisy dashboards.
 
-The measurement surface for OPIR is denied unsafe actions, ownership check coverage, secret exposure rate, and review latency. I would track OPIR per route or case type, not only as a global average. Global averages hide the exact class of OPIR problems that make these systems feel unpredictable.
-
-A simple eval table can carry a lot of weight:
+So I care about paired probes:
 
 ~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
+unsafe intent, direct phrasing
+unsafe intent, transformed phrasing
+benign nearby intent, direct phrasing
+benign nearby intent, transformed phrasing
 ~~~
 
-The point is not to build an eval cathedral for OPIR. The point is to preserve enough OPIR structure that regressions can be clustered. If failures cluster around one route, fix the route. If OPIR failures cluster around one policy boundary, fix the boundary. If OPIR failures cluster around one model, stop pretending the prompt is the whole system.
+That shape tells you whether the boundary is sharp, unstable, too broad, or too narrow.
 
-## Operational concerns
+The best guardrail is not the one that says no the most. It is the one that can say no for the right reason and let nearby legitimate work continue.
 
-The operational question for OPIR is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap OPIR route becomes unreliable but the expensive route would blow the budget?
+## the small-model angle matters
 
-For OPIR, I would put those answers in configuration, not in a heroic prompt. A small OPIR policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+This challenge also lined up with how I think about practical AI security.
 
-## Scaling behavior
+Safety layers cannot always be giant frontier-model calls. In real products, especially private or constrained environments, the guardrail may need to run locally, cheaply, and with low latency. It may need to work under zero-trust or zero-knowledge assumptions. It may need to run before data leaves a boundary.
 
-At small scale, a human can inspect weird OPIR cases by hand. At medium scale, the OPIR system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+That pushes the problem toward smaller classifiers, encoders, and specialized models.
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the OPIR system without being surprised by the downstream behavior?
+Small models are not automatically safer. They are easier to deploy in places where safety checks actually need to happen. That makes their coverage gaps more important, not less.
 
-For OPIR, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the OPIR system a spine.
+If a small guardrail collapses on multilingual, encoded, or oddly structured input, the deployment advantage can turn into false confidence.
 
-## Where I land
+## what i would measure next time
 
-OPIR deserves depth when it changes architecture, not when it merely sounds current. The OPIR implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+The metric I would keep is outcome consistency inside probe families.
 
-If the OPIR post answers those questions, it teaches something. If the OPIR post only says the topic matters, it is just a longer version of the headline.
+For each family, I would track:
+
+- decision stability across paraphrase
+- decision stability across language and script
+- false positives on nearby benign prompts
+- false negatives on transformed unsafe prompts
+- threshold movement after model updates
+- taxonomy label drift across variants
+- cases where classifier and generator appear to disagree
+
+That last category is important. The safety layer may classify the prompt one way while the generator's response reveals that it understood a different intent.
+
+I would also keep old probe families as regression tests. Guardrail updates can close one hole and open another nearby. Without family-level tests, teams end up celebrating fixed examples while missing boundary movement.
+
+## winning was less interesting than the method
+
+I am happy I landed one of the first-place spots. That part is fun.
+
+But the useful lesson is the method: do not test semantic guardrails only as policy prose. Test them as classifiers embedded in systems. Look at representation. Look at transformations. Look at paired benign cases. Look at whether the generator and classifier agree about meaning.
+
+Semantic distance is not safety distance. Two prompts can feel equivalent to a human and land on different sides of a guardrail. Two prompts can look different on the surface and carry the same intent.
+
+That is where the work is.
+
+- [Aleks Smechov's LinkedIn announcement](https://www.linkedin.com/posts/activity-7471184736669904896-kAFV?utm_source=share&utm_medium=member_desktop&rcm=ACoAAByQ1kcBAdhBVGPhqk-6ttMPUGxQSzEztKk)
+- [Opir Challenge video](https://youtu.be/ZnRA-c1V3_E?si=rVOLt4Zp2iHLCPEd)

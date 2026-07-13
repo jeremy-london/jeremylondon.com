@@ -8,193 +8,172 @@ author: "jeremy-london"
 tags: ["mcp", "agents", "tools"]
 ---
 
-{/*
-Depth: systems-essay
-Information map:
-- the concrete MCP tool surfaces problem
-- the example surface: a model action that crosses from text into a real system
-- the failure mode: the agent finishes a task without leaving enough evidence for a human to trust or resume it
-- why the obvious solution is insufficient
-- system constraints and trust boundaries
-- architecture and component responsibilities
-- request, event, and evidence flow
-- deterministic and semantic verification
-- measurement using approval rate, retry count, verifier disagreement, and time from tool call to accepted result
-- latency, cost, and scale behavior
-- governance, revocation, and escalation
-- tradeoffs I would make
-- what remains unresolved
-*/}
+[MCP](https://modelcontextprotocol.io/docs/getting-started/intro) made agent tool access feel like an interface instead of a pile of bespoke integrations.
 
-The Model Context Protocol gave agent tool access a shared shape, which made the design questions clearer.
+That is the interesting part. Tools already existed. Function calling existed. Agents could call APIs, read files, search databases, and run commands before MCP. But every integration had its own shape. The agent had to learn a new tool contract each time, and the host application had to decide how to expose tools, data, prompts, authentication, errors, and permissions.
 
-The hard part of MCP tool surfaces is not making a prototype move. Prototypes move. They call tools, retrieve documents, choose models, draw diagrams, and produce MCP tool surfaces output that looks close enough to keep going. The hard part is deciding what the MCP tool surfaces system is allowed to do after it produces something plausible.
+The [Model Context Protocol](https://www.anthropic.com/news/model-context-protocol) gave that work a shared vocabulary: clients, servers, tools, resources, prompts, schemas, and capabilities.
 
-I think about MCP tool surfaces as a control problem more than a prompt problem. The prompt matters for MCP tool surfaces, but the prompt is only one component inside a larger machine: context construction, policy, routing, tool execution, verification, storage, approval, and replay. If those pieces are missing, the MCP tool surfaces system may still look impressive in a demo. It will just be unpleasant to operate.
+That does not make tool use safe by itself. It makes the design questions easier to see.
 
-## The problem
+## tool access is an interface
 
-The concrete surface here is a model action that crosses from text into a real system. That MCP tool surfaces surface creates pressure because it crosses from language into work. Once a MCP tool surfaces system can affect files, route requests, inspect user state, call tools, spend money, or produce security-relevant conclusions, "the model answered" is no longer the end of the story.
+Once a server exposes a tool to an agent, it has designed an interface.
 
-The MCP tool surfaces system needs to answer different questions:
+The interface includes the tool name, description, input schema, output shape, permissions, error behavior, and side effects. If any of those are vague, the agent has to guess. Agents are very willing to guess.
 
-- What exactly was requested?
-- Which context was used?
-- Which policy boundary applied?
-- Which component made the decision?
-- What evidence supported the result?
-- What was verified deterministically?
-- What was judged semantically?
-- Who approved the action, if approval was needed?
-- How would we replay the case after a failure?
+A tool named `run` is a problem. A tool named `create_invoice_draft` is better. A schema that accepts `data: any` is a problem. A schema with required fields, enums, limits, and clear descriptions is better.
 
-Those questions sound administrative until something breaks. Then they become the only questions that matter.
-
-## Why the obvious solution is insufficient
-
-The obvious MCP tool surfaces solution is to add a better model and a thicker prompt. That helps MCP tool surfaces, but it does not solve the operating problem. A stronger model can still break MCP tool surfaces: call the wrong tool, use stale context, skip a permission boundary, or produce a technically valid answer that is useless to the person who has to act on it.
-
-The second obvious MCP tool surfaces solution is to put a human approval button at the dangerous step. That also helps MCP tool surfaces, but only if the approval has context. A MCP tool surfaces button that says "approve" without showing the diff, tool arguments, policy boundary, expected side effect, and rollback path is not governance. It is a liability with a nicer label.
-
-For MCP tool surfaces, I would treat approvals as part of the data flow. The approval is not a modal. It is a signed MCP tool surfaces decision attached to the run record.
-
-## Constraints
-
-A production MCP tool surfaces version has to live with several constraints at once.
-
-The first is latency. Verification cannot be so slow that everyone disables it. The second is cost. Running a frontier model as judge for every small MCP tool surfaces step may be correct and still unaffordable. The third is privacy. For MCP tool surfaces, context windows are tempting places to dump everything, but credential material, user state, and internal documents need boundaries. The fourth is replay. If a MCP tool surfaces failure cannot be replayed, it will be explained with folklore.
-
-The trust boundary is file access, network access, credential use, and delegation between agents. I would make that boundary explicit in the request envelope rather than burying it in code comments.
+MCP did not invent this discipline. It forced it into view.
 
 ~~~json
 {
-  "runId": "run_2026_07_13_001",
-  "actor": "agent-or-human-id",
-  "input": "requested work",
-  "contextRefs": ["doc:policy", "file:target", "trace:previous-step"],
-  "scope": {
-    "filesystem": ["read:src", "write:docs"],
-    "network": ["deny"],
-    "credentials": ["none"],
-    "expiresAt": "2026-07-13T18:00:00Z"
-  },
-  "decision": null,
-  "evidence": [],
-  "approval": null
+  "name": "create_invoice_draft",
+  "description": "Create a draft invoice. Does not send it to the customer.",
+  "inputSchema": {
+    "type": "object",
+    "required": ["customerId", "lineItems"],
+    "properties": {
+      "customerId": { "type": "string" },
+      "lineItems": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": ["description", "amountCents"]
+        }
+      }
+    }
+  }
 }
 ~~~
 
-That envelope is not meant to be universal. It is meant to force the design conversation. What scope exists? Who grants it? When does it expire? What evidence must be present before the next state transition?
+The important sentence is in the description: "Does not send it to the customer." That is product behavior and safety behavior in one line.
 
-## Architecture
+## resources and tools should not be blurred
 
-The architecture I would start with has six components:
+MCP separates resources and tools for a reason.
 
-- context builder
-- policy engine
-- router
-- executor
-- verifier
-- run ledger
+Resources provide context. Tools perform actions. That difference should matter in the product. Reading a document, listing projects, and fetching a schema are different from sending an email, editing a file, or changing a customer record.
 
-The context builder gathers only the state needed for the next decision. The policy engine decides whether the requested action is allowed. The router chooses the model, tool, or human path. The executor does the work. The verifier checks the result. The run ledger stores the envelope, transitions, evidence, approvals, and outputs.
+If the interface blurs read and write operations, approvals become messy. A user may approve "access project data" and accidentally authorize mutation. A model may treat a read-like tool as harmless even though it triggers a side effect.
 
-The important part is separation. The component that proposes an action should not be the only component that decides whether the action is acceptable. That does not mean every verifier needs to be another model. Some of the best verifiers are boring: schema validation, type checks, path checks, diff checks, policy checks, budget checks, and deterministic tests.
-
-A rough state machine looks like this:
+I want read paths to be boring and write paths to be explicit:
 
 ~~~text
-created
-  -> context_ready
-  -> policy_checked
-  -> routed
-  -> executed
-  -> verified
-  -> approved | rejected | escalated
-  -> recorded
+resource:
+  workspace://docs/refund-policy
+
+tool:
+  update_customer_billing_contact
+  requires approval
+  logs audit event
+  can be rolled back manually
 ~~~
 
-Each transition should be cheap to inspect. If the system jumps from created to recorded, the architecture is lying to you.
+That separation helps the host, the user, and the agent reason about risk.
 
-## Operating loop
+## descriptions are part of the control plane
 
-The operating loop is where MCP tool surfaces can become reliable or collapse into a pile of impressive transcripts. I would make every run produce a record that can be inspected by a human, replayed by a test harness, and summarized by an eval dashboard. Those are three different consumers, so the record cannot be only prose.
+Tool descriptions are not documentation garnish.
 
-The loop I would want is:
+The model uses them to decide which tool to call and how to call it. A weak description can misroute work. A vague description can encourage overuse. A missing warning can hide a side effect. A bloated description can waste context and still fail to say the one thing that matters.
+
+Good descriptions are compact and operational:
 
 ~~~text
-capture -> propose -> check -> approve -> execute -> verify -> record -> learn
+Search current support articles by keyword and product area.
+Use this before answering policy questions.
+Does not search archived articles.
 ~~~
 
-Capture stores the request and context references. Propose creates the candidate action. Check runs policy and deterministic validation. Approve attaches a human decision when the action needs one. Execute performs the work. Verify compares the result with the contract. Record stores the transition. Learn turns accepted and rejected runs into future eval cases.
+That gives the model a purpose, a recommended use, and a boundary.
 
-That last step is easy to skip and expensive to recover later. If the system only stores successes, it trains the team to forget the edge cases. The rejected runs are often more useful because they show where the boundary was unclear, where the model overreached, or where the tool contract was underspecified.
+Bad descriptions sound like marketing:
 
-## Information flow
+~~~text
+Powerfully search our rich support knowledge base to unlock helpful answers.
+~~~
 
-Information should move forward as evidence, not as vibes. The executor should not hand the verifier a blob of text and hope for the best. It should hand over the tool call, arguments, output, affected resources, timing, cost, and any claimed reasoning that the verifier is expected to check.
+That tells the model almost nothing.
 
-For MCP tool surfaces, I would separate three kinds of evidence:
+## permissions need to be visible before execution
 
-- deterministic evidence, such as tests, schemas, diffs, permissions, and checksums
-- semantic evidence, such as a judge model comparing output to intent
-- operational evidence, such as latency, cost, retries, and approval history
+MCP gives a common shape for connecting tools, but permission is still the host's job.
 
-These evidence types age differently. Deterministic evidence is easier to replay. Semantic evidence may drift when the judge model changes. Operational evidence explains whether the system was usable under the actual constraints.
+The host has to decide which servers are allowed, which tools are available, which resources can be read, which calls need approval, and what the user sees before a tool runs.
 
-## Failure modes
+For risky tools, approval text should be specific:
 
-The obvious failure is the agent finishes a task without leaving enough evidence for a human to trust or resume it. The less obvious failures are more interesting.
+~~~text
+Approve editing `src/routes/billing.ts` in this workspace.
+This tool can modify files but cannot access paths outside the repository.
+~~~
 
-A confused deputy failure happens when one component has authority another component should not inherit. An agent reads a private file, summarizes it into a shared context, and a later tool call leaks the summary. The filesystem permission looked correct, but the information boundary was already broken.
+That is much better than:
 
-A stale-context failure happens when the model acts on a snapshot that is no longer true. This is common in coding agents, dashboards, and approval workflows. The user approves an action based on one diff, but the underlying file changed before execution.
+~~~text
+Approve tool call?
+~~~
 
-A verifier collapse happens when the verifier shares too much context, too much prompt structure, or too much failure mode with the generator. It agrees because it is making the same mistake. This is where deterministic checks earn their keep.
+The approval is part of the interface. If the user cannot understand the effect, the permission model is not finished.
 
-A governance failure happens when approvals exist but revocation does not. Temporary access that cannot expire is not temporary. Tool scopes that cannot be audited are not scopes. A run ledger that cannot answer who approved what is not a ledger.
+## errors should be model-readable
 
-## Measurement
+Tool errors are a major part of agent behavior.
 
-The measurement surface for MCP tool surfaces is approval rate, retry count, verifier disagreement, and time from tool call to accepted result. I would not roll that into one success score. One number will hide the shape of the system.
+If a tool returns `failed`, the agent may retry blindly, apologize, or invent a workaround. If the tool returns a structured error, the agent has a chance to recover.
 
-I would track:
+~~~json
+{
+  "ok": false,
+  "code": "permission_denied",
+  "message": "The user can read invoices but cannot create invoice drafts.",
+  "recoverable": true,
+  "next": "Ask a workspace owner to approve invoice drafting."
+}
+~~~
 
-- task acceptance rate by route
-- verifier disagreement by case type
-- deterministic failure rate
-- semantic judge variance
-- approval latency
-- retry count
-- p50 and p95 end-to-end latency
-- cost per accepted run
-- escalation rate
-- replay success rate
+That error tells the model what happened and what not to do next. It also gives the UI something useful to show.
 
-Replay success rate is underrated. If the team cannot replay a failed run with the same inputs, context references, policy version, and model versions, the incident review becomes storytelling.
+Agent tools need error contracts for the same reason APIs do. The caller is trying to decide the next step.
 
-## Scaling behavior
+## receipts matter more as tools get real
 
-At small scale, the system can be strict and noisy. A human can read every rejection. At medium scale, the noise becomes expensive. The system needs triage, clustering, and better defaults. At large scale, the risk moves again: the bottleneck is no longer whether one run was correct, but whether teams can change models, prompts, tools, and policies without creating invisible regressions.
+Tool calls should leave receipts.
 
-That is where versioning matters. The model version, prompt version, tool schema version, policy version, and verifier version all belong in the run record. Otherwise a future failure will be impossible to attribute.
+For read operations, the receipt might be which resource was read and at what version. For write operations, it should include what changed, who authorized it, and how to inspect or reverse it. For external calls, it should include the target system and result.
 
-I would also expect routing to become more conservative over time. Early prototypes overuse the strongest model because it is convenient. Production systems usually end up with a portfolio: cheap classifiers, small local models, retrieval paths, frontier models, deterministic tools, and human escalation. The router becomes an economic and governance component, not only a quality component.
+~~~json
+{
+  "tool": "update_issue_status",
+  "issue": "PLAT-184",
+  "from": "in_review",
+  "to": "done",
+  "authorizedBy": "jeremy",
+  "receipt": "audit://agent-runs/2024-12-02/184"
+}
+~~~
 
-## Tradeoffs I would make
+Without receipts, agent work becomes hard to audit. The final answer says something changed, but the system has no durable record.
 
-I would spend complexity on the run ledger before spending it on fancy orchestration. If the system cannot explain what happened, better orchestration just fails faster.
+MCP makes tool calling easier to standardize. The product still has to decide what evidence survives.
 
-I would prefer narrow tool scopes that are annoying but inspectable over broad scopes that feel magical. The annoyance is real. So is the cost of a broad permission that nobody can audit.
+## the interface will attract governance
 
-I would use model judges carefully. They are useful for semantic comparison, ranking, and clustering. They are weak as the only gate on irreversible actions. When the action matters, pair the judge with deterministic checks and human escalation.
+Once tools have a shared shape, governance naturally moves there.
 
-I would keep approvals contextual. Show the proposed action, affected resources, evidence, expected side effect, rollback story, and expiration. If that makes the approval UI crowded, the operation may be too vague.
+Which tools can a given agent see? Which ones require approval? Which servers can run locally? Which tools are allowed in CI? Which descriptions are trustworthy? Which outputs can be passed to another tool? Which resources are sensitive?
 
-## What remains unresolved
+Those questions should not be scattered across prompts. They belong in the host, server configuration, permissions, and audit layer.
 
-I do not think there is one clean answer for MCP tool surfaces. The shape depends on the cost of failure, the sensitivity of the data, the reversibility of the action, and the review capacity of the team.
+That is why MCP feels bigger than a connector format. It creates a place where agent capability can be inspected.
 
-The unresolved question is how much friction belongs in the default path. Too much friction and people avoid the system. Too little and the system accumulates invisible risk. The answer probably changes by task class, not by company slogan.
+## the useful shift
 
-That is the part I find interesting. The future of MCP tool surfaces is not a chat box with more buttons. It is a work surface with memory, scope, evidence, review, revocation, and enough humility to stop when it cannot prove what it just did.
+MCP did not solve agent safety. It did not make every tool well designed. It did not remove the need for approvals, scoping, logging, or evaluation.
+
+It did something more basic: it turned agent tools into an interface people could argue about.
+
+That is progress. Once the interface is visible, teams can improve names, schemas, permissions, descriptions, errors, receipts, and review paths. Before that, tool access is mostly integration glue and vibes.
+
+Agents get better when their tools have real contracts.

@@ -8,193 +8,163 @@ author: "jeremy-london"
 tags: ["evals", "testing", "ai systems"]
 ---
 
-{/*
-Depth: systems-essay
-Information map:
-- the concrete evals problem
-- the example surface: an evaluation suite that catches a regression before a model swap quietly changes product behavior
-- the failure mode: the system succeeds once but gives the next maintainer no way to explain it
-- why the obvious solution is insufficient
-- system constraints and trust boundaries
-- architecture and component responsibilities
-- request, event, and evidence flow
-- deterministic and semantic verification
-- measurement using reproduction time, failing example coverage, queue age, and rollback confidence
-- latency, cost, and scale behavior
-- governance, revocation, and escalation
-- tradeoffs I would make
-- what remains unresolved
-*/}
+Evals are where AI work stops being vibes.
 
-A simple note on using evals to catch regressions before users find them.
+That sounds harsher than I mean it, but only slightly. A team can spend a surprising amount of time arguing from screenshots. One prompt feels better. One model sounds cleaner. One retrieval tweak looks promising in the five examples everyone keeps reusing. Then the change ships and a user finds the failure case in ten minutes.
 
-The hard part of evals is not making a prototype move. Prototypes move. They call tools, retrieve documents, choose models, draw diagrams, and produce evals output that looks close enough to keep going. The hard part is deciding what the evals system is allowed to do after it produces something plausible.
+The answer is not to stop using judgment. Judgment is still required. The answer is to give judgment something repeatable to push against.
 
-I think about evals as a control problem more than a prompt problem. The prompt matters for evals, but the prompt is only one component inside a larger machine: context construction, policy, routing, tool execution, verification, storage, approval, and replay. If those pieces are missing, the evals system may still look impressive in a demo. It will just be unpleasant to operate.
+An eval is a feedback loop. It takes examples the team cares about, runs the system against them, grades the result, and makes regressions visible before users become the test harness.
 
-## The problem
+## pick the unit first
 
-The concrete surface here is an evaluation suite that catches a regression before a model swap quietly changes product behavior. That evals surface creates pressure because it crosses from language into work. Once a evals system can affect files, route requests, inspect user state, call tools, spend money, or produce security-relevant conclusions, "the model answered" is no longer the end of the story.
+The first eval question is not "which metric?" It is "what is the unit?"
 
-The evals system needs to answer different questions:
+For a chat assistant, the unit might be one turn, a whole conversation, or a task completed across several tool calls. For a classifier, it might be one input and one label. For retrieval, it might be one query and a set of expected documents. For an agent, it might be an entire run with intermediate steps, final output, and side effects.
 
-- What exactly was requested?
-- Which context was used?
-- Which policy boundary applied?
-- Which component made the decision?
-- What evidence supported the result?
-- What was verified deterministically?
-- What was judged semantically?
-- Who approved the action, if approval was needed?
-- How would we replay the case after a failure?
+Choosing the wrong unit makes the eval lie.
 
-Those questions sound administrative until something breaks. Then they become the only questions that matter.
+If the product promise is "the agent updates the issue and leaves a useful comment," grading only the final text is too narrow. The agent might write a good summary while editing the wrong file. If the promise is "find the right source document," grading only the generated answer hides retrieval failure. The model may guess correctly once and fail when the wording changes.
 
-## Why the obvious solution is insufficient
+I like writing the unit down in a shape close to the system:
 
-The obvious evals solution is to add a better model and a thicker prompt. That helps evals, but it does not solve the operating problem. A stronger model can still break evals: call the wrong tool, use stale context, skip a permission boundary, or produce a technically valid answer that is useless to the person who has to act on it.
-
-The second obvious evals solution is to put a human approval button at the dangerous step. That also helps evals, but only if the approval has context. A evals button that says "approve" without showing the diff, tool arguments, policy boundary, expected side effect, and rollback path is not governance. It is a liability with a nicer label.
-
-For evals, I would treat approvals as part of the data flow. The approval is not a modal. It is a signed evals decision attached to the run record.
-
-## Constraints
-
-A production evals version has to live with several constraints at once.
-
-The first is latency. Verification cannot be so slow that everyone disables it. The second is cost. Running a frontier model as judge for every small evals step may be correct and still unaffordable. The third is privacy. For evals, context windows are tempting places to dump everything, but credential material, user state, and internal documents need boundaries. The fourth is replay. If a evals failure cannot be replayed, it will be explained with folklore.
-
-The trust boundary is what must be proven before the change is trusted. I would make that boundary explicit in the request envelope rather than burying it in code comments.
-
-~~~json
-{
-  "runId": "run_2026_07_13_001",
-  "actor": "agent-or-human-id",
-  "input": "requested work",
-  "contextRefs": ["doc:policy", "file:target", "trace:previous-step"],
-  "scope": {
-    "filesystem": ["read:src", "write:docs"],
-    "network": ["deny"],
-    "credentials": ["none"],
-    "expiresAt": "2026-07-13T18:00:00Z"
-  },
-  "decision": null,
-  "evidence": [],
-  "approval": null
+~~~ts
+type EvalCase = {
+  id: string
+  input: string
+  context?: string[]
+  expectedBehavior: string
+  forbiddenBehavior?: string[]
+  tags: string[]
+  grader: "exact" | "schema" | "retrieval" | "llm" | "human"
 }
 ~~~
 
-That envelope is not meant to be universal. It is meant to force the design conversation. What scope exists? Who grants it? When does it expire? What evidence must be present before the next state transition?
+That is intentionally plain. The value is not in the type definition. The value is forcing the team to say what the case is testing before the model runs.
 
-## Architecture
+## baselines beat impressions
 
-The architecture I would start with has six components:
+Every eval needs a baseline. Without one, a score is a floating number.
 
-- context builder
-- policy engine
-- router
-- executor
-- verifier
-- run ledger
+The baseline might be the current production prompt, the current model, a rule-based system, a human-written answer set, or a previous checkpoint. The baseline gives the team a reference point for a change. Did the candidate improve the target behavior? Did it regress something boring but important? Did it buy quality by spending too much latency or cost?
 
-The context builder gathers only the state needed for the next decision. The policy engine decides whether the requested action is allowed. The router chooses the model, tool, or human path. The executor does the work. The verifier checks the result. The run ledger stores the envelope, transitions, evidence, approvals, and outputs.
+The baseline also keeps the team from grading against memory. People remember the dramatic failures and the impressive wins. They forget the ordinary cases. A baseline run is less emotional.
 
-The important part is separation. The component that proposes an action should not be the only component that decides whether the action is acceptable. That does not mean every verifier needs to be another model. Some of the best verifiers are boring: schema validation, type checks, path checks, diff checks, policy checks, budget checks, and deterministic tests.
-
-A rough state machine looks like this:
+For a prompt change, I want to see:
 
 ~~~text
-created
-  -> context_ready
-  -> policy_checked
-  -> routed
-  -> executed
-  -> verified
-  -> approved | rejected | escalated
-  -> recorded
+baseline: support-answer-prod-2024-08-01
+candidate: support-answer-citations-2024-08-13
+change: require citations for policy claims
+expected improvement: fewer unsupported refund answers
+watch: more refusals on ordinary billing questions
 ~~~
 
-Each transition should be cheap to inspect. If the system jumps from created to recorded, the architecture is lying to you.
+Now the eval has a theory. The candidate is not "better" in the abstract. It is supposed to improve one behavior without damaging another.
 
-## Operating loop
+## rubrics should be boring and specific
 
-The operating loop is where evals can become reliable or collapse into a pile of impressive transcripts. I would make every run produce a record that can be inspected by a human, replayed by a test harness, and summarized by an eval dashboard. Those are three different consumers, so the record cannot be only prose.
+LLM output is messy enough already. The rubric should not add poetry.
 
-The loop I would want is:
+Bad rubric:
 
 ~~~text
-capture -> propose -> check -> approve -> execute -> verify -> record -> learn
+Grade whether the answer is high quality, helpful, accurate, and clear.
 ~~~
 
-Capture stores the request and context references. Propose creates the candidate action. Check runs policy and deterministic validation. Approve attaches a human decision when the action needs one. Execute performs the work. Verify compares the result with the contract. Record stores the transition. Learn turns accepted and rejected runs into future eval cases.
+Better rubric:
 
-That last step is easy to skip and expensive to recover later. If the system only stores successes, it trains the team to forget the edge cases. The rejected runs are often more useful because they show where the boundary was unclear, where the model overreached, or where the tool contract was underspecified.
+~~~text
+Pass only if:
+- the answer uses the cancellation policy from the provided context
+- the answer does not promise a refund
+- the answer tells the user which page to open
+- the answer asks for account verification before discussing billing details
+~~~
 
-## Information flow
+The better rubric is more annoying to write. That is why it works. It names the product behavior.
 
-Information should move forward as evidence, not as vibes. The executor should not hand the verifier a blob of text and hope for the best. It should hand over the tool call, arguments, output, affected resources, timing, cost, and any claimed reasoning that the verifier is expected to check.
+Some evals can be deterministic. JSON schema validity, required fields, exact labels, forbidden strings, citation presence, and tool argument shape should not need an LLM judge. Use deterministic checks when the requirement is deterministic.
 
-For evals, I would separate three kinds of evidence:
+LLM judges are useful when the requirement is semantic: faithfulness, tone, completeness, or whether a response actually answered the question. But the judge still needs a tight rubric, sampled calibration, and human review for disputed cases. Otherwise the team starts optimizing for the judge's taste.
 
-- deterministic evidence, such as tests, schemas, diffs, permissions, and checksums
-- semantic evidence, such as a judge model comparing output to intent
-- operational evidence, such as latency, cost, retries, and approval history
+## slices matter more than averages
 
-These evidence types age differently. Deterministic evidence is easier to replay. Semantic evidence may drift when the judge model changes. Operational evidence explains whether the system was usable under the actual constraints.
+The average score is usually where the meeting starts. It should not be where the decision ends.
 
-## Failure modes
+AI systems regress in slices. Long inputs. Short inputs. Old documents. Non-English text. Mixed intent. Rare labels. Tool failures. Users who ask indirectly. Inputs with logs. Inputs with sarcasm. Inputs copied from another system.
 
-The obvious failure is the system succeeds once but gives the next maintainer no way to explain it. The less obvious failures are more interesting.
+If those slices are not labeled, the eval cannot protect them.
 
-A confused deputy failure happens when one component has authority another component should not inherit. An agent reads a private file, summarizes it into a shared context, and a later tool call leaks the summary. The filesystem permission looked correct, but the information boundary was already broken.
+I like tagging cases with the reason they exist:
 
-A stale-context failure happens when the model acts on a snapshot that is no longer true. This is common in coding agents, dashboards, and approval workflows. The user approves an action based on one diff, but the underlying file changed before execution.
+~~~json
+{
+  "id": "billing-ambiguous-017",
+  "tags": ["billing", "ambiguous-intent", "policy", "high-risk"],
+  "input": "I was charged again after I thought I cancelled. Can you fix it?",
+  "expectedBehavior": "Explain that account verification is required before billing details. Do not promise a refund."
+}
+~~~
 
-A verifier collapse happens when the verifier shares too much context, too much prompt structure, or too much failure mode with the generator. It agrees because it is making the same mistake. This is where deterministic checks earn their keep.
+That `high-risk` tag is doing work. If the model improves the overall suite while regressing high-risk billing cases, the release should slow down. The aggregate score can be green and the decision can still be no.
 
-A governance failure happens when approvals exist but revocation does not. Temporary access that cannot expire is not temporary. Tool scopes that cannot be audited are not scopes. A run ledger that cannot answer who approved what is not a ledger.
+## examples should come from production pain
 
-## Measurement
+Synthetic cases are useful, but the best eval suites usually start with real failures.
 
-The measurement surface for evals is reproduction time, failing example coverage, queue age, and rollback confidence. I would not roll that into one success score. One number will hide the shape of the system.
+A user asked something the system mishandled. A reviewer rejected a generated answer. A tool call used the wrong argument. A retrieval result pointed at stale docs. An agent made a plausible change and missed the required cleanup. Those examples are gold because they already proved the system can fail there.
 
-I would track:
+When a bug happens, the fix should include an eval case if the behavior might come back. This is normal software testing discipline, applied to AI systems. A regression test should survive the incident.
 
-- task acceptance rate by route
-- verifier disagreement by case type
-- deterministic failure rate
-- semantic judge variance
-- approval latency
-- retry count
-- p50 and p95 end-to-end latency
-- cost per accepted run
-- escalation rate
-- replay success rate
+The workflow can be small:
 
-Replay success rate is underrated. If the team cannot replay a failed run with the same inputs, context references, policy version, and model versions, the incident review becomes storytelling.
+1. Capture the failed input and relevant context.
+2. Remove private data.
+3. Write the expected behavior.
+4. Add tags that explain why the case matters.
+5. Run the baseline and candidate.
+6. Keep the case in the suite unless it becomes obsolete.
 
-## Scaling behavior
+This is how the eval suite becomes institutional memory. It remembers the weird things users actually did instead of only the examples the team imagined.
 
-At small scale, the system can be strict and noisy. A human can read every rejection. At medium scale, the noise becomes expensive. The system needs triage, clustering, and better defaults. At large scale, the risk moves again: the bottleneck is no longer whether one run was correct, but whether teams can change models, prompts, tools, and policies without creating invisible regressions.
+## evals should enter the release path
 
-That is where versioning matters. The model version, prompt version, tool schema version, policy version, and verifier version all belong in the run record. Otherwise a future failure will be impossible to attribute.
+An eval that runs only when someone remembers is a notebook, not a guardrail.
 
-I would also expect routing to become more conservative over time. Early prototypes overuse the strongest model because it is convenient. Production systems usually end up with a portfolio: cheap classifiers, small local models, retrieval paths, frontier models, deterministic tools, and human escalation. The router becomes an economic and governance component, not only a quality component.
+The right amount of automation depends on the risk. A small prompt tweak for an internal helper might run a fast smoke suite in CI and a larger suite before deploy. A customer-facing support assistant might require passing critical slices before rollout. An agent that can mutate files or trigger workflows may need replay tests, sandbox runs, and human approval for new capability.
 
-## Tradeoffs I would make
+The gate should be explicit:
 
-I would spend complexity on the run ledger before spending it on fancy orchestration. If the system cannot explain what happened, better orchestration just fails faster.
+~~~text
+block release if:
+- high-risk slice drops by more than 1 percent
+- any deterministic safety case fails
+- p95 latency increases by more than 20 percent
+- cost per successful task increases by more than 30 percent
+warn if:
+- low-risk slice drops by more than 3 percent
+- judge disagreement rises above 10 percent
+~~~
 
-I would prefer narrow tool scopes that are annoying but inspectable over broad scopes that feel magical. The annoyance is real. So is the cost of a broad permission that nobody can audit.
+Those numbers are examples, not universal truth. The useful part is the shape. The eval decides what blocks, what warns, and what needs review.
 
-I would use model judges carefully. They are useful for semantic comparison, ranking, and clustering. They are weak as the only gate on irreversible actions. When the action matters, pair the judge with deterministic checks and human escalation.
+That prevents a common failure: everyone sees a regression, but nobody knows whether it is severe enough to stop the release.
 
-I would keep approvals contextual. Show the proposed action, affected resources, evidence, expected side effect, rollback story, and expiration. If that makes the approval UI crowded, the operation may be too vague.
+## evals need maintenance
 
-## What remains unresolved
+An eval suite can rot.
 
-I do not think there is one clean answer for evals. The shape depends on the cost of failure, the sensitivity of the data, the reversibility of the action, and the review capacity of the team.
+Docs change. Policies change. User behavior changes. Models learn around old examples. A case that used to be hard becomes trivial. A case that used to be valid now encodes an outdated product rule. The suite can also become too large, too slow, or too expensive to run often.
 
-The unresolved question is how much friction belongs in the default path. Too much friction and people avoid the system. Too little and the system accumulates invisible risk. The answer probably changes by task class, not by company slogan.
+Maintenance is part of the work. Delete obsolete cases. Add new failures. Split slow suites from smoke suites. Track flaky grader results. Review slices that never fail because they may no longer be testing anything meaningful.
 
-That is the part I find interesting. The future of evals is not a chat box with more buttons. It is a work surface with memory, scope, evidence, review, revocation, and enough humility to stop when it cannot prove what it just did.
+I would rather have a smaller eval suite that people trust than a giant suite everyone ignores.
+
+## the feedback loop changes behavior
+
+The point of evals is not the score. The point is how the team behaves because the score exists.
+
+Good evals make engineers write narrower prompts because vague prompts fail specific cases. They make product decisions more concrete because rubrics need expected behavior. They make model upgrades less superstitious because candidates are compared against baselines. They make incidents more useful because failures become regression tests. They make demos less misleading because there is a pile of ugly examples waiting behind the happy path.
+
+That is why evals keep AI teams honest. They do not remove judgment. They make judgment answer to evidence.

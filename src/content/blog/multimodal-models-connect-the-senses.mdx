@@ -8,138 +8,163 @@ author: "jeremy-london"
 tags: ["multimodal", "vision", "language models"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete multimodal problem
-- the example surface: Multimodal models are useful when they fit into a real workflow with clear inputs, checks, and ownership
-- the failure mode: the system succeeds once but gives the next maintainer no way to explain it
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using reproduction time, failing example coverage, queue age, and rollback confidence
-- security or ownership boundary: what must be proven before the change is trusted
-- latency, cost, and scaling implications
-*/}
+Multimodal systems get interesting when they stop being file upload demos.
 
-Multimodal models are useful when they fit into a real workflow with clear inputs, checks, and ownership.
+The demo version is easy to understand: drop in an image, ask a question, get an answer. That is useful, but it is not yet a workflow. A workflow has inputs with different reliability, an output someone will act on, a review point, and some way to recover when the model reads the evidence wrong.
 
-The interesting part of multimodal is not the name. It is the system pressure around Multimodal models are useful when they fit into a real workflow with clear inputs, checks, and ownership. Once that pressure shows up for multimodal, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+The hard part is that multimodal evidence is uneven. A screenshot, camera photo, PDF page, chart, transcript, OCR layer, form field, and user note do not deserve the same trust. Some are raw observations. Some are lossy extractions. Some are metadata. Some are claims. Some are guesses made by another model upstream.
 
-## The unit of work
+If the system flattens all of that into "context," it will eventually lie with confidence.
 
-I would start by naming the unit of work for multimodal. In engineering quality, the multimodal unit is usually smaller than the product surface and larger than a function call. For multimodal, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+## keep the evidence types separate
 
-A useful multimodal unit has four properties:
+A multimodal workflow should preserve where each piece of information came from.
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+Consider a bug report with a screenshot, a browser console log, a user description, and an uploaded screen recording. The model can inspect all of it, but those inputs have different failure modes. The user description may be incomplete. The screenshot may be cropped. The console log may be stale. The video may show the actual sequence but require temporal reasoning.
 
-For multimodal, the boundary is what must be proven before the change is trusted. That boundary should be visible in the multimodal data, not only in a policy document. If a multimodal request crosses the boundary, the trace should show it.
+I would rather represent those as distinct evidence objects than smash them into one prompt.
 
-## Data flow
-
-The simple multimodal flow looks like this:
-
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
+~~~ts
+type Evidence =
+  | {
+      kind: "screenshot"
+      assetId: string
+      capturedAt?: string
+      visibleText?: string
+      source: "user_upload" | "system_capture"
+    }
+  | {
+      kind: "console_log"
+      assetId: string
+      timeRange?: [string, string]
+      source: "browser" | "server"
+    }
+  | {
+      kind: "transcript"
+      assetId: string
+      derivedFrom: string
+      confidence?: number
+    }
+  | {
+      kind: "user_claim"
+      text: string
+      source: "form_field"
+    }
 ~~~
 
-The context builder gathers the minimum useful state for multimodal. The multimodal decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+That shape gives the model and the product a cleaner contract. The answer can say which evidence it used. The review screen can show the screenshot next to the extracted text. A verifier can notice when the transcript claims something the image does not show.
 
-That receipt is the difference between a multimodal demo and an operable system. A demo can rely on a person watching closely. A multimodal system needs to explain itself after the person has moved on.
+The goal is not bureaucracy. The goal is to stop treating derived text as if it were the original artifact.
 
-A multimodal request envelope might look like this:
+## extraction is a boundary
+
+Multimodal workflows often begin with extraction: OCR, chart parsing, speech-to-text, layout detection, frame sampling, table extraction, object detection, captioning, or document chunking.
+
+Each extraction step creates a new artifact with its own error profile.
+
+OCR can miss small text, merge columns, confuse `0` and `O`, drop icons, or invent spacing. Speech-to-text can mishear product names and acronyms. Chart extraction can understand the title and miss the axis scale. Frame sampling can skip the only moment where the UI changed. PDF parsing can preserve text while losing the visual relationship between label and value.
+
+That does not mean extraction is bad. It means extraction output should be labeled as extraction output.
+
+A useful multimodal workflow keeps both:
+
+- the original asset
+- the extracted representation
+
+When the model makes a claim, the product should be able to trace whether the claim came from the raw image, the OCR layer, the transcript, the user's form text, or a fusion of several signals. That trace is how review works.
+
+## contradiction handling is a real feature
+
+The most interesting multimodal cases are not the ones where all inputs agree.
+
+A user says the button is disabled, but the screenshot shows the button enabled. The OCR says the total is `$1,000`, but the image looks like `$7,000`. A transcript says the customer approved the change, but the audio tone and following sentence suggest confusion. A chart caption says conversion improved, but the plotted series declines after the release.
+
+The model should not resolve every contradiction by sounding confident.
+
+For many workflows, the right output is:
 
 ~~~json
 {
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
+  "status": "needs_review",
+  "reason": "user claim conflicts with screenshot",
+  "evidence": [
+    {
+      "kind": "user_claim",
+      "claim": "the submit button is disabled"
+    },
+    {
+      "kind": "screenshot",
+      "observation": "submit button appears enabled"
+    }
+  ]
 }
 ~~~
 
-The schema is deliberately plain. Fancy schemas do not save unclear multimodal systems. The useful multimodal work is deciding which fields are required, which are advisory, and which block the run when missing.
+That is less exciting than a fluent answer. It is also more useful.
 
-## Implementation sketch
+Contradiction handling should be designed into the workflow. If the product only has a text answer box, the model will be pressured into resolving uncertainty as prose. If the product has a review state, the model can surface uncertainty as work.
 
-I would implement the first multimodal pass as a narrow pipeline rather than a general platform. Start multimodal with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+## grounding belongs in the interface
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+Grounded output is a model behavior and an interface behavior.
 
-For multimodal, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The multimodal system still has to decide whether the proposal is usable under the current boundary.
+If a multimodal system says "the invoice total is wrong," the user should be able to see the invoice region, the extracted numbers, the comparison value, and the reason for the mismatch. If it says "this video shows the failure," the user should land on the relevant timestamp. If it says "the chart supports the claim," the user should see the chart and the series that mattered.
 
-## Failure modes
+This is where a lot of multimodal products feel unfinished. They can answer, but they cannot show their work in the medium where the work happened.
 
-The main multimodal failure mode is the system succeeds once but gives the next maintainer no way to explain it. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The multimodal failure is that the next component cannot tell whether the result should be trusted.
+Text citations are not enough for visual evidence. A screenshot needs a bounding box or crop. A PDF needs a page and region. A video needs a timestamp range. An audio result needs a waveform or transcript window. A table needs the row and column. The user should not have to search the source again to verify the model's claim.
 
-I would test at least five multimodal cases:
+Grounding also gives reviewers better correction tools. "Wrong" is less useful than "you read the table header as the value" or "the relevant action happened five seconds later."
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+## ownership changes by workflow
 
-That last multimodal case matters. A confident multimodal answer is not the same thing as a verified result. If multimodal touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+Multimodal systems cross team boundaries quickly.
 
-## Deployment shape
+The model team may own the encoder or VLM call. The product team owns the workflow. The design team owns review and correction affordances. Security owns permissions. Data engineering owns asset storage and retention. Support or operations owns the human review queue.
 
-I would not deploy multimodal as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For multimodal, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+If nobody owns the whole path, failures get weird.
 
-That gives the router real work to do. For multimodal, it should not only choose small model or big model. It should choose a risk path:
+The model may be working correctly while the product stores screenshots without enough metadata. The OCR may be fine while the UI hides the original image from reviewers. The retrieval layer may find the right PDF page while permissions allow a preview the user should not see. The workflow may ask for a human review while no team is staffed to review the queue.
 
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
+That is why I think of multimodal systems as operational workflows before I think of them as model features.
 
-Each multimodal path has a different budget, verifier, and approval requirement. This is the part that makes multimodal feel less magical and more like infrastructure. The model is still important, but the multimodal route determines what kind of trust the system is asking for.
+## evals should test the workflow and the model
 
-## Measurement
+A model benchmark can tell you whether the system is good at visual question answering, OCR, chart reasoning, or video understanding. The product still needs workflow evals.
 
-The measurement surface for multimodal is reproduction time, failing example coverage, queue age, and rollback confidence. I would track multimodal per route or case type, not only as a global average. Global averages hide the exact class of multimodal problems that make these systems feel unpredictable.
+For a grounded multimodal workflow, I would test:
 
-A simple eval table can carry a lot of weight:
+- whether the correct evidence object was used
+- whether the answer points to the right region, timestamp, page, or table cell
+- whether OCR errors are caught or propagated
+- whether contradictory inputs trigger review
+- whether the model distinguishes user claims from observed facts
+- whether permission filters prevent restricted previews
+- whether reviewers can correct the output without starting over
+
+The unit of evaluation is the completed workflow state, not a text answer alone.
+
+For example, a bug-triage eval should grade whether the system attached the relevant screenshot region, named the likely UI state, preserved the console error, and routed ambiguous cases to review. A chart-review eval should grade whether the system cited the right axis and series. An invoice workflow should grade whether the model found the line item and left enough evidence for finance to trust the result.
+
+That kind of eval is less portable than a public benchmark. It is also the eval that tells you whether the product works.
+
+## useful multimodal systems feel less magical
+
+The better a multimodal workflow gets, the less it feels like a model guessing across file types.
+
+It feels like a system that knows what it looked at, knows what it extracted, knows what it inferred, and knows when the evidence is too thin. The model still does the interesting perceptual work, but the product keeps the evidence disciplined.
+
+The shape I trust is:
 
 ~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
+source asset
+  -> extraction artifact
+  -> model observation
+  -> cited evidence
+  -> workflow decision
+  -> review or action
 ~~~
 
-The point is not to build an eval cathedral for multimodal. The point is to preserve enough multimodal structure that regressions can be clustered. If failures cluster around one route, fix the route. If multimodal failures cluster around one policy boundary, fix the boundary. If multimodal failures cluster around one model, stop pretending the prompt is the whole system.
+The arrows matter. They keep the system from confusing the original screenshot with OCR, the transcript with the audio, the caption with the chart, or the user's claim with observed state.
 
-## Operational concerns
-
-The operational question for multimodal is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap multimodal route becomes unreliable but the expensive route would blow the budget?
-
-For multimodal, I would put those answers in configuration, not in a heroic prompt. A small multimodal policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
-
-## Scaling behavior
-
-At small scale, a human can inspect weird multimodal cases by hand. At medium scale, the multimodal system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
-
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the multimodal system without being surprised by the downstream behavior?
-
-For multimodal, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the multimodal system a spine.
-
-## Where I land
-
-Multimodal deserves depth when it changes architecture, not when it merely sounds current. The multimodal implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
-
-If the multimodal post answers those questions, it teaches something. If the multimodal post only says the topic matters, it is just a longer version of the headline.
+Multimodal models make more of the world available to software. Grounded workflows decide whether that extra input becomes useful work or just a more convincing way to be wrong.

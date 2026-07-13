@@ -8,138 +8,171 @@ author: "jeremy-london"
 tags: ["queues", "workers", "ai workflows"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete queues problem
-- the example surface: work that can wait without losing its place
-- the failure mode: the system succeeds once but gives the next maintainer no way to explain it
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using reproduction time, failing example coverage, queue age, and rollback confidence
-- security or ownership boundary: what must be proven before the change is trusted
-- latency, cost, and scaling implications
-*/}
+Queues make AI workflows calmer because they stop pretending every request should finish inside the user's patience window.
 
-Background queues help AI platforms handle slow jobs, retries, bursts, and long-running agent workflows.
+The moment a task needs retrieval, model calls, tool execution, retries, file processing, verifier passes, or human review, a synchronous request starts lying about the shape of the work.
 
-The interesting part of queues is not the name. It is the system pressure around work that can wait without losing its place. Once that pressure shows up for queues, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+Some work should be immediate. A small classification, a short rewrite, an autocomplete suggestion, a route decision. Keep those inline when they are cheap and predictable.
 
-## The unit of work
+But long-running AI work usually has a different shape. It starts, waits, fails, retries, gathers evidence, asks another system, maybe needs a human, and eventually becomes an artifact. A queue gives that work somewhere honest to live.
 
-I would start by naming the unit of work for queues. In engineering quality, the queues unit is usually smaller than the product surface and larger than a function call. For queues, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+## job identity comes first
 
-A useful queues unit has four properties:
-
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
-
-For queues, the boundary is what must be proven before the change is trusted. That boundary should be visible in the queues data, not only in a policy document. If a queues request crosses the boundary, the trace should show it.
-
-## Data flow
-
-The simple queues flow looks like this:
-
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
-~~~
-
-The context builder gathers the minimum useful state for queues. The queues decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
-
-That receipt is the difference between a queues demo and an operable system. A demo can rely on a person watching closely. A queues system needs to explain itself after the person has moved on.
-
-A queues request envelope might look like this:
+A queued AI job needs an identity that survives retries. The job should carry an idempotency key, input references, model or route choice, attempt count, and a place to store evidence.
 
 ~~~json
 {
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
+  "jobId": "summarize-ticket-1842",
+  "idempotencyKey": "ticket-1842:v3",
+  "attempt": 2,
+  "visibleAfter": "2026-07-13T12:10:00Z",
+  "deadLetterAfter": 5
 }
 ~~~
 
-The schema is deliberately plain. Fancy schemas do not save unclear queues systems. The useful queues work is deciding which fields are required, which are advisory, and which block the run when missing.
+Without identity, retries become duplicate work and incident review becomes archaeology.
 
-## Implementation sketch
+The idempotency key matters because AI jobs often sit behind flaky systems. The model call may succeed while the worker crashes before recording the result. A tool may complete while the network drops. The user may hit the button again. The queue may redeliver after a visibility timeout.
 
-I would implement the first queues pass as a narrow pipeline rather than a general platform. Start queues with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+The system needs to know whether it is continuing the same work or creating new work.
+
+For AI workflows, I also like input references instead of giant payloads inside the queue message. Put the large document, image, prompt bundle, or repository snapshot somewhere durable. The job points to it. That keeps the queue message small and makes retries read the same input version.
+
+## leases make workers honest
+
+A worker should claim a job with a lease or visibility timeout. If the worker is still making progress, it renews the lease. If it finishes, it records completion. If it fails, it releases the job with a retry decision.
+
+This is basic queue behavior, but AI workloads make the details more visible.
+
+A summarization job may take seconds. A document extraction job may take minutes. A coding agent job may run tests several times. A video analysis job may fan out into segments. A human review job may sit for hours.
+
+Those jobs should not all pretend to be the same kind of request.
+
+The lease duration should match the work. The worker heartbeat should say that work is still alive. A timed-out lease should be treated as ambiguous: maybe the worker died, or maybe it is still running without the lease. That ambiguity is why idempotency matters.
+
+## retries need reasons
+
+"Retry on failure" is too crude.
+
+Some failures are transient:
+
+- model provider timeout
+- rate limit
+- temporary network failure
+- database connection issue
+- worker restart
+- tool service unavailable
+
+Some failures are permanent until the input or code changes:
+
+- invalid file type
+- missing permission
+- malformed schema
+- prompt too large for the selected route
+- source document deleted
+- verifier rejected the result for a deterministic reason
+
+Those should not share the same retry loop.
+
+I would store a failure class with each attempt:
 
 ~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
+type JobFailure =
+  | { kind: "transient"; retryAfterMs: number; reason: string }
+  | { kind: "input"; reason: string }
+  | { kind: "permission"; reason: string }
+  | { kind: "policy"; reason: string }
+  | { kind: "verifier"; reason: string }
+  | { kind: "bug"; reason: string }
 ~~~
 
-For queues, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The queues system still has to decide whether the proposal is usable under the current boundary.
+Retries should be budgeted. Infinite retry loops are denial-of-wallet bugs when model calls cost money.
 
-## Failure modes
+## dead letters are review queues
 
-The main queues failure mode is the system succeeds once but gives the next maintainer no way to explain it. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The queues failure is that the next component cannot tell whether the result should be trusted.
+Dead-letter queues are not failure closets.
 
-I would test at least five queues cases:
+A dead-lettered AI job is evidence that the workflow does not know what to do with a case. That might be fine. Some cases should land in a review queue. But the product and operations team should inspect them.
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+Useful dead-letter categories:
 
-That last queues case matters. A confident queues answer is not the same thing as a verified result. If queues touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+- bad input the UI should have prevented
+- stale source reference
+- model route cannot handle the context
+- repeated provider failure
+- verifier rejection
+- policy block
+- human review timeout
+- worker bug
 
-## Deployment shape
+Each category points to a different fix. Better validation. Different route. Cleaner UI. More reviewer capacity. Lower concurrency. A new eval case. A code fix.
 
-I would not deploy queues as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For queues, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+If dead letters are only counted and never read, the system loses one of the best feedback loops it has.
 
-That gives the router real work to do. For queues, it should not only choose small model or big model. It should choose a risk path:
+## backpressure is a feature
 
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
+A queue gives the system a place to say "not yet." That is healthier than letting every agent workflow compete for model capacity, database connections, and reviewer attention at once.
 
-Each queues path has a different budget, verifier, and approval requirement. This is the part that makes queues feel less magical and more like infrastructure. The model is still important, but the queues route determines what kind of trust the system is asking for.
+Backpressure is not failure. It is the system refusing to lie about capacity.
 
-## Measurement
+AI platforms have several constrained resources:
 
-The measurement surface for queues is reproduction time, failing example coverage, queue age, and rollback confidence. I would track queues per route or case type, not only as a global average. Global averages hide the exact class of queues problems that make these systems feel unpredictable.
+- model rate limits
+- token budgets
+- GPU capacity
+- database connections
+- vector index throughput
+- browser automation slots
+- filesystem sandboxes
+- human reviewers
+- cost budgets
 
-A simple eval table can carry a lot of weight:
+A queue can shape work around those constraints. It can prioritize interactive jobs over batch jobs. It can pause low-priority analysis when provider limits are tight. It can route jobs to different worker pools. It can keep a human review queue from silently growing past what the team can handle.
 
-~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
-~~~
+The user experience should reflect that. "Queued" is a real state. "Waiting for review" is a real state. "Retrying after provider timeout" is a real state. The product feels calmer when waiting is named.
 
-The point is not to build an eval cathedral for queues. The point is to preserve enough queues structure that regressions can be clustered. If failures cluster around one route, fix the route. If queues failures cluster around one policy boundary, fix the boundary. If queues failures cluster around one model, stop pretending the prompt is the whole system.
+## workers should be specialized
 
-## Operational concerns
+One giant worker that can do everything is easy to start and painful to operate.
 
-The operational question for queues is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap queues route becomes unreliable but the expensive route would blow the budget?
+AI workflows often benefit from specialized workers:
 
-For queues, I would put those answers in configuration, not in a heroic prompt. A small queues policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+- document ingestion workers
+- embedding workers
+- model-call workers
+- tool-execution workers
+- verifier workers
+- browser automation workers
+- human-review dispatchers
+- notification workers
 
-## Scaling behavior
+Specialization lets each pool have its own concurrency, timeout, retry, and resource limits. Browser automation jobs should not starve short model calls. Long PDF parsing should not block lightweight routing. Human review dispatch should not depend on the same workers that handle token-heavy generation.
 
-At small scale, a human can inspect weird queues cases by hand. At medium scale, the queues system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+The queue topology does not need to be elaborate on day one. It does need to leave room for different work to have different operating rules.
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the queues system without being surprised by the downstream behavior?
+## metrics make the calm real
 
-For queues, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the queues system a spine.
+The metrics I would watch:
 
-## Where I land
+- queue age by priority
+- attempts per successful job
+- dead-letter rate by failure class
+- worker saturation
+- lease expirations
+- retry delay distribution
+- cost per accepted job
+- model time versus non-model time
+- human review wait time
+- cancellation rate
 
-Queues deserves depth when it changes architecture, not when it merely sounds current. The queues implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+The slice matters. A global queue depth is less useful than knowing that low-priority batch work is backed up while interactive jobs are fine, or that verifier failures are spiking after a prompt change.
 
-If the queues post answers those questions, it teaches something. If the queues post only says the topic matters, it is just a longer version of the headline.
+For AI workflows, cost per accepted job is especially useful. A queue can hide retries that make a workflow expensive. The system may "succeed" after five model calls, but that success has a cost and latency shape the product should know.
+
+## calm is an architecture property
+
+Queues do not make AI systems simple. They make the complexity explicit.
+
+The work has an identity. The worker has a lease. The retry has a reason. The failure has a category. The waiting has a state. The review queue has ownership. The metrics show whether the system is keeping up.
+
+That is why queues make AI workflows calmer. They give slow, expensive, failure-prone work a shape that software already knows how to operate.

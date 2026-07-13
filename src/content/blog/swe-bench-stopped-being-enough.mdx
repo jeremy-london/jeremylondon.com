@@ -8,138 +8,139 @@ author: "jeremy-london"
 tags: ["benchmarks", "coding agents", "evals"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete benchmarks problem
-- the example surface: a team arguing about whether the model improved or merely changed
-- the failure mode: the tool saves a minute while hiding the mistake that costs an afternoon
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using time to diagnose, idempotent reruns, exit-code accuracy, and log usefulness
-- security or ownership boundary: what the tool may change without asking
-- latency, cost, and scaling implications
-*/}
+SWE-bench was useful because it made coding models answer to code.
 
-When a benchmark stops separating frontier coding systems, teams need local evals more, not less.
+That was a big improvement over vibes. A model could talk a good game in chat and still fail to patch a real issue. SWE-bench forced the question into a repository with tests and a target behavior. That mattered.
 
-The interesting part of benchmarks is not the name. It is the system pressure around a team arguing about whether the model improved or merely changed. Once that pressure shows up for benchmarks, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+But every useful benchmark eventually becomes less useful as a separator.
 
-## The unit of work
+When frontier coding systems cluster near the top, the public benchmark stops answering the question teams actually have: which system works for our code, our tests, our review style, and our risk tolerance?
 
-I would start by naming the unit of work for benchmarks. In developer tools, the benchmarks unit is usually smaller than the product surface and larger than a function call. For benchmarks, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+That is when local evals matter more, not less.
 
-A useful benchmarks unit has four properties:
+## benchmark saturation is a success state
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+A benchmark getting saturated is not a failure of the benchmark.
 
-For benchmarks, the boundary is what the tool may change without asking. That boundary should be visible in the benchmarks data, not only in a policy document. If a benchmarks request crosses the boundary, the trace should show it.
+It means the benchmark shaped the field. Models got better at the thing it measured. Tooling adapted. Agents learned to patch more realistic issues. The leaderboard became crowded because the task became part of the training and evaluation culture.
 
-## Data flow
+That is useful progress.
 
-The simple benchmarks flow looks like this:
+The mistake is treating the benchmark as a permanent oracle.
 
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
-~~~
+Once several systems score well, small differences may not predict local usefulness. A model that wins a public benchmark by a few points may still be worse in your repo because it edits too broadly, misses generated code, mishandles flaky tests, or ignores project conventions.
 
-The context builder gathers the minimum useful state for benchmarks. The benchmarks decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+The benchmark told you the category got serious. It did not finish your evaluation work.
 
-That receipt is the difference between a benchmarks demo and an operable system. A demo can rely on a person watching closely. A benchmarks system needs to explain itself after the person has moved on.
+## local repos have local weirdness
 
-A benchmarks request envelope might look like this:
+Every serious codebase has local texture.
 
-~~~json
-{
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
-}
-~~~
+There are naming conventions, test patterns, migration habits, generated files, feature flags, service boundaries, lint rules, deployment assumptions, and areas of code nobody touches without asking the right person.
 
-The schema is deliberately plain. Fancy schemas do not save unclear benchmarks systems. The useful benchmarks work is deciding which fields are required, which are advisory, and which block the run when missing.
+A coding agent needs to navigate that texture.
 
-## Implementation sketch
+Public benchmarks rarely know:
 
-I would implement the first benchmarks pass as a narrow pipeline rather than a general platform. Start benchmarks with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+- which tests are flaky
+- which generated files should not be edited
+- which directories are owned by another team
+- which migrations need rollback
+- which lint failures are preexisting
+- which helper APIs should be used
+- which style choices reviewers care about
+- which commands are too expensive to run casually
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+Those details decide whether an agent feels helpful or reckless.
 
-For benchmarks, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The benchmarks system still has to decide whether the proposal is usable under the current boundary.
+## local evals should use real tasks
 
-## Failure modes
+The best local coding evals come from real work.
 
-The main benchmarks failure mode is the tool saves a minute while hiding the mistake that costs an afternoon. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The benchmarks failure is that the next component cannot tell whether the result should be trusted.
+Closed bugs. Small refactors. Dependency updates. Test failures. UI fixes. Documentation edits. Migration reviews. Security patches. The eval should contain tasks your team actually wants agents to handle.
 
-I would test at least five benchmarks cases:
+For each task, capture:
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+- starting commit
+- task prompt
+- allowed tools
+- expected files or behavior
+- required checks
+- known pitfalls
+- reviewer rubric
+- accepted solution or acceptance criteria
 
-That last benchmarks case matters. A confident benchmarks answer is not the same thing as a verified result. If benchmarks touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+The goal is not to recreate SWE-bench badly. The goal is to measure local usefulness.
 
-## Deployment shape
+## passing tests is necessary and insufficient
 
-I would not deploy benchmarks as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For benchmarks, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+Tests matter. If the agent cannot get the test green, that is a clear signal.
 
-That gives the router real work to do. For benchmarks, it should not only choose small model or big model. It should choose a risk path:
+But "tests pass" is not the whole review.
 
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
+A coding agent can pass tests and still:
 
-Each benchmarks path has a different budget, verifier, and approval requirement. This is the part that makes benchmarks feel less magical and more like infrastructure. The model is still important, but the benchmarks route determines what kind of trust the system is asking for.
+- touch too many files
+- introduce unnecessary abstraction
+- ignore existing helpers
+- make the code harder to read
+- hide a behavior change inside a cleanup
+- skip a relevant manual check
+- create a patch nobody wants to maintain
 
-## Measurement
+Local evals should grade the patch as a reviewer would.
 
-The measurement surface for benchmarks is time to diagnose, idempotent reruns, exit-code accuracy, and log usefulness. I would track benchmarks per route or case type, not only as a global average. Global averages hide the exact class of benchmarks problems that make these systems feel unpredictable.
+I would score:
 
-A simple eval table can carry a lot of weight:
+- correctness
+- patch size
+- convention fit
+- test relevance
+- explanation quality
+- command choice
+- failure recovery
+- reviewer cleanup required
 
-~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
-~~~
+That last metric is underrated. If the agent saves twenty minutes of typing and creates thirty minutes of cleanup, the benchmark pass is not the product result.
 
-The point is not to build an eval cathedral for benchmarks. The point is to preserve enough benchmarks structure that regressions can be clustered. If failures cluster around one route, fix the route. If benchmarks failures cluster around one policy boundary, fix the boundary. If benchmarks failures cluster around one model, stop pretending the prompt is the whole system.
+## traces are part of the eval
 
-## Operational concerns
+For coding agents, evaluate the run as well as the final diff.
 
-The operational question for benchmarks is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap benchmarks route becomes unreliable but the expensive route would blow the budget?
+Did the agent read the right files? Did it inspect failing tests? Did it run a targeted check before a broad one? Did it notice a command failure? Did it keep trying the same broken path? Did it ask for missing context? Did it stop when the task was done?
 
-For benchmarks, I would put those answers in configuration, not in a heroic prompt. A small benchmarks policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+The trace shows whether the system is operable.
 
-## Scaling behavior
+A final patch can hide a messy process. Sometimes that is fine. Sometimes the messy process matters because it burned tokens, ran risky commands, or made changes that were later reverted.
 
-At small scale, a human can inspect weird benchmarks cases by hand. At medium scale, the benchmarks system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+Local evals should keep command logs, file touches, test output, and final diff together.
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the benchmarks system without being surprised by the downstream behavior?
+## local evals also drift
 
-For benchmarks, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the benchmarks system a spine.
+Local evals need maintenance too.
 
-## Where I land
+A task that was useful six months ago may become stale after the codebase changes. A test may be deleted. A dependency may move. A convention may change. The accepted solution may no longer be the best solution.
 
-Benchmarks deserves depth when it changes architecture, not when it merely sounds current. The benchmarks implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+That is fine. Treat the eval set like a product artifact.
 
-If the benchmarks post answers those questions, it teaches something. If the benchmarks post only says the topic matters, it is just a longer version of the headline.
+Review failures. Retire stale tasks. Add new tasks from real misses. Keep a small stable core for trend lines, and let another slice rotate with current work. The eval should stay close enough to the repo that it remains annoying in the same way the repo is annoying.
+
+## public benchmarks still matter
+
+I do not want to throw away SWE-bench or similar benchmarks.
+
+They are useful for broad signal. They show field movement. They pressure vendors. They make claims less squishy. They help teams decide which systems deserve local testing.
+
+But once a benchmark stops separating the systems you are considering, it becomes an entry filter rather than a decision rule.
+
+The decision should come from your tasks.
+
+## the local eval is the product eval
+
+For coding agents, the product is not "can produce code." The product is "can move this repo safely."
+
+That means local evals should include the boring parts: setup, commands, flaky tests, repo conventions, reviewer expectations, and failure recovery.
+
+SWE-bench made coding models more serious. The next step is making evaluation closer to the work.
+
+When the public benchmark stops being enough, that is not a reason to trust vibes again. It is a reason to build the eval harness your repo deserved anyway.

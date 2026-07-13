@@ -8,55 +8,139 @@ author: "jeremy-london"
 tags: ["anthropic", "openai", "gpt-5.6", "claude-sonnet-5", "fable-5"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete anthropic problem
-- the example surface: a request with more than one plausible path through the system
-- the failure mode: the release sounds important without changing any concrete decision
-- the responsibilities around the model decision note
-- the tradeoff between convenience and what changed in the model versus what changed in the product surface
-- the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work
-*/}
+The model names are getting less useful.
 
-The 2026 frontier launches made raw capability harder to separate from safeguards, effort levels, pricing, and model routing.
+That is a strange thing to say during a week of model launches, but it feels true. [Claude Fable 5](https://www.anthropic.com/news/claude-fable-5-mythos-5), [Claude Sonnet 5](https://www.anthropic.com/news/claude-sonnet-5), and [GPT-5.6](https://openai.com/index/gpt-5-6/) all matter. They are also hard to talk about with the old "which one is smartest?" framing.
 
-The practical version starts with a request with more than one plausible path through the system. That gives anthropic a shape you can reason about. It also keeps the anthropic post out of slogan territory, which is where a lot of technical writing goes to die politely.
+The interesting question is what they do to the routing table.
 
-## What has to be true
+Frontier models now arrive with product posture attached: safety cards, effort levels, price tiers, different availability paths, tool behavior, caching rules, and deployment guidance. OpenAI describes GPT-5.6 as a family with Sol, Terra, and Luna. Anthropic separates Fable, Mythos, Sonnet, Opus, and effort controls across different availability and risk surfaces. That is not trivia for procurement. It changes how a system should choose models.
 
-For anthropic to be useful, the AI systems builder needs a clear model decision note. That artifact does not have to be fancy. For anthropic, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for anthropic is that it explains what happened without asking the next person to reconstruct intent from vibes.
+If the model picker still looks like a dropdown of names, it is hiding too much.
 
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In model watch, the annoying anthropic bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for anthropic, but the caller cannot tell whether it is safe. A script exits zero for anthropic, but the output hides the one fact the maintainer needed.
+## capability is no longer a single axis
 
-## Implementation shape
+For a while, teams could pretend model selection was a simple ladder. Use the strongest model for hard things, the cheaper model for easy things, and maybe a tiny model for classification. That was always incomplete, but it was good enough for many prototypes.
 
-I would make the first anthropic version deliberately plain. The anthropic system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make anthropic enterprise software. It makes the work inspectable.
+The 2026 model shape makes that shortcut feel stale.
 
-A useful anthropic implementation question is where the record is created. If the anthropic record is created only after success, it will miss the interesting failures. I would create the anthropic record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+A model can be stronger at long-horizon coding and less appropriate for a user-facing policy answer. A cheaper model can be good enough for routing but terrible as a final writer. A safety-tuned model can refuse correctly in public and get in the way of a narrow internal workflow where the surrounding system already controls the task. A high-effort setting can solve more cases and quietly destroy the unit economics.
 
-## Tradeoffs
+So the route has to name the job more precisely.
 
-The anthropic tradeoff is convenience versus what changed in the model versus what changed in the product surface. If the anthropic system is too strict, people route around it. If the anthropic system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For anthropic, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+I would start with buckets like these:
 
-That contract can be boring. A useful anthropic shape is:
+- fast classification and extraction
+- routine writing with source constraints
+- agent planning with tool access
+- sensitive policy or safety-adjacent work
+- deep technical reasoning
+- background summarization where latency matters less
 
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
+Those are not model names. They are work shapes. The model choice should follow the work shape.
+
+## safety behavior changes product behavior
+
+Safety is not a footer on the model card. It changes the product.
+
+If a model refuses more often, the team needs to know whether those refusals are correct. If it allows more requests through, the team needs to know whether the gain came from better judgment or a looser threshold. If a model asks clarifying questions more aggressively, that might improve safety metrics and annoy users who gave enough context the first time.
+
+This gets especially messy in agent systems. A refusal in a chat window is visible. A refusal in the middle of an agent run might look like a stalled workflow, a skipped tool call, or a generic "I could not complete that" summary. The user may never see the safety decision that shaped the outcome.
+
+The eval should separate safety outcomes:
+
+- correct refusal
+- incorrect refusal
+- correct continuation
+- unsafe continuation
+- clarification that helped
+- clarification that added friction
+- tool call blocked by policy
+- tool call allowed with insufficient context
+
+That split matters because "safer" is not a single product state. A model can reduce one kind of risk while increasing another kind of failure. If the dashboard flattens that into one safety score, the router will learn the wrong lesson.
+
+## effort levels need accounting
+
+Effort controls are one of the more useful product ideas in this generation of models. They admit something teams already knew: some requests deserve more thinking budget than others.
+
+The trap is letting effort become a panic button.
+
+If every ambiguous task escalates to the largest or highest-effort route, the system may look brilliant in evals and painful in production. If the router is too stingy, the product becomes brittle in the cases where users most need help. The model choice and effort level need their own evidence trail.
+
+I would log route decisions in a shape like this:
+
+~~~json
+{
+  "workflow": "security_alert_triage",
+  "input_slice": ["ambiguous_entity", "policy_language", "customer_visible"],
+  "initial_model": "fast_route",
+  "initial_effort": "low",
+  "final_model": "frontier_route",
+  "final_effort": "high",
+  "escalation_reason": "conflicting_entities_and_external_action",
+  "outcome": "accepted_with_human_review"
 }
 ~~~
 
-The exact fields change by system. The anthropic pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+That record is not bureaucracy. It is how the team finds out whether escalation is doing useful work. Maybe the high-effort path improves ambiguous security alerts. Maybe it only papers over bad entity extraction. Maybe the expensive route is being used because the cheap route lacks one piece of retrieval context.
 
-## What I would measure
+Without those records, the router becomes a superstition machine.
 
-The anthropic metric is route changes, eval deltas, latency movement, cost movement, and migration work. That is more useful than asking whether anthropic "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+## pricing belongs in the architecture
 
-For anthropic, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those anthropic numbers usually tell the truth before the happy-path dashboard does.
+Pricing is architecture when the model sits inside a repeated workflow.
 
-If the anthropic system cannot answer those questions, I would keep the design smaller. Small anthropic systems with honest receipts are easier to improve than large systems that only report success.
+One chat answer is easy to price. A workflow with planning, retrieval, tool calls, retries, verifier passes, and a final summary is different. The model cost appears several times inside the same user action. A small increase in output tokens can become a real product constraint when multiplied across long-running tasks.
+
+GPT-5.6 being a family matters here. Sonnet 5 being positioned for broad daily work matters too. These releases push model selection away from a single best answer and toward a portfolio: strong enough for the task, cheap enough for the frequency, safe enough for the surface, fast enough for the interface.
+
+I would measure cost per completed workflow, not cost per request. A cheap model that fails and retries may cost more than a stronger route that finishes once. A strong model that writes long intermediate reasoning into every step may be too expensive even when the final answer is good. A fast model that needs verifier repair on every third case may be hiding cost in the rest of the system.
+
+The cost metric has to include the loop.
+
+## routing should know when to stop
+
+More model choice creates a new failure mode: endless escalation.
+
+The first model struggles, so the system tries a stronger model. The stronger model produces a plausible answer but fails a verifier. The router retries with more context. Then it tries a higher effort level. Then it asks for human approval with a vague summary. The final output might be acceptable, but the system has quietly turned one request into a maze.
+
+A good router needs stop conditions:
+
+- max retries per workflow
+- max cost per task class
+- max latency before user-visible handoff
+- required human review after certain policy failures
+- refusal when the requested action is outside scope
+- downgrade when the task is simple enough
+
+Stopping is part of safety. It is also part of product quality. Users can tolerate "I cannot do that" more easily than an agent wandering through tools and producing something unreviewable.
+
+The newer model families make this more important because the system has more knobs. More knobs are useful only when the product knows which ones it is willing to turn.
+
+## what i would test before changing defaults
+
+I would not change a production default because a launch post looked good or a handful of prompts felt better. I would run the candidate through cases that stress the wrapper around the model:
+
+- malformed tool results
+- stale retrieved context
+- policy-adjacent requests
+- long workflows with one bad early assumption
+- tasks where the right answer is to refuse
+- tasks where the right answer is to ask one narrow question
+- tasks where the cheap route should be enough
+- tasks where high effort must earn its cost
+
+The comparison should include the current system, not only the current model. Sometimes the older model with a better prompt, narrower tool schema, and stronger verifier beats the new model dropped into a loose wrapper. That is boring, which makes it easy to ignore.
+
+I would also inspect flips manually. Cases that move from fail to pass are useful. Cases that move from pass to fail are urgent. Cases that still pass but take twice as long or cost three times as much are product decisions, not benchmark trivia.
+
+## the maintenance event
+
+This is where I land on the 2026 frontier launches: they are maintenance events for model-routing systems.
+
+The launches matter because the models are better. They matter more because they force the system around the models to grow up. Safety behavior needs evals. Effort levels need accounting. Pricing needs workflow-level measurement. Tool use needs route-specific tests. Rollouts need baselines and rollback plans.
+
+The model name still matters. It just does not carry enough information anymore.
+
+The product has to know why it picked that model, for that task, with that effort level, under that safety posture, at that cost. If it cannot answer that, the new model is being used as a vibe upgrade. That is fun for an afternoon and miserable to operate.

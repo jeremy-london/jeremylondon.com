@@ -8,55 +8,159 @@ author: "jeremy-london"
 tags: ["testing", "astro", "quality"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete testing problem
-- the example surface: a personal site can still break routes, feeds, images, and content collections if nobody checks the full path
-- the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract
-- the responsibilities around the rendered page
-- the tradeoff between convenience and what the browser, content system, and deployment pipeline each own
-- the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time
-*/}
+Small sites need smoke tests because small sites still break in public.
 
-A personal site can still break routes, feeds, images, and content collections if nobody checks the full path.
+A personal site can have a tiny codebase and still depend on routing, RSS, content collections, generated images, redirects, scripts, and deployment behavior. The failure is often not dramatic. It is a broken post page, a missing feed item, or a build that passes while the important route renders the wrong state.
 
-The practical version starts with a personal site can still break routes, feeds, images, and content collections if nobody checks the full path. That gives testing a shape you can reason about. It also keeps the testing post out of slogan territory, which is where a lot of technical writing goes to die politely.
+The check I like is boring: build the site, request a handful of public routes, verify status codes, and make sure the feed exists. That is enough boundary for most small sites.
 
-## What has to be true
-
-For testing to be useful, the frontend engineer needs a clear rendered page. That artifact does not have to be fancy. For testing, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for testing is that it explains what happened without asking the next person to reconstruct intent from vibes.
-
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In web engineering, the annoying testing bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for testing, but the caller cannot tell whether it is safe. A script exits zero for testing, but the output hides the one fact the maintainer needed.
-
-## Implementation shape
-
-I would make the first testing version deliberately plain. The testing system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make testing enterprise software. It makes the work inspectable.
-
-A useful testing implementation question is where the record is created. If the testing record is created only after success, it will miss the interesting failures. I would create the testing record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
-
-## Tradeoffs
-
-The testing tradeoff is convenience versus what the browser, content system, and deployment pipeline each own. If the testing system is too strict, people route around it. If the testing system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For testing, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
-
-That contract can be boring. A useful testing shape is:
-
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
-}
+~~~text
+/                     200
+/blog                 200
+/rss.xml              200
+/blog/example-post    200
+/not-real             404
 ~~~
 
-The exact fields change by system. The testing pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+This does not need a test cathedral. It needs a cheap signal that the public contract still works.
 
-## What I would measure
+## the homepage is not the whole site
 
-The testing metric is route coverage, feed validity, content validation, accessibility checks, and build time. That is more useful than asking whether testing "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+Small-site testing often stops at "the homepage loads."
 
-For testing, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those testing numbers usually tell the truth before the happy-path dashboard does.
+That misses the places static sites actually break:
 
-If the testing system cannot answer those questions, I would keep the design smaller. Small testing systems with honest receipts are easier to improve than large systems that only report success.
+- a blog post route with bad frontmatter
+- a tag page with no posts
+- an RSS feed with malformed XML
+- an image path that works locally but not after build
+- a redirect that changed during a redesign
+- a content collection query that sorts incorrectly
+- an MDX island that fails hydration
+- a draft post leaking into production
+
+The homepage can look fine while the archive is broken.
+
+The smoke test should cover the public contract, not the one page everyone remembers to open.
+
+## choose routes by risk
+
+A smoke test does not need to crawl every page every time.
+
+Pick routes that represent different parts of the system:
+
+- `/` for the main shell
+- `/blog` for the archive
+- one recent post
+- one old post
+- one MDX-heavy post if the site has interactive islands
+- `/rss.xml` or `/feed.xml`
+- `/sitemap.xml`
+- one expected redirect
+- one missing route that should return 404
+
+That small set catches a lot of failures.
+
+For content-heavy sites, I also like sampling posts from the content collection. Pick the newest post, oldest post, and a random post. That catches date sorting, slug handling, and weird old frontmatter.
+
+## feeds deserve direct checks
+
+RSS and sitemaps are easy to break because nobody sees them in the browser during normal development.
+
+The smoke test should request them directly and check more than status code.
+
+For RSS:
+
+- XML parses
+- latest post appears
+- draft posts are absent
+- item links are absolute or intentionally relative
+- dates are valid
+- duplicate item IDs are absent
+
+For sitemap:
+
+- XML parses
+- public routes appear
+- draft routes are absent
+- canonical URLs use the production origin
+
+These tests are not glamorous. They protect the machines and readers that consume the site without visiting the homepage.
+
+## images fail differently after build
+
+Image bugs are common on small sites.
+
+The local dev server may serve an asset that the production build does not include. A generated image may have the wrong path. A remote image may timeout. An optimized image component may emit a different filename. A case-sensitive production filesystem may reject a path that worked locally.
+
+Smoke tests can catch some of this by checking rendered HTML for broken image URLs, then requesting a few important assets.
+
+At minimum:
+
+- site logo or avatar
+- Open Graph image
+- one blog post image
+- one generated asset if the site creates them
+
+If a post depends on visual examples, the images are part of the content. They deserve checks.
+
+## redirects and 404s are content too
+
+Old URLs keep living after a redesign.
+
+If a post slug changes, a project page moves, or `/feed.xml` becomes `/rss.xml`, the site should either redirect intentionally or return a clear 404. Accidental 200s are bad too. A missing route that renders the homepage can confuse readers, crawlers, and debugging tools.
+
+The smoke test should include one known redirect and one known missing route. That proves the site handles both memory and absence.
+
+## content collections need schema pressure
+
+Static sites with content collections are basically tiny databases.
+
+Frontmatter is schema. Slugs are keys. Dates drive sorting. Tags drive indexes. Draft flags drive publishing behavior. Excerpts show up in feeds and cards.
+
+If the schema gets loose, the site breaks quietly.
+
+I want checks for:
+
+- required title
+- valid publish date
+- draft flag behavior
+- unique slugs
+- non-empty excerpt
+- valid category
+- tags shaped consistently
+- no uppercase heading style if the site convention says lowercase
+
+The build may catch some of this. A smoke test or content check should catch the rest.
+
+## deploy previews should be tested like production
+
+Small sites often deploy through preview URLs.
+
+That is great, but the preview should be smoke-tested with the same route list. Some bugs only show up with the deployed origin: canonical URLs, feed links, asset prefixes, redirects, and environment-specific config.
+
+The flow can be simple:
+
+~~~text
+build
+  -> start static preview
+  -> request route list
+  -> parse feed and sitemap
+  -> check key assets
+  -> deploy preview
+  -> repeat route smoke test against preview URL
+~~~
+
+That is enough for most personal sites.
+
+## cheap tests change behavior
+
+The point of a smoke test is not high coverage.
+
+The point is to make breakage cheap to notice. If the route list fails locally, fix it before publishing. If the feed is malformed, fix it before readers see duplicate junk. If a redirect breaks, catch it before search and old links drift.
+
+Small sites still have public contracts. Routes should load. Feeds should parse. Images should resolve. Content should publish when intended.
+
+A tiny smoke test respects that contract without turning a personal site into enterprise theater.
+
+That is the right amount of boring for this job.

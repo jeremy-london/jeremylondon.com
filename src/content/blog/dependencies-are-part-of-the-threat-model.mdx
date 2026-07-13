@@ -8,24 +8,171 @@ author: "jeremy-london"
 tags: ["dependencies", "security", "maintenance"]
 ---
 
-{/*
-Depth: quick-note
-Information map:
-- the concrete dependencies problem
-- the example surface: Package choices affect security, maintenance, performance, and how quickly a team can patch
-- the failure mode: the happy path works while the unsafe path stays unnamed
-- the small decision I would keep
-- what would make the note wrong
-*/}
+Dependencies are part of the threat model.
 
-Package choices affect security, maintenance, performance, and how quickly a team can patch.
+That sounds like a security slogan until a small package becomes the reason you cannot patch quickly, cannot build reproducibly, or cannot explain what code runs in your app.
 
-I would keep dependencies small here. The useful part is Package choices affect security, maintenance, performance, and how quickly a team can patch. That is enough material for a dependencies note, not a manifesto.
+Every dependency is a choice about trust. You trust the package author, the maintainer account, the release process, the transitive tree, the install scripts, the update cadence, and the code path that now runs inside your project.
 
-The dependencies mistake is treating the observation as if it needs a complete theory around it. In practice, security systems work usually gets better when the first version names the boundary and then stops. For dependencies, that boundary is who is allowed to act on which resource, with which evidence.
+That does not mean "never add packages." That is not how modern software works. It means adding a package is not only a convenience decision. It is a security and maintenance decision too.
 
-The dependencies check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the dependencies post has done its job. If the answer is no, adding three more dependencies paragraphs will not fix it.
+## small sites still have supply chains
 
-The thing I would not add to dependencies is a fake architecture section. A short dependencies note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for dependencies. The rest of dependencies can wait until there is a real example to inspect.
+This site is not a giant backend service.
 
-I am leaving dependencies as a short note because the idea is useful at this size. A longer dependencies version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.
+It is an Astro app with MDX, React islands, Tailwind, RSS, sitemap generation, syntax highlighting, Markdown checks, image processing, and a handful of content utilities. That still creates a dependency graph.
+
+The package list has obvious core pieces:
+
+~~~text
+astro
+@astrojs/mdx
+@astrojs/react
+react
+tailwindcss
+zod
+sanitize-html
+sharp
+biome
+rumdl
+~~~
+
+Those are normal choices for this kind of project. They are also part of the site's operating surface.
+
+If `sanitize-html` has a vulnerability, content handling may need review. If `sharp` breaks on a platform, image builds may fail. If an Astro integration changes behavior, routes or content processing may change. If the formatter or Markdown checker changes rules, the writing workflow changes.
+
+The dependency graph is not separate from the product. It is how the product gets built.
+
+## ask what the package is allowed to do
+
+Before adding a dependency, I want to know what kind of authority it gets.
+
+A tiny string helper used at build time has a different risk shape from a package that parses untrusted HTML. A package that runs in the browser is different from one that runs only in local tooling. A package with a postinstall script is different from one that ships static code. A package that touches files is different from one that formats a string.
+
+The question is not only "is this package popular?"
+
+The better questions are:
+
+- does it run at install time?
+- does it run in production?
+- does it parse untrusted input?
+- does it touch the filesystem?
+- does it execute code dynamically?
+- does it bring many transitive dependencies?
+- how painful would removal be?
+
+Those questions are threat modeling. They also make the engineering tradeoff clearer.
+
+## transitive risk is still yours
+
+The package you install is often not the package you get.
+
+It may bring a tree of transitive dependencies. Those dependencies may bring their own maintainers, release habits, vulnerabilities, and runtime behavior. Most of the time this is fine. Sometimes it is the whole problem.
+
+Lockfiles help because they make the resolved tree explicit. They do not remove the need to understand the shape of the tree.
+
+I get more cautious when a small feature pulls in a large dependency graph. That does not automatically make the dependency bad, but it raises the bar. The feature needs to earn the maintenance surface it brings with it.
+
+A package that saves twenty lines of code but adds a hundred packages is usually not a bargain.
+
+## install scripts deserve suspicion
+
+Install-time code is a special category.
+
+Postinstall scripts, native builds, binary downloads, and package manager hooks run at a moment when developers are not thinking about application behavior. They are trying to install the project. That makes install-time behavior a good place for supply-chain risk to hide.
+
+Some packages have legitimate install-time needs. Native modules may compile. Tools may download platform-specific binaries. That does not make them evil. It means the team should know they exist.
+
+For packages with install scripts, I want a reason:
+
+~~~text
+package: sharp
+reason: image processing
+runs: native/binary install behavior
+accepted because: core build capability
+review: keep updated, watch platform build failures
+~~~
+
+That is a different level of trust than a pure TypeScript utility.
+
+## patch speed matters
+
+A dependency choice also decides how fast you can patch.
+
+If a package is actively maintained, has clear releases, and follows the ecosystem's normal tooling, patching is usually boring. If the maintainer has disappeared, the package pins old peers, or the package requires weird build steps, patching becomes archaeology.
+
+Security response depends on boring maintenance.
+
+When a vulnerability lands, the question is not only "are we affected?" It is:
+
+- can we update quickly?
+- will the update break the build?
+- do we have tests that cover the affected path?
+- can we remove or replace the package if needed?
+- do we know where it is used?
+
+The best time to ask those questions is before adding the dependency.
+
+## dependencies should have owners
+
+Shared dependencies need ownership.
+
+If a package is core to routing, content, security, rendering, or build output, somebody should know why it exists. That does not require a ceremony for every dev dependency. It does mean the project should not accumulate packages nobody can explain.
+
+I like dependency notes in pull requests:
+
+~~~text
+adds: sanitize-html
+purpose: clean user-provided HTML before rendering
+runtime: build/server only
+alternatives considered: custom allowlist rejected, too easy to get wrong
+maintenance risk: security-sensitive, keep patched
+~~~
+
+That note is more useful than "installed package."
+
+It gives the next person enough context to decide whether the dependency still earns its place.
+
+## removal should stay possible
+
+Some dependencies should be easy to remove.
+
+If a package is used in one file for one small task, isolate it. Do not let it leak into every component. Do not let its types become the product's internal language unless the package is truly part of the architecture.
+
+This is not only about cleanliness. It is a security escape hatch.
+
+If a dependency becomes risky, abandoned, or too expensive to maintain, removal should be an option. The more deeply it is woven into the codebase, the less leverage the team has.
+
+That is why thin wrappers can be useful around high-impact dependencies. Not because abstraction is inherently good, but because replacement becomes possible when the dependency boundary is real.
+
+## audits are not the whole answer
+
+Automated dependency audits are useful. They are not enough.
+
+They catch known vulnerabilities. They do not tell you whether a package was necessary, whether it expands install-time risk, whether it parses untrusted input safely in your usage, whether the maintainer model is acceptable, or whether the feature could be implemented with code the team already owns.
+
+The audit is a signal. The threat model is the judgment.
+
+For small projects, the discipline can be lightweight:
+
+- keep dependencies few
+- understand why each major package exists
+- update regularly
+- read scary changelogs before bumping
+- remove unused packages
+- avoid packages for trivial code
+- isolate packages that touch risky surfaces
+
+That is enough to prevent a lot of mess.
+
+## the boring rule
+
+I am not anti-dependency.
+
+I am anti-forgetting.
+
+A dependency is part of the system after it lands. It can affect security, performance, bundle size, build reliability, patch speed, and the team's ability to reason about the project.
+
+Add packages when they earn their place. Keep them updated. Know what they can touch. Make removal possible when the trust changes.
+
+That is the threat model version of dependency management: not fear, just memory.

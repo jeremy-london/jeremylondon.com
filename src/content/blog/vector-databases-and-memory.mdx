@@ -8,193 +8,161 @@ author: "jeremy-london"
 tags: ["vector databases", "memory", "retrieval"]
 ---
 
-{/*
-Depth: systems-essay
-Information map:
-- the concrete vector stores problem
-- the example surface: a team arguing about whether the model improved or merely changed
-- the failure mode: the system succeeds once but gives the next maintainer no way to explain it
-- why the obvious solution is insufficient
-- system constraints and trust boundaries
-- architecture and component responsibilities
-- request, event, and evidence flow
-- deterministic and semantic verification
-- measurement using reproduction time, failing example coverage, queue age, and rollback confidence
-- latency, cost, and scale behavior
-- governance, revocation, and escalation
-- tradeoffs I would make
-- what remains unresolved
-*/}
+Vector stores help AI systems remember, but memory is a product feature before it is a database feature.
 
-Vector databases help AI systems remember, but production quality depends on chunks, metadata, permissions, and evals.
+The demo version is easy. Split documents into chunks, embed them, put the vectors in a database, search by similarity, and stuff the top results into a prompt. That can look good in an afternoon.
 
-The hard part of vector stores is not making a prototype move. Prototypes move. They call tools, retrieve documents, choose models, draw diagrams, and produce vector stores output that looks close enough to keep going. The hard part is deciding what the vector stores system is allowed to do after it produces something plausible.
+The production version is pickier. Which chunks are allowed to be retrieved? Which version of a document did they come from? Who can see them? Are they stale? Did the answer use the right source? Did retrieval improve the result or merely make it more confident?
 
-I think about vector stores as a control problem more than a prompt problem. The prompt matters for vector stores, but the prompt is only one component inside a larger machine: context construction, policy, routing, tool execution, verification, storage, approval, and replay. If those pieces are missing, the vector stores system may still look impressive in a demo. It will just be unpleasant to operate.
+A vector database can store nearest neighbors. It cannot decide what memory should mean for the product.
 
-## The problem
+## chunks are product decisions
 
-The concrete surface here is a team arguing about whether the model improved or merely changed. That vector stores surface creates pressure because it crosses from language into work. Once a vector stores system can affect files, route requests, inspect user state, call tools, spend money, or produce security-relevant conclusions, "the model answered" is no longer the end of the story.
+Chunking is where a lot of retrieval quality is decided.
 
-The vector stores system needs to answer different questions:
+A paragraph-sized chunk may work for prose. A table may need row context and column headers. A code file may need function boundaries. A policy document may need section hierarchy. A slide deck may need speaker notes, title text, and image captions. A chat transcript may need turns grouped by topic instead of by token count.
 
-- What exactly was requested?
-- Which context was used?
-- Which policy boundary applied?
-- Which component made the decision?
-- What evidence supported the result?
-- What was verified deterministically?
-- What was judged semantically?
-- Who approved the action, if approval was needed?
-- How would we replay the case after a failure?
+Bad chunks create weird answers. The model retrieves half a policy, loses the exception, and answers with confidence. Or it retrieves a code snippet without the import that explains the type. Or it retrieves a table row without the column name that gives the number meaning.
 
-Those questions sound administrative until something breaks. Then they become the only questions that matter.
-
-## Why the obvious solution is insufficient
-
-The obvious vector stores solution is to add a better model and a thicker prompt. That helps vector stores, but it does not solve the operating problem. A stronger model can still break vector stores: call the wrong tool, use stale context, skip a permission boundary, or produce a technically valid answer that is useless to the person who has to act on it.
-
-The second obvious vector stores solution is to put a human approval button at the dangerous step. That also helps vector stores, but only if the approval has context. A vector stores button that says "approve" without showing the diff, tool arguments, policy boundary, expected side effect, and rollback path is not governance. It is a liability with a nicer label.
-
-For vector stores, I would treat approvals as part of the data flow. The approval is not a modal. It is a signed vector stores decision attached to the run record.
-
-## Constraints
-
-A production vector stores version has to live with several constraints at once.
-
-The first is latency. Verification cannot be so slow that everyone disables it. The second is cost. Running a frontier model as judge for every small vector stores step may be correct and still unaffordable. The third is privacy. For vector stores, context windows are tempting places to dump everything, but credential material, user state, and internal documents need boundaries. The fourth is replay. If a vector stores failure cannot be replayed, it will be explained with folklore.
-
-The trust boundary is what must be proven before the change is trusted. I would make that boundary explicit in the request envelope rather than burying it in code comments.
+I like storing chunk metadata that explains the source shape:
 
 ~~~json
 {
-  "runId": "run_2026_07_13_001",
-  "actor": "agent-or-human-id",
-  "input": "requested work",
-  "contextRefs": ["doc:policy", "file:target", "trace:previous-step"],
-  "scope": {
-    "filesystem": ["read:src", "write:docs"],
-    "network": ["deny"],
-    "credentials": ["none"],
-    "expiresAt": "2026-07-13T18:00:00Z"
-  },
-  "decision": null,
-  "evidence": [],
-  "approval": null
+  "chunk_id": "policy-refunds-v3:section-4:chunk-2",
+  "document_id": "policy-refunds-v3",
+  "document_version": "2024-07-18",
+  "section": "regional exceptions",
+  "chunk_kind": "policy_section",
+  "text": "Customers in region CA may request manual review..."
 }
 ~~~
 
-That envelope is not meant to be universal. It is meant to force the design conversation. What scope exists? Who grants it? When does it expire? What evidence must be present before the next state transition?
+That metadata is not decoration. It gives retrieval a way to filter, cite, expire, and debug.
 
-## Architecture
+## metadata does the boring work
 
-The architecture I would start with has six components:
+Vectors are good at similarity. Metadata is good at control.
 
-- context builder
-- policy engine
-- router
-- executor
-- verifier
-- run ledger
+A production vector store should usually index more than the embedding and text:
 
-The context builder gathers only the state needed for the next decision. The policy engine decides whether the requested action is allowed. The router chooses the model, tool, or human path. The executor does the work. The verifier checks the result. The run ledger stores the envelope, transitions, evidence, approvals, and outputs.
+- workspace ID
+- document ID and version
+- source system
+- owner
+- permissions
+- language
+- content type
+- created and updated timestamps
+- retention policy
+- embedding model version
+- chunking strategy version
 
-The important part is separation. The component that proposes an action should not be the only component that decides whether the action is acceptable. That does not mean every verifier needs to be another model. Some of the best verifiers are boring: schema validation, type checks, path checks, diff checks, policy checks, budget checks, and deterministic tests.
+The metadata lets the application ask a narrower question:
 
-A rough state machine looks like this:
-
-~~~text
-created
-  -> context_ready
-  -> policy_checked
-  -> routed
-  -> executed
-  -> verified
-  -> approved | rejected | escalated
-  -> recorded
+~~~ts
+const results = await vectorStore.search({
+  queryEmbedding,
+  topK: 12,
+  filter: {
+    workspaceId,
+    allowedDocumentIds,
+    contentType: ["policy", "runbook"],
+    archived: false,
+  },
+})
 ~~~
 
-Each transition should be cheap to inspect. If the system jumps from created to recorded, the architecture is lying to you.
+Without that filter, semantic search becomes a very confident leak.
 
-## Operating loop
+## permissions have to travel with the chunk
 
-The operating loop is where vector stores can become reliable or collapse into a pile of impressive transcripts. I would make every run produce a record that can be inspected by a human, replayed by a test harness, and summarized by an eval dashboard. Those are three different consumers, so the record cannot be only prose.
+Retrieval permissions are easy to get wrong because the interface feels read-only.
 
-The loop I would want is:
+The model is "only" retrieving context. But context can contain customer data, internal notes, incident reports, secrets, salary bands, unreleased product plans, or private support history. If the user could not open the source document, the model should not retrieve its chunk on their behalf.
 
-~~~text
-capture -> propose -> check -> approve -> execute -> verify -> record -> learn
+I would rather duplicate permission metadata into the retrieval index than rely on a fragile join after the fact. The source of truth should still live in the product system, but the vector store needs enough scope information to prevent obviously invalid candidates from entering the prompt.
+
+The final authorization check should happen before prompt assembly. Retrieval should return candidates. The application should decide which candidates can be shown to this actor in this context.
+
+## embedding versions are schema versions
+
+Changing embedding models is a schema migration.
+
+The vector dimensions may change. Similarity behavior may change. Multilingual behavior may improve. Code retrieval may get better while policy retrieval gets worse. Distances from one model are not comparable to distances from another model unless the system explicitly accounts for that.
+
+I like storing embedding model version on every record:
+
+~~~json
+{
+  "embedding_model": "text-embedding-model-2024-07",
+  "embedding_dimensions": 1536,
+  "chunker": "policy-section-chunker:v2"
+}
 ~~~
 
-Capture stores the request and context references. Propose creates the candidate action. Check runs policy and deterministic validation. Approve attaches a human decision when the action needs one. Execute performs the work. Verify compares the result with the contract. Record stores the transition. Learn turns accepted and rejected runs into future eval cases.
+Then migration can be staged. Re-embed a sample. Compare retrieval results. Rebuild a shadow index. Run evals. Switch traffic by collection or tenant. Keep rollback possible until the new index has earned trust.
 
-That last step is easy to skip and expensive to recover later. If the system only stores successes, it trains the team to forget the edge cases. The rejected runs are often more useful because they show where the boundary was unclear, where the model overreached, or where the tool contract was underspecified.
+Treating embeddings as invisible derived data is how teams end up with stale memory that nobody wants to rebuild.
 
-## Information flow
+## evals need retrieval-level cases
 
-Information should move forward as evidence, not as vibes. The executor should not hand the verifier a blob of text and hope for the best. It should hand over the tool call, arguments, output, affected resources, timing, cost, and any claimed reasoning that the verifier is expected to check.
+End-to-end answer quality matters, but retrieval deserves its own evals.
 
-For vector stores, I would separate three kinds of evidence:
+An answer can be wrong because the model ignored the right chunk. It can also be wrong because retrieval never found the right chunk. Those are different failures.
 
-- deterministic evidence, such as tests, schemas, diffs, permissions, and checksums
-- semantic evidence, such as a judge model comparing output to intent
-- operational evidence, such as latency, cost, retries, and approval history
+I would keep eval cases that look like this:
 
-These evidence types age differently. Deterministic evidence is easier to replay. Semantic evidence may drift when the judge model changes. Operational evidence explains whether the system was usable under the actual constraints.
+~~~json
+{
+  "query": "Can a Canadian customer get a refund after 30 days?",
+  "must_retrieve": ["policy-refunds-v3:section-4"],
+  "must_not_retrieve": ["policy-refunds-v2:section-2"],
+  "allowed_answer": "manual_review_required"
+}
+~~~
 
-## Failure modes
+The retrieval score should report recall at K, missed required chunks, stale source usage, permission-filter failures, and hard negative rank. The answer score can sit on top of that.
 
-The obvious failure is the system succeeds once but gives the next maintainer no way to explain it. The less obvious failures are more interesting.
+If retrieval misses the required chunk, changing the prompt is the wrong first fix.
 
-A confused deputy failure happens when one component has authority another component should not inherit. An agent reads a private file, summarizes it into a shared context, and a later tool call leaks the summary. The filesystem permission looked correct, but the information boundary was already broken.
+## memory needs deletion
 
-A stale-context failure happens when the model acts on a snapshot that is no longer true. This is common in coding agents, dashboards, and approval workflows. The user approves an action based on one diff, but the underlying file changed before execution.
+Memory that cannot forget is a liability.
 
-A verifier collapse happens when the verifier shares too much context, too much prompt structure, or too much failure mode with the generator. It agrees because it is making the same mistake. This is where deterministic checks earn their keep.
+Documents are deleted. Permissions change. Customers leave. Policies expire. Incident notes become misleading. A source system corrects bad data. The vector store needs a deletion and reindexing path that is as real as the ingestion path.
 
-A governance failure happens when approvals exist but revocation does not. Temporary access that cannot expire is not temporary. Tool scopes that cannot be audited are not scopes. A run ledger that cannot answer who approved what is not a ledger.
+The ingestion pipeline should answer:
 
-## Measurement
+- how do we delete every chunk for a source document?
+- how do we rebuild chunks after source edits?
+- how do we detect stale embeddings?
+- how do we remove data after a retention deadline?
+- how do we prove a deleted document no longer appears in retrieval?
 
-The measurement surface for vector stores is reproduction time, failing example coverage, queue age, and rollback confidence. I would not roll that into one success score. One number will hide the shape of the system.
+That last question is important. "We sent a delete request" is weaker than "the deleted document no longer appears in scoped retrieval tests."
 
-I would track:
+## memory should be inspectable
 
-- task acceptance rate by route
-- verifier disagreement by case type
-- deterministic failure rate
-- semantic judge variance
-- approval latency
-- retry count
-- p50 and p95 end-to-end latency
-- cost per accepted run
-- escalation rate
-- replay success rate
+When an AI answer uses retrieval, the product should be able to show what it retrieved.
 
-Replay success rate is underrated. If the team cannot replay a failed run with the same inputs, context references, policy version, and model versions, the incident review becomes storytelling.
+That does not always mean showing raw chunks to the end user. Sometimes citations are enough. Sometimes a support engineer needs the retrieval trace. Sometimes the model should expose the source title and section. The right surface depends on the product.
 
-## Scaling behavior
+For debugging, I want the trace:
 
-At small scale, the system can be strict and noisy. A human can read every rejection. At medium scale, the noise becomes expensive. The system needs triage, clustering, and better defaults. At large scale, the risk moves again: the bottleneck is no longer whether one run was correct, but whether teams can change models, prompts, tools, and policies without creating invisible regressions.
+~~~text
+query: "refund after 30 days in Canada"
+filters: workspace=acme, content_type=policy
+top result: policy-refunds-v3:section-4
+score: 0.82
+used_in_answer: true
+~~~
 
-That is where versioning matters. The model version, prompt version, tool schema version, policy version, and verifier version all belong in the run record. Otherwise a future failure will be impossible to attribute.
+Without that trace, retrieval bugs turn into prompt superstition. People tweak wording because they cannot see that the wrong chunk was retrieved.
 
-I would also expect routing to become more conservative over time. Early prototypes overuse the strongest model because it is convenient. Production systems usually end up with a portfolio: cheap classifiers, small local models, retrieval paths, frontier models, deterministic tools, and human escalation. The router becomes an economic and governance component, not only a quality component.
+## vector stores are infrastructure with product rules
 
-## Tradeoffs I would make
+The database matters. Index choice, latency, recall, cost, scaling behavior, and operational reliability all matter.
 
-I would spend complexity on the run ledger before spending it on fancy orchestration. If the system cannot explain what happened, better orchestration just fails faster.
+But the product discipline around the database matters more than the demo suggests. Chunking decides what can be remembered. Metadata decides what can be filtered. Permissions decide what can be shown. Embedding versions decide how memory migrates. Evals decide whether retrieval actually helps.
 
-I would prefer narrow tool scopes that are annoying but inspectable over broad scopes that feel magical. The annoyance is real. So is the cost of a broad permission that nobody can audit.
-
-I would use model judges carefully. They are useful for semantic comparison, ranking, and clustering. They are weak as the only gate on irreversible actions. When the action matters, pair the judge with deterministic checks and human escalation.
-
-I would keep approvals contextual. Show the proposed action, affected resources, evidence, expected side effect, rollback story, and expiration. If that makes the approval UI crowded, the operation may be too vague.
-
-## What remains unresolved
-
-I do not think there is one clean answer for vector stores. The shape depends on the cost of failure, the sensitivity of the data, the reversibility of the action, and the review capacity of the team.
-
-The unresolved question is how much friction belongs in the default path. Too much friction and people avoid the system. Too little and the system accumulates invisible risk. The answer probably changes by task class, not by company slogan.
-
-That is the part I find interesting. The future of vector stores is not a chat box with more buttons. It is a work surface with memory, scope, evidence, review, revocation, and enough humility to stop when it cannot prove what it just did.
+Vector stores are useful when they are treated like a memory system with rules, not a magical pile of semantic proximity.

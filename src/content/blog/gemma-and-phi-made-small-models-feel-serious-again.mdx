@@ -8,55 +8,134 @@ author: "jeremy-london"
 tags: ["gemma", "phi", "small language models"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete gemma problem
-- the example surface: Google Gemma and Microsoft Phi-3 pushed small open models into the product conversation instead of leaving them as demo hardware toys
-- the failure mode: the release sounds important without changing any concrete decision
-- the responsibilities around the model decision note
-- the tradeoff between convenience and what changed in the model versus what changed in the product surface
-- the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work
-*/}
+[Gemma](https://blog.google/innovation-and-ai/technology/developers-tools/gemma-open-models/) and [Phi-3](https://news.microsoft.com/source/features/ai/the-phi-3-small-language-models-with-big-potential/) made small models feel like architecture again.
 
-Google Gemma and Microsoft Phi-3 pushed small open models into the product conversation instead of leaving them as demo hardware toys.
+Small models never disappeared. People were running them locally, fine-tuning them, quantizing them, and using them for hobby projects long before 2024. What changed with Gemma and Phi-3 was the seriousness of the product question. These were not only tiny demos for people trying to avoid cloud bills. They were signals from Google and Microsoft that smaller models deserved a real place in application design.
 
-The practical version starts with Google Gemma and Microsoft Phi-3 pushed small open models into the product conversation instead of leaving them as demo hardware toys. That gives gemma a shape you can reason about. It also keeps the gemma post out of slogan territory, which is where a lot of technical writing goes to die politely.
+That matters because size changes where a model can live.
 
-## What has to be true
+A frontier model is usually a remote dependency. A small model can be a local component, a background worker, an edge classifier, a privacy-preserving preprocessor, or a cheap first pass before a larger model gets involved. It can run more often, closer to the user, and with a narrower job.
 
-For gemma to be useful, the AI systems builder needs a clear model decision note. That artifact does not have to be fancy. For gemma, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for gemma is that it explains what happened without asking the next person to reconstruct intent from vibes.
+That is a different design space.
 
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In model watch, the annoying gemma bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for gemma, but the caller cannot tell whether it is safe. A script exits zero for gemma, but the output hides the one fact the maintainer needed.
+## the interesting word is placement
 
-## Implementation shape
+The question I keep coming back to is not "can this small model beat a large one?"
 
-I would make the first gemma version deliberately plain. The gemma system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make gemma enterprise software. It makes the work inspectable.
+Usually it cannot, if the task is broad enough. That is fine. The better question is where the model belongs.
 
-A useful gemma implementation question is where the record is created. If the gemma record is created only after success, it will miss the interesting failures. I would create the gemma record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+Some tasks do not need frontier reasoning:
 
-## Tradeoffs
+- classify a support message into a small set of buckets
+- extract names, dates, IDs, or product areas
+- decide whether a document needs redaction before upload
+- summarize a short local note
+- route a prompt to the right workflow
+- detect near-duplicate records
+- provide local autocomplete or rewrite suggestions
 
-The gemma tradeoff is convenience versus what changed in the model versus what changed in the product surface. If the gemma system is too strict, people route around it. If the gemma system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For gemma, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+Those tasks are valuable because they are repeated, narrow, and latency-sensitive. A small model that handles them reliably can make the rest of the system calmer. The big model stops doing janitorial work. The product gets faster. The user may get more privacy because some processing happens before data leaves the device or workspace.
 
-That contract can be boring. A useful gemma shape is:
+The small model is not a worse big model. It is a component with a smaller blast radius.
 
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
+## open weights change the debugging loop
+
+Gemma was released as open models with freely available weights under Google's terms. Phi-3 was positioned as a family of small language models available through Microsoft's ecosystem and model catalogs. The licensing and hosting details matter, but the practical point for builders is direct access.
+
+When weights are available, the debugging loop changes. You can run the model locally. You can quantize it. You can measure memory. You can inspect latency on the hardware you actually have. You can try a task without turning every experiment into an API integration.
+
+That is a big deal for homelab-style development and internal tooling. A local model can sit next to the data. It can process private notes, logs, drafts, or source files without a network round trip. It can fail cheaply while you figure out whether the task is worth a stronger route.
+
+The tradeoff is that ownership moves closer too. If you run the model, you own the runtime. You own updates, packaging, hardware compatibility, quantization tradeoffs, and monitoring. "Open" does not mean operationally free.
+
+## small models want small contracts
+
+Small models get into trouble when the contract is vague.
+
+Ask one to "be a helpful assistant" and it will usually feel limited. Ask it to classify a message into six labels with an abstain option and it may be excellent. Ask it to extract structured fields from a known document shape and it may be good enough. Ask it to solve a messy business workflow with incomplete context and it will probably make you miss the larger model.
+
+The contract should name the boundaries:
+
+~~~json
+{
+  "task": "local_secret_redaction",
+  "input": "single text file under 20 KB",
+  "output": "spans with type and confidence",
+  "allowed_types": ["api_key", "token", "password", "private_key"],
+  "fallback": "send uncertain spans to deterministic pattern checks",
+  "do_not_use_for": ["legal classification", "incident severity"]
 }
 ~~~
 
-The exact fields change by system. The gemma pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+That `do_not_use_for` field is underrated. Small models need explicit non-goals because they are easy to overuse once they are cheap and nearby.
 
-## What I would measure
+## evals should reward abstention
 
-The gemma metric is route changes, eval deltas, latency movement, cost movement, and migration work. That is more useful than asking whether gemma "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+Small models should be allowed to say "I do not know."
 
-For gemma, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those gemma numbers usually tell the truth before the happy-path dashboard does.
+If the model is a router, extractor, redactor, or classifier, guessing can be worse than abstaining. A wrong route sends work to the wrong system. A missed secret leaks into logs. A bad extraction creates false structure that downstream code trusts.
 
-If the gemma system cannot answer those questions, I would keep the design smaller. Small gemma systems with honest receipts are easier to improve than large systems that only report success.
+So the eval should measure coverage and precision separately:
+
+~~~text
+slice                 coverage   precision   recall
+api_keys                0.91       0.99       0.90
+password_phrases        0.72       0.96       0.68
+private_keys            0.88       1.00       0.88
+ambiguous_tokens        0.34       0.97       0.31
+~~~
+
+That table might be a good result if uncertain cases escalate to a safer path. The goal is not maximum confidence. The goal is useful work inside the model's lane.
+
+For small models, the fallback is part of the design. A local classifier can handle obvious cases and route uncertain cases to a larger model, deterministic checker, or human review. That is a strong architecture when the boundaries are honest.
+
+## hardware becomes a product constraint
+
+Running locally makes hardware visible again.
+
+Memory, startup time, context length, quantization, CPU versus GPU, battery use, and download size all become product concerns. A model that looks small in a paper can still feel heavy inside a desktop app. A model that works on one developer laptop may be painful on older machines. A quantized model may be fast enough but lose precision on the slice that matters.
+
+That means the deployment target should influence the task.
+
+If the model runs in a server-side worker, batching and throughput matter. If it runs in a desktop app, startup time and memory pressure matter. If it runs on a phone, battery and thermal behavior matter. If it runs in a browser through WebGPU or WebAssembly, load size and device support matter.
+
+Small models make more placements possible. They do not make placement irrelevant.
+
+## where gemma and phi felt different
+
+Gemma mattered because it connected the Gemini research line to an open-model workflow. Phi-3 mattered because Microsoft kept pushing the small-language-model story with a practical claim: strong capability at a size that could run closer to the edge.
+
+The combination made the category feel less like a compromise and more like a tool choice.
+
+I do not expect small models to replace frontier models for hard reasoning, ambiguous planning, or deep multimodal work. I do expect them to fill in the architecture around those models:
+
+- fast local classification
+- privacy-preserving pre-processing
+- first-pass extraction
+- cheap routing
+- offline helper features
+- narrow domain adapters
+- verifier or critic steps for constrained outputs
+
+That is enough to matter.
+
+## the mistake is making size the identity
+
+Small is not a product strategy by itself.
+
+The model still needs a job, an eval, a fallback, and an owner. It needs a deployment target and a reason to be local or cheap. It needs monitoring because input distributions drift. It needs versioning because a model update can change behavior even when the interface stays the same.
+
+The best small-model architecture is boring in the right way:
+
+~~~text
+small model handles obvious narrow cases
+uncertain cases escalate
+deterministic checks catch known risks
+larger model handles broad reasoning
+logs record route and outcome
+evals decide whether the lane should expand
+~~~
+
+That is the kind of system Gemma and Phi-3 made easier to imagine. Not a world where every task gets squeezed onto a tiny model, but a world where intelligence can be placed more deliberately.
+
+That feels serious to me.

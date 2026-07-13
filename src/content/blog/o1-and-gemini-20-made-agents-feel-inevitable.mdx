@@ -8,55 +8,149 @@ author: "jeremy-london"
 tags: ["openai", "google", "o1", "gemini-2.0", "agents"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete openai problem
-- the example surface: a model action that crosses from text into a real system
-- the failure mode: the release sounds important without changing any concrete decision
-- the responsibilities around the model decision note
-- the tradeoff between convenience and what changed in the model versus what changed in the product surface
-- the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work
-*/}
+The thing that changed in late 2024 was not that models suddenly became agents.
 
-OpenAI's o1 and Google's Gemini 2.0 moved the conversation from chat quality to reasoning time, tools, and agent-shaped product paths.
+The models were still models. The failure modes were still real. Planning was still uneven. Tool use still needed scaffolding. Demos still made everything look smoother than production would.
 
-The practical version starts with a model action that crosses from text into a real system. That gives openai a shape you can reason about. It also keeps the openai post out of slogan territory, which is where a lot of technical writing goes to die politely.
+What changed was the default product imagination.
 
-## What has to be true
+OpenAI's o1 moved attention toward reasoning time: models that spend more compute on harder problems, especially math, coding, and multi-step work. Google's Gemini 2.0 announcement leaned directly into the "agentic era," with native multimodal capabilities, tool use, and agent prototypes such as Astra, Mariner, and Jules.
 
-For openai to be useful, the AI systems builder needs a clear model decision note. That artifact does not have to be fancy. For openai, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for openai is that it explains what happened without asking the next person to reconstruct intent from vibes.
+Taken together, those releases made a plain chat tab feel less like the end state.
 
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In model watch, the annoying openai bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for openai, but the caller cannot tell whether it is safe. A script exits zero for openai, but the output hides the one fact the maintainer needed.
+The next obvious surface was something that could look at work, reason for a while, call tools, inspect results, and keep going under constraints.
 
-## Implementation shape
+## reasoning time changed the pacing
 
-I would make the first openai version deliberately plain. The openai system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make openai enterprise software. It makes the work inspectable.
+The first shift was pacing.
 
-A useful openai implementation question is where the record is created. If the openai record is created only after success, it will miss the interesting failures. I would create the openai record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+Classic chat completion has a particular rhythm. User asks. Model answers. User notices what is wrong. User asks again. The loop is fast and conversational, but the burden of decomposition stays with the user.
 
-## Tradeoffs
+Reasoning models made a different rhythm feel normal. Some tasks deserve more thinking time before the answer. The model may need to work through intermediate steps, test assumptions, compare paths, or decide that the problem is underspecified.
 
-The openai tradeoff is convenience versus what changed in the model versus what changed in the product surface. If the openai system is too strict, people route around it. If the openai system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For openai, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+That is an agent-shaped pressure even before tools enter the picture.
 
-That contract can be boring. A useful openai shape is:
+If the model is allowed to spend more time, the product needs to decide what that time is for:
 
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
-}
+- planning
+- code analysis
+- math
+- document comparison
+- tool selection
+- error repair
+- evidence review
+- refusal or escalation
+
+Longer reasoning time is not free. It costs latency and money. It can also create a worse user experience when the task is simple. The product has to route. A spelling fix should not get the same thinking budget as a database migration plan.
+
+That is where chat starts turning into a work surface. The product needs controls for effort, budget, interruption, and review.
+
+## tools made the boundary visible
+
+Tool use changes the safety problem.
+
+A model that writes a suggestion is one thing. A model that can browse, edit files, run commands, query systems, send messages, or move money is something else. The interesting part is not the tool call itself. Function calling had already been around. The interesting part is the boundary around the call.
+
+The product has to answer:
+
+- which tools exist
+- which user or workspace grants access
+- what arguments are allowed
+- what state the tool can read
+- what action requires approval
+- what gets logged
+- what happens after the tool returns
+- what the model is allowed to try again
+
+Once the product answers those questions, the chat box is no longer the whole interface. There is a permission surface, a run history, an approval state, a result viewer, and a recovery path.
+
+That is agent product design.
+
+## multimodal state widened the workspace
+
+Gemini 2.0 mattered because it pushed the agent conversation beyond text.
+
+An agent that can reason over screen state, images, audio, video, documents, and browser context feels different from a text assistant. The work surface gets closer to the actual environment where the task happens.
+
+That raises the value and the risk at the same time.
+
+A model looking at a screenshot may understand a UI bug faster than a text-only assistant. It may also misread a small label. A model watching browser state may automate a workflow. It may also click the wrong thing if the page changes. A model reading a PDF may find the relevant clause. It may also confuse a caption with the body.
+
+The multimodal agent needs evidence discipline:
+
+- what did it observe directly?
+- what was extracted by OCR or transcription?
+- what did it infer?
+- what did the user claim?
+- what can the user inspect before approval?
+
+Without that discipline, multimodal agents become very convincing at being slightly wrong.
+
+## agent-shaped does not mean autonomous
+
+I do not think the useful lesson from o1 and Gemini 2.0 was "let the model do everything."
+
+The better lesson was that products need more than a prompt box when the task is multi-step.
+
+An agent-shaped product might still be conservative. It might only draft. It might only plan. It might require approval for every write. It might run in a sandbox. It might show a diff before touching files. It might escalate when confidence is low. It might refuse to proceed when the evidence is thin.
+
+That is still an agent path because the product has a loop:
+
+~~~text
+understand the task
+  -> gather context
+  -> propose a next step
+  -> use a tool or ask for approval
+  -> inspect the result
+  -> continue, stop, or escalate
 ~~~
 
-The exact fields change by system. The openai pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+The loop can be short. It can be cautious. It can be mostly human-driven. The important shift is that the model participates in the work process rather than only generating text at the end.
 
-## What I would measure
+## the interface needs receipts
 
-The openai metric is route changes, eval deltas, latency movement, cost movement, and migration work. That is more useful than asking whether openai "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+If an agent does work, the product needs receipts.
 
-For openai, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those openai numbers usually tell the truth before the happy-path dashboard does.
+The receipt should answer basic questions:
 
-If the openai system cannot answer those questions, I would keep the design smaller. Small openai systems with honest receipts are easier to improve than large systems that only report success.
+- what task was requested?
+- what context was used?
+- what tools were called?
+- what arguments were passed?
+- what changed?
+- what evidence supported the change?
+- who approved it?
+- what failed?
+- what can be rolled back?
+
+This is not enterprise theater. It is how you debug the run.
+
+When a chat answer is bad, the user can often see the problem directly. When an agent run is bad, the problem may be hidden in the middle: wrong context, stale browser state, a malformed tool argument, an unhelpful retrieval result, a skipped approval, a verifier that accepted the wrong evidence.
+
+The receipt is where the invisible part becomes inspectable.
+
+## evals move from answer quality to run quality
+
+The evaluation target also changes.
+
+For chat, you can often grade the answer. For an agent, you have to grade the run.
+
+Did it choose the right tools? Did it avoid forbidden actions? Did it ask for clarification when needed? Did it stop after the success condition was met? Did it retry responsibly? Did it leave the workspace in a clean state? Did it preserve user intent? Did it create a useful artifact?
+
+The unit of evaluation becomes a trace, not a paragraph.
+
+For coding agents, that trace might include files read, commands run, patches applied, tests executed, and final diff. For browser agents, it might include pages visited, fields filled, buttons clicked, and confirmation states. For research agents, it might include queries, sources, extracted claims, citations, and uncertainty.
+
+This is why "reasoning plus tools" pushes products toward infrastructure. The model may be the visible part, but the system around it decides whether the work can be trusted.
+
+## what felt inevitable
+
+I do not think o1 and Gemini 2.0 made reliable autonomous agents inevitable by themselves.
+
+They made agent-shaped product work harder to avoid.
+
+Reasoning time made it normal to spend compute before answering. Tool use made action boundaries unavoidable. Multimodality made the workspace broader than text. Agent demos made people expect software that can follow a task through intermediate state.
+
+The hard part remained exactly where systems people would expect it: permissions, context, tool contracts, evals, visibility, rollback, and user trust.
+
+That is why the releases felt important to me. They did not end the chat era. They made chat feel like one surface inside a larger work loop.

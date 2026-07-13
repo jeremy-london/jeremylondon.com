@@ -8,138 +8,166 @@ author: "jeremy-london"
 tags: ["agents", "permissions", "ux"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete agents problem
-- the example surface: a user deciding whether an agent should be allowed to continue
-- the failure mode: the agent finishes a task without leaving enough evidence for a human to trust or resume it
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using approval rate, retry count, verifier disagreement, and time from tool call to accepted result
-- security or ownership boundary: file access, network access, credential use, and delegation between agents
-- latency, cost, and scaling implications
-*/}
+Approval buttons are weirdly easy to overestimate.
 
-An approval step only helps if the human can see the plan, the data, and the rollback story.
+The product has a scary action. The agent wants to do something with side effects. The team adds an approval step. There is a button. The user has to click it. The system now feels safer.
 
-The interesting part of agents is not the name. It is the system pressure around a user deciding whether an agent should be allowed to continue. Once that pressure shows up for agents, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+Maybe.
 
-## The unit of work
+The button only helps if the person clicking it can make a real decision. If the user sees "Approve" next to a vague agent sentence, the product has mostly transferred anxiety from the system to the human. That is not review. That is a ritual.
 
-I would start by naming the unit of work for agents. In agent systems, the agents unit is usually smaller than the product surface and larger than a function call. For agents, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+Agent approval needs context at the exact moment the interface is most tempted to hide it.
 
-A useful agents unit has four properties:
+## the decision should be about the work
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+I do not want approval copy that asks whether the agent can "continue."
 
-For agents, the boundary is file access, network access, credential use, and delegation between agents. That boundary should be visible in the agents data, not only in a policy document. If a agents request crosses the boundary, the trace should show it.
+Continue is too broad. It makes the human approve the agent's confidence instead of the actual work. The interface should name the action in terms the user already understands.
 
-## Data flow
+Weak:
 
-The simple agents flow looks like this:
+> Approve tool call?
 
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
-~~~
+Better:
 
-The context builder gathers the minimum useful state for agents. The agents decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+> Replace the draft introduction in `chatgpt-work-made-desktop-agents-feel-inevitable.mdx`.
 
-That receipt is the difference between a agents demo and an operable system. A demo can rely on a person watching closely. A agents system needs to explain itself after the person has moved on.
+Better still:
 
-A agents request envelope might look like this:
+> Replace 4 paragraphs in `chatgpt-work-made-desktop-agents-feel-inevitable.mdx`, then run `pnpm markdown:check` on that file.
 
-~~~json
-{
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
-}
-~~~
+That version gives the human something to inspect. The target is named. The scope is visible. The follow-up command is explicit. If the user expected a grammar cleanup and the agent is about to rewrite the whole argument, the mismatch has a chance to surface before the action happens.
 
-The schema is deliberately plain. Fancy schemas do not save unclear agents systems. The useful agents work is deciding which fields are required, which are advisory, and which block the run when missing.
+Approval should point at the work, not at the agent.
 
-## Implementation sketch
+## show the thing that changes
 
-I would implement the first agents pass as a narrow pipeline rather than a general platform. Start agents with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+The most useful approval surface is usually a diff, preview, or structured summary of the side effect.
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+For file edits, show the diff. For an email, show the exact recipient, subject, and body. For a calendar event, show the date, time, attendees, and description. For a database operation, show the table, filter, row count, and fields being changed. For a GitHub action, show the repository, issue or pull request target, comment body, labels, and account.
 
-For agents, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The agents system still has to decide whether the proposal is usable under the current boundary.
+The user should not have to infer the side effect from the tool name.
 
-## Failure modes
+Tool names are developer language. `updateRecord`, `sendMessage`, `createIssue`, and `runCommand` can each be harmless or dangerous depending on arguments. A good approval prompt treats arguments as first-class product copy.
 
-The main agents failure mode is the agent finishes a task without leaving enough evidence for a human to trust or resume it. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The agents failure is that the next component cannot tell whether the result should be trusted.
+I like this shape for a human-facing approval card:
 
-I would test at least five agents cases:
+```text
+action
+  edit local file
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+target
+  src/content/blog/approval-buttons-need-context.mdx
 
-That last agents case matters. A confident agents answer is not the same thing as a verified result. If agents touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+change
+  replace current body with a rewritten article draft
 
-## Deployment shape
+why
+  current post is generated template residue
 
-I would not deploy agents as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For agents, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+after approval
+  write file, run markdown check
 
-That gives the router real work to do. For agents, it should not only choose small model or big model. It should choose a risk path:
+undo
+  restore previous file contents from git diff
+```
 
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
+That is not fancy, but it answers the right questions. What is happening? Where? Why? What follows? How do I get back?
 
-Each agents path has a different budget, verifier, and approval requirement. This is the part that makes agents feel less magical and more like infrastructure. The model is still important, but the agents route determines what kind of trust the system is asking for.
+## hide less when risk goes up
 
-## Measurement
+Approval UI should change shape based on risk.
 
-The measurement surface for agents is approval rate, retry count, verifier disagreement, and time from tool call to accepted result. I would track agents per route or case type, not only as a global average. Global averages hide the exact class of agents problems that make these systems feel unpredictable.
+A low-risk read action can be compact. If the agent wants to read a file inside the active project, a short inline prompt may be enough. The user probably does not need a modal full of ceremony.
 
-A simple eval table can carry a lot of weight:
+A write action needs more room. A destructive action needs even more. A credentialed external action needs identity and destination. A shell command needs working directory, command text, expected output, and whether it can modify files or reach the network.
 
-~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
-~~~
+The interface should not treat all approvals as the same little confirmation.
 
-The point is not to build an eval cathedral for agents. The point is to preserve enough agents structure that regressions can be clustered. If failures cluster around one route, fix the route. If agents failures cluster around one policy boundary, fix the boundary. If agents failures cluster around one model, stop pretending the prompt is the whole system.
+This is where I get picky about collapsed details. Hiding details by default can make sense for routine actions, but risky actions should start expanded. If the user has to click "more" to discover that the agent is sending data outside the workspace, the UI is working against them.
 
-## Operational concerns
+The product can still stay calm. Context does not require panic styling. It requires visible facts.
 
-The operational question for agents is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap agents route becomes unreliable but the expensive route would blow the budget?
+## timing is part of context
 
-For agents, I would put those answers in configuration, not in a heroic prompt. A small agents policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+An approval prompt can be accurate and still arrive too late.
 
-## Scaling behavior
+If the user asked the agent to make a plan, then walked away, then came back after the conversation drifted, the approval needs to reconnect them to the current state. The prompt should explain which user request caused the proposed action and whether anything changed since then.
 
-At small scale, a human can inspect weird agents cases by hand. At medium scale, the agents system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+Stale approvals are a real failure mode. The model proposes an action based on old context. The user approves because the prompt looks reasonable in isolation. The result is technically authorized and still wrong.
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the agents system without being surprised by the downstream behavior?
+I want approval prompts to carry a little history:
 
-For agents, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the agents system a spine.
+- original request
+- current plan step
+- files or resources already inspected
+- assumptions the agent is using
+- what will remain undone after this action
 
-## Where I land
+That last one is easy to miss. Approval does not mean the whole task is finished. It means one step is allowed. If the action is part of a longer run, the user should know whether the agent will stop afterward, continue automatically, or ask again.
 
-Agents deserves depth when it changes architecture, not when it merely sounds current. The agents implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+## evidence beats persuasion
 
-If the agents post answers those questions, it teaches something. If the agents post only says the topic matters, it is just a longer version of the headline.
+The agent should not argue the user into approval.
+
+This is a subtle problem because models are good at sounding helpful. "I need to do this to complete your request" is not evidence. It is pressure with friendly grammar.
+
+A better prompt shows the evidence that led to the action:
+
+- the file contains the broken generated text
+- the requested scope was "rewrite this post"
+- the target path matches the current checklist item
+- the command is the configured Markdown checker
+
+Evidence lets the human verify the chain without trusting the model's confidence. It also gives reviewers something to inspect later if the approval was a mistake.
+
+I would rather see three blunt facts than one polished paragraph about why the agent believes the action is appropriate.
+
+## denial should be useful
+
+Rejecting an approval should not be a dead end.
+
+The product should let the user say why, at least cheaply. "Wrong file," "too broad," "show me the diff first," "use a different command," and "stop the run" are different decisions. If every denial becomes a generic failure, the agent loses information it could have used to recover.
+
+Denial reasons also help the product improve. If users keep rejecting actions after expanding details, the approval summary is probably too vague. If they reject because the target is wrong, the agent may be carrying stale context. If they reject shell commands more than file edits, the command prompt may need clearer risk language.
+
+The button should not be the end of the conversation. It should be a fork in the workflow.
+
+## approval needs a receipt the user can read
+
+After approval, the product should leave a record that says what was approved and what actually happened.
+
+This is where a lot of systems get lazy. They log the tool call but not the human decision. Or they log the decision but not the final side effect. Or they keep everything in an internal trace that the user cannot see.
+
+For agent work, I want a receipt that can be shown in the product:
+
+```text
+approved by
+  jeremy
+
+approved action
+  edit local markdown file
+
+approved target
+  src/content/blog/approval-buttons-need-context.mdx
+
+executed
+  yes
+
+verification
+  pnpm markdown:check passed for this file
+```
+
+The receipt does two jobs. It helps the user trust the run, and it gives the next review pass a starting point. If something went wrong, the question changes from "what did the agent do?" to "where did the approved plan diverge from the result?"
+
+That is a much better debugging problem.
+
+## a good button slows the right moment
+
+I do not want approval steps everywhere. Too many prompts turn users into click-through machines. The product should reserve them for moments where the decision matters.
+
+But when the decision matters, the button has to earn the click.
+
+Show the plan. Show the affected resource. Show the data or diff. Show the identity. Show what happens next. Show how to recover. Keep the copy concrete. Let denial teach the system something.
+
+The approval button is small. The context around it is the feature.

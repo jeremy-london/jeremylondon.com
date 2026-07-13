@@ -8,55 +8,160 @@ author: "jeremy-london"
 tags: ["design tokens", "design systems", "frontend"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete design tokens problem
-- the example surface: a design decision that needs a name before it spreads
-- the failure mode: the UI looks consistent while the underlying decisions drift apart
-- the responsibilities around the component contract
-- the tradeoff between convenience and which decisions belong in tokens, components, product copy, or one-off layout
-- the check or metric: token reuse, unsupported variants, visual regression count, and handoff ambiguity
-*/}
+Design tokens need owners.
 
-Tokens are useful only when somebody owns the meaning, migration path, and exceptions.
+Without ownership, tokens become prettier hardcoded values. The names look systematic, the values live in one place, and the team feels organized for a while. Then nobody knows what a token means, whether it can change, which components depend on it, or why two nearly identical tokens exist.
 
-The practical version starts with a design decision that needs a name before it spreads. That gives design tokens a shape you can reason about. It also keeps the design tokens post out of slogan territory, which is where a lot of technical writing goes to die politely.
+That is when the design system starts lying.
 
-## What has to be true
+A token is useful when it carries meaning. `--surface-wash` tells me more than `--gray-50`. `--danger-border` tells me more than `--red-500`. A component-specific token like `--profile-orbit-blue` can be fine because it says where it belongs. The name creates a contract.
 
-For design tokens to be useful, the designer or engineer needs a clear component contract. That artifact does not have to be fancy. For design tokens, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for design tokens is that it explains what happened without asking the next person to reconstruct intent from vibes.
+But contracts need owners.
 
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In design systems, the annoying design tokens bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for design tokens, but the caller cannot tell whether it is safe. A script exits zero for design tokens, but the output hides the one fact the maintainer needed.
+## tokens are decisions
 
-## Implementation shape
+A design token is not only a stored value.
 
-I would make the first design tokens version deliberately plain. The design tokens system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make design tokens enterprise software. It makes the work inspectable.
+It is a decision about the product language. This color means a surface. This spacing value means a compact gap. This radius means a repeated card. This typography style means metadata. This shadow means elevation. This color pair is allowed in dark mode.
 
-A useful design tokens implementation question is where the record is created. If the design tokens record is created only after success, it will miss the interesting failures. I would create the design tokens record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+If the token does not name a decision, it is just indirection.
 
-## Tradeoffs
+The weak version looks like this:
 
-The design tokens tradeoff is convenience versus which decisions belong in tokens, components, product copy, or one-off layout. If the design tokens system is too strict, people route around it. If the design tokens system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For design tokens, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+~~~text
+blue-1
+blue-2
+blue-3
+cool-blue
+soft-blue
+new-blue
+~~~
 
-That contract can be boring. A useful design tokens shape is:
+Those names may be convenient while building, but they do not tell a future developer what to use. They force visual judgment back into every component.
 
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
+The stronger version names roles:
+
+~~~text
+link
+link-hover
+surface
+surface-muted
+border-subtle
+text-muted
+accent
+danger
+~~~
+
+Role names are not perfect. They still require taste. But they give the system a language that can survive theme changes and component reuse.
+
+## ownership means saying no
+
+The owner of a token does not only approve new values.
+
+They say no to tokens that do not earn their place.
+
+Every new token should answer:
+
+- what role does this value represent?
+- where is it allowed?
+- what existing token is insufficient?
+- should this be global or component-local?
+- what happens in dark mode?
+- who migrates old usage?
+
+If those questions sound heavy, the token may not need to exist yet.
+
+Sometimes a one-off value is more honest than a global token. If a profile animation needs a specific orbit color, keep it local to that visual system. Do not promote it into the theme unless other surfaces need the same role.
+
+Global tokens should be boring because they are expensive. Once a token is global, people will use it.
+
+## migration is part of the token
+
+Changing a token is changing the product.
+
+That is the part teams forget. A token makes broad change easier, which is the whole point. It also means broad change can happen accidentally. Updating a color, spacing value, or type scale may affect dozens of screens.
+
+The owner needs a migration path.
+
+For a small change, that may be a visual review. For a larger change, it may need staged aliases:
+
+~~~text
+old:
+  --color-muted-border
+
+new:
+  --border-subtle
+
+migration:
+  alias old to new for one release
+  update components
+  remove old token after usage reaches zero
+~~~
+
+That sounds mundane because it is. Token systems fail through mundane neglect.
+
+If a token is renamed without a migration path, teams create compatibility aliases that never die. If a value changes without review, teams add local overrides. If local overrides accumulate, the token stopped being the source of truth.
+
+## exceptions should be visible
+
+Design systems need exceptions.
+
+The mistake is pretending they do not. A brand moment may need a special treatment. A data-dense table may need tighter spacing. A warning state may need contrast that the normal palette does not provide. An interactive demo may need local visual language.
+
+Exceptions are fine when they are named.
+
+I like exceptions that stay close to the component:
+
+~~~css
+.profile {
+  --profile-orbit-blue: rgba(59, 130, 246, 0.42);
+  --profile-orbit-amber: rgba(249, 115, 22, 0.36);
 }
 ~~~
 
-The exact fields change by system. The design tokens pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+That tells me the value belongs to the profile visual. It is not asking the whole site to adopt a new semantic color.
 
-## What I would measure
+The bad exception is the one that masquerades as a token because nobody wanted to admit it was special.
 
-The design tokens metric is token reuse, unsupported variants, visual regression count, and handoff ambiguity. That is more useful than asking whether design tokens "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+## tokens need review surfaces
 
-For design tokens, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those design tokens numbers usually tell the truth before the happy-path dashboard does.
+Tokens are hard to review in raw code.
 
-If the design tokens system cannot answer those questions, I would keep the design smaller. Small design tokens systems with honest receipts are easier to improve than large systems that only report success.
+A diff that changes `--surface-muted` from one hex value to another does not tell the reviewer enough. The reviewer needs to see the affected surfaces. Which cards changed? Which empty states changed? Does dark mode still work? Did contrast get worse? Did focus states survive?
+
+Token changes need a review surface:
+
+- affected component list
+- light and dark examples
+- text contrast checks
+- before and after screenshots
+- usage count
+- migration notes
+
+That is especially important when AI is generating UI. A model can follow token names, but it will also misuse them if the meanings are fuzzy. A review surface catches places where the generated UI used `danger` as decoration or `muted` for important text.
+
+The token name is guidance. Review proves the guidance worked.
+
+## stale tokens create design debt
+
+Unused tokens should be removed.
+
+So should duplicate tokens, legacy aliases, and tokens whose names no longer match their values. This cleanup feels petty until the system has enough stale tokens that nobody trusts it.
+
+Design debt does not always look ugly. Sometimes it looks like too many reasonable choices.
+
+If a developer has to choose between `surface-muted`, `surface-subtle`, `surface-soft`, and `surface-wash`, the design system is asking them to guess. If the difference is real, document it. If the difference is accidental, collapse it.
+
+Fewer tokens with clearer meaning beat more tokens with better coverage.
+
+## the owner protects the meaning
+
+The owner can be a designer, frontend engineer, design-system maintainer, or a small group. The title matters less than the responsibility.
+
+Someone has to protect the meaning.
+
+When a token is added, they ask why. When a token changes, they make sure affected surfaces are reviewed. When a token is deprecated, they make sure usage disappears. When an exception appears, they decide whether it stays local or becomes part of the system.
+
+That is not bureaucracy. It is how the design system keeps its memory.
+
+Tokens are useful because they let a product change coherently. They only do that when the names mean something and somebody is willing to defend that meaning.

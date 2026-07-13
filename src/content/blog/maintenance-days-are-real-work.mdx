@@ -8,24 +8,130 @@ author: "jeremy-london"
 tags: ["maintenance", "workflow", "personal systems"]
 ---
 
-{/*
-Depth: quick-note
-Information map:
-- the concrete maintenance problem
-- the example surface: Cleaning dependencies, notes, drafts, and small broken workflows is work, even when it does not feel like shipping
-- the failure mode: the system depends on future energy it has no right to assume
-- the small decision I would keep
-- what would make the note wrong
-*/}
+Maintenance days count.
 
-Cleaning dependencies, notes, drafts, and small broken workflows is work, even when it does not feel like shipping.
+They do not always feel like shipping because the visible product barely moves. No new feature. No dramatic demo. No satisfying launch note. The work is smaller and less flattering: update dependencies, fix stale scripts, clean drafts, delete dead notes, repair a broken smoke test, sort the backlog, remove a flag, rename the thing that has been confusing everyone for three months.
 
-I would keep maintenance small here. The useful part is Cleaning dependencies, notes, drafts, and small broken workflows is work, even when it does not feel like shipping. That is enough material for a maintenance note, not a manifesto.
+That work is easy to postpone because nothing is on fire yet.
 
-The maintenance mistake is treating the observation as if it needs a complete theory around it. In practice, personal systems work usually gets better when the first version names the boundary and then stops. For maintenance, that boundary is how much friction belongs at capture time versus review time.
+The problem is that systems age whether you schedule maintenance or not. Dependencies drift. Notes rot. Tests get flaky. Local setup stops matching reality. Docs describe the old path. Tiny broken workflows become normal. Eventually the cost shows up as fear: nobody wants to touch the thing because nobody knows what will happen.
 
-The maintenance check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the maintenance post has done its job. If the answer is no, adding three more maintenance paragraphs will not fix it.
+Maintenance days are how you buy that fear down.
 
-The thing I would not add to maintenance is a fake architecture section. A short maintenance note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for maintenance. The rest of maintenance can wait until there is a real example to inspect.
+## cleanup is not cosmetic
 
-I am leaving maintenance as a short note because the idea is useful at this size. A longer maintenance version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.
+There is a kind of cleanup that is purely aesthetic. Fine. Do it when it helps.
+
+The maintenance I care about is different. It removes friction from the next real piece of work. A stale dependency becomes a security issue. A broken script wastes every new session. An unclear README makes every setup slower. A draft folder full of almost-posts creates guilt instead of momentum. A flaky test trains people to ignore CI.
+
+The output may look small:
+
+~~~text
+updated two dependencies
+deleted four dead scripts
+renamed confusing config key
+fixed local reset command
+closed seven stale notes
+~~~
+
+That is still product work if it makes future work safer or faster.
+
+## maintenance should have a target
+
+A maintenance day can turn into wandering if it has no target.
+
+I like picking one surface:
+
+- local development
+- dependency updates
+- test reliability
+- blog drafts
+- project notes
+- agent rules
+- CI output
+- deployment docs
+
+Then define what "better" means for that surface. Not perfect. Better.
+
+For local development, better might mean `pnpm dev`, `pnpm stop`, and `pnpm reset` all behave predictably. For dependencies, it might mean security updates applied and major upgrades listed with owners. For notes, it might mean every draft is either promoted, archived, or deleted.
+
+The target keeps maintenance from becoming procrastination with a broom.
+
+## small broken workflows are expensive
+
+Small broken workflows are sneaky because each one costs only a minute.
+
+The dev server needs to be killed manually. The test command prints a warning nobody understands. The deployment checklist mentions a flag that no longer exists. The blog script requires an environment variable that the README forgot. The formatter changes files nobody meant to touch.
+
+Each problem is survivable. Together they make the system feel unreliable.
+
+This matters more with agents. An agent will follow the workflow the project exposes. If the workflow is stale, the agent wastes time or makes a bad assumption. A human might remember that the command is broken. The agent will read the README and try it.
+
+Maintenance is how you make the paved path real again.
+
+## deleting is a maintenance skill
+
+Some of the best maintenance is deletion.
+
+Delete the script nobody uses. Delete the stale draft that keeps pretending it will become an article. Delete the old config option. Delete the feature flag after the rollout is done. Delete generated files that should be regenerated. Delete the TODO that no longer points to a real decision.
+
+Deletion is hard because it feels final. Keeping dead material feels safer until the system has enough dead material that everything takes longer to understand.
+
+I like deletion with receipts:
+
+~~~text
+deleted:
+  scripts/old-blog-rewrite.mjs
+
+reason:
+  generated repeated prose patterns and is no longer part of the editorial workflow
+
+verified:
+  no package script references it
+  blog audit uses the replacement check
+~~~
+
+That is enough. The codebase gets smaller and the reason survives.
+
+## maintenance should leave the system more legible
+
+The best maintenance days end with more legibility.
+
+The scripts say what they do. The docs match the commands. The tests fail with useful output. The dependency risk is visible. The drafts are fewer. The backlog is less haunted. The next person can start without asking why everything is weird.
+
+Legibility is underrated because it is hard to screenshot. But it changes how a project feels. A legible project invites work. An illegible project creates avoidance.
+
+This is why I like small maintenance notes:
+
+~~~text
+today:
+  fixed reset script
+  removed stale content generator
+  updated markdown check docs
+
+next:
+  replace old blog audit thresholds
+  review unused React islands
+~~~
+
+The note tells future-me where the floor is.
+
+## maintenance has a cadence
+
+Maintenance does not have to be a grand ritual.
+
+Some work belongs in the normal flow: update the README when the command changes, delete the flag after rollout, add the regression test with the bug fix. Other work needs a scheduled block because it never feels urgent: dependency sweeps, old drafts, flaky tests, stale docs, local setup cleanup.
+
+The cadence depends on the project. A production service needs stricter rhythms than a personal site. But even a personal site benefits from a regular pass. Otherwise the place you use to think starts accumulating noise until writing feels like archaeology.
+
+I do not want maintenance to become an excuse to avoid hard work. I want it to keep hard work possible.
+
+## the point
+
+Maintenance days are real work because entropy is real.
+
+You can pay it down deliberately or pay it with interest later. Later usually arrives during a deadline, an incident, a model migration, a dependency security fix, or a public rewrite that suddenly needs the whole workflow to be trustworthy.
+
+Cleaning the system is not separate from building the system. It is how the system stays buildable.
+
+That is enough of a shipping outcome for me on a quiet Friday.

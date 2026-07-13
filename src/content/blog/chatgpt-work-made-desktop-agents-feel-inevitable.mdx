@@ -8,193 +8,188 @@ author: "jeremy-london"
 tags: ["chatgpt work", "desktop agents", "workflow"]
 ---
 
-{/*
-Depth: systems-essay
-Information map:
-- the concrete desktop agents problem
-- the example surface: an agent that can see files, browser state, application context, approvals, and the receipts from its own work
-- the failure mode: the agent finishes a task without leaving enough evidence for a human to trust or resume it
-- why the obvious solution is insufficient
-- system constraints and trust boundaries
-- architecture and component responsibilities
-- request, event, and evidence flow
-- deterministic and semantic verification
-- measurement using approval rate, retry count, verifier disagreement, and time from tool call to accepted result
-- latency, cost, and scale behavior
-- governance, revocation, and escalation
-- tradeoffs I would make
-- what remains unresolved
-*/}
+ChatGPT Work matters because it makes the chat tab feel like the wrong container.
 
-By July 2026, the agent conversation had moved from chat help toward long-running work across apps and files.
+Once an assistant can see files, browser state, application context, and prior work, it stops being a conversational sidecar. It becomes a work surface. The user is no longer asking for an answer beside the work. They are asking the system to participate in the work.
 
-The hard part of desktop agents is not making a prototype move. Prototypes move. They call tools, retrieve documents, choose models, draw diagrams, and produce desktop agents output that looks close enough to keep going. The hard part is deciding what the desktop agents system is allowed to do after it produces something plausible.
+That shift sounds like product positioning until you ask what has to be true for the work to be trusted.
 
-I think about desktop agents as a control problem more than a prompt problem. The prompt matters for desktop agents, but the prompt is only one component inside a larger machine: context construction, policy, routing, tool execution, verification, storage, approval, and replay. If those pieces are missing, the desktop agents system may still look impressive in a demo. It will just be unpleasant to operate.
+A chat assistant can be useful with a transcript and a send button. A desktop agent needs more structure than that. It needs scoped access, visible state, approvals with real context, verifiers that can disagree with the agent, and records that survive after the conversation scrolls away.
 
-## The problem
+The interesting part is not that an agent can move across apps and files. The interesting part is deciding how it is allowed to move.
 
-The concrete surface here is an agent that can see files, browser state, application context, approvals, and the receipts from its own work. That desktop agents surface creates pressure because it crosses from language into work. Once a desktop agents system can affect files, route requests, inspect user state, call tools, spend money, or produce security-relevant conclusions, "the model answered" is no longer the end of the story.
+## the run is the object
 
-The desktop agents system needs to answer different questions:
+The message is the wrong unit of work for a desktop agent.
 
-- What exactly was requested?
-- Which context was used?
-- Which policy boundary applied?
-- Which component made the decision?
-- What evidence supported the result?
-- What was verified deterministically?
-- What was judged semantically?
-- Who approved the action, if approval was needed?
-- How would we replay the case after a failure?
+Messages are good for conversation. Runs are better for work. A run has a request, a scope, a context snapshot, proposed actions, tool calls, approvals, verification, and final evidence. It is the thing you can inspect, pause, resume, replay, or hand to another reviewer.
 
-Those questions sound administrative until something breaks. Then they become the only questions that matter.
+I want the agent platform to think in objects like this:
 
-## Why the obvious solution is insufficient
-
-The obvious desktop agents solution is to add a better model and a thicker prompt. That helps desktop agents, but it does not solve the operating problem. A stronger model can still break desktop agents: call the wrong tool, use stale context, skip a permission boundary, or produce a technically valid answer that is useless to the person who has to act on it.
-
-The second obvious desktop agents solution is to put a human approval button at the dangerous step. That also helps desktop agents, but only if the approval has context. A desktop agents button that says "approve" without showing the diff, tool arguments, policy boundary, expected side effect, and rollback path is not governance. It is a liability with a nicer label.
-
-For desktop agents, I would treat approvals as part of the data flow. The approval is not a modal. It is a signed desktop agents decision attached to the run record.
-
-## Constraints
-
-A production desktop agents version has to live with several constraints at once.
-
-The first is latency. Verification cannot be so slow that everyone disables it. The second is cost. Running a frontier model as judge for every small desktop agents step may be correct and still unaffordable. The third is privacy. For desktop agents, context windows are tempting places to dump everything, but credential material, user state, and internal documents need boundaries. The fourth is replay. If a desktop agents failure cannot be replayed, it will be explained with folklore.
-
-The trust boundary is file access, network access, credential use, and delegation between agents. I would make that boundary explicit in the request envelope rather than burying it in code comments.
-
-~~~json
+```json
 {
-  "runId": "run_2026_07_13_001",
-  "actor": "agent-or-human-id",
-  "input": "requested work",
-  "contextRefs": ["doc:policy", "file:target", "trace:previous-step"],
+  "runId": "desktop-agent-042",
+  "request": "revise the blog draft and verify the local page",
   "scope": {
-    "filesystem": ["read:src", "write:docs"],
-    "network": ["deny"],
-    "credentials": ["none"],
-    "expiresAt": "2026-07-13T18:00:00Z"
+    "files": ["src/content/blog"],
+    "browser": ["http://localhost:4321"],
+    "network": "ask-before-use",
+    "credentials": "none"
   },
-  "decision": null,
-  "evidence": [],
-  "approval": null
+  "state": "awaiting-approval",
+  "evidence": ["proposed-diff", "markdown-check-output"],
+  "expires": "end-of-run"
 }
-~~~
+```
 
-That envelope is not meant to be universal. It is meant to force the design conversation. What scope exists? Who grants it? When does it expire? What evidence must be present before the next state transition?
+The fields matter because they force the uncomfortable questions early.
 
-## Architecture
+What did the agent see? What was it allowed to touch? Which files were in scope? Was the browser logged into the right account? Did the agent have network access? Did it use a credential? Which output proved the work was done?
 
-The architecture I would start with has six components:
+A transcript can describe those things after the fact. A run object can enforce them while the work is happening.
 
-- context builder
-- policy engine
-- router
-- executor
-- verifier
-- run ledger
+## desktop context is sensitive by default
 
-The context builder gathers only the state needed for the next decision. The policy engine decides whether the requested action is allowed. The router chooses the model, tool, or human path. The executor does the work. The verifier checks the result. The run ledger stores the envelope, transitions, evidence, approvals, and outputs.
+Desktop agents sit near the messy part of a person's life.
 
-The important part is separation. The component that proposes an action should not be the only component that decides whether the action is acceptable. That does not mean every verifier needs to be another model. Some of the best verifiers are boring: schema validation, type checks, path checks, diff checks, policy checks, budget checks, and deterministic tests.
+Files are not clean product objects. A project folder may sit next to notes, exports, screenshots, SSH config, downloaded invoices, half-written drafts, and old secrets that should have been deleted years ago. Browser state is even messier. Tabs carry logins, cookies, history, personal accounts, work accounts, and pages the agent has no business reading.
 
-A rough state machine looks like this:
+That is why "use my desktop" is not a permission model.
 
-~~~text
-created
-  -> context_ready
-  -> policy_checked
-  -> routed
-  -> executed
-  -> verified
-  -> approved | rejected | escalated
-  -> recorded
-~~~
+The grants need to be smaller:
 
-Each transition should be cheap to inspect. If the system jumps from created to recorded, the architecture is lying to you.
+- read this directory
+- edit these files
+- use this browser origin
+- run this command
+- ask before network access
+- never read secrets
+- expire when the run ends
 
-## Operating loop
+The user should be able to see those grants without opening a policy document. More importantly, the agent runtime should enforce them without relying on the model to remember the rules.
 
-The operating loop is where desktop agents can become reliable or collapse into a pile of impressive transcripts. I would make every run produce a record that can be inspected by a human, replayed by a test harness, and summarized by an eval dashboard. Those are three different consumers, so the record cannot be only prose.
+Desktop context is powerful because it is local and personal. That is exactly why it needs hard edges.
 
-The loop I would want is:
+## approvals should interrupt at the point of consequence
 
-~~~text
-capture -> propose -> check -> approve -> execute -> verify -> record -> learn
-~~~
+Approval is not there to make the product look careful. It is there to stop consequence from becoming invisible.
 
-Capture stores the request and context references. Propose creates the candidate action. Check runs policy and deterministic validation. Approve attaches a human decision when the action needs one. Execute performs the work. Verify compares the result with the contract. Record stores the transition. Learn turns accepted and rejected runs into future eval cases.
+For a desktop agent, consequence comes in different forms. Editing a local draft is one kind. Sending an email is another. Running a shell command is another. Posting to a company system, creating a ticket, deleting a file, publishing a page, or moving data across accounts each deserves a different level of friction.
 
-That last step is easy to skip and expensive to recover later. If the system only stores successes, it trains the team to forget the edge cases. The rejected runs are often more useful because they show where the boundary was unclear, where the model overreached, or where the tool contract was underspecified.
+The approval should arrive when the agent has enough detail to make the decision concrete:
 
-## Information flow
+```text
+proposed action:
+  replace 6 paragraphs in src/content/blog/example.mdx
 
-Information should move forward as evidence, not as vibes. The executor should not hand the verifier a blob of text and hope for the best. It should hand over the tool call, arguments, output, affected resources, timing, cost, and any claimed reasoning that the verifier is expected to check.
+evidence:
+  current draft contains repeated generated text
 
-For desktop agents, I would separate three kinds of evidence:
+after approval:
+  write file
+  run pnpm markdown:check on the edited post
 
-- deterministic evidence, such as tests, schemas, diffs, permissions, and checksums
-- semantic evidence, such as a judge model comparing output to intent
-- operational evidence, such as latency, cost, retries, and approval history
+rollback:
+  restore the previous file content from git diff
+```
 
-These evidence types age differently. Deterministic evidence is easier to replay. Semantic evidence may drift when the judge model changes. Operational evidence explains whether the system was usable under the actual constraints.
+That is a real decision. "Continue?" is not.
 
-## Failure modes
+The approval surface should show the target, the side effect, the evidence, and the recovery path. If the action crosses an account boundary or uses a credential, the interface should say which identity is being used. If the action is part of a longer run, the approval should say whether the agent will continue after this step.
 
-The obvious failure is the agent finishes a task without leaving enough evidence for a human to trust or resume it. The less obvious failures are more interesting.
+The goal is not to make every step painful. The goal is to make meaningful steps legible.
 
-A confused deputy failure happens when one component has authority another component should not inherit. An agent reads a private file, summarizes it into a shared context, and a later tool call leaks the summary. The filesystem permission looked correct, but the information boundary was already broken.
+## verifiers need a different job than generators
 
-A stale-context failure happens when the model acts on a snapshot that is no longer true. This is common in coding agents, dashboards, and approval workflows. The user approves an action based on one diff, but the underlying file changed before execution.
+The annoying part of desktop agents is not getting them to call tools. The annoying part is deciding whether the work that came back is usable.
 
-A verifier collapse happens when the verifier shares too much context, too much prompt structure, or too much failure mode with the generator. It agrees because it is making the same mistake. This is where deterministic checks earn their keep.
+A command can exit zero while checking the wrong file. A browser click can succeed in the wrong account. A file edit can apply cleanly and remove the argument the article needed. A search result can be fresh and irrelevant. A generated summary can be fluent and miss the only detail that mattered.
 
-A governance failure happens when approvals exist but revocation does not. Temporary access that cannot expire is not temporary. Tool scopes that cannot be audited are not scopes. A run ledger that cannot answer who approved what is not a ledger.
+The verifier should not be a cheerleader for the generator.
 
-## Measurement
+Some checks can be deterministic:
 
-The measurement surface for desktop agents is approval rate, retry count, verifier disagreement, and time from tool call to accepted result. I would not roll that into one success score. One number will hide the shape of the system.
+- did the changed file stay inside scope?
+- did the command run from the expected working directory?
+- did the build or lint command pass?
+- did the screenshot render the expected page?
+- did the diff touch only the requested files?
 
-I would track:
+Some checks are semantic:
 
-- task acceptance rate by route
-- verifier disagreement by case type
-- deterministic failure rate
-- semantic judge variance
-- approval latency
-- retry count
-- p50 and p95 end-to-end latency
-- cost per accepted run
-- escalation rate
-- replay success rate
+- did the rewrite preserve the actual idea?
+- did the agent follow the latest user instruction?
+- did the approval match the final action?
+- did the summary mention the real failure?
+- did the answer use stale context?
 
-Replay success rate is underrated. If the team cannot replay a failed run with the same inputs, context references, policy version, and model versions, the incident review becomes storytelling.
+Those semantic checks may involve another model, but the job should be framed differently. The verifier is not trying to finish the task. It is trying to find the gap between the requested work and the claimed result.
 
-## Scaling behavior
+That distinction matters. A desktop agent that verifies itself with the same context, same incentives, and same blind spots will miss exactly the failures the user needed help catching.
 
-At small scale, the system can be strict and noisy. A human can read every rejection. At medium scale, the noise becomes expensive. The system needs triage, clustering, and better defaults. At large scale, the risk moves again: the bottleneck is no longer whether one run was correct, but whether teams can change models, prompts, tools, and policies without creating invisible regressions.
+## receipts are how work becomes inspectable
 
-That is where versioning matters. The model version, prompt version, tool schema version, policy version, and verifier version all belong in the run record. Otherwise a future failure will be impossible to attribute.
+When a desktop agent finishes, I do not want a victory paragraph.
 
-I would also expect routing to become more conservative over time. Early prototypes overuse the strongest model because it is convenient. Production systems usually end up with a portfolio: cheap classifiers, small local models, retrieval paths, frontier models, deterministic tools, and human escalation. The router becomes an economic and governance component, not only a quality component.
+I want a receipt.
 
-## Tradeoffs I would make
+What changed? Which files were read? Which files were edited? Which commands ran? Which approvals happened? Which checks passed? Which checks failed? What remains undone? What assumptions did the agent make?
 
-I would spend complexity on the run ledger before spending it on fancy orchestration. If the system cannot explain what happened, better orchestration just fails faster.
+That record can be short, but it needs to be specific. The user should be able to decide whether they trust the result without rereading the whole transcript. Another agent should be able to pick up the work without reconstructing the previous run from vibes.
 
-I would prefer narrow tool scopes that are annoying but inspectable over broad scopes that feel magical. The annoyance is real. So is the cost of a broad permission that nobody can audit.
+For coding and writing workflows, the receipt might include:
 
-I would use model judges carefully. They are useful for semantic comparison, ranking, and clustering. They are weak as the only gate on irreversible actions. When the action matters, pair the judge with deterministic checks and human escalation.
+```text
+changed:
+  src/content/blog/chatgpt-work-made-desktop-agents-feel-inevitable.mdx
 
-I would keep approvals contextual. Show the proposed action, affected resources, evidence, expected side effect, rollback story, and expiration. If that makes the approval UI crowded, the operation may be too vague.
+checked:
+  pnpm markdown:check src/content/blog/chatgpt-work-made-desktop-agents-feel-inevitable.mdx
 
-## What remains unresolved
+not checked:
+  full site build
 
-I do not think there is one clean answer for desktop agents. The shape depends on the cost of failure, the sensitivity of the data, the reversibility of the action, and the review capacity of the team.
+needs review:
+  factual claims about ChatGPT Work product scope
+```
 
-The unresolved question is how much friction belongs in the default path. Too much friction and people avoid the system. Too little and the system accumulates invisible risk. The answer probably changes by task class, not by company slogan.
+That last line is important. Good receipts do not pretend uncertainty disappeared.
 
-That is the part I find interesting. The future of desktop agents is not a chat box with more buttons. It is a work surface with memory, scope, evidence, review, revocation, and enough humility to stop when it cannot prove what it just did.
+## the product metric is trust over time
+
+Desktop agents will be judged by more than task completion.
+
+A task-success number can hide too much. The agent may finish the task but require too many approvals. It may finish quickly but leave no evidence. It may produce correct output while touching more files than expected. It may succeed on simple runs and collapse when the user's local state is messy.
+
+I would watch metrics that say something about trust:
+
+- approval reversal rate
+- denied tool attempts
+- stale-context failures
+- verifier disagreement
+- scoped-access violations
+- runs resumed successfully after interruption
+- user edits immediately after agent completion
+- time from proposal to accepted result
+
+None of those metrics is perfect. Together they are better than pretending the only question is whether the agent eventually produced an answer.
+
+The product has to learn where friction helps and where it only annoys. Too much approval turns the agent into a form with a personality. Too little approval turns the agent into a smooth path for unclear work. The right balance will vary by task, user, and environment.
+
+My bias is to start explicit and earn convenience later.
+
+## why this feels inevitable
+
+Desktop agents feel inevitable because the work is already on the desktop.
+
+The files are there. The browser state is there. The terminal output is there. The half-finished draft is there. The local server is there. The screenshot that explains the bug is there. Keeping the assistant trapped in a chat tab means forcing the user to ferry context back and forth by hand.
+
+That ferrying is waste.
+
+But removing it creates a system problem. The agent becomes useful because it gets close to the work. It becomes risky for the same reason.
+
+That is the shape of the next default: agents with access to real work surfaces, bounded by scopes that users can understand, approvals that show consequences, verifiers that can push back, and receipts that make the run inspectable afterward.
+
+The chat box was a good starting point.
+
+The work surface needs stronger bones.

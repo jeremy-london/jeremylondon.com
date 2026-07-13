@@ -8,138 +8,164 @@ author: "jeremy-london"
 tags: ["tooling", "automation", "quality"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete tooling problem
-- the example surface: a model action that crosses from text into a real system
-- the failure mode: the tool saves a minute while hiding the mistake that costs an afternoon
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using time to diagnose, idempotent reruns, exit-code accuracy, and log usefulness
-- security or ownership boundary: what the tool may change without asking
-- latency, cost, and scaling implications
-*/}
+Tooling should make the safe path short.
 
-If the careful workflow takes five commands and the risky workflow takes one, the risky workflow wins.
+That sounds obvious until you watch a team under pressure.
 
-The interesting part of tooling is not the name. It is the system pressure around a model action that crosses from text into a real system. Once that pressure shows up for tooling, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+If the careful workflow takes five commands and the risky workflow takes one, people will use the risky workflow. They will mean well. They will know better. They will tell themselves this change is tiny. Then the one-command path becomes the real process and the documented careful path becomes theater.
 
-## The unit of work
+Good tooling does not rely on everyone having extra discipline at the exact moment they are tired.
 
-I would start by naming the unit of work for tooling. In developer tools, the tooling unit is usually smaller than the product surface and larger than a function call. For tooling, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+## the shortest path becomes policy
 
-A useful tooling unit has four properties:
+Every repo has an unofficial policy encoded in command length.
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+If `pnpm build` is fast and `pnpm check` is slow, developers will build more often than they check. If the deploy command skips tests, that is the deploy process, regardless of what the wiki says. If opening a PR is easy and writing a useful description is manual, descriptions will rot. If the rollback command is scary, people will hesitate during the window when speed matters.
 
-For tooling, the boundary is what the tool may change without asking. That boundary should be visible in the tooling data, not only in a policy document. If a tooling request crosses the boundary, the trace should show it.
+The tool path becomes the culture.
 
-## Data flow
-
-The simple tooling flow looks like this:
-
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
-~~~
-
-The context builder gathers the minimum useful state for tooling. The tooling decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
-
-That receipt is the difference between a tooling demo and an operable system. A demo can rely on a person watching closely. A tooling system needs to explain itself after the person has moved on.
-
-A tooling request envelope might look like this:
+This is why I like boring scripts:
 
 ~~~json
 {
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
+  "scripts": {
+    "check": "astro check && rumdl check . && vitest run",
+    "preflight": "pnpm check && pnpm build",
+    "dev:clean": "pnpm stop && pnpm reset && pnpm dev"
+  }
 }
 ~~~
 
-The schema is deliberately plain. Fancy schemas do not save unclear tooling systems. The useful tooling work is deciding which fields are required, which are advisory, and which block the run when missing.
+Those names are not clever. They give people a short handle for the careful thing.
 
-## Implementation sketch
+## safety should be the default mode
 
-I would implement the first tooling pass as a narrow pipeline rather than a general platform. Start tooling with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+Dangerous operations should require extra intent. Safe operations should be cheap.
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
-
-For tooling, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The tooling system still has to decide whether the proposal is usable under the current boundary.
-
-## Failure modes
-
-The main tooling failure mode is the tool saves a minute while hiding the mistake that costs an afternoon. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The tooling failure is that the next component cannot tell whether the result should be trusted.
-
-I would test at least five tooling cases:
-
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
-
-That last tooling case matters. A confident tooling answer is not the same thing as a verified result. If tooling touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
-
-## Deployment shape
-
-I would not deploy tooling as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For tooling, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
-
-That gives the router real work to do. For tooling, it should not only choose small model or big model. It should choose a risk path:
-
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
-
-Each tooling path has a different budget, verifier, and approval requirement. This is the part that makes tooling feel less magical and more like infrastructure. The model is still important, but the tooling route determines what kind of trust the system is asking for.
-
-## Measurement
-
-The measurement surface for tooling is time to diagnose, idempotent reruns, exit-code accuracy, and log usefulness. I would track tooling per route or case type, not only as a global average. Global averages hide the exact class of tooling problems that make these systems feel unpredictable.
-
-A simple eval table can carry a lot of weight:
+For example, a deploy tool should probably default to a preview or staged environment:
 
 ~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
+deploy              -> preview
+deploy --prod       -> production
+deploy --prod --yes -> production without prompt
 ~~~
 
-The point is not to build an eval cathedral for tooling. The point is to preserve enough tooling structure that regressions can be clustered. If failures cluster around one route, fix the route. If tooling failures cluster around one policy boundary, fix the boundary. If tooling failures cluster around one model, stop pretending the prompt is the whole system.
+The flags tell a story. Production is possible, but it is not the accidental path.
 
-## Operational concerns
+The same principle applies to database tools, migration runners, file cleanup scripts, AI agents, and local reset commands. If a command can destroy state, cross a permission boundary, spend money, or publish externally, it should be harder to run by accident than the harmless version.
 
-The operational question for tooling is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap tooling route becomes unreliable but the expensive route would blow the budget?
+This is not about wrapping everything in confirmation prompts. Confirmation prompts become wallpaper. The better fix is usually narrowing the command and making the default operation reversible.
 
-For tooling, I would put those answers in configuration, not in a heroic prompt. A small tooling policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+## one command can still leave evidence
 
-## Scaling behavior
+A short safe path should not be invisible.
 
-At small scale, a human can inspect weird tooling cases by hand. At medium scale, the tooling system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+If the tool fixes formatting, it should say which files changed. If it runs migrations, it should print the migration names. If it deploys, it should print the version, commit, environment, and URL. If it asks an AI agent to edit code, it should record the goal and the verification command.
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the tooling system without being surprised by the downstream behavior?
+~~~text
+preflight
+  commit: 9f31a2c
+  markdown: pass
+  astro: pass
+  build: pass
+  artifact: dist/
+~~~
 
-For tooling, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the tooling system a spine.
+That output is small, but it gives the next person a receipt.
 
-## Where I land
+I do not want tools that spray logs forever. I want tools that answer the questions people ask when something breaks: what ran, against what input, with which version, and what changed?
 
-Tooling deserves depth when it changes architecture, not when it merely sounds current. The tooling implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+## scripts should compose the boring work
 
-If the tooling post answers those questions, it teaches something. If the tooling post only says the topic matters, it is just a longer version of the headline.
+Teams often leave the boring work as instructions because each step is simple.
+
+~~~text
+1. run tests
+2. run lint
+3. build
+4. check generated files
+5. paste summary into the PR
+~~~
+
+Each step is simple. The sequence is still easy to skip.
+
+The script should do the sequence and stop on failure:
+
+~~~bash
+#!/usr/bin/env bash
+set -euo pipefail
+
+pnpm check
+pnpm build
+git diff --check
+~~~
+
+That script is not sophisticated. It is useful because it makes the careful path one command.
+
+The trick is keeping scripts understandable. A safety script that nobody can debug will eventually get bypassed. I prefer small commands with boring names over one giant automation wrapper that owns the whole repo.
+
+## recovery is part of safety
+
+Safe tooling includes a way back.
+
+It is not enough to prevent mistakes. Tools should help recover from ordinary ones: stale dev servers, stuck ports, failed migrations, half-written generated files, dirty build artifacts, abandoned branches, broken caches.
+
+Local development is full of these.
+
+~~~text
+pnpm stop
+pnpm reset
+pnpm dev
+~~~
+
+That sequence is fine until someone has to remember it. A `pnpm dev:clean` command can encode the recovery path.
+
+The same applies to production operations. A deploy tool should know the last good version. A migration tool should say whether rollback exists. A feature flag tool should make disabling the risky path faster than debugging it live.
+
+Safety without recovery becomes anxiety.
+
+## fast checks beat perfect checks that nobody runs
+
+A check that takes twenty minutes has a different job than a check that takes ten seconds.
+
+The ten-second check belongs in the developer loop. The twenty-minute check belongs in CI or a release gate. Problems start when teams pretend one check can serve both places.
+
+I like layered checks:
+
+~~~text
+save:      format touched file
+precommit: typecheck changed package
+prepush:   test affected packages
+ci:        full test and build matrix
+release:   smoke deployed artifact
+~~~
+
+The shape matters more than the exact names. Put the cheap signal close to the person making the change. Put the expensive signal where it can run without blocking every thought.
+
+If the only safe path is slow, people will invent a faster unsafe path.
+
+## ai agents need the same ergonomics
+
+This applies hard to agent workflows.
+
+If asking the agent to edit a file is one sentence and asking it to verify the change requires a long prompt, verification will be skipped. If approving broad filesystem access is easier than granting a narrow tool, broad access becomes the default. If the agent can say "done" without running the project check, the workflow has trained itself to accept confidence as evidence.
+
+The safe path for agents should be short:
+
+~~~text
+/spec   write the goal
+/work   implement against the goal
+/verify run adversarial review and project checks
+~~~
+
+The names can differ. The idea is that the careful loop should be easier to invoke than the sloppy loop.
+
+## good tools remove decisions at the right layer
+
+Tooling should not remove judgment. It should remove repeated tiny decisions that distract from judgment.
+
+A developer should decide whether the migration is safe. They should not have to remember the exact command that runs schema diff, tests rollback, and prints the changed tables. A reviewer should decide whether the change is good. They should not have to ask whether the author remembered markdown checks. An operator should decide whether to deploy. They should not have to assemble the same preflight checklist from memory.
+
+Short safe paths are how teams keep discipline when the work gets boring.
+
+That is the real test of tooling. It should make the careful thing easy enough that people use it when nobody is watching.

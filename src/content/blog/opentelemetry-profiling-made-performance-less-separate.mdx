@@ -8,138 +8,138 @@ author: "jeremy-london"
 tags: ["opentelemetry", "profiling", "observability"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete opentelemetry problem
-- the example surface: Profiling moving into the OpenTelemetry conversation made performance feel closer to traces, metrics, and logs
-- the failure mode: a model path changes and the team notices only after user behavior drifts
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using quality regression rate, p95 latency, cost per accepted task, and incident replay coverage
-- security or ownership boundary: what the model can change without human review
-- latency, cost, and scaling implications
-*/}
+Profiling used to feel like a side quest.
 
-Profiling moving into the OpenTelemetry conversation made performance feel closer to traces, metrics, and logs.
+The main observability stack had logs, metrics, and traces. When something got slow or expensive, you jumped into a different tool, captured a profile, stared at flame graphs, and tried to line that evidence back up with the incident timeline.
 
-The interesting part of opentelemetry is not the name. It is the system pressure around Profiling moving into the OpenTelemetry conversation made performance feel closer to traces, metrics, and logs. Once that pressure shows up for opentelemetry, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+That separation was always awkward.
 
-## The unit of work
+Performance problems rarely live in a separate universe. They show up as request latency, queue backlog, CPU saturation, memory growth, garbage collection, lock contention, or cloud spend. Those are operational symptoms. Profiling tells you which code is consuming the resources behind those symptoms.
 
-I would start by naming the unit of work for opentelemetry. In AI operations, the opentelemetry unit is usually smaller than the product surface and larger than a function call. For opentelemetry, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+OpenTelemetry profiling matters because it brings that question closer to the same observability conversation.
 
-A useful opentelemetry unit has four properties:
+## each signal answers a different question
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+Logs answer: what happened?
 
-For opentelemetry, the boundary is what the model can change without human review. That boundary should be visible in the opentelemetry data, not only in a policy document. If a opentelemetry request crosses the boundary, the trace should show it.
+Metrics answer: what is the system doing over time?
 
-## Data flow
+Traces answer: where did this request go?
 
-The simple opentelemetry flow looks like this:
+Profiles answer: which code consumed the CPU, memory, locks, or other resources?
 
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
-~~~
+That last question is the one teams often reach for too late.
 
-The context builder gathers the minimum useful state for opentelemetry. The opentelemetry decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+A trace can show that a request spent 900ms in a service. A metric can show that CPU was high. A log can show a timeout. A profile can show that a serialization path, regex, compression step, JSON parser, image transform, allocation-heavy loop, or dependency call was eating the process.
 
-That receipt is the difference between a opentelemetry demo and an operable system. A demo can rely on a person watching closely. A opentelemetry system needs to explain itself after the person has moved on.
+The signals are better together. A profile without request context can tell you hot code. A trace without a profile can tell you slow spans. A linked profile and trace can tell you which code was hot during the slow request on the resource that handled it.
 
-A opentelemetry request envelope might look like this:
+That is the practical win.
 
-~~~json
-{
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
-}
-~~~
+## sampling makes profiling operational
 
-The schema is deliberately plain. Fancy schemas do not save unclear opentelemetry systems. The useful opentelemetry work is deciding which fields are required, which are advisory, and which block the run when missing.
+Production profiling has to be cheap enough to leave on or easy enough to enable during an incident.
 
-## Implementation sketch
+Sampling-based profilers work by periodically observing program state and collecting stack traces. For CPU, that might mean sampling stacks at a fixed interval. For memory, it might mean sampling allocations. For lock contention, it might capture blocked stacks. Some environments can use eBPF to collect profiles with low overhead and little or no application instrumentation.
 
-I would implement the first opentelemetry pass as a narrow pipeline rather than a general platform. Start opentelemetry with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+The exact mechanism matters less than the operating property: the team gets resource evidence from real workloads without turning every incident into a manual profiling session.
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+That does not remove tradeoffs. Sampling can miss short-lived behavior. Overhead still matters. Symbolization can be painful. Native stacks, containers, stripped binaries, and language runtimes all add detail. But the workflow is much better when profiles can flow through the same telemetry pipeline and correlate with the same resource attributes.
 
-For opentelemetry, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The opentelemetry system still has to decide whether the proposal is usable under the current boundary.
+## resource context is the glue
 
-## Failure modes
+The profile is useful because it carries context.
 
-The main opentelemetry failure mode is a model path changes and the team notices only after user behavior drifts. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The opentelemetry failure is that the next component cannot tell whether the result should be trusted.
+Which service? Which version? Which pod? Which host? Which region? Which deployment? Which runtime? Which tenant class? Which feature flag?
 
-I would test at least five opentelemetry cases:
+Those labels are not decoration. They keep the performance investigation from drifting into averages.
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+Maybe CPU is high only on the new version. Maybe memory growth appears only in one worker pool. Maybe a slow path appears only for a large customer. Maybe one Kubernetes node class has worse behavior. Maybe the issue is tied to a feature flag that changed payload shape.
 
-That last opentelemetry case matters. A confident opentelemetry answer is not the same thing as a verified result. If opentelemetry touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
-
-## Deployment shape
-
-I would not deploy opentelemetry as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For opentelemetry, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
-
-That gives the router real work to do. For opentelemetry, it should not only choose small model or big model. It should choose a risk path:
-
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
-
-Each opentelemetry path has a different budget, verifier, and approval requirement. This is the part that makes opentelemetry feel less magical and more like infrastructure. The model is still important, but the opentelemetry route determines what kind of trust the system is asking for.
-
-## Measurement
-
-The measurement surface for opentelemetry is quality regression rate, p95 latency, cost per accepted task, and incident replay coverage. I would track opentelemetry per route or case type, not only as a global average. Global averages hide the exact class of opentelemetry problems that make these systems feel unpredictable.
-
-A simple eval table can carry a lot of weight:
+If profiles share resource context with metrics and traces, the investigation can move more directly:
 
 ~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
+p95 latency increased
+  -> trace shows slow span in renderer
+  -> profile on same service version shows CPU in markdown sanitizer
+  -> deployment diff changed sanitizer input size
+  -> fix targets the hot path instead of guessing
 ~~~
 
-The point is not to build an eval cathedral for opentelemetry. The point is to preserve enough opentelemetry structure that regressions can be clustered. If failures cluster around one route, fix the route. If opentelemetry failures cluster around one policy boundary, fix the boundary. If opentelemetry failures cluster around one model, stop pretending the prompt is the whole system.
+That is a different workflow from "CPU is high, somebody go profile the app."
 
-## Operational concerns
+## flame graphs need product context
 
-The operational question for opentelemetry is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap opentelemetry route becomes unreliable but the expensive route would blow the budget?
+Flame graphs are excellent and also easy to misuse.
 
-For opentelemetry, I would put those answers in configuration, not in a heroic prompt. A small opentelemetry policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+A hot function is not automatically a bug. It may be doing the work the product asked for. The useful question is whether the resource use matches the value and expectation of the workflow.
 
-## Scaling behavior
+An image-processing route should spend time processing images. A search route should spend time ranking. A code-analysis worker should parse code. The problem is excess: unnecessary work, repeated work, expensive work on the wrong path, or work happening at the wrong time.
 
-At small scale, a human can inspect weird opentelemetry cases by hand. At medium scale, the opentelemetry system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+That is why profiles need to sit next to request and product context.
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the opentelemetry system without being surprised by the downstream behavior?
+I want to know:
 
-For opentelemetry, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the opentelemetry system a spine.
+- which endpoint or job produced the profile
+- which input size or customer slice was involved
+- whether the hot path is expected
+- whether caching should have prevented it
+- whether a dependency changed
+- whether this is new after a deploy
+- whether reducing it would improve user-visible latency or cost
 
-## Where I land
+Performance work gets better when it starts from user pain or operating cost, then uses profiles to find the code. Starting from the hottest function alone can lead to elegant optimizations nobody needed.
 
-Opentelemetry deserves depth when it changes architecture, not when it merely sounds current. The opentelemetry implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+## profiles can become regression tests
 
-If the opentelemetry post answers those questions, it teaches something. If the opentelemetry post only says the topic matters, it is just a longer version of the headline.
+The best performance investigations leave behind a guardrail.
+
+If a route got slow because a function allocated too much, record that. If a worker burned CPU parsing the same payload repeatedly, record that. If a model-serving process spent surprising time in tokenization, record that. The fix should not disappear into memory.
+
+Profiles are not usually tests by themselves, but they can inform tests and budgets:
+
+- allocation budget for a hot path
+- benchmark for a parser
+- p95 latency guard for a route
+- CPU budget for a background job
+- regression alert for a known function family
+- load test that reproduces the old profile shape
+
+This is especially useful in AI systems, where the expensive path may be outside the model call. Prompt assembly, retrieval, reranking, image preprocessing, PDF parsing, token counting, JSON validation, and logging can all become surprisingly expensive.
+
+The model bill gets attention. The local CPU bill often hides until profiles make it visible.
+
+## the collector story matters
+
+OpenTelemetry's value has always been partly social: a common way to instrument and move telemetry without making every team marry one vendor.
+
+Profiles becoming part of that conversation means performance data can follow the same broad path as the other signals:
+
+~~~text
+application or agent
+  -> profile data model
+  -> OTLP export
+  -> collector processing
+  -> backend storage and visualization
+  -> correlation with logs, metrics, and traces
+~~~
+
+The exact maturity varies by language and toolchain, and teams should check the status before betting production workflows on a specific profile signal. But the direction is useful. Performance evidence belongs in the main stack.
+
+## less separate is the point
+
+I do not want profiling to become another dashboard everyone ignores.
+
+I want it to be available when the system says something is wrong. High CPU should lead to the code path. A slow trace should lead to the hot stack. A deployment regression should show which resource use changed. A cost spike should become a concrete function, job, query, or transform.
+
+That is what "profiling in OpenTelemetry" represents to me: fewer walls between operations and performance engineering.
+
+The system is slow.
+
+The trace shows where.
+
+The metric shows how often.
+
+The log shows what happened.
+
+The profile shows what code paid the bill.

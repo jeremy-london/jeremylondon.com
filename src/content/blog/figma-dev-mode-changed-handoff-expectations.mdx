@@ -8,24 +8,124 @@ author: "jeremy-london"
 tags: ["figma", "handoff", "product engineering"]
 ---
 
-{/*
-Depth: quick-note
-Information map:
-- the concrete figma problem
-- the example surface: Figma Dev Mode made handoff feel less like a screenshot exchange and more like an inspectable workflow
-- the failure mode: the feature works in the happy path but leaves the user guessing at the boundary
-- the small decision I would keep
-- what would make the note wrong
-*/}
+Figma Dev Mode changed the social contract around handoff.
 
-Figma Dev Mode made handoff feel less like a screenshot exchange and more like an inspectable workflow.
+Before Dev Mode, a lot of handoff still worked like a screenshot exchange with extra steps. Designers marked up frames, engineers inspected layers, comments filled in gaps, and somebody eventually asked whether the spacing was eight or twelve pixels. The file was the source of intent, but the developer experience often felt like visiting someone else's workshop and trying to infer which pieces mattered.
 
-I would keep figma small here. The useful part is Figma Dev Mode made handoff feel less like a screenshot exchange and more like an inspectable workflow. That is enough material for a figma note, not a manifesto.
+Dev Mode did not magically solve design-to-code. It did something smaller and more useful: it made the developer view an explicit part of the design artifact.
 
-The figma mistake is treating the observation as if it needs a complete theory around it. In practice, product engineering work usually gets better when the first version names the boundary and then stops. For figma, that boundary is what the interface must make visible before the user can act.
+That changes expectations. If a frame is marked ready for development, the handoff should be inspectable. If tokens or variables exist, they should appear in a form the developer can use. If a design changed after review, the diff should be visible. If a component maps to production code, the file should help the engineer find that relationship instead of making them reverse engineer it from pixels.
 
-The figma check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the figma post has done its job. If the answer is no, adding three more figma paragraphs will not fix it.
+## ready for dev is a promise
 
-The thing I would not add to figma is a fake architecture section. A short figma note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for figma. The rest of figma can wait until there is a real example to inspect.
+The phrase "ready for dev" sounds simple until you have to define it.
 
-I am leaving figma as a short note because the idea is useful at this size. A longer figma version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.
+Ready cannot only mean the designer is done looking at the frame. It has to mean the work has enough context for another person to build. That includes the happy path, boring states, responsive behavior, component choices, token usage, copy, empty states, loading states, error states, and any weird exception that should not be guessed from the mockup.
+
+Dev Mode makes that readiness visible, which is good and slightly uncomfortable. Once a frame is marked ready, the file is making a claim. The engineer should be able to inspect it without hunting through a page full of old explorations and abandoned directions.
+
+A useful handoff frame answers:
+
+- what is final
+- what is intentionally flexible
+- what is inherited from the design system
+- what state is missing because it is handled elsewhere
+- what still needs product or engineering judgment
+
+That last one matters. Handoff does not mean every decision is frozen. It means the remaining decisions are named.
+
+## inspection changes design behavior
+
+When developers can inspect spacing, variables, code snippets, and layer structure, messy design files become more expensive.
+
+That is not a complaint. It is a good pressure. A frame built only to look right at one size may not survive inspection. A component detached and nudged into place may communicate the wrong implementation. A color chosen by eyeballing a palette may hide the fact that the token system was bypassed. A layer named `Rectangle 182` may be fine for exploration and terrible for handoff.
+
+Dev Mode pushes design files toward being more like product artifacts. The canvas still needs room for exploration, but the handoff surface needs discipline.
+
+I would expect ready frames to have a few properties:
+
+~~~text
+clear frame name
+known component source
+token-backed colors and spacing where possible
+intentional layer names for important elements
+notes for behavior that cannot be inferred visually
+links to relevant ticket, prototype, or implementation notes
+~~~
+
+None of that is glamorous. It reduces the number of times an engineer has to ask whether the design meant what the file technically says.
+
+## code snippets are hints, not implementation
+
+Dev Mode code snippets are useful, especially when variables and code syntax are wired to the design system. They can save time and reduce translation errors. They can also give a false sense of certainty.
+
+A CSS snippet from a selected layer does not know the component architecture. It does not know whether the layout belongs in a grid, flex row, container query, or existing design-system primitive. It does not know whether a value should be hardcoded, tokenized, inherited, or deleted because the real component already handles it.
+
+So I treat snippets as evidence, not instructions.
+
+The more useful handoff is the relationship between design concepts and code concepts. If the Figma component maps to a production component, that mapping matters more than the raw CSS of a selected rectangle. If a variable has code syntax for Web, iOS, or Android, that helps the developer stay inside the token system. If an annotation explains that a spacing exception is intentional, the engineer can avoid "fixing" it into the wrong pattern.
+
+The goal is not copy-paste code generation. The goal is less lossy translation.
+
+## compare changes reduces surprise
+
+One of the worst handoff failures is quiet drift.
+
+The engineer starts building from a frame. The designer updates the frame. Product changes the copy. A state gets added. A token changes. Nobody is wrong, exactly, but the implementation and the file separate. By the time someone notices, the conversation turns into archaeology.
+
+Compare changes matters because it gives the team a way to talk about drift without relying on memory.
+
+The question changes from "did this move?" to "what changed since the version I built from?" That is a much better question. It lets design and engineering review the delta instead of reopening the entire surface.
+
+I would still want teams to name meaningful revisions in the surrounding process. A design file can show changes, but the product workflow should say when a change affects implementation:
+
+~~~text
+handoff version: account-settings-ready-2023-07-06
+changed after handoff:
+  - added disabled state for save button
+  - changed billing copy
+  - replaced custom toggle with design-system switch
+implementation impact: update component and tests before release
+~~~
+
+That is a small note. It saves the team from pretending visual diffing is the whole communication layer.
+
+## annotations should explain behavior
+
+Annotations are best when they explain what inspection cannot.
+
+A measurement annotation that repeats visible spacing is sometimes helpful, but behavior notes are more valuable. What happens when the name wraps? Which fields are required? Does the card collapse? Is this copy final? Is the destructive action behind a confirmation? Does the empty state appear before or after the first sync attempt?
+
+The design file should not become a novella. But it should capture the decisions that are expensive to infer from pixels.
+
+For product surfaces, I want annotations around:
+
+- state transitions
+- validation behavior
+- responsive breakpoints
+- data-dependent layout
+- permissions and disabled states
+- copy that changes by user role
+- known implementation constraints
+
+Those notes make Dev Mode more than a measurement panel. They turn it into a handoff workspace.
+
+## dev mode raises the bar for engineers too
+
+This is not only a designer discipline story.
+
+Engineers have to stop treating design files as decorative references. If the file marks a frame as ready, includes variables, links components, and annotates behavior, the engineer should use that information. If the implementation diverges, the divergence should be intentional and visible.
+
+Sometimes the codebase has constraints the design file does not show. Maybe the production component cannot support that variant yet. Maybe a table column cannot resize that way. Maybe the route already has a loading pattern. Maybe the design uses a token that does not exist in the app's theme. Those are engineering facts, and they belong in the handoff conversation.
+
+Dev Mode works best when both sides treat the file as shared state. Design intent lives there. Implementation constraints should point back there when they change what ships.
+
+## the handoff expectation changed
+
+The old handoff expectation was "give engineering enough visuals to build from." That is too weak now.
+
+The better expectation is: give engineering an inspectable product artifact with enough structure, state, and provenance to build the right thing and notice when it changed.
+
+Figma Dev Mode did not remove the need for conversation. Good. Some decisions need a conversation. But it moved a lot of avoidable confusion into the artifact itself: ready-for-dev state, inspection, variables, code syntax, annotations, version history, compare changes, and editor integration.
+
+That is why the feature felt bigger than a new panel. It changed what counts as a decent handoff.

@@ -8,138 +8,181 @@ author: "jeremy-london"
 tags: ["local models", "small models", "privacy"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete local models problem
-- the example surface: software that keeps working when the network stops helping
-- the failure mode: a model choice is treated as isolated even though the surrounding system made the decision
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using task success, latency budget, memory footprint, batch behavior, and quality by route
-- security or ownership boundary: where the model stops and the serving system starts
-- latency, cost, and scaling implications
-*/}
+Local models become interesting when they stop being a demo and start being part of the platform.
 
-Local inference is useful for privacy, latency, and focused workflows, especially when it is treated as part of the system.
+Running a model on your laptop is fun. Running a model inside a product workflow is different. The model file has to be found, loaded, versioned, warmed, monitored, updated, and replaced. The app has to know when local inference is allowed, when it is good enough, and when the request should escalate to a larger route.
 
-The interesting part of local models is not the name. It is the system pressure around software that keeps working when the network stops helping. Once that pressure shows up for local models, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+That is platform work, even when the model is small.
 
-## The unit of work
+The benefit is real. Local inference can reduce latency, protect sensitive input, make offline features possible, and keep high-frequency narrow tasks away from expensive hosted models. But those benefits only show up when local inference is treated as a system component rather than a sidecar experiment.
 
-I would start by naming the unit of work for local models. In model systems, the local models unit is usually smaller than the product surface and larger than a function call. For local models, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+## local is a placement decision
 
-A useful local models unit has four properties:
+The first question is what the local model owns.
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+It should not own "AI." That is too vague. It should own a specific job:
 
-For local models, the boundary is where the model stops and the serving system starts. That boundary should be visible in the local models data, not only in a policy document. If a local models request crosses the boundary, the trace should show it.
+- classify a note into a small set of categories
+- redact likely secrets before logs leave the machine
+- summarize a short local document
+- extract entities from a known file type
+- route a request to a local or remote workflow
+- provide offline suggestions while the network is unavailable
 
-## Data flow
-
-The simple local models flow looks like this:
-
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
-~~~
-
-The context builder gathers the minimum useful state for local models. The local models decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
-
-That receipt is the difference between a local models demo and an operable system. A demo can rely on a person watching closely. A local models system needs to explain itself after the person has moved on.
-
-A local models request envelope might look like this:
+Each job has a boundary. The local model needs input limits, output shape, confidence thresholds, and fallback behavior.
 
 ~~~json
 {
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
+  "route": "local_secret_prefilter",
+  "input_limit_kb": 64,
+  "output": "spans",
+  "fallback": "deterministic_patterns_plus_remote_review",
+  "never_send_raw_input": true
 }
 ~~~
 
-The schema is deliberately plain. Fancy schemas do not save unclear local models systems. The useful local models work is deciding which fields are required, which are advisory, and which block the run when missing.
+That record says why the model is local. It is not local because local is fashionable. It is local because the workflow benefits from proximity to the data.
 
-## Implementation sketch
+## model files are dependencies
 
-I would implement the first local models pass as a narrow pipeline rather than a general platform. Start local models with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+A local model file is a dependency with weight.
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+It has a version, size, checksum, license, hardware requirements, and expected runtime. It may need quantization. It may need a tokenizer. It may need a specific inference engine. It may fail to load on older devices or take too long to warm up.
 
-For local models, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The local models system still has to decide whether the proposal is usable under the current boundary.
-
-## Failure modes
-
-The main local models failure mode is a model choice is treated as isolated even though the surrounding system made the decision. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The local models failure is that the next component cannot tell whether the result should be trusted.
-
-I would test at least five local models cases:
-
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
-
-That last local models case matters. A confident local models answer is not the same thing as a verified result. If local models touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
-
-## Deployment shape
-
-I would not deploy local models as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For local models, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
-
-That gives the router real work to do. For local models, it should not only choose small model or big model. It should choose a risk path:
-
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
-
-Each local models path has a different budget, verifier, and approval requirement. This is the part that makes local models feel less magical and more like infrastructure. The model is still important, but the local models route determines what kind of trust the system is asking for.
-
-## Measurement
-
-The measurement surface for local models is task success, latency budget, memory footprint, batch behavior, and quality by route. I would track local models per route or case type, not only as a global average. Global averages hide the exact class of local models problems that make these systems feel unpredictable.
-
-A simple eval table can carry a lot of weight:
+The app should know what it has:
 
 ~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
+model: local-router-small
+version: 2024-11-19
+file: models/router-small-q4.gguf
+checksum: sha256:...
+size_mb: 820
+runtime: llama.cpp
+target: desktop cpu
+fallback: hosted-router-v2
 ~~~
 
-The point is not to build an eval cathedral for local models. The point is to preserve enough local models structure that regressions can be clustered. If failures cluster around one route, fix the route. If local models failures cluster around one policy boundary, fix the boundary. If local models failures cluster around one model, stop pretending the prompt is the whole system.
+That looks boring because it is deployment metadata. Without it, local inference becomes "there is a model somewhere in the app bundle."
 
-## Operational concerns
+You cannot operate that.
 
-The operational question for local models is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap local models route becomes unreliable but the expensive route would blow the budget?
+## privacy needs a boundary, not a mood
 
-For local models, I would put those answers in configuration, not in a heroic prompt. A small local models policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+Local inference is often sold as private. It can be. It can also leak data through logs, telemetry, crash reports, sync features, or fallback calls.
 
-## Scaling behavior
+The product has to define the boundary:
 
-At small scale, a human can inspect weird local models cases by hand. At medium scale, the local models system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+- What input stays local?
+- What derived output can leave?
+- Are confidence scores logged?
+- Are spans or summaries stored?
+- Can the user inspect or delete local model state?
+- What happens when the local model escalates?
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the local models system without being surprised by the downstream behavior?
+For a local redaction workflow, the privacy boundary might be:
 
-For local models, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the local models system a spine.
+~~~text
+raw document: local only
+redacted document: eligible for remote summary
+detected spans: stored locally for review
+model metrics: counts only, no raw text
+fallback: ask user before sending anything remote
+~~~
 
-## Where I land
+That is a product promise. The runtime needs to enforce it.
 
-Local models deserves depth when it changes architecture, not when it merely sounds current. The local models implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+## latency is a budget with startup cost
 
-If the local models post answers those questions, it teaches something. If the local models post only says the topic matters, it is just a longer version of the headline.
+Local models can be fast, but startup can be ugly.
+
+Loading a model from disk, warming the runtime, allocating memory, and building caches can dominate the first interaction. If the feature is supposed to feel instant, the app needs to decide when to load the model: at launch, on first use, in the background, or lazily after the user enters a workflow.
+
+Each choice has a cost. Load at launch and the app may feel heavy. Load on first use and the feature has a cold start. Load in the background and you may burn memory for a feature the user never opens.
+
+Measure both:
+
+~~~text
+cold_start_ms
+warm_inference_ms
+memory_mb
+model_download_ms
+fallback_rate
+~~~
+
+Local inference quality does not matter if the app feels broken before the first token.
+
+## offline behavior should be honest
+
+Local models make offline features possible, but offline does not mean full capability.
+
+The product should say what changes when the network is unavailable. Maybe the local model can summarize notes but cannot search remote docs. Maybe it can classify a draft but cannot fetch account policy. Maybe it can answer from cached content and mark the answer as offline.
+
+Offline mode needs visible constraints:
+
+~~~text
+Available offline:
+  summarize local notes
+  redact local logs
+  classify saved tickets
+
+Requires connection:
+  retrieve current policy
+  sync results
+  run high-confidence remote review
+~~~
+
+That is much better than letting the local model bluff through missing context.
+
+## updates are part of the platform
+
+Local model updates have to be planned.
+
+If the model ships inside an app bundle, updates follow app releases. If the model downloads separately, the product needs version checks, partial downloads, rollback, disk management, and policy for old models. Enterprise environments may pin versions. Offline users may lag for months.
+
+A model update can change behavior even when the UI does not change. That means the update should have release notes and evals:
+
+~~~text
+local-router-small 2024-11-19
+changes:
+  better security-ticket recall
+  lower false positive rate on billing tickets
+known regression:
+  shorter messages with acronyms need review
+rollback:
+  keep previous model for 14 days
+~~~
+
+That is platform maintenance. The model is software.
+
+## local should still be observable
+
+Local does not mean invisible.
+
+The system needs enough telemetry to know whether the model is useful without collecting raw private data. Counts, latency, memory use, error codes, fallback rates, and user correction rates can often be logged safely if designed carefully.
+
+For privacy-sensitive local workflows, aggregate telemetry may be enough:
+
+~~~json
+{
+  "route": "local_redaction",
+  "status": "completed",
+  "spans_detected": 4,
+  "fallback_used": false,
+  "latency_ms": 83,
+  "model_version": "2024-11-19"
+}
+~~~
+
+No raw text. No file names. Still useful.
+
+Observability is how you know whether the local model is earning its place.
+
+## the platform view
+
+Local models are useful when they are deliberately placed.
+
+They can make products faster, more private, more resilient, and cheaper. They can also create new maintenance problems: runtime packaging, version drift, stale local behavior, hardware compatibility, and unclear fallback paths.
+
+The platform view is the honest one. The local model is not a toy hidden behind a feature flag. It is a runtime dependency with a job, a boundary, a version, an eval, and a fallback.
+
+That is when local inference becomes part of the system instead of a cool thing running on the side.

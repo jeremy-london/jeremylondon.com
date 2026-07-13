@@ -1,6 +1,6 @@
 ---
 title: "Kubernetes 1.30 was an upgrade planning reminder"
-excerpt: "Kubernetes releases are a calendar discipline, not just a cluster administrator concern."
+excerpt: "Kubernetes releases are a calendar discipline that reaches beyond cluster administration."
 publishDate: "2024-04-24T09:00:00Z"
 category: "ai-operations"
 draft: false
@@ -8,24 +8,153 @@ author: "jeremy-london"
 tags: ["kubernetes", "operations", "upgrades"]
 ---
 
-{/*
-Depth: quick-note
-Information map:
-- the concrete kubernetes problem
-- the example surface: Kubernetes releases are a calendar discipline, not just a cluster administrator concern
-- the failure mode: a model path changes and the team notices only after user behavior drifts
-- the small decision I would keep
-- what would make the note wrong
-*/}
+[Kubernetes 1.30](https://kubernetes.io/blog/2024/04/17/kubernetes-v1-30-release/) was a reminder that cluster upgrades are calendar work.
 
-Kubernetes releases are a calendar discipline, not just a cluster administrator concern.
+The release itself was a normal Kubernetes release in the best and worst sense: 45 enhancements, a mix of stable, beta, and alpha changes, a long release note, and enough operational detail that nobody should discover it during an emergency maintenance window. Kubernetes releases three minor versions per year, and the project maintains a limited set of supported minor releases. That rhythm turns upgrades into a planning discipline.
 
-I would keep kubernetes small here. The useful part is Kubernetes releases are a calendar discipline, not just a cluster administrator concern. That is enough material for a kubernetes note, not a manifesto.
+This reaches beyond cluster administration. Application teams feel Kubernetes upgrades through API behavior, controller assumptions, admission policies, node behavior, autoscaling, storage, observability, and CI images. If the platform moves and the product teams treat it as invisible infrastructure, the surprises arrive late.
 
-The kubernetes mistake is treating the observation as if it needs a complete theory around it. In practice, AI operations work usually gets better when the first version names the boundary and then stops. For kubernetes, that boundary is what the model can change without human review.
+## releases are a dependency clock
 
-The kubernetes check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the kubernetes post has done its job. If the answer is no, adding three more kubernetes paragraphs will not fix it.
+Kubernetes is a dependency with a calendar.
 
-The thing I would not add to kubernetes is a fake architecture section. A short kubernetes note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for kubernetes. The rest of kubernetes can wait until there is a real example to inspect.
+That sounds obvious, but a lot of teams treat Kubernetes versions like background weather. The cluster exists. Workloads run. Then one day the managed provider announces a support deadline, a security fix requires a minor jump, or a deprecated API finally disappears from a path nobody has touched in months.
 
-I am leaving kubernetes as a short note because the idea is useful at this size. A longer kubernetes version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.
+The better habit is to track the cluster like any other major dependency:
+
+~~~text
+current cluster version: 1.29
+target version: 1.30
+provider deadline: 2024-08-15
+test cluster window: 2024-05-01 to 2024-05-10
+production window: 2024-05-21
+rollback plan: node pool rollback plus workload freeze
+owners: platform, sre, service owners
+~~~
+
+That record makes the upgrade visible. It gives product and engineering teams a date to work backward from.
+
+## release notes are not optional reading
+
+The Kubernetes 1.30 release blog highlighted features like structured parameters for dynamic resource allocation, node memory swap changes, contextual logging, and other enhancements. Not every team cares about every feature. That is the point. Someone has to decide which changes matter for your clusters.
+
+I would read release notes with a local checklist:
+
+- API removals or deprecations
+- feature gates changing state
+- kubelet behavior changes
+- scheduler or autoscaling changes
+- storage and volume changes
+- admission control changes
+- cloud-provider or managed-service notes
+- kubectl and client library skew
+- known issues
+
+The goal is not to memorize the release. The goal is to turn a public release into a local upgrade plan.
+
+Kubernetes documentation is clear that alpha APIs may have incompatible changes and that beta APIs eventually need migration as they move through deprecation windows. If a cluster uses experimental features, the upgrade plan should know that before the control plane changes.
+
+## application teams own part of the upgrade
+
+Platform teams can upgrade the cluster. They cannot fully validate every application assumption.
+
+Application teams own manifests, Helm charts, operators, CRDs, admission expectations, probes, resource requests, PodDisruptionBudgets, network policies, and rollout behavior. Those are all places where a cluster upgrade can expose stale assumptions.
+
+A service owner should be able to answer:
+
+~~~text
+Does this service use deprecated APIs?
+Does it depend on a specific node image or kernel behavior?
+Does it have a safe disruption budget?
+Can it tolerate pod restarts during node upgrades?
+Are its controllers compatible with the target Kubernetes version?
+Do its CI manifests match production manifests?
+~~~
+
+That is not bureaucracy. It is how the platform avoids becoming a black box that breaks applications on someone else's schedule.
+
+## test clusters should be boring
+
+An upgrade test cluster does not need to be a perfect production twin to be useful. It does need to be realistic enough to catch the kind of failures you expect.
+
+I want at least:
+
+- representative namespaces
+- real admission policies
+- current CRDs and controllers
+- representative workloads
+- production-like node pools where node behavior matters
+- the same deployment tooling used in production
+- smoke tests that exercise ingress, storage, jobs, and autoscaling
+
+The trap is testing only the control plane upgrade. The cluster can upgrade cleanly while workloads fail later because an operator, webhook, or chart was never exercised.
+
+Kubernetes upgrades are integration tests for the platform.
+
+## version skew deserves respect
+
+Kubernetes has version skew policies for components like kubelet, kube-apiserver, kubectl, and controllers. Managed platforms hide some of this, but they do not remove it.
+
+The practical effect is that upgrade order matters. Control plane first. Node pools after. Client tools and CI images updated deliberately. Operators checked against supported versions. Cluster add-ons reviewed for compatibility.
+
+I like an upgrade plan that names every moving piece:
+
+~~~text
+control plane: provider-managed upgrade to 1.30
+node pools: roll one pool at a time
+kubectl: update CI image after control plane
+ingress controller: verify supported matrix
+cert-manager: verify target version support
+autoscaler: upgrade before node pool rollout
+observability agent: test on new node image
+~~~
+
+That plan is more useful than "upgrade Kubernetes."
+
+## ai workloads make this less abstract
+
+AI workloads make cluster upgrades more interesting because they often depend on the messy parts of the platform: GPUs, node pools, device plugins, storage throughput, queues, long-running jobs, and autoscaling behavior.
+
+A normal web service may survive a node rollout with a few restarts. A training job, batch inference worker, or GPU-backed service may care about scheduling, checkpointing, device availability, and eviction behavior. If the upgrade changes node images, drivers, runtime behavior, or scheduling assumptions, the workload can fail in ways that look like model infrastructure problems instead of Kubernetes problems.
+
+For AI systems, I would add checks:
+
+- GPU node pool compatibility
+- device plugin support
+- job restart and checkpoint behavior
+- queue worker drain behavior
+- model cache persistence
+- autoscaler behavior under batch load
+- observability agent compatibility on GPU nodes
+
+The cluster upgrade is part of the AI system's maintenance plan.
+
+## upgrade success needs receipts
+
+A successful upgrade should leave more than a calendar invite marked done.
+
+The team should know what changed, what was tested, what failed, what was deferred, and what needs follow-up. A short upgrade note is enough:
+
+~~~text
+upgrade: cluster-prod-us-east 1.29 to 1.30
+date: 2024-05-21
+checks:
+  ingress smoke passed
+  storage smoke passed
+  batch worker drain passed
+  gpu inference canary passed
+issues:
+  metrics agent needed config update on new node image
+follow-up:
+  remove deprecated chart API in billing worker
+~~~
+
+That note helps the next upgrade. It also helps incident response if a weird behavior appears a week later.
+
+## the reminder
+
+Kubernetes 1.30 was not interesting to me because every feature applied to every cluster. It was interesting because it arrived on schedule with enough change to remind teams that Kubernetes is not static.
+
+The platform keeps moving. Support windows close. APIs graduate and deprecate. Node behavior changes. Add-ons drift. Application assumptions age.
+
+Treating upgrades as calendar discipline is how you avoid turning that movement into surprise.

@@ -8,24 +8,148 @@ author: "jeremy-london"
 tags: ["product specs", "states", "quality"]
 ---
 
-{/*
-Depth: quick-note
-Information map:
-- the concrete product specs problem
-- the example surface: a product spec that skips loading, empty, error, permission, and rollback states is not finished
-- the failure mode: the feature works in the happy path but leaves the user guessing at the boundary
-- the small decision I would keep
-- what would make the note wrong
-*/}
+Product specs should name the boring states because users spend a lot of time there.
 
-A product spec that skips loading, empty, error, permission, and rollback states is not finished.
+Loading, empty, invalid, disabled, partial, stale, conflicted, retrying, permission denied, and saved-but-not-synced are not edge decorations. They are the states that decide whether a feature feels trustworthy.
 
-I would keep product specs small here. The useful part is a product spec that skips loading, empty, error, permission, and rollback states is not finished. That is enough material for a product specs note, not a manifesto.
+The happy path is usually easy to describe. User clicks button. System creates thing. User sees success. Everyone nods.
 
-The product specs mistake is treating the observation as if it needs a complete theory around it. In practice, product engineering work usually gets better when the first version names the boundary and then stops. For product specs, that boundary is what the interface must make visible before the user can act.
+The product quality shows up in the states around that path.
 
-The product specs check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the product specs post has done its job. If the answer is no, adding three more product specs paragraphs will not fix it.
+## loading is a promise about waiting
 
-The thing I would not add to product specs is a fake architecture section. A short product specs note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for product specs. The rest of product specs can wait until there is a real example to inspect.
+"Show a spinner" is not a loading state.
 
-I am leaving product specs as a short note because the idea is useful at this size. A longer product specs version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.
+A loading state should tell the user what kind of wait they are in. Are we fetching data? Saving changes? Running a background job? Waiting for a model? Uploading a file? Retrying after a network failure? Checking permissions?
+
+Those waits have different product behavior.
+
+A table loading for 300ms can use a skeleton. A report generation job may need progress, cancellation, and a notification when done. A model run may need a visible pending state because the user should not submit the same request five times. A payment action needs stronger disabled states and clear confirmation.
+
+The spec should name:
+
+- what triggers loading
+- whether the user can cancel
+- whether input is preserved
+- what happens on refresh
+- how long before the UI changes language
+- whether duplicate actions are blocked
+
+If the spec skips that, the engineer invents it during implementation.
+
+## empty states should explain the next useful action
+
+Empty states are often written like marketing copy. That is rarely what the user needs.
+
+An empty state should explain why there is nothing here and what action makes sense next.
+
+There are several kinds of empty:
+
+- the user has not created anything yet
+- the filters exclude all results
+- the search matched nothing
+- the user lacks access
+- data is still syncing
+- the upstream system has no records
+- the feature is unavailable for this account
+
+Those should not all say "No results."
+
+A good spec names the cause and the next action. Clear filters. Create first project. Request access. Check sync status. Try a different query. Connect the integration.
+
+The empty state is not filler. It is the product explaining itself at the moment the user has the least evidence.
+
+## disabled controls need reasons
+
+Disabled buttons are where product ambiguity goes to hide.
+
+If a button is disabled, the spec should say why and whether the user can fix it.
+
+Maybe required fields are missing. Maybe the user lacks permission. Maybe the record is locked. Maybe a background save is in progress. Maybe a quota is exceeded. Maybe the action is unavailable after a deadline.
+
+Those reasons deserve different UI.
+
+Missing fields should point to the fields. Permission problems should explain the role or owner. Locked records should show who or what locked them. Quotas should show usage. Background saves should show progress or retry state.
+
+A disabled button with no explanation makes the user debug the product.
+
+## errors should preserve work
+
+The first rule of error states is: do not destroy the user's input.
+
+If a form submission fails, keep the form data. If a file upload fails, keep the selected file if possible. If a model draft fails, keep the prompt. If a network request fails after local edits, keep the local edits and explain the sync state.
+
+The spec should distinguish:
+
+- validation errors the user can fix
+- permission errors the user cannot fix
+- transient network errors
+- server errors
+- conflict errors
+- downstream integration errors
+- destructive action failures
+
+Different errors need different recovery. Try again. Edit input. Contact owner. Reconnect integration. Review conflict. Save draft locally. Roll back optimistic UI.
+
+"Show error toast" is not enough. Toasts disappear. Work should not.
+
+## permission states are product states
+
+Permission behavior is often left to engineering because it feels like backend logic.
+
+That is a mistake.
+
+Permission states are user-facing product states. The user needs to know whether the thing does not exist, exists but is hidden, exists but cannot be edited, or requires approval. The product may intentionally avoid revealing certain resources. That decision belongs in the spec.
+
+For each protected action, the spec should answer:
+
+- can the user see the object?
+- can they see that access is denied?
+- can they request access?
+- can they see who owns it?
+- can they take a reduced action?
+- should the event be logged?
+
+Security and usability meet here. A vague 404 may be right for some resources. A clear "request access from Morgan" may be right for internal tools. The spec should decide.
+
+## rollback belongs in the spec
+
+Optimistic UI is a product promise.
+
+If the interface shows a change before the server confirms it, the product has promised that the change will either stick or recover cleanly. The spec should describe both.
+
+Examples:
+
+- a toggle flips immediately but fails on save
+- a list item disappears before delete confirms
+- a comment appears while syncing
+- a generated draft is inserted before validation
+- a payment action shows success before settlement
+
+Rollback cannot be an afterthought. The user needs to know whether the action is pending, confirmed, failed, or reversed. The product needs to avoid losing local context when the server rejects the action.
+
+For risky actions, the spec should probably avoid optimism entirely.
+
+## stale and partial data should be labeled
+
+Modern apps show partial truth all the time.
+
+Cached data, paginated data, sync-delayed data, eventually consistent search indexes, model-generated summaries, background refreshes, and offline copies can all be useful and stale at the same time.
+
+The spec should say when staleness matters.
+
+A stale avatar is fine. A stale invoice status is less fine. A stale deployment status can cause bad decisions. A stale permission view can become a security problem.
+
+Labeling does not need to be heavy. "Updated 2 minutes ago" is often enough. "Sync pending" may be enough. "Showing cached results" may be enough. The point is that the user should know when the interface is not showing the freshest possible truth.
+
+## the spec should prevent invention in the pr
+
+The test I use is simple: could an engineer build the unhappy path without inventing product behavior in the pull request?
+
+If the answer is no, the spec is not done.
+
+That does not mean every spec needs a novel. It means the boring states need names. Loading. Empty. Error. Permission. Disabled. Stale. Conflict. Retry. Rollback. Offline. Partial. Success after delay.
+
+Good engineers will make reasonable choices when the spec is silent. The problem is that those choices become product behavior without product review.
+
+Product specs should name the boring states because boring states are where trust is built or lost. The happy path sells the feature. The unhappy paths decide whether people keep using it.

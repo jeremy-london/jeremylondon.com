@@ -8,138 +8,131 @@ author: "jeremy-london"
 tags: ["RAG", "retrieval", "language models"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete retrieval problem
-- the example surface: a team arguing about whether the model improved or merely changed
-- the failure mode: the system succeeds once but gives the next maintainer no way to explain it
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using reproduction time, failing example coverage, queue age, and rollback confidence
-- security or ownership boundary: what must be proven before the change is trusted
-- latency, cost, and scaling implications
-*/}
+RAG is usually sold as a generation pattern, but most of the quality lives in retrieval.
+
+The generator can only reason over the evidence it sees. If the wrong chunks arrive, the model has three options: answer from bad context, answer from memory, or refuse. None of those feels like the product people thought they were building.
 
 Retrieval augmented generation depends less on a clever prompt and more on reliably finding the right context.
 
-The interesting part of retrieval is not the name. It is the system pressure around a team arguing about whether the model improved or merely changed. Once that pressure shows up for retrieval, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+That is the boring part. It is also the part that decides whether the system works.
 
-## The unit of work
+## the question is not the query
 
-I would start by naming the unit of work for retrieval. In engineering quality, the retrieval unit is usually smaller than the product surface and larger than a function call. For retrieval, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+Users ask messy questions.
 
-A useful retrieval unit has four properties:
+They use old names, partial names, acronyms, vague references, screenshots, pasted errors, and language that does not match the documentation. The retrieval system has to turn that into something searchable.
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+The raw user question may be enough for simple cases. For real workflows, query construction becomes a step:
 
-For retrieval, the boundary is what must be proven before the change is trusted. That boundary should be visible in the retrieval data, not only in a policy document. If a retrieval request crosses the boundary, the trace should show it.
+- extract the task
+- identify entities
+- expand acronyms
+- preserve exact error strings
+- add product or tenant scope
+- choose filters
+- decide whether to search docs, tickets, code, or logs
+- keep the original user wording available
 
-## Data flow
+The query builder should not get too clever. If it rewrites away the one exact phrase that matters, retrieval gets worse. I like systems that search with a mix of exact terms, semantic query, and structured filters rather than betting everything on one rewritten sentence.
 
-The simple retrieval flow looks like this:
+## chunks are product decisions
 
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
-~~~
+Chunking is where a lot of RAG systems quietly lose.
 
-The context builder gathers the minimum useful state for retrieval. The retrieval decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+A chunk should be large enough to contain the answer and small enough to avoid drowning it. That sounds simple until the source material varies.
 
-That receipt is the difference between a retrieval demo and an operable system. A demo can rely on a person watching closely. A retrieval system needs to explain itself after the person has moved on.
+Documentation has headings, sections, code blocks, warnings, tables, and version notes. Tickets have conversation turns, attachments, status changes, and internal comments. Code has files, functions, tests, comments, and generated output. PDFs have pages, captions, tables, and layout. Policies have exceptions and definitions.
 
-A retrieval request envelope might look like this:
+One chunking strategy rarely fits all of that.
 
-~~~json
-{
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
-}
-~~~
-
-The schema is deliberately plain. Fancy schemas do not save unclear retrieval systems. The useful retrieval work is deciding which fields are required, which are advisory, and which block the run when missing.
-
-## Implementation sketch
-
-I would implement the first retrieval pass as a narrow pipeline rather than a general platform. Start retrieval with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
-
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
-
-For retrieval, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The retrieval system still has to decide whether the proposal is usable under the current boundary.
-
-## Failure modes
-
-The main retrieval failure mode is the system succeeds once but gives the next maintainer no way to explain it. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The retrieval failure is that the next component cannot tell whether the result should be trusted.
-
-I would test at least five retrieval cases:
-
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
-
-That last retrieval case matters. A confident retrieval answer is not the same thing as a verified result. If retrieval touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
-
-## Deployment shape
-
-I would not deploy retrieval as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For retrieval, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
-
-That gives the router real work to do. For retrieval, it should not only choose small model or big model. It should choose a risk path:
-
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
-
-Each retrieval path has a different budget, verifier, and approval requirement. This is the part that makes retrieval feel less magical and more like infrastructure. The model is still important, but the retrieval route determines what kind of trust the system is asking for.
-
-## Measurement
-
-The measurement surface for retrieval is reproduction time, failing example coverage, queue age, and rollback confidence. I would track retrieval per route or case type, not only as a global average. Global averages hide the exact class of retrieval problems that make these systems feel unpredictable.
-
-A simple eval table can carry a lot of weight:
+I would rather see chunking rules tied to source type:
 
 ~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
+docs: section plus heading path
+code: function or class with file path
+tickets: conversation window with author roles
+policies: clause with parent section and definitions
+pdfs: page region plus extracted text
 ~~~
 
-The point is not to build an eval cathedral for retrieval. The point is to preserve enough retrieval structure that regressions can be clustered. If failures cluster around one route, fix the route. If retrieval failures cluster around one policy boundary, fix the boundary. If retrieval failures cluster around one model, stop pretending the prompt is the whole system.
+The chunk is part of the product. It determines what the model can cite, what the user can inspect, and whether the answer has enough context to be useful.
 
-## Operational concerns
+## metadata does real work
 
-The operational question for retrieval is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap retrieval route becomes unreliable but the expensive route would blow the budget?
+Vector similarity alone is not enough.
 
-For retrieval, I would put those answers in configuration, not in a heroic prompt. A small retrieval policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+Production retrieval needs metadata: source, owner, permissions, version, date, product area, language, document type, tenant, freshness, deprecation status, and maybe confidence from extraction.
 
-## Scaling behavior
+Metadata does three jobs.
 
-At small scale, a human can inspect weird retrieval cases by hand. At medium scale, the retrieval system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+First, it filters. A user should not retrieve documents they cannot access. A customer-support assistant should not mix tenants. A developer asking about v2 APIs should not get v1 docs unless the system says why.
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the retrieval system without being surprised by the downstream behavior?
+Second, it ranks. Fresh docs may beat old docs. Official docs may beat forum posts. Code in the current branch may beat archived code. A resolved incident may be less relevant than the current runbook.
 
-For retrieval, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the retrieval system a spine.
+Third, it explains. A citation is more useful when it includes title, section, version, and timestamp. "Source 3" is not enough.
 
-## Where I land
+## hybrid search is often the boring answer
 
-Retrieval deserves depth when it changes architecture, not when it merely sounds current. The retrieval implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+Dense embeddings are excellent for semantic neighborhoods. They are bad at some things exact search handles well: error codes, identifiers, rare product names, version numbers, stack trace fragments, and quoted strings.
 
-If the retrieval post answers those questions, it teaches something. If the retrieval post only says the topic matters, it is just a longer version of the headline.
+Keyword search has the opposite shape. It can nail exact terms and miss paraphrase.
+
+Hybrid retrieval is often the practical answer:
+
+~~~text
+user question
+  -> keyword search for exact anchors
+  -> vector search for semantic neighbors
+  -> metadata filters
+  -> merge candidates
+  -> rerank
+  -> pass top evidence to model
+~~~
+
+The merge and rerank step matters. If the exact error code match is ranked below a semantically similar blog post, the generated answer may sound plausible and be useless.
+
+## citations should point to inspectable evidence
+
+A RAG answer without inspectable evidence is just a confident answer with extra steps.
+
+The user should be able to open the source and see why it was used. For text, that means the section. For code, the file and function. For a PDF, the page and region. For a ticket, the relevant turn. For a table, the row or field.
+
+This is important for trust and debugging.
+
+If the answer is wrong, the citation tells you whether retrieval failed or generation failed. Did the system find the wrong source? Did it find the right source and misread it? Did it cite a source that does not support the claim? Did the source itself contain stale information?
+
+Those are different bugs.
+
+## eval retrieval before generation
+
+RAG evals often grade final answers first. That is useful, but it hides the retrieval problem.
+
+I would evaluate retrieval separately:
+
+- does the expected document appear in top K?
+- does the expected chunk appear in top K?
+- did permission filtering behave correctly?
+- did the reranker move useful evidence up?
+- did stale or deprecated material get suppressed?
+- did exact anchors survive query rewriting?
+- did multilingual queries find the right source?
+
+Then evaluate generation:
+
+- did the answer use the provided evidence?
+- did it cite the right chunk?
+- did it avoid unsupported claims?
+- did it say when evidence was missing?
+- did it preserve uncertainty?
+
+Separating those stages keeps teams from blaming the model for retrieval failures.
+
+## boring retrieval is the product
+
+RAG works when retrieval is boringly good.
+
+The right sources show up. The wrong sources stay out. Permissions are enforced before results are visible. Chunks contain enough context. Metadata is current. Citations are inspectable. Eval failures become fixtures. Stale documents lose ranking power. The model sees evidence that actually supports the answer.
+
+That is not glamorous, but it is the whole game.
+
+A clever prompt can make a bad retrieval system sound better for a while. It cannot make the right document appear.

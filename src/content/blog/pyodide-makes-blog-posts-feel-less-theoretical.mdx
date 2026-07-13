@@ -8,24 +8,132 @@ author: "jeremy-london"
 tags: ["pyodide", "teaching", "python"]
 ---
 
-{/*
-Depth: quick-note
-Information map:
-- the concrete pyodide problem
-- the example surface: Running Python in the page changes a tutorial from explanation into a small lab
-- the failure mode: the reader can copy the answer without understanding why it worked
-- the small decision I would keep
-- what would make the note wrong
-*/}
+Pyodide changes the feel of a technical blog post.
 
-Running Python in the page changes a tutorial from explanation into a small lab.
+Static code examples ask the reader to trust the author. Copy this into a local file. Install the right version. Create a virtual environment. Hope the dependency still works. Run it later, if you have the energy.
 
-I would keep pyodide small here. The useful part is Running Python in the page changes a tutorial from explanation into a small lab. That is enough material for a pyodide note, not a manifesto.
+Running Python in the page changes the bargain. The post can become a small lab.
 
-The pyodide mistake is treating the observation as if it needs a complete theory around it. In practice, technical learning work usually gets better when the first version names the boundary and then stops. For pyodide, that boundary is where explanation stops and experimentation starts.
+That does not make every tutorial better. It does make certain kinds of writing more honest. If I am explaining a probability distribution, a parsing edge case, a ranking function, a small classifier, or a numerical transform, the reader should be able to poke it. Change the input. Break the assumption. See the output move.
 
-The pyodide check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the pyodide post has done its job. If the answer is no, adding three more pyodide paragraphs will not fix it.
+That is a different kind of learning than reading a polished result.
 
-The thing I would not add to pyodide is a fake architecture section. A short pyodide note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for pyodide. The rest of pyodide can wait until there is a real example to inspect.
+## executable examples change the contract
 
-I am leaving pyodide as a short note because the idea is useful at this size. A longer pyodide version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.
+A runnable example raises the standard for the article.
+
+The code cannot be decorative. It has to run. It has to fail clearly. It has to use inputs small enough for the browser. It has to keep the reader oriented when something goes wrong.
+
+That is good pressure.
+
+With Pyodide, the basic shape is straightforward:
+
+~~~html
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+  const pyodide = await loadPyodide()
+  const result = pyodide.runPython("1 + 2")
+  console.log(result)
+</script>
+~~~
+
+The page loads a Python runtime compiled to WebAssembly, then JavaScript calls into Python. That is enough for tiny examples. For richer examples, the page can load packages, use `runPythonAsync`, or install pure-Python dependencies with `micropip`.
+
+The important part is not the API. The important part is that the reader can test the explanation in place.
+
+## small labs are better than giant notebooks
+
+I do not want every blog post to become a notebook.
+
+Large interactive notebooks can turn into another environment the reader has to learn before reaching the idea. A blog lab should be smaller. One concept. One input. One output. Maybe a slider, a textarea, or a few editable lines.
+
+Good candidates:
+
+- tokenization examples
+- simple ranking functions
+- vector similarity
+- sampling distributions
+- regex failure cases
+- small data transforms
+- JSON schema validation
+- toy classifiers
+- graph traversal
+- queue retry simulations
+
+Bad candidates:
+
+- huge dependency stacks
+- long-running training jobs
+- examples that need secrets
+- network-heavy workflows
+- anything where the environment becomes the point
+
+The browser lab should make the idea closer, not turn the article into a deployment problem.
+
+## state should be visible
+
+Interactive examples need state discipline.
+
+If the reader changes an input, the output should update predictably. If the runtime is still loading, the UI should say so. If a package is being installed, the reader should know. If execution fails, the error should be visible and recoverable.
+
+The worst version is a text box that silently stops working because Pyodide is still initializing or because a package failed to load.
+
+For a blog lab, I would track states like:
+
+- loading runtime
+- loading packages
+- ready
+- running
+- error
+- reset
+
+Those states do not need a heavy interface. They need to exist.
+
+## packages change the maintenance cost
+
+Pyodide can load many Python packages, and `micropip` can install pure-Python packages from the browser. That is powerful. It is also where a small lab can get slow or fragile.
+
+If the article needs NumPy, pandas, scikit-learn, or another supported package, the reader may pay the load cost before they see the example. That can be worth it for the right post. It is silly for a two-line arithmetic demo.
+
+I would treat package use like a budget:
+
+- does the package teach the concept?
+- can the example use the standard library?
+- how long does the first load take?
+- does the package work offline after caching?
+- what happens if the CDN fails?
+- is the article still readable without the lab?
+
+The last question matters. Interactive writing should degrade gracefully. A reader on a locked-down device should still learn the idea.
+
+## browser python has boundaries
+
+Running Python in the browser is not the same as running a local Python project.
+
+There are browser security constraints, performance limits, package constraints, memory limits, and differences around file access and networking. That is fine. It just means the article should not pretend the browser lab is a full development environment.
+
+For teaching, the constraints are often a feature. They force the example to be small.
+
+If the goal is to demonstrate vector similarity, the browser does not need a production vector database. If the goal is to show a retry policy, the browser does not need a queue service. If the goal is to explain a parser, the browser does not need the whole application.
+
+The page should be honest about where the toy ends.
+
+## the best examples invite mutation
+
+An executable example earns its space when the reader naturally wants to change it.
+
+For a ranking post, let them edit weights and see ordering change. For a retrieval post, let them add a bad chunk. For a time-series post, let them change the baseline window. For a classifier post, let them move the threshold and watch false positives appear. For a queue post, let them change retry delay and see backlog behavior.
+
+The lab should make the hidden variable visible.
+
+That is the real value of Pyodide in writing. It turns "here is how this works" into "try changing this and see what breaks."
+
+## writing still comes first
+
+Interactive examples do not rescue unclear writing.
+
+The post still needs to explain the problem, name the assumptions, show the small model of the system, and tell the reader what to look for. The code should support that explanation. It should not replace it.
+
+When it works, though, the article feels less theoretical. The reader is reading a claim and testing a little machine that embodies the claim.
+
+That is why I like Pyodide for certain posts. It makes the page feel like a bench instead of a brochure.

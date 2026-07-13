@@ -8,138 +8,139 @@ author: "jeremy-london"
 tags: ["agents", "handoffs", "process"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete agents problem
-- the example surface: a handoff file is not ceremony. It is how an agent leaves enough state for the next run to be useful
-- the failure mode: the agent finishes a task without leaving enough evidence for a human to trust or resume it
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using approval rate, retry count, verifier disagreement, and time from tool call to accepted result
-- security or ownership boundary: file access, network access, credential use, and delegation between agents
-- latency, cost, and scaling implications
-*/}
+A handoff is part of the agent, not paperwork around the agent.
 
-A handoff file is not ceremony. It is how an agent leaves enough state for the next run to be useful.
+That distinction matters when work spans more than one run. Agents run out of context. Humans step away. Tools fail. A browser session disappears. A test takes longer than expected. The next run starts with a vague memory and a dirty working tree.
 
-The interesting part of agents is not the name. It is the system pressure around a handoff file is not ceremony. It is how an agent leaves enough state for the next run to be useful. Once that pressure shows up for agents, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+If the previous agent leaves no usable handoff, the next agent has to rediscover the project state by poking around. That is slow. Worse, it is risky. The next agent may repeat failed work, miss a constraint, trust a stale assumption, or mark something complete because it does not know what remained unresolved.
 
-## The unit of work
+A good handoff is an interface for resuming work.
 
-I would start by naming the unit of work for agents. In agent systems, the agents unit is usually smaller than the product surface and larger than a function call. For agents, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+## summaries are too soft
 
-A useful agents unit has four properties:
+The handoff cannot be only a paragraph that says "made progress on the blog rewrite."
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+That kind of summary is better than nothing, but it lacks the operational details a new run needs. What files changed? Which checks passed? Which checks failed? What was the next exact file? What should not be touched? Did the previous run use a script, a manual edit, a source link, or a generated artifact? Was the working tree dirty before the run started?
 
-For agents, the boundary is file access, network access, credential use, and delegation between agents. That boundary should be visible in the agents data, not only in a policy document. If a agents request crosses the boundary, the trace should show it.
+The next agent needs state, not vibes.
 
-## Data flow
-
-The simple agents flow looks like this:
+I like a handoff shaped around decisions and evidence:
 
 ~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
+current goal:
+  Rewrite blog posts manually from IMPLEMENTATION_PLAN.md, one file at a time.
+
+last completed:
+  guardrails-are-product-decisions.mdx
+
+verified:
+  wc -w
+  pnpm markdown:check
+  banned phrase scan
+  lowercase heading scan
+
+next file:
+  handoffs-are-part-of-the-agent.mdx
+
+constraints:
+  Preserve frontmatter unless validation requires a wording fix.
+  Do not run the old rewrite scripts.
+  Use apply_patch for edits.
 ~~~
 
-The context builder gathers the minimum useful state for agents. The agents decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+That is not fancy. It lets the next run start in the right place.
 
-That receipt is the difference between a agents demo and an operable system. A demo can rely on a person watching closely. A agents system needs to explain itself after the person has moved on.
+## the handoff should name unfinished work
 
-A agents request envelope might look like this:
+Unfinished work is the most important part of a handoff.
 
-~~~json
-{
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
-}
-~~~
+Completed work can often be verified from files and commits. Unfinished work hides in the previous agent's head. That is where mistakes happen.
 
-The schema is deliberately plain. Fancy schemas do not save unclear agents systems. The useful agents work is deciding which fields are required, which are advisory, and which block the run when missing.
+The handoff should say:
 
-## Implementation sketch
+- what is currently in progress
+- what has been edited but not verified
+- what command was running
+- what failed and why
+- what assumption still needs checking
+- what the user most recently corrected
 
-I would implement the first agents pass as a narrow pipeline rather than a general platform. Start agents with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
-
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
-
-For agents, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The agents system still has to decide whether the proposal is usable under the current boundary.
-
-## Failure modes
-
-The main agents failure mode is the agent finishes a task without leaving enough evidence for a human to trust or resume it. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The agents failure is that the next component cannot tell whether the result should be trusted.
-
-I would test at least five agents cases:
-
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
-
-That last agents case matters. A confident agents answer is not the same thing as a verified result. If agents touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
-
-## Deployment shape
-
-I would not deploy agents as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For agents, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
-
-That gives the router real work to do. For agents, it should not only choose small model or big model. It should choose a risk path:
-
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
-
-Each agents path has a different budget, verifier, and approval requirement. This is the part that makes agents feel less magical and more like infrastructure. The model is still important, but the agents route determines what kind of trust the system is asking for.
-
-## Measurement
-
-The measurement surface for agents is approval rate, retry count, verifier disagreement, and time from tool call to accepted result. I would track agents per route or case type, not only as a global average. Global averages hide the exact class of agents problems that make these systems feel unpredictable.
-
-A simple eval table can carry a lot of weight:
+For example:
 
 ~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
+in progress:
+  design-tokens-need-owners.mdx was rewritten but verification output was truncated.
+
+resume by:
+  rerun wc, markdown:check, banned phrase scan, and heading scan.
+  mark IMPLEMENTATION_PLAN.md only if all pass.
 ~~~
 
-The point is not to build an eval cathedral for agents. The point is to preserve enough agents structure that regressions can be clustered. If failures cluster around one route, fix the route. If agents failures cluster around one policy boundary, fix the boundary. If agents failures cluster around one model, stop pretending the prompt is the whole system.
+That is exactly the kind of detail a fresh run cannot infer safely. It prevents the agent from skipping a half-finished step.
 
-## Operational concerns
+## receipts beat confidence
 
-The operational question for agents is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap agents route becomes unreliable but the expensive route would blow the budget?
+Agents are very good at sounding done.
 
-For agents, I would put those answers in configuration, not in a heroic prompt. A small agents policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+A handoff should resist that. It should include receipts: commands, files, outputs, links, decisions, and known gaps. The next agent should not have to trust the previous agent's confidence.
 
-## Scaling behavior
+For code work, receipts might be test commands and changed files. For writing work, receipts might be word counts, lint checks, source links, and scans for banned phrases. For research work, receipts might be URLs, publication dates, and which claims were inferred rather than sourced.
 
-At small scale, a human can inspect weird agents cases by hand. At medium scale, the agents system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+A useful handoff line looks like this:
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the agents system without being surprised by the downstream behavior?
+~~~text
+verified src/content/blog/fine-tuning-is-not-a-shortcut.mdx:
+  1712 words
+  pnpm markdown:check passed
+  banned residue scan returned no matches
+  headings are lowercase
+~~~
 
-For agents, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the agents system a spine.
+That lets the next agent audit or continue. "Looks good" does not.
 
-## Where I land
+## handoffs should preserve constraints
 
-Agents deserves depth when it changes architecture, not when it merely sounds current. The agents implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+Constraints decay fast across sessions.
 
-If the agents post answers those questions, it teaches something. If the agents post only says the topic matters, it is just a longer version of the headline.
+The user says, "do not touch `.agents`," or "headers should be lowercase," or "do not use scripts anymore," and the current agent follows it. The next agent may not see the whole conversation. If the constraint is not in a handoff or plan, it can get lost.
+
+This is especially important when the constraint exists because of a previous failure. "Do not use the rewrite script" is not arbitrary. It exists because the script generated templated prose and damaged the archive. That context should survive.
+
+The handoff does not need to reprint the entire conversation. It needs to preserve the constraints that would be expensive to violate.
+
+## resumability is a product feature
+
+Agent workflows should be designed for interruption.
+
+That means the work should have checkpoints. A plan file. A progress marker. A test command. A next item. A way to tell whether the last step was completed. Long-running autonomous work without resumability is asking for confusion.
+
+The handoff is one part of that system. The rest is how the project is organized:
+
+- task list on disk
+- per-item verification
+- clean file boundaries
+- explicit "never touch" paths
+- progress notes that mention the next action
+- checks that can be rerun independently
+
+The point is not process for its own sake. The point is that a fresh agent should be able to resume without guessing.
+
+## bad handoffs create duplicate work
+
+The most obvious cost of a bad handoff is wasted time. The next run rereads files, reruns commands, and repeats decisions.
+
+The worse cost is subtle inconsistency. One run writes in one style. The next run assumes a different target. One run preserves a source. The next overwrites it. One run treats a warning as unrelated. The next calls the project clean.
+
+This is how long agent tasks drift.
+
+A handoff reduces drift by carrying the current standard forward. It says what "done" meant in the last step and what should happen next.
+
+## the handoff is part of the work
+
+I do not want handoffs for everything. Tiny tasks can finish and stop. But when an agent is doing multi-step work across files, sessions, or tools, the handoff is part of the implementation.
+
+The work is not only the diff. It is the diff plus the state needed to continue safely.
+
+That is why I think handoffs belong inside agent design. They are memory with accountability. They make the next run less dependent on luck, less tempted to invent context, and less likely to repeat the same mistake.
+
+The agent that cannot hand off its work is not really doing long-running work. It is doing one long guess.

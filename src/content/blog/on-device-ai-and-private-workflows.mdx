@@ -8,24 +8,140 @@ author: "jeremy-london"
 tags: ["on-device ai", "privacy", "local models"]
 ---
 
-{/*
-Depth: quick-note
-Information map:
-- the concrete on device AI problem
-- the example surface: software that keeps working when the network stops helping
-- the failure mode: a model choice is treated as isolated even though the surrounding system made the decision
-- the small decision I would keep
-- what would make the note wrong
-*/}
+On-device AI is interesting because it changes where the model sits in the user's life.
 
-On-device AI brings models closer to the user, which matters for privacy, latency, offline use, and personal tooling.
+A hosted model is a service call. The product collects input, sends it away, waits, receives output, and decides what to do next. That is a perfectly reasonable architecture for a lot of workflows.
 
-I would keep on device AI small here. The useful part is software that keeps working when the network stops helping. That is enough material for a on device AI note, not a manifesto.
+But some workflows feel different when the model is close to the user: reading local notes, drafting private messages, helping with files, summarizing screenshots, searching a personal archive, classifying photos, or working while the network is gone.
 
-The on device AI mistake is treating the observation as if it needs a complete theory around it. In practice, model systems work usually gets better when the first version names the boundary and then stops. For on device AI, that boundary is where the model stops and the serving system starts.
+For those tasks, on-device AI is not a novelty. It is a boundary change.
 
-The on device AI check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the on device AI post has done its job. If the answer is no, adding three more on device AI paragraphs will not fix it.
+## privacy is about movement
 
-The thing I would not add to on device AI is a fake architecture section. A short on device AI note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for on device AI. The rest of on device AI can wait until there is a real example to inspect.
+People often talk about private AI as if privacy is a property of the model.
 
-I am leaving on device AI as a short note because the idea is useful at this size. A longer on device AI version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.
+It is really a property of data movement.
+
+What leaves the device? What is stored? What is logged? What is retained? What can be inspected by a provider, employer, app developer, or attacker? What happens when the user deletes the source file? What happens when the model output references private material?
+
+On-device execution can reduce movement. The note, image, transcript, or file can stay local while the model produces a local result. That is valuable for personal workflows because a lot of useful context was never meant to become server input.
+
+This does not make the system magically private. The app can still sync results. It can still log prompts. It can still upload telemetry. It can still leak through plugins or network tools. But local inference gives the product a stronger starting point: the default path does not require shipping the user's raw context to a remote model.
+
+That default matters.
+
+## latency changes the interaction
+
+On-device models can make AI feel less like a request and more like a feature.
+
+Autocomplete, local search, inline classification, image cleanup, transcription correction, command suggestion, and small transformations all benefit from low-latency local work. If the round trip to a hosted model is longer than the task itself, the feature feels heavy.
+
+The local model does not need to be the smartest model in the world. It needs to be fast enough, private enough, and good enough for the slice.
+
+That is the useful mental model: slice the workflow.
+
+~~~text
+on-device:
+  classify local notes
+  extract dates from screenshots
+  suggest filenames
+  summarize recent clipboard text
+
+hosted:
+  deep reasoning over a complex plan
+  broad research
+  high-quality long-form generation
+  tasks needing fresh remote data
+~~~
+
+The product can combine them. Local first for private or fast steps. Hosted escalation when the user asks for something that needs more capability or broader context.
+
+## small models need narrow jobs
+
+On-device AI gets worse when the product pretends a small local model is a frontier model with a smaller hat.
+
+The better pattern is to give the local model a narrow job with a clear acceptance surface.
+
+Good local jobs:
+
+- classify whether a note is a task, reference, or draft
+- extract contact info from a business card image
+- generate search aliases for a document
+- redact obvious secrets before remote submission
+- suggest tags for local files
+- summarize one short transcript segment
+- detect whether a screenshot contains an error dialog
+
+Risky local jobs:
+
+- make a medical or legal recommendation
+- rewrite a contract without review
+- answer from stale local knowledge as if it were current
+- operate tools without visible confirmation
+- merge conflicting records silently
+- summarize a huge archive without retrieval discipline
+
+This is not an insult to small models. It is how small models become useful. A narrow local model with a good job can be better product architecture than a remote giant doing everything.
+
+## offline use is a real capability
+
+Offline AI is about more than airplanes.
+
+It matters in secure environments, field work, bad Wi-Fi, travel, homelabs, workshops, classrooms, and personal tools that should keep working when a service is down. A local model can keep a workflow alive even when the network is unavailable.
+
+The product needs to be honest about what "offline" means. A local summarizer may work offline while search over a cloud index does not. A local classifier may work while account sync is pending. A local draft may be available while final submission waits for connectivity.
+
+The interface should show that boundary clearly:
+
+- local suggestions available
+- remote knowledge unavailable
+- queued for sync
+- hosted review disabled until online
+- using local model
+
+Users can handle degraded mode when the product names it.
+
+## evaluation belongs on the device class
+
+On-device models run across messy hardware.
+
+Battery, memory, thermals, CPU, GPU, NPU availability, browser support, operating-system version, and app sandboxing all matter. A model that feels fine on a new laptop may be miserable on an older phone. A workflow that passes in a dev environment may throttle under real use.
+
+Eval should include product behavior and device behavior:
+
+- task accuracy on the local slice
+- latency by device class
+- memory footprint
+- battery impact
+- cold-start time
+- model download size
+- failure behavior when resources are low
+- fallback quality when local inference is unavailable
+
+The model's quality is only one dimension. A local model that is accurate but makes the device hot, slow, or storage-hungry will not feel private and elegant. It will feel like a bad app.
+
+## local state needs local respect
+
+On-device AI often works with local state: notes, files, photos, drafts, messages, calendar entries, browser history, clipboard contents, and personal archives.
+
+That state needs permission boundaries inside the app. "Local" should not mean "the model can read everything." The user should know which folders, accounts, memories, or app surfaces are in scope. Temporary access should expire. Sensitive categories should be excluded by default unless the user makes a clear choice.
+
+The same applies to outputs. A local model may produce a summary that contains private information copied from a source file. If the app later syncs that summary, the private data moved after all. The boundary has to follow derived artifacts as well as raw inputs.
+
+## the architecture gets more interesting
+
+The pattern I like is hybrid:
+
+~~~text
+local context
+  -> local model for private, fast, narrow work
+  -> user-visible result or local draft
+  -> optional hosted escalation with explicit scope
+  -> local record of what moved
+~~~
+
+That architecture gives the user a choice. Keep the work local when the local model is enough. Escalate when a stronger model is worth the tradeoff. Show what context will leave the device before it leaves.
+
+On-device AI is not a replacement for hosted frontier models. It is a way to put small, useful intelligence closer to private work.
+
+That matters because a lot of valuable work is small, local, and personal. It does not need a datacenter for every step. It needs a model that knows its job, a product that respects the boundary, and an interface that tells the user what stayed on the device.

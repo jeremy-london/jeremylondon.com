@@ -8,138 +8,121 @@ author: "jeremy-london"
 tags: ["reasoning models", "latency", "openai"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete reasoning models problem
-- the example surface: The o1 preview made it easier to talk about spending extra time on hard steps instead of every step
-- the failure mode: a model choice is treated as isolated even though the surrounding system made the decision
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using task success, latency budget, memory footprint, batch behavior, and quality by route
-- security or ownership boundary: where the model stops and the serving system starts
-- latency, cost, and scaling implications
-*/}
+The o1 preview made it easier to say something that should have been obvious: some steps deserve more time than others.
 
-The o1 preview made it easier to talk about spending extra time on hard steps instead of every step.
+Before reasoning models became a normal product category, a lot of AI latency conversation was flattened. Faster was better. Lower p95 was better. Stream sooner. Answer now. If quality was bad, try a bigger model or a better prompt.
 
-The interesting part of reasoning models is not the name. It is the system pressure around The o1 preview made it easier to talk about spending extra time on hard steps instead of every step. Once that pressure shows up for reasoning models, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+Reasoning models made the latency budget feel more deliberate.
 
-## The unit of work
+The question became: where should the system spend extra thinking time?
 
-I would start by naming the unit of work for reasoning models. In model systems, the reasoning models unit is usually smaller than the product surface and larger than a function call. For reasoning models, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+That is a better question than "how do we make every response fast?"
 
-A useful reasoning models unit has four properties:
+## latency is part of the interface
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+Users do not experience latency as a number. They experience it as a promise.
 
-For reasoning models, the boundary is where the model stops and the serving system starts. That boundary should be visible in the reasoning models data, not only in a policy document. If a reasoning models request crosses the boundary, the trace should show it.
+A 200ms delay in autocomplete feels broken. A five-second delay for a careful code review may feel fine. A thirty-second delay for a background analysis job may be fine if the product shows progress and lets the user leave. The same delay that feels unacceptable in one surface feels responsible in another.
 
-## Data flow
+Reasoning models make that distinction sharper because the delay is not always overhead. Sometimes the delay is the work.
 
-The simple reasoning models flow looks like this:
+The product has to show that. If the model is spending time planning, checking, or analyzing, the interface should make the wait legible. If it is a simple task, the product should avoid the slow path entirely.
 
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
+## route by difficulty, not prestige
+
+The fastest way to misuse a reasoning model is to route everything through it because it is the "smart" model.
+
+Some tasks are hard. Some are merely wordy. Some are small transformations. Some require external evidence. Some require tool work. Some require careful refusal. A system that treats all of those as the same kind of reasoning problem wastes time and money.
+
+I would split tasks by latency shape:
+
+- instant: autocomplete, formatting, simple labels
+- interactive: short drafting, small explanations, classification with feedback
+- deliberate: code analysis, math, policy edge cases, multi-document synthesis
+- background: long reports, repository analysis, batch extraction, human review prep
+
+The model route should follow that shape. A reasoning model belongs in the deliberate and sometimes background path. It may be the wrong fit for instant work even when it can do the task.
+
+## hard steps need visible budgets
+
+Reasoning time should have a budget.
+
+That budget might be explicit in the model API, implicit in the route, or enforced by the application timeout. Either way, the system should know how much time it is willing to spend before asking for help, degrading, or stopping.
+
+For example:
+
+~~~yaml
+routes:
+  quick_rewrite:
+    max_latency_ms: 1500
+    reasoning: none
+
+  code_failure_analysis:
+    max_latency_ms: 20000
+    reasoning: high
+    fallback: summarize_findings
+
+  legal_policy_question:
+    max_latency_ms: 30000
+    reasoning: high
+    fallback: human_review
 ~~~
 
-The context builder gathers the minimum useful state for reasoning models. The reasoning models decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+The budget is product judgment. It says how much delay the task is worth and what happens when the delay does not produce a confident result.
 
-That receipt is the difference between a reasoning models demo and an operable system. A demo can rely on a person watching closely. A reasoning models system needs to explain itself after the person has moved on.
+Without a budget, reasoning latency becomes mushy. The system waits because waiting feels like quality.
 
-A reasoning models request envelope might look like this:
+## streaming is not the same as progress
 
-~~~json
-{
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
-}
-~~~
+Streaming tokens can make a slow model feel alive, but it does not always make the task better.
 
-The schema is deliberately plain. Fancy schemas do not save unclear reasoning models systems. The useful reasoning models work is deciding which fields are required, which are advisory, and which block the run when missing.
+For reasoning-heavy tasks, the user may not need to watch the model narrate every partial thought. They may need progress at the workflow level: analyzing files, checking tests, comparing documents, building plan, waiting for tool result, reviewing evidence.
 
-## Implementation sketch
+That is different from token streaming.
 
-I would implement the first reasoning models pass as a narrow pipeline rather than a general platform. Start reasoning models with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+For some workflows, showing intermediate text is distracting or unsafe. For others, it helps the user steer. The product should decide what kind of progress matters.
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+I like progress that reflects state:
 
-For reasoning models, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The reasoning models system still has to decide whether the proposal is usable under the current boundary.
+- reading context
+- searching sources
+- checking examples
+- running tool
+- reviewing result
+- preparing answer
 
-## Failure modes
+Those states are less flashy than a stream of prose. They are often more useful.
 
-The main reasoning models failure mode is a model choice is treated as isolated even though the surrounding system made the decision. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The reasoning models failure is that the next component cannot tell whether the result should be trusted.
+## expensive thinking needs acceptance checks
 
-I would test at least five reasoning models cases:
+Spending more time does not guarantee a better answer.
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+Reasoning models can still take the wrong path, overthink simple tasks, miss a constraint, or produce a confident answer after a long delay. The longer wait can even make the output feel more trustworthy than it deserves.
 
-That last reasoning models case matters. A confident reasoning models answer is not the same thing as a verified result. If reasoning models touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+That means the slow path needs acceptance checks.
 
-## Deployment shape
+For code, run tests or at least validate the patch shape. For math, check the result. For retrieval, verify citations. For policy, check category and escalation rules. For structured output, parse and validate. For agent work, inspect the run trace.
 
-I would not deploy reasoning models as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For reasoning models, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+The acceptance check is how the product converts "the model thought longer" into "the system has more confidence."
 
-That gives the router real work to do. For reasoning models, it should not only choose small model or big model. It should choose a risk path:
+## the product should expose the tradeoff
 
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
+Users can understand tradeoffs when the product names them.
 
-Each reasoning models path has a different budget, verifier, and approval requirement. This is the part that makes reasoning models feel less magical and more like infrastructure. The model is still important, but the reasoning models route determines what kind of trust the system is asking for.
+Fast answer. Careful answer. Background analysis. Draft now, verify later. Use a cheaper model. Spend more time. Ask a human.
 
-## Measurement
+Those controls do not need to be everywhere, but they are useful in tools for technical work. A developer may want a quick explanation now and a deeper codebase scan later. A security analyst may want a fast triage label and a slower evidence review for high-risk cases. A writer may want a quick rewrite, then a more careful structural critique.
 
-The measurement surface for reasoning models is task success, latency budget, memory footprint, batch behavior, and quality by route. I would track reasoning models per route or case type, not only as a global average. Global averages hide the exact class of reasoning models problems that make these systems feel unpredictable.
+Reasoning models made that split easier to explain.
 
-A simple eval table can carry a lot of weight:
+## latency belongs where uncertainty is expensive
 
-~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
-~~~
+The useful rule for me is: spend latency where uncertainty is expensive.
 
-The point is not to build an eval cathedral for reasoning models. The point is to preserve enough reasoning models structure that regressions can be clustered. If failures cluster around one route, fix the route. If reasoning models failures cluster around one policy boundary, fix the boundary. If reasoning models failures cluster around one model, stop pretending the prompt is the whole system.
+If the cost of a bad answer is low, keep the path fast. If the cost is high, spend time on reasoning, evidence, checks, and review. If the task is background work, move it out of the interactive path entirely.
 
-## Operational concerns
+The o1 preview made this easier to talk about because it gave the industry a visible model category for deliberate reasoning. But the product lesson is broader than one model release.
 
-The operational question for reasoning models is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap reasoning models route becomes unreliable but the expensive route would blow the budget?
+Latency is not a tax to minimize uniformly. It is a budget to spend where the work earns it.
 
-For reasoning models, I would put those answers in configuration, not in a heroic prompt. A small reasoning models policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
-
-## Scaling behavior
-
-At small scale, a human can inspect weird reasoning models cases by hand. At medium scale, the reasoning models system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
-
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the reasoning models system without being surprised by the downstream behavior?
-
-For reasoning models, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the reasoning models system a spine.
-
-## Where I land
-
-Reasoning models deserves depth when it changes architecture, not when it merely sounds current. The reasoning models implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
-
-If the reasoning models post answers those questions, it teaches something. If the reasoning models post only says the topic matters, it is just a longer version of the headline.
+That makes waiting a design choice instead of an accident.

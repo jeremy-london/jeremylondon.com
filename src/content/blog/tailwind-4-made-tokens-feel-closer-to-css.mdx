@@ -8,55 +8,168 @@ author: "jeremy-london"
 tags: ["tailwind", "tokens", "css"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete tailwind problem
-- the example surface: a design decision that needs a name before it spreads
-- the failure mode: the UI looks consistent while the underlying decisions drift apart
-- the responsibilities around the component contract
-- the tradeoff between convenience and which decisions belong in tokens, components, product copy, or one-off layout
-- the check or metric: token reuse, unsupported variants, visual regression count, and handoff ambiguity
-*/}
+Tailwind 4 made tokens feel closer to CSS, which is a good excuse to clean up theme decisions.
 
-Tailwind 4 made the styling system feel more native to CSS, which is a good excuse to clean up theme decisions.
+Tokens are easy to add and hard to remove. Every design system I have seen drifts toward too many names: old brand colors, new brand colors, one-off spacing, component shadows, breakpoints that came from a mockup, and semantic names that stopped meaning what they used to mean.
 
-The practical version starts with a design decision that needs a name before it spreads. That gives tailwind a shape you can reason about. It also keeps the tailwind post out of slogan territory, which is where a lot of technical writing goes to die politely.
+Tailwind v4 does not solve that by itself. What it does is put more of the token conversation in CSS, where the cost of a bad name is easier to see.
 
-## What has to be true
-
-For tailwind to be useful, the designer or engineer needs a clear component contract. That artifact does not have to be fancy. For tailwind, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for tailwind is that it explains what happened without asking the next person to reconstruct intent from vibes.
-
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In design systems, the annoying tailwind bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for tailwind, but the caller cannot tell whether it is safe. A script exits zero for tailwind, but the output hides the one fact the maintainer needed.
-
-## Implementation shape
-
-I would make the first tailwind version deliberately plain. The tailwind system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make tailwind enterprise software. It makes the work inspectable.
-
-A useful tailwind implementation question is where the record is created. If the tailwind record is created only after success, it will miss the interesting failures. I would create the tailwind record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
-
-## Tradeoffs
-
-The tailwind tradeoff is convenience versus which decisions belong in tokens, components, product copy, or one-off layout. If the tailwind system is too strict, people route around it. If the tailwind system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For tailwind, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
-
-That contract can be boring. A useful tailwind shape is:
-
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
+~~~css
+@theme {
+  --color-surface: oklch(0.98 0.01 250);
+  --color-surface-muted: oklch(0.94 0.01 250);
+  --color-text: oklch(0.22 0.03 250);
+  --color-text-muted: oklch(0.48 0.03 250);
 }
 ~~~
 
-The exact fields change by system. The tailwind pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+Those names are boring. That is the point. A token should make the next style decision less mysterious.
 
-## What I would measure
+## tokens are names with consequences
 
-The tailwind metric is token reuse, unsupported variants, visual regression count, and handoff ambiguity. That is more useful than asking whether tailwind "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+A token is a promise about reuse.
 
-For tailwind, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those tailwind numbers usually tell the truth before the happy-path dashboard does.
+If a value appears once, it may be a local choice. If it appears across the product, it probably deserves a name. The problem starts when the name pretends the value is more stable than it is.
 
-If the tailwind system cannot answer those questions, I would keep the design smaller. Small tailwind systems with honest receipts are easier to improve than large systems that only report success.
+~~~css
+@theme {
+  --color-blue-button: oklch(0.61 0.19 255);
+  --color-new-blue-button: oklch(0.58 0.21 260);
+  --color-marketing-blue: oklch(0.64 0.18 252);
+}
+~~~
+
+That is not a theme. It is an archeological record.
+
+Sometimes that record is useful during migration, but it should not become the permanent language of the interface. A good token name should say why the value exists, who is allowed to use it, and what kind of change would require review.
+
+## primitive and semantic tokens do different work
+
+I like separating primitive tokens from semantic tokens.
+
+Primitive tokens describe the palette or scale:
+
+~~~css
+@theme {
+  --color-slate-950: oklch(0.16 0.03 250);
+  --color-blue-600: oklch(0.55 0.18 255);
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+}
+~~~
+
+Semantic tokens describe product meaning:
+
+~~~css
+@theme {
+  --color-page-bg: var(--color-slate-950);
+  --color-action-bg: var(--color-blue-600);
+  --space-card-padding: var(--space-4);
+}
+~~~
+
+The split matters because a color can survive a redesign while its meaning changes, and a meaning can survive while the color changes. If those layers collapse into one name, every redesign becomes harder to reason about.
+
+This is where Tailwind v4 feels useful. When these names live in CSS, the relationship between primitive value and semantic use is visible without jumping into a JavaScript object.
+
+## component tokens need skepticism
+
+Component tokens are tempting because they make a component easy to tune.
+
+~~~css
+@theme {
+  --color-card-border: oklch(0.84 0.02 250);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+~~~
+
+That can be fine. A card may be common enough to deserve its own contract.
+
+The risk is that every component gets its own private universe: card border, panel border, callout border, drawer border, modal border, popover border. They start with subtle differences and end with a system nobody wants to touch.
+
+I would ask two questions before adding a component token:
+
+- will another component use the same decision?
+- would changing this value globally be safe?
+
+If both answers are no, the value may belong near the component instead of in the theme.
+
+## tokens should reduce arbitrary values
+
+Arbitrary values are one of Tailwind's pressure valves. They are useful because the real world is rude and occasionally a layout needs `top-[13px]`.
+
+The problem is when arbitrary values become the quiet design system.
+
+~~~html
+<section class="rounded-[7px] p-[18px] shadow-[0_2px_12px_rgb(0_0_0_/_0.08)]">
+~~~
+
+That line might be acceptable in a prototype. In a mature component, it tells me the system did not have the words it needed.
+
+A token cleanup pass should look for repeated arbitrary values. If `rounded-[7px]` appears across six components, name the radius or choose an existing one. If a shadow is copied through the app, decide whether it is a real elevation level. If spacing keeps landing between scale values, the spacing scale may be wrong, or the layout may be too fussy.
+
+Tailwind v4's CSS-first theme does not force that discipline. It does make the next cleanup easier to express.
+
+## dark mode exposes vague names
+
+Dark mode is a good token test.
+
+Names like `--color-gray-light` and `--color-gray-dark` start to break down when the same component needs readable text, subtle borders, focus rings, and disabled states across themes.
+
+I would rather see names tied to role:
+
+~~~css
+@theme {
+  --color-bg: oklch(0.99 0.01 250);
+  --color-fg: oklch(0.18 0.02 250);
+  --color-border-subtle: oklch(0.86 0.02 250);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: oklch(0.16 0.02 250);
+    --color-fg: oklch(0.94 0.01 250);
+    --color-border-subtle: oklch(0.28 0.02 250);
+  }
+}
+~~~
+
+The names do not describe brightness. They describe use.
+
+That is easier to maintain because a component can ask for the role it needs without knowing which theme is active.
+
+## the cleanup should be boring
+
+The best token cleanup does not look heroic.
+
+It deletes dead names. It merges duplicates. It moves one-off values back into components. It adds a few semantic names where the product actually repeats a decision. It leaves comments only where a value would otherwise look strange.
+
+I would do it in passes:
+
+1. list every theme token
+2. search for usage
+3. group tokens by visual role
+4. delete unused names
+5. replace copied arbitrary values with named tokens when reuse is real
+6. keep migration aliases temporarily when removing them would create noisy diffs
+
+The temporary alias part matters. A clean token system that requires a giant risky rewrite is less useful than a slightly messy system with a path out.
+
+~~~css
+@theme {
+  --color-action-bg: var(--color-blue-600);
+  --color-primary-button: var(--color-action-bg); /* remove after button cleanup */
+}
+~~~
+
+That comment is not elegant, but it tells the next person what happened.
+
+## design systems fail through small lies
+
+Tokens rarely fail all at once. They fail through small lies.
+
+`primary` stops being primary. `muted` becomes unreadable. `danger` gets used for attention instead of destructive actions. `card` tokens leak into navigation. A spacing value created for one hero layout becomes a general utility because nobody wants to ask why it exists.
+
+Tailwind 4 makes token work feel closer to CSS, and that closeness is useful because CSS is where those small lies become visible. The browser does not care about the story in the design tool. It computes values.
+
+That is why I like this direction. It turns theme work into something I can read, inspect, and clean up with the rest of the stylesheet. The hard part is still naming the design decisions honestly.

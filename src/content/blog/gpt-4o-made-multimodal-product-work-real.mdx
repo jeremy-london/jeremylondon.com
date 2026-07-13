@@ -8,138 +8,149 @@ author: "jeremy-london"
 tags: ["gpt-4o", "multimodal", "product"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete GPT 4o problem
-- the example surface: The GPT-4o launch made audio, vision, and text feel like one product surface instead of three demos
-- the failure mode: the system succeeds once but gives the next maintainer no way to explain it
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using reproduction time, failing example coverage, queue age, and rollback confidence
-- security or ownership boundary: what must be proven before the change is trusted
-- latency, cost, and scaling implications
-*/}
+[GPT-4o](https://openai.com/index/hello-gpt-4o/) made multimodal product work feel less like stitching demos together.
 
-The GPT-4o launch made audio, vision, and text feel like one product surface instead of three demos.
+Before that launch, a lot of multimodal systems still felt like pipelines wearing a chat interface. Speech-to-text here. OCR there. Vision captioning somewhere else. A text model at the end trying to reason over whatever survived the conversions. It worked for some things, but the seams were obvious.
 
-The interesting part of GPT 4o is not the name. It is the system pressure around The GPT-4o launch made audio, vision, and text feel like one product surface instead of three demos. Once that pressure shows up for GPT 4o, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+GPT-4o changed the product expectation. OpenAI described a model trained across text, vision, and audio, with faster interaction and lower API cost than the previous flagship path. The demo energy was voice and vision. The engineering implication was broader: multimodal input was becoming one surface.
 
-## The unit of work
+That creates better product possibilities and sharper product obligations.
 
-I would start by naming the unit of work for GPT 4o. In engineering quality, the GPT 4o unit is usually smaller than the product surface and larger than a function call. For GPT 4o, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+## input capture becomes part of the model interface
 
-A useful GPT 4o unit has four properties:
+In a text-only product, the input box is the interface.
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+In a multimodal product, the input surface is a small operating system. It has to capture audio, images, screenshots, files, camera frames, screen state, and text. It has to decide what is sent, when it is sent, what is retained, and what the user can inspect afterward.
 
-For GPT 4o, the boundary is what must be proven before the change is trusted. That boundary should be visible in the GPT 4o data, not only in a policy document. If a GPT 4o request crosses the boundary, the trace should show it.
+That matters because multimodal prompts are not self-explanatory.
 
-## Data flow
+A user might ask, "What is wrong here?" while pointing the camera at an error message. The model needs the frame. The product needs to preserve which frame. A user might ask about a chart in a screenshot. The answer should be anchored to the chart, not to a vague visual impression. A user might talk over a screen recording. The system needs timing.
 
-The simple GPT 4o flow looks like this:
-
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
-~~~
-
-The context builder gathers the minimum useful state for GPT 4o. The GPT 4o decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
-
-That receipt is the difference between a GPT 4o demo and an operable system. A demo can rely on a person watching closely. A GPT 4o system needs to explain itself after the person has moved on.
-
-A GPT 4o request envelope might look like this:
+The input record should look more like this:
 
 ~~~json
 {
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
+  "turn_id": "t-184",
+  "text": "Why is this build failing?",
+  "attachments": [
+    {
+      "type": "screenshot",
+      "source": "ci-log.png",
+      "captured_at": "2024-05-20T13:42:11Z"
+    },
+    {
+      "type": "audio",
+      "source": "user-question.wav",
+      "duration_ms": 8200
+    }
+  ]
 }
 ~~~
 
-The schema is deliberately plain. Fancy schemas do not save unclear GPT 4o systems. The useful GPT 4o work is deciding which fields are required, which are advisory, and which block the run when missing.
+The model can reason across inputs. The product still has to record what those inputs were.
 
-## Implementation sketch
+## evidence needs anchors
 
-I would implement the first GPT 4o pass as a narrow pipeline rather than a general platform. Start GPT 4o with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+Text answers can cite paragraphs. Multimodal answers need richer anchors.
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+For images, the anchor might be a region. For audio, a timestamp. For video, a frame range. For a screenshot, a UI element. For a PDF page, a page number and bounding box. Without those anchors, the user cannot tell whether the model actually looked at the right thing.
 
-For GPT 4o, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The GPT 4o system still has to decide whether the proposal is usable under the current boundary.
+This is especially important when the model is wrong. A bad text answer can often be debugged by reading the source document. A bad visual answer needs to reveal what the model thought it saw.
 
-## Failure modes
+I want product affordances like:
 
-The main GPT 4o failure mode is the system succeeds once but gives the next maintainer no way to explain it. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The GPT 4o failure is that the next component cannot tell whether the result should be trusted.
+- highlight the screenshot region used in the answer
+- jump to the audio timestamp
+- show the video frame range
+- preserve the original image next to the generated explanation
+- let the user correct a misread label or object
 
-I would test at least five GPT 4o cases:
+Multimodal output should leave handles for review. Otherwise it becomes a confident caption with better branding.
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+## turn-taking is a systems problem
 
-That last GPT 4o case matters. A confident GPT 4o answer is not the same thing as a verified result. If GPT 4o touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+Voice makes latency visceral.
 
-## Deployment shape
+In a text chat, a slow response is annoying. In a voice interface, bad turn-taking feels broken. The system has to decide when the user is done, when to interrupt, when to listen, when to speak, and how to recover when speech recognition or model reasoning gets the wrong intent.
 
-I would not deploy GPT 4o as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For GPT 4o, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+GPT-4o's low-latency direction made this more realistic, but product design still matters. A voice assistant that talks over the user, misses a correction, or answers before the relevant visual frame is captured will feel worse than a slower text assistant.
 
-That gives the router real work to do. For GPT 4o, it should not only choose small model or big model. It should choose a risk path:
-
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
-
-Each GPT 4o path has a different budget, verifier, and approval requirement. This is the part that makes GPT 4o feel less magical and more like infrastructure. The model is still important, but the GPT 4o route determines what kind of trust the system is asking for.
-
-## Measurement
-
-The measurement surface for GPT 4o is reproduction time, failing example coverage, queue age, and rollback confidence. I would track GPT 4o per route or case type, not only as a global average. Global averages hide the exact class of GPT 4o problems that make these systems feel unpredictable.
-
-A simple eval table can carry a lot of weight:
+The interaction loop needs state:
 
 ~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
+listening
+detecting_end_of_turn
+processing_audio_and_visual_context
+speaking
+interrupted
+repairing
 ~~~
 
-The point is not to build an eval cathedral for GPT 4o. The point is to preserve enough GPT 4o structure that regressions can be clustered. If failures cluster around one route, fix the route. If GPT 4o failures cluster around one policy boundary, fix the boundary. If GPT 4o failures cluster around one model, stop pretending the prompt is the whole system.
+Those states are product states, not demo details. They determine whether the assistant feels conversational or chaotic.
 
-## Operational concerns
+## multimodal failures are different
 
-The operational question for GPT 4o is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap GPT 4o route becomes unreliable but the expensive route would blow the budget?
+Text failures are familiar: hallucinated facts, bad citations, weak reasoning, missing context.
 
-For GPT 4o, I would put those answers in configuration, not in a heroic prompt. A small GPT 4o policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+Multimodal failures add new varieties:
 
-## Scaling behavior
+- the model reads text from an image incorrectly
+- the model misses a small visual detail
+- the model describes the wrong object
+- the audio transcript drops a negation
+- timing between speech and screen state is misaligned
+- the model answers from a stale frame
+- the product sends a compressed image that loses the important detail
 
-At small scale, a human can inspect weird GPT 4o cases by hand. At medium scale, the GPT 4o system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+The fix depends on the failure. Better prompting will not repair a product that sent the wrong frame. A stronger model may not help if the screenshot was too low resolution. A better transcript may not help if the user was pointing at something the camera did not capture.
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the GPT 4o system without being surprised by the downstream behavior?
+Multimodal products need failure UI. The user should be able to say, "No, this part," and select the region. Or "I meant the second chart." Or "listen to the part after I say build step." Repair has to be multimodal too.
 
-For GPT 4o, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the GPT 4o system a spine.
+## evals need real artifacts
 
-## Where I land
+Multimodal evals cannot be only written prompts pretending to reference media.
 
-GPT 4o deserves depth when it changes architecture, not when it merely sounds current. The GPT 4o implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+The eval set should include the actual images, audio clips, screenshots, PDFs, or videos the product expects. It should measure whether the model identifies the right evidence, not only whether the final answer sounds plausible.
 
-If the GPT 4o post answers those questions, it teaches something. If the GPT 4o post only says the topic matters, it is just a longer version of the headline.
+For screenshot analysis, I would test:
+
+- small text
+- overlapping UI elements
+- dark mode and light mode
+- cropped error messages
+- visually similar buttons
+- charts with misleading labels
+- screenshots with irrelevant surrounding content
+
+For audio:
+
+- interruptions
+- background noise
+- corrections mid-sentence
+- names and technical terms
+- negations
+- timing-sensitive references to visual context
+
+The grader should know the evidence location. A correct answer with the wrong anchor is suspect. A plausible answer without an anchor is weaker than it looks.
+
+## privacy gets more physical
+
+Multimodal input often contains more accidental data than text.
+
+A screenshot can include tabs, emails, names, tokens, notifications, or customer records. Audio can include other people. A camera frame can include a room. A screen recording can capture more than the task.
+
+The product has to help users understand what is being sent. It should crop, redact, preview, or scope inputs when possible. It should avoid turning "ask about this chart" into "upload my whole desktop." It should make retention rules clear.
+
+This is one reason local or on-device pre-processing matters. Even when the main reasoning model is remote, the product can often crop, redact, sample, or warn before sending.
+
+Multimodal power increases the privacy surface.
+
+## what became real
+
+GPT-4o made multimodal work feel real because it connected capability, latency, and product interaction. It was no longer only "the model can see an image" or "the model can transcribe audio." It was closer to one assistant working across the inputs a user naturally has.
+
+That is a big product shift.
+
+It also raises the bar. The product has to capture inputs well, preserve evidence anchors, handle turn-taking, expose repair paths, evaluate against real media, and protect accidental data.
+
+Multimodal AI is not text chat with attachments. It is a different interaction model. GPT-4o made that harder to ignore.

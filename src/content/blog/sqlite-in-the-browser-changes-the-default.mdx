@@ -8,138 +8,142 @@ author: "jeremy-london"
 tags: ["sqlite", "browser", "local first"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete SQLite problem
-- the example surface: software that keeps working when the network stops helping
-- the failure mode: the app works online but loses the user when the network or device state changes
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using conflict rate, recovery time, local durability, and sync queue age
-- security or ownership boundary: what must be true before the server is reachable
-- latency, cost, and scaling implications
-*/}
+SQLite in the browser changes the default for small tools.
 
-When local databases become easy to ship, small tools can keep more state close to the user.
+The old default was simple: if the app needs real state, put the state on a server. The browser can hold preferences, cache, drafts, maybe some IndexedDB records if the team is feeling brave. The source of truth lives elsewhere.
 
-The interesting part of SQLite is not the name. It is the system pressure around software that keeps working when the network stops helping. Once that pressure shows up for SQLite, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+That is still the right answer for many products.
 
-## The unit of work
+But when SQLite becomes practical to ship in the browser through WebAssembly-backed runtimes and local persistence layers, a different class of tool gets easier to imagine. Small tools can keep more state close to the user without immediately becoming a backend project.
 
-I would start by naming the unit of work for SQLite. In local-first software, the SQLite unit is usually smaller than the product surface and larger than a function call. For SQLite, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+That matters for personal tools, internal utilities, offline workflows, exploratory data apps, and AI-adjacent notebooks that need local memory without a server round trip.
 
-A useful SQLite unit has four properties:
+## local state can be structured
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+Browser storage often starts as a key-value drawer.
 
-For SQLite, the boundary is what must be true before the server is reachable. That boundary should be visible in the SQLite data, not only in a policy document. If a SQLite request crosses the boundary, the trace should show it.
+That is fine for tiny state. It gets messy when the tool grows: notes, tasks, runs, artifacts, settings, indexes, drafts, imports, exports, and sync status all end up as blobs with conventions nobody wrote down.
 
-## Data flow
+SQLite changes the feel because it gives the client a real relational shape:
 
-The simple SQLite flow looks like this:
+~~~sql
+create table runs (
+  id text primary key,
+  created_at text not null,
+  status text not null,
+  input_hash text not null,
+  output text
+);
+
+create table artifacts (
+  id text primary key,
+  run_id text not null references runs(id),
+  kind text not null,
+  path text,
+  body text
+);
+~~~
+
+That schema is a design artifact. It says what the tool remembers.
+
+For small apps, that can be enough to avoid inventing a backend before the workflow deserves one.
+
+## offline becomes a real path
+
+Local databases make offline behavior less fake.
+
+The app can create records, update drafts, store imported data, queue changes, and let the user inspect history without waiting for a network. The product can say "saved locally" and mean something more durable than an in-memory object.
+
+That does not make sync easy. It makes the offline side more honest.
+
+A browser SQLite app still needs to decide:
+
+- what is stored locally
+- what syncs
+- what stays private
+- how conflicts resolve
+- how schema migrations run
+- how backups and exports work
+- what happens when storage is cleared
+
+Those decisions are product decisions. The database only gives them a place to live.
+
+## migrations come to the client
+
+Once the browser has a schema, the browser has migrations.
+
+That is the part people underestimate.
+
+A client database can be old. The user may not open the app for months. They may have unsynced local state. They may be on a different browser. They may have a partial migration from a crashed tab.
+
+The app needs a migration story:
 
 ~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
+open database
+  -> read schema version
+  -> run migrations in order
+  -> verify expected tables
+  -> preserve user data
+  -> fail with recovery path
 ~~~
 
-The context builder gathers the minimum useful state for SQLite. The SQLite decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+For small tools, this can stay simple. But it cannot be ignored. A local-first app that loses local data during an upgrade breaks the core promise.
 
-That receipt is the difference between a SQLite demo and an operable system. A demo can rely on a person watching closely. A SQLite system needs to explain itself after the person has moved on.
+## export keeps the user in control
 
-A SQLite request envelope might look like this:
+One reason I like local databases for small tools is export.
 
-~~~json
-{
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
-}
-~~~
+If the data lives near the user, the product should give the user a way to take it with them. SQLite is nice here because the database can be an understandable artifact. Depending on the app, export might mean a `.sqlite` file, CSV files, JSON, Markdown, or a project bundle.
 
-The schema is deliberately plain. Fancy schemas do not save unclear SQLite systems. The useful SQLite work is deciding which fields are required, which are advisory, and which block the run when missing.
+Export is not an afterthought. It is part of trust.
 
-## Implementation sketch
+If the tool is a personal notebook, local analysis app, or AI workflow tracker, the user should not feel trapped inside a browser origin. Local state should have a door.
 
-I would implement the first SQLite pass as a narrow pipeline rather than a general platform. Start SQLite with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+## ai tools need run history
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+Local AI tools often need more than preferences.
 
-For SQLite, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The SQLite system still has to decide whether the proposal is usable under the current boundary.
+They need prompts, runs, source references, generated artifacts, review notes, eval examples, and retry history. A browser SQLite database can keep that run history close to the user, which is useful when the workflow is private or experimental.
 
-## Failure modes
+The model output is only one artifact. The local record around it is what makes the work inspectable later.
 
-The main SQLite failure mode is the app works online but loses the user when the network or device state changes. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The SQLite failure is that the next component cannot tell whether the result should be trusted.
+## sync should be optional by design
 
-I would test at least five SQLite cases:
+SQLite in the browser does not remove the need for servers.
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+It lets the server become optional for more workflows.
 
-That last SQLite case matters. A confident SQLite answer is not the same thing as a verified result. If SQLite touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+A small tool can start local. Later, if the product needs multi-device sync, collaboration, account backup, or team sharing, the sync layer can be added around a real local data model.
 
-## Deployment shape
+That order is interesting. Instead of starting with backend tables and treating the client as a cache, the tool can start with client tables and treat the server as replication, backup, or collaboration.
 
-I would not deploy SQLite as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For SQLite, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+That is not always simpler. Sync is hard. Conflict resolution is hard. Permissions are hard. But the architecture can match the product's maturity.
 
-That gives the router real work to do. For SQLite, it should not only choose small model or big model. It should choose a risk path:
+## browser storage still has limits
 
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
+This is not magic.
 
-Each SQLite path has a different budget, verifier, and approval requirement. This is the part that makes SQLite feel less magical and more like infrastructure. The model is still important, but the SQLite route determines what kind of trust the system is asking for.
+Browser storage can be cleared. Quotas exist. Private browsing behaves differently. Persistence APIs vary. Large databases can make backup and migration awkward. WebAssembly startup cost matters. Multi-tab access needs care. Security boundaries still depend on the origin.
 
-## Measurement
+Those limits are manageable when the product names them.
 
-The measurement surface for SQLite is conflict rate, recovery time, local durability, and sync queue age. I would track SQLite per route or case type, not only as a global average. Global averages hide the exact class of SQLite problems that make these systems feel unpredictable.
+For a serious local tool, I would want:
 
-A simple eval table can carry a lot of weight:
+- visible local save state
+- export or backup
+- schema versioning
+- migration tests
+- storage quota handling
+- clear reset behavior
+- sync status if sync exists
+- user-facing recovery instructions
 
-~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
-~~~
+## the default changes for small tools
 
-The point is not to build an eval cathedral for SQLite. The point is to preserve enough SQLite structure that regressions can be clustered. If failures cluster around one route, fix the route. If SQLite failures cluster around one policy boundary, fix the boundary. If SQLite failures cluster around one model, stop pretending the prompt is the whole system.
+SQLite in the browser is exciting because it makes serious local state feel ordinary.
 
-## Operational concerns
+Not every small app needs an account, database server, auth layer, API, and deployment pipeline on day one. Some need a local database, a good export path, and enough care around migrations and storage.
 
-The operational question for SQLite is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap SQLite route becomes unreliable but the expensive route would blow the budget?
+That changes the default.
 
-For SQLite, I would put those answers in configuration, not in a heroic prompt. A small SQLite policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
-
-## Scaling behavior
-
-At small scale, a human can inspect weird SQLite cases by hand. At medium scale, the SQLite system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
-
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the SQLite system without being surprised by the downstream behavior?
-
-For SQLite, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the SQLite system a spine.
-
-## Where I land
-
-SQLite deserves depth when it changes architecture, not when it merely sounds current. The SQLite implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
-
-If the SQLite post answers those questions, it teaches something. If the SQLite post only says the topic matters, it is just a longer version of the headline.
+The browser stops being a thin shell around a server and becomes a place where small, durable tools can actually live.

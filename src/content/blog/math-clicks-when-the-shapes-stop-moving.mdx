@@ -8,24 +8,179 @@ author: "jeremy-london"
 tags: ["math", "learning", "deep learning"]
 ---
 
-{/*
-Depth: quick-note
-Information map:
-- the concrete math problem
-- the example surface: Stable notation and repeated small examples do more for intuition than a tour through every formula
-- the failure mode: the reader can copy the answer without understanding why it worked
-- the small decision I would keep
-- what would make the note wrong
-*/}
+Math usually starts making sense to me after the shapes stop moving.
 
-Stable notation and repeated small examples do more for intuition than a tour through every formula.
+I do not mean visualizations are bad. I like visual explanations. I have built enough little neural-network toys and matrix diagrams to know how useful a picture can be. But motion can hide the thing I am trying to understand. Everything changes at once. The dot moves, the line rotates, the colors update, the equation redraws, and I end up admiring the animation instead of learning the relationship.
 
-I would keep math small here. The useful part is Stable notation and repeated small examples do more for intuition than a tour through every formula. That is enough material for a math note, not a manifesto.
+The useful moment is often the pause.
 
-The math mistake is treating the observation as if it needs a complete theory around it. In practice, technical learning work usually gets better when the first version names the boundary and then stops. For math, that boundary is where explanation stops and experimentation starts.
+Freeze the example. Keep the notation stable. Change one value. Watch one consequence. Then do it again.
 
-The math check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the math post has done its job. If the answer is no, adding three more math paragraphs will not fix it.
+## stable notation is kindness
 
-The thing I would not add to math is a fake architecture section. A short math note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for math. The rest of math can wait until there is a real example to inspect.
+A lot of math writing makes the reader pay a tax before the idea even starts.
 
-I am leaving math as a short note because the idea is useful at this size. A longer math version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.
+The variable names change between paragraphs. The diagram uses different labels than the equation. The example switches from two dimensions to six. The author introduces a new symbol for a concept that already had a name. By the time the actual point arrives, the reader is busy reconciling notation.
+
+Stable notation is not dumbing things down. It is removing accidental difficulty.
+
+If `x` is the input vector, keep it `x`. If `W` is the weight matrix, do not suddenly call it `A` because the next textbook did. If the diagram labels the hidden layer `h`, the equation should use `h`. If the example has three inputs, let the reader stay with three inputs long enough to build a mental model.
+
+The goal is to make the hard part the actual math.
+
+## small examples carry more than they look like
+
+Tiny examples are underrated.
+
+A two-neuron layer can teach more than a giant network diagram because the reader can follow every number. A 2x2 matrix multiplication can explain the shape of the operation better than a full production tensor. A single gradient step can teach the update rule before the optimizer details arrive.
+
+The trick is to reuse the same small example.
+
+~~~text
+input:
+  x = [2, 3]
+
+weights:
+  W = [[1, 0],
+       [0, 1]]
+
+output:
+  y = xW = [2, 3]
+~~~
+
+Then change one thing:
+
+~~~text
+W = [[2, 0],
+     [0, 1]]
+
+y = [4, 3]
+~~~
+
+That is almost insultingly simple. Good. Now the reader can see that the first dimension doubled. Once that is stable, rotate, mix, add bias, stack layers, or introduce nonlinearity.
+
+The small example is not the destination. It is the handle.
+
+## animation should have a brake
+
+Animation is useful when it shows change over time. It is less useful when it refuses to stop.
+
+For teaching, I want controls:
+
+- step forward
+- step back
+- pause
+- reset
+- show the current numbers
+- change one parameter
+
+Without those controls, the reader is forced to learn at the animation's speed. That is backwards. The reader should control the pace.
+
+For gradient descent, the animation should let me inspect one step:
+
+~~~text
+position: x = 4.0
+loss: 16.0
+gradient: 8.0
+learning rate: 0.1
+next position: 3.2
+~~~
+
+Now the moving dot has an explanation. The reader can see why it moved and what would happen if the learning rate changed.
+
+## formulas need a place to land
+
+A formula without an example can feel like a closed door.
+
+Take a dense layer:
+
+~~~text
+y = xW + b
+~~~
+
+That is compact and correct. It is also easy to read past without understanding the shape. The useful version gives it a place to land:
+
+~~~text
+x has shape [1, 3]
+W has shape [3, 2]
+b has shape [1, 2]
+y has shape [1, 2]
+~~~
+
+The formula tells the operation. The shapes tell whether the operation can happen. The example tells what the operation does.
+
+This is especially important in deep learning because shape errors are often the first real teacher. Batch size, feature count, sequence length, embedding dimension, channel order, and matrix orientation all matter. A reader can know the formula and still be lost if the shapes keep changing.
+
+## intuition grows from repeated contrast
+
+One example is rarely enough. Ten unrelated examples are often too many.
+
+The sweet spot is repeated contrast. Keep the setup the same and change one dimension of the idea.
+
+For activation functions:
+
+~~~text
+same input
+same weights
+compare sigmoid, tanh, relu
+show output values
+show gradient behavior
+~~~
+
+For attention:
+
+~~~text
+same tokens
+same query
+change the key vector
+watch attention weights move
+show the weighted sum
+~~~
+
+For embeddings:
+
+~~~text
+same query
+same index
+change the distance metric
+show which neighbors move
+~~~
+
+The repeated structure lets the reader notice the difference. The difference is the lesson.
+
+## interactive examples should reveal state
+
+If an interactive math demo only shows the final picture, it is barely interactive.
+
+The state should be visible: current weights, current input, current output, loss, gradient, attention scores, whatever matters for the concept. The reader should be able to connect the control they changed to the value that moved.
+
+This is where a lot of educational widgets fall short. They look polished, but the state is hidden. The reader drags a slider and the picture changes. Nice. Why did it change that way?
+
+A better widget exposes the intermediate values. It makes the computation inspectable.
+
+~~~text
+slider: learning_rate = 0.2
+gradient: -3.5
+update: +0.7
+new_weight: 1.4
+~~~
+
+That turns a visual into an explanation.
+
+## the reader needs time to be wrong
+
+Math clicks when the reader can make a prediction and be wrong in a small way.
+
+What happens if I double this weight? What happens if the learning rate is too high? Which embedding should be nearest? Which token will attention prefer? If the reader can guess, run the example, and compare, the idea starts to stick.
+
+That requires stable examples. If every section changes the notation, dimensions, and visual style, the reader cannot form a prediction. They are always catching up.
+
+Good math teaching gives the reader a little room to be wrong without getting lost.
+
+## the point
+
+I do not need every formula at once. I need one example that stays still long enough to inspect.
+
+Then I need to change it carefully.
+
+That is where intuition starts for me: stable notation, repeated small examples, visible state, and controls that let the reader slow the system down until the relationship appears.

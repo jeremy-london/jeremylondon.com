@@ -12,29 +12,6 @@ load_pyodide: true
 import PythonModule from "@components/blog/shared/PythonModule.jsx";
 import MultiLayerPerceptron from "@components/blog/MultiLayerPerceptron.jsx";
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete neural networks problem
-- the example surface: a patient walkthrough of multi-layer perceptrons without pretending the acronym is more important than the arithmetic
-- the failure mode: the explanation sounds right but the reader cannot reproduce the calculation
-- the responsibilities around the runnable example
-- the tradeoff between convenience and the exact step where a scalar, vector, matrix, or activation changes shape
-- the check or metric: whether the hand calculation, code output, and visual state agree
-*/}
-
-A patient walkthrough of multi-layer perceptrons without pretending the acronym is more important than the arithmetic.
-
-The practical version starts with a patient walkthrough of multi-layer perceptrons without pretending the acronym is more important than the arithmetic. That gives neural networks a shape you can reason about. It also keeps the neural networks post out of slogan territory, which is where a lot of technical writing goes to die politely.
-
-## What has to be true
-
-For neural networks to be useful, the learner needs a clear runnable example. That artifact does not have to be fancy. For neural networks, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for neural networks is that it explains what happened without asking the next person to reconstruct intent from vibes.
-
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In deep learning basics, the annoying neural networks bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for neural networks, but the caller cannot tell whether it is safe. A script exits zero for neural networks, but the output hides the one fact the maintainer needed.
-
-## Run the example
-
 <MultiLayerPerceptron client:only="react" />
 <PythonModule
   client:only="react"
@@ -42,34 +19,113 @@ The implementation detail I care about is ownership. Who creates the artifact? W
   outputRows={32}
 />
 
-## Implementation shape
+An MLP is a stack of small calculations.
 
-I would make the first neural networks version deliberately plain. The neural networks system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make neural networks enterprise software. It makes the work inspectable.
+The acronym can make it sound like a bigger idea than it is. Multi-layer perceptron. It has the weight of textbook language. But the mechanism is mostly the same pattern repeated: multiply by weights, apply an activation, pass the result to the next layer.
 
-A useful neural networks implementation question is where the record is created. If the neural networks record is created only after success, it will miss the interesting failures. I would create the neural networks record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+The stack gets interesting because each layer changes the representation before the next layer sees it.
 
-## Tradeoffs
+That is the useful way to read the interactive example. Do not try to understand the whole network at once. Follow the values layer by layer.
 
-The neural networks tradeoff is convenience versus the exact step where a scalar, vector, matrix, or activation changes shape. If the neural networks system is too strict, people route around it. If the neural networks system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For neural networks, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+## the input is already a small batch
 
-That contract can be boring. A useful neural networks shape is:
+This example starts with two input vectors.
 
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
-}
+That means the network is processing two examples through the same stack. The weights do not change between examples. Each layer applies the same transformation to both columns and produces two output columns for the next layer.
+
+That is a good thing to notice early because it keeps the model honest. The network is not allowed to invent a separate rule for each input. The same matrices have to handle both.
+
+When you change a weight, watch both columns of the output. If only one column changes, ask why. If both columns change differently, ask which input value caused the difference.
+
+The batch makes the network less like a single arithmetic trick and more like a reusable machine.
+
+## each layer rewrites the representation
+
+Layer 1 receives the original input.
+
+Layer 2 does not. It receives the output of Layer 1. Layer 3 receives the output of Layer 2, and so on. By the time the final layer produces a value, the original input has been transformed several times.
+
+That is the core idea:
+
+~~~text
+input
+  -> layer 1 output
+  -> layer 2 output
+  -> layer 3 output
+  -> ...
+  -> final output
 ~~~
 
-The exact fields change by system. The neural networks pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+Each layer is a chance to create a new representation. Early layers may separate simple patterns. Later layers can combine those patterns.
 
-## What I would measure
+In this tiny example, the numbers are not trying to solve a real task. They are here so the shape is visible. You can change one matrix and watch the downstream layers react.
 
-The neural networks metric is whether the hand calculation, code output, and visual state agree. That is more useful than asking whether neural networks "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+## depth creates dependency
 
-For neural networks, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those neural networks numbers usually tell the truth before the happy-path dashboard does.
+The deeper the stack, the more one early change can echo.
 
-If the neural networks system cannot answer those questions, I would keep the design smaller. Small neural networks systems with honest receipts are easier to improve than large systems that only report success.
+Change a value in `W1`, and Layer 1 changes. Then Layer 2 sees a different input, so it may change. Then Layer 3 sees that change, and the effect can continue all the way to the end.
+
+Change a value in `W7`, and only the final layer changes directly.
+
+That difference matters.
+
+Early weights shape the representation that everything else uses. Later weights decide how to read the representation they receive. Both matter, but they matter differently.
+
+This is why debugging deep networks is harder than debugging one neuron. The final output may be wrong because the last layer read the signal poorly, or because an early layer created a bad signal in the first place.
+
+## activations keep the stack from collapsing
+
+An MLP usually has activation functions between linear layers.
+
+Without activations, a stack of linear transformations can be collapsed into one linear transformation. That is not very useful. Activations let the network create non-linear behavior across layers.
+
+In these beginner examples, ReLU is the activation. It keeps positive values and turns negative values into zero.
+
+That means each layer is not only scaling and combining values. It is also deciding which signals continue.
+
+When you inspect a layer output, look for zeros. Zeros tell you which paths went quiet for the current inputs. A later layer cannot use a signal that ReLU already turned off.
+
+## the matrices are the learned parts
+
+In a trained MLP, the weight matrices are what learning changes.
+
+This interactive example lets you edit them by hand, which is useful because it makes the dependency visible. Training would adjust those weights based on loss and gradients. Here, you can move one value and see the forward pass immediately.
+
+That is slower, but it teaches the shape.
+
+The matrices are not abstract parameters floating in a model file. Each value participates in a specific layer calculation. Each row or column affects a specific part of the next representation.
+
+If a number feels meaningless, change it and watch the outputs. The network will tell you where it mattered.
+
+## do not read the stack as a story too quickly
+
+There is a temptation to assign human meaning to every layer.
+
+Layer 1 detects this. Layer 2 understands that. Layer 3 reasons about something else.
+
+Sometimes interpretability work can identify meaningful features. In this beginner example, do not rush there. The safer habit is mechanical: this layer transforms these values into those values. This activation gates those values. The next layer combines them.
+
+Meaning comes later, if the model is trained on a real task and evaluated carefully.
+
+For now, the goal is to read the plumbing.
+
+## what to try
+
+Start at the end.
+
+Change a value in `W7` and watch the final output move. That is the simplest dependency because it is close to the output.
+
+Then move earlier. Change a value in `W5`. Watch whether the effect reaches the final output. Then change a value in `W1` and see how many layers react.
+
+The useful questions are:
+
+- which layer changed first?
+- did both input columns change?
+- did a ReLU zero out the signal?
+- did the effect disappear before the final layer?
+- did a small early change become a large later change?
+
+Those questions are enough for this stage.
+
+An MLP is a stack of small calculations. The hard part is not the acronym. The hard part is staying patient enough to follow the stack instead of treating it as one black box.

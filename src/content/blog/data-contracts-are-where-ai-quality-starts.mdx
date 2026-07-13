@@ -8,138 +8,172 @@ author: "jeremy-london"
 tags: ["data contracts", "ai quality", "pipelines"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete data contracts problem
-- the example surface: a boundary where two systems can disagree without noticing
-- the failure mode: the pipeline produces output after the meaning of a field has moved
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using schema drift, null-rate changes, freshness, join quality, and contract failures
-- security or ownership boundary: where raw data becomes a product promise
-- latency, cost, and scaling implications
-*/}
+Model quality work starts before the prompt.
 
-Model quality work starts before the prompt when the data shape is undocumented or quietly changing.
+That is easy to forget because prompts are visible and data contracts are not. When an AI system returns a bad answer, the first instinct is to change the instruction. Tell the model to be more precise. Tell it to prefer recent data. Tell it to ignore empty fields. Tell it to cite sources. Tell it to never guess.
 
-The interesting part of data contracts is not the name. It is the system pressure around a boundary where two systems can disagree without noticing. Once that pressure shows up for data contracts, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+Sometimes the prompt is the problem.
 
-## The unit of work
+Often the prompt is carrying a data contract that should have existed upstream.
 
-I would start by naming the unit of work for data contracts. In data engineering, the data contracts unit is usually smaller than the product surface and larger than a function call. For data contracts, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+If the data shape is undocumented, unstable, or quietly changing, the model becomes the place where every ambiguity lands. It has to infer field meaning, guess freshness, reconcile missing values, and decide whether a source can be trusted. That is not intelligence. That is unpaid data engineering.
 
-A useful data contracts unit has four properties:
+## a contract names what the model can trust
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+A data contract says what a downstream system is allowed to assume.
 
-For data contracts, the boundary is where raw data becomes a product promise. That boundary should be visible in the data contracts data, not only in a policy document. If a data contracts request crosses the boundary, the trace should show it.
+For an AI feature, those assumptions might include:
 
-## Data flow
+- field names and types
+- required versus optional fields
+- null meaning
+- freshness expectations
+- source ownership
+- permission metadata
+- deletion behavior
+- semantic meaning of labels
+- allowed enum values
 
-The simple data contracts flow looks like this:
+This is not paperwork for its own sake. It tells the AI system what parts of the input are stable enough to use.
+
+A support summary feature might need a contract like:
 
 ~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
+ticket.id: stable unique identifier
+ticket.body: latest customer-visible message body
+ticket.priority: one of low, normal, high, urgent
+ticket.account_tier: nullable only when account is deleted
+ticket.updated_at: source system update time
+ticket.permissions: users and groups allowed to view source
 ~~~
 
-The context builder gathers the minimum useful state for data contracts. The data contracts decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+That contract gives the retrieval, prompt assembly, and evaluation layers something to check. Without it, the model sees a blob and the product hopes the blob is still shaped like yesterday.
 
-That receipt is the difference between a data contracts demo and an operable system. A demo can rely on a person watching closely. A data contracts system needs to explain itself after the person has moved on.
+## nulls need semantics before prompts see them
 
-A data contracts request envelope might look like this:
+Null fields are where weak contracts show up fast.
 
-~~~json
-{
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
-}
-~~~
+If a field can be empty, the contract should say what empty means. Unknown, unavailable, redacted, not applicable, not collected, and deleted are different states.
 
-The schema is deliberately plain. Fancy schemas do not save unclear data contracts systems. The useful data contracts work is deciding which fields are required, which are advisory, and which block the run when missing.
+An AI system may handle those states differently. A redacted field should not be guessed. An unknown field might be mentioned as unknown. A not-applicable field should not be treated as missing evidence. A deleted owner may require a different explanation than an unassigned owner.
 
-## Implementation sketch
-
-I would implement the first data contracts pass as a narrow pipeline rather than a general platform. Start data contracts with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
-
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
-
-For data contracts, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The data contracts system still has to decide whether the proposal is usable under the current boundary.
-
-## Failure modes
-
-The main data contracts failure mode is the pipeline produces output after the meaning of a field has moved. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The data contracts failure is that the next component cannot tell whether the result should be trusted.
-
-I would test at least five data contracts cases:
-
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
-
-That last data contracts case matters. A confident data contracts answer is not the same thing as a verified result. If data contracts touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
-
-## Deployment shape
-
-I would not deploy data contracts as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For data contracts, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
-
-That gives the router real work to do. For data contracts, it should not only choose small model or big model. It should choose a risk path:
-
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
-
-Each data contracts path has a different budget, verifier, and approval requirement. This is the part that makes data contracts feel less magical and more like infrastructure. The model is still important, but the data contracts route determines what kind of trust the system is asking for.
-
-## Measurement
-
-The measurement surface for data contracts is schema drift, null-rate changes, freshness, join quality, and contract failures. I would track data contracts per route or case type, not only as a global average. Global averages hide the exact class of data contracts problems that make these systems feel unpredictable.
-
-A simple eval table can carry a lot of weight:
+The contract can make that explicit:
 
 ~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
+owner_state:
+  assigned
+  unassigned
+  deleted
+  redacted
+  unknown
 ~~~
 
-The point is not to build an eval cathedral for data contracts. The point is to preserve enough data contracts structure that regressions can be clustered. If failures cluster around one route, fix the route. If data contracts failures cluster around one policy boundary, fix the boundary. If data contracts failures cluster around one model, stop pretending the prompt is the whole system.
+That is better than forcing a prompt to say, "If owner is missing, consider whether it might be unassigned, deleted, redacted, or unknown." By the time the model sees the record, the ambiguity should already be represented.
 
-## Operational concerns
+## freshness is part of the shape
 
-The operational question for data contracts is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap data contracts route becomes unreliable but the expensive route would blow the budget?
+Data contracts should include freshness.
 
-For data contracts, I would put those answers in configuration, not in a heroic prompt. A small data contracts policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+AI systems are often built from a chain of derived data: source table, export job, parser, chunks, embeddings, index, retrieval result, prompt context. Each step can be technically successful while the final context is stale.
 
-## Scaling behavior
+The contract should say what freshness the consumer can expect:
 
-At small scale, a human can inspect weird data contracts cases by hand. At medium scale, the data contracts system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+~~~text
+source: customer_docs
+freshness_slo: indexed within 15 minutes of source update
+delete_slo: removed from index within 5 minutes of source deletion
+permission_slo: permission changes reflected before retrieval
+~~~
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the data contracts system without being surprised by the downstream behavior?
+Those expectations matter because the model cannot see time the way the system can.
 
-For data contracts, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the data contracts system a spine.
+If a user asks about a policy document and the retrieval layer serves a chunk from before yesterday's update, the model may produce a fluent answer that is already wrong. The prompt cannot reliably fix that. The system has to know whether the context is fresh enough to use.
 
-## Where I land
+## permissions belong in the contract
 
-Data contracts deserves depth when it changes architecture, not when it merely sounds current. The data contracts implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+Any data that can be retrieved, summarized, embedded, or used as context needs permission metadata.
 
-If the data contracts post answers those questions, it teaches something. If the data contracts post only says the topic matters, it is just a longer version of the headline.
+This is where AI systems can accidentally create side channels. The source application enforces access correctly. Then a downstream index, cache, summary table, or embedding store drops the permission boundary because it was treated as metadata nobody needed.
+
+The AI feature still has the data. The user still gets an answer. The original access control is now bypassed.
+
+A useful contract says how permission travels:
+
+~~~text
+source_object_id: required
+tenant_id: required
+visibility: public | tenant | group | user
+allowed_group_ids: required when visibility = group
+allowed_user_ids: required when visibility = user
+permission_version: required
+~~~
+
+That does not solve all authorization problems, but it prevents the worst version: private data entering the AI pipeline with no memory of who can see it.
+
+## labels need owners
+
+Label fields are especially dangerous when nobody owns their meaning.
+
+`severity`, `priority`, `risk`, `status`, and `category` look simple. They are usually political little fields with history. A label may have changed meaning after a process update. Two teams may use the same value differently. A legacy importer may map several old states into one new state. A human reviewer may use "urgent" when they mean "annoying."
+
+If a model or evaluator depends on a label, the label needs a contract:
+
+- allowed values
+- definition of each value
+- owner
+- examples near boundaries
+- migration history
+- expected class balance
+
+This matters for training and evals. If the label meaning drifts, scores drift too. The model may look worse because the world changed, or look better because the eval got easier. Without the contract, nobody knows which.
+
+## contract tests catch boring regressions
+
+Data contracts should be executable.
+
+They do not need to start as a huge platform. A small set of checks can catch the failures that make AI systems look flaky:
+
+~~~text
+required field missing
+enum value unknown
+timestamp older than freshness limit
+permission metadata absent
+duplicate source object ids
+chunk without source hash
+label distribution moved beyond threshold
+~~~
+
+Those checks belong before data reaches the model.
+
+The failure should be loud enough that the team fixes the pipeline instead of patching the prompt. If a new `priority` value appears, do not ask the model to handle surprises forever. Update the contract, map the value, or block the pipeline until the owner decides.
+
+This is ordinary data engineering. AI just makes the consequences more visible because the output is fluent enough to hide the upstream break.
+
+## contracts make evals easier to trust
+
+Evals depend on stable data assumptions.
+
+If eval examples come from a source with undocumented fields, stale permissions, or labels that changed meaning, the eval is testing a moving target. The model may be blamed for data drift. Or worse, the model may pass because the eval set no longer represents the product.
+
+A contract lets the eval say what it is measuring:
+
+~~~text
+eval_set: support_escalation_holdout_v4
+source_contract: support_ticket_v7
+label_contract: escalation_risk_v3
+created_from_snapshot: 2025-03-01
+excluded_after: 2025-03-01
+permission_model: tenant_group_v2
+~~~
+
+That record makes regressions easier to interpret. If the contract changes, the eval may need to change too.
+
+## the contract is part of the model system
+
+The model is only one part of the system that produces an AI answer.
+
+The data contract decides what inputs mean. The parser decides what text exists. The chunker decides what context can be retrieved. The permission filter decides what the user is allowed to see. The prompt decides how the model should use the context. The eval decides whether the result is good enough.
+
+If the contract is weak, every later layer compensates.
+
+That is why AI quality starts with data contracts. Not because contracts are exciting. Because they keep the model from becoming the first place anyone notices the data stopped meaning what the product thought it meant.

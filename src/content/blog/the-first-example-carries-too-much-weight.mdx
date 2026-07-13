@@ -8,24 +8,189 @@ author: "jeremy-london"
 tags: ["teaching", "examples", "writing"]
 ---
 
-{/*
-Depth: quick-note
-Information map:
-- the concrete teaching problem
-- the example surface: Readers build their mental model from the first runnable example, so that example has to be honest
-- the failure mode: the reader can copy the answer without understanding why it worked
-- the small decision I would keep
-- what would make the note wrong
-*/}
+The first runnable example in a technical post does more work than we admit.
 
-Readers build their mental model from the first runnable example, so that example has to be honest.
+Readers build their mental model from it. They copy its naming. They infer which parts are essential and which parts are incidental. They decide what kind of system they are looking at before the article has a chance to explain itself.
 
-I would keep teaching small here. The useful part is Readers build their mental model from the first runnable example, so that example has to be honest. That is enough material for a teaching note, not a manifesto.
+That is why the first example has to be honest.
 
-The teaching mistake is treating the observation as if it needs a complete theory around it. In practice, technical learning work usually gets better when the first version names the boundary and then stops. For teaching, that boundary is where explanation stops and experimentation starts.
+It can be small. It can be incomplete. It can skip production concerns that would distract from the point. But it should not teach the wrong shape.
 
-The teaching check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the teaching post has done its job. If the answer is no, adding three more teaching paragraphs will not fix it.
+## the first example becomes the interface
 
-The thing I would not add to teaching is a fake architecture section. A short teaching note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for teaching. The rest of teaching can wait until there is a real example to inspect.
+A first example explains the idea and quietly designs the interface.
 
-I am leaving teaching as a short note because the idea is useful at this size. A longer teaching version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.
+If a library starts with this:
+
+~~~ts
+const result = await run(input)
+~~~
+
+the reader assumes the tool is simple, stateless, and probably safe to call anywhere. That may be true. It may also hide authentication, retries, cancellation, streaming, rate limits, and a bunch of state that will appear in chapter three.
+
+If the real shape is closer to this:
+
+~~~ts
+const result = await client.run({
+  input,
+  timeoutMs: 10_000,
+  signal: abortController.signal,
+})
+~~~
+
+then the first example should probably show a little of that shape. The extra lines tell the reader that execution has a boundary. The call can take time. It can be canceled. It may fail in a way the caller owns.
+
+The point is not to make every opening example complete. The point is to avoid opening with a lie.
+
+## toy code should reveal the real constraint
+
+Toy examples are fine when they preserve the important constraint.
+
+For a queue tutorial, this example is too clean:
+
+~~~ts
+await queue.add({ userId })
+~~~
+
+The real lesson in queues is usually not "put a thing in a queue." It is job identity, retries, idempotency, and what happens when a worker dies halfway through.
+
+A still-small example can show that:
+
+~~~ts
+await queue.add({
+  id: `send-welcome-email:${userId}`,
+  kind: "send_welcome_email",
+  userId,
+  attempts: 0,
+})
+~~~
+
+Now the reader sees a job as a durable unit of work. They may not understand the whole queue yet, but their first mental model includes identity and retry behavior.
+
+That matters because the first example becomes the default shape they reach for later.
+
+## names teach more than comments
+
+Variable names in first examples carry a lot of teaching weight.
+
+~~~ts
+const data = await fetchData()
+~~~
+
+This tells me almost nothing. `data` could be raw JSON, parsed records, trusted input, cached state, or a response object. The reader has to guess.
+
+~~~ts
+const rawProfileResponse = await fetchProfile(userId)
+const profile = await rawProfileResponse.json()
+~~~
+
+That is not beautiful code, but it teaches the boundary between response and parsed value. For a first example, that may be worth the extra words.
+
+The same is true in AI examples. `prompt`, `context`, and `result` are often too vague. If the article is about retrieval, call the value `retrievedPolicyChunks`. If it is about evals, call the value `expectedToolCall`. If it is about embeddings, call the value `normalizedQueryVector`.
+
+Good names reduce the amount of prose needed to explain the example.
+
+## the missing error path becomes doctrine
+
+Readers notice which errors the first example ignores.
+
+If a tutorial starts with a database call and no missing-record handling, readers infer that the missing case is unimportant. If an agent tool example has no permission check, readers infer that tool identity is somebody else's problem. If a file upload example has no size limit, readers infer that validation can wait.
+
+The first example does not need every guardrail, but it should include the error path that defines the subject.
+
+For a tool-calling article, that may be schema validation:
+
+~~~ts
+const parsed = ToolInput.safeParse(args)
+
+if (!parsed.success) {
+  return { ok: false, error: "invalid_tool_input" }
+}
+~~~
+
+For a local file workflow, it may be path scope:
+
+~~~ts
+if (!path.startsWith(workspaceRoot)) {
+  throw new Error("refusing to read outside the workspace")
+}
+~~~
+
+For a form article, it may be the empty state after submission fails.
+
+The right error path depends on the topic. Leaving it out should be a decision, not a habit.
+
+## first examples should avoid fake scale
+
+Some examples fail because they are too tiny. Others fail because they pretend to be architecture.
+
+I do not want an opening example that introduces a `PipelineManager`, `ExecutionCoordinator`, `ResultEnvelope`, and `ObservabilityAdapter` before the reader knows the problem. That teaches ceremony. It also gives the article an inflated shape.
+
+A better first example starts with the smallest unit that carries the real idea.
+
+For an evals article, that unit might be one case:
+
+~~~json
+{
+  "input": "Cancel my plan after the trial ends.",
+  "expected": {
+    "intent": "cancel_subscription",
+    "requires_follow_up": true
+  }
+}
+~~~
+
+For an embeddings article, it might be one query and two candidates. For a cache article, it might be one key and one invalidation rule. For a sync article, it might be one local edit and one remote edit.
+
+Start at the unit of understanding. Scale can come later.
+
+## runnable does not always mean honest
+
+I have a soft spot for examples that run quickly. They respect the reader's time.
+
+But runnable is not the same as honest. A runnable example can still hide the production behavior that makes the topic worth learning.
+
+~~~ts
+const embedding = await embed("quarterly revenue")
+const results = await db.search(embedding)
+~~~
+
+That runs. It also skips chunking, normalization, metadata filters, permissions, and evaluation. If the article is about the first taste of vector search, fine. If the article is about production vector stores, the example is lying by omission.
+
+The fix is not to turn the first example into a complete system. The fix is to include one visible seam:
+
+~~~ts
+const results = await searchDocuments({
+  query: "quarterly revenue",
+  filters: { workspaceId, allowedDocumentIds },
+  topK: 8,
+})
+~~~
+
+Now the reader sees that search is scoped. That one detail changes the mental model.
+
+## the first example should survive chapter two
+
+A good first example should still make sense after the article gets deeper.
+
+If chapter two has to say, "the first example was simplified, but real systems do the opposite," the opening probably did damage. It is fine to say the first example omitted a detail. It is worse to say the first example taught the wrong rule.
+
+Before publishing, I like asking:
+
+- what assumption will the reader copy from this example?
+- which line will they paste into their project?
+- what important boundary is invisible?
+- what would I regret teaching here?
+- does the next section contradict this shape?
+
+Those questions catch a lot of problems.
+
+## the example is part of the argument
+
+Technical writing often treats examples as proof that the prose is correct. I think examples are more active than that. They are part of the argument.
+
+The first example tells the reader what the article values: speed, safety, minimal syntax, explicit state, readable names, production realism, or conceptual clarity. You cannot value all of those equally in one snippet. The tradeoff shows up in the code.
+
+That is why first examples carry too much weight. They are small, but readers build on them.
+
+Pick the first example like it will become somebody's starting point, because it probably will.

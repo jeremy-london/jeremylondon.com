@@ -8,55 +8,148 @@ author: "jeremy-london"
 tags: ["react", "forms", "frontend"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete react problem
-- the example surface: React 19 stabilized a set of APIs that made async UI feel less like plumbing and more like application code
-- the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract
-- the responsibilities around the rendered page
-- the tradeoff between convenience and what the browser, content system, and deployment pipeline each own
-- the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time
-*/}
+React 19 made form state feel native again.
 
-React 19 stabilized a set of APIs that made async UI feel less like plumbing and more like application code.
+That is a small sentence for a large amount of deleted plumbing.
 
-The practical version starts with React 19 stabilized a set of APIs that made async UI feel less like plumbing and more like application code. That gives react a shape you can reason about. It also keeps the react post out of slogan territory, which is where a lot of technical writing goes to die politely.
+Forms are where frontend architecture gets exposed. The user types. The app validates. The request starts. The button disables. The optimistic state appears. The server rejects something. The UI keeps the input. The error lands near the field. The user tries again. A successful submit resets part of the page and preserves another part.
 
-## What has to be true
+Before React's newer form and action APIs settled in, a lot of this work lived in handmade state machines. `isSubmitting`, `error`, `result`, `dirty`, `disabled`, `optimisticItem`, `lastSubmittedValue`, `serverError`, `resetKey`. None of those are bad by themselves. The problem is that every form rebuilt the same lifecycle differently.
 
-For react to be useful, the frontend engineer needs a clear rendered page. That artifact does not have to be fancy. For react, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for react is that it explains what happened without asking the next person to reconstruct intent from vibes.
+React 19 did not make forms easy. It made the async shape feel more like application code and less like wiring.
 
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In web engineering, the annoying react bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for react, but the caller cannot tell whether it is safe. A script exits zero for react, but the output hides the one fact the maintainer needed.
+## actions gave submission a place to live
 
-## Implementation shape
+The useful idea is that a form action can be the thing that handles submission.
 
-I would make the first react version deliberately plain. The react system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make react enterprise software. It makes the work inspectable.
+Instead of treating the submit event as a local ceremony that eventually calls some async function, the action becomes the boundary. The UI can submit to it. React can track pending state around it. The component can receive state back from it.
 
-A useful react implementation question is where the record is created. If the react record is created only after success, it will miss the interesting failures. I would create the react record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+That sounds subtle, but it changes the component shape.
 
-## Tradeoffs
+~~~tsx
+const [state, formAction, isPending] = useActionState(saveProfile, {
+  status: "idle",
+})
 
-The react tradeoff is convenience versus what the browser, content system, and deployment pipeline each own. If the react system is too strict, people route around it. If the react system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For react, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+return (
+  <form action={formAction}>
+    <input name="displayName" />
+    <button disabled={isPending}>Save</button>
+    {state.status === "error" ? <p>{state.message}</p> : null}
+  </form>
+)
+~~~
 
-That contract can be boring. A useful react shape is:
+The component is still responsible for product behavior. React is not deciding the error copy or success state. But the async lifecycle has a clearer home.
 
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
+## pending state should be local to the form
+
+`useFormStatus` is one of those APIs that feels boring in the right way.
+
+A submit button often needs to know whether the surrounding form is pending. Before, that pending state might get threaded through props or duplicated in component state. With `useFormStatus`, a child can read the form submission status from context.
+
+That fits the mental model. The button belongs to the form. Its disabled state and label should follow the form's pending state.
+
+~~~tsx
+function SubmitButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <button disabled={pending}>
+      {pending ? "Saving..." : "Save"}
+    </button>
+  )
 }
 ~~~
 
-The exact fields change by system. The react pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+This is the kind of small API that removes a daily tax.
 
-## What I would measure
+The product still needs to decide what pending means. Is the whole form disabled? Can the user keep typing? Does a second submit cancel the first? Does the UI show progress? Does navigation warn about unsaved changes?
 
-The react metric is route coverage, feed validity, content validation, accessibility checks, and build time. That is more useful than asking whether react "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+React gives the state a place to be read. The product still owns the behavior.
 
-For react, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those react numbers usually tell the truth before the happy-path dashboard does.
+## progressive enhancement stopped feeling bolted on
 
-If the react system cannot answer those questions, I would keep the design smaller. Small react systems with honest receipts are easier to improve than large systems that only report success.
+The form APIs also made progressive enhancement feel less like a separate architecture.
+
+A form can have an action. It can submit. It can carry state through the action result. Frameworks can build server-action behavior around that model. Client JavaScript can improve the experience with pending UI and optimistic updates without turning the form into a fully custom protocol.
+
+That matters for boring reasons. Forms are often the most important reliability surface in an app. They should degrade more gracefully than a bespoke click handler wired to five local state variables.
+
+## server errors are part of the state
+
+The other useful piece is returning state from the action.
+
+For forms, server errors are normal. The username is taken. The file is too large. The permission changed. The record was edited elsewhere. The validation rule changed since the page loaded.
+
+The form should be able to show those outcomes without pretending everything is a client-side validation problem.
+
+~~~tsx
+async function saveProfile(previousState, formData) {
+  const displayName = formData.get("displayName")
+
+  if (typeof displayName !== "string" || displayName.length < 2) {
+    return { status: "error", message: "Use at least two characters." }
+  }
+
+  const result = await saveDisplayName(displayName)
+
+  if (!result.ok) {
+    return { status: "error", message: result.message }
+  }
+
+  return { status: "saved" }
+}
+~~~
+
+That shape keeps the form lifecycle close to the form. It also makes review easier: what states can this form return?
+
+## optimistic state needs rollback
+
+`useOptimistic` is useful because many interfaces should respond before the server confirms.
+
+Add a comment. Mark a task done. Reorder an item. Save a draft. The UI can show the user's intent immediately while the server catches up.
+
+Optimism is a product promise, though. If the server rejects the action, the UI has to recover without making the user wonder whether the app is lying.
+
+For optimistic UI, the spec needs to name:
+
+- what appears immediately
+- what is marked pending
+- what can still be edited
+- what happens on failure
+- whether the failed action can retry
+- whether the server response replaces local state
+
+React's API helps express optimism. It does not remove the need for rollback behavior.
+
+## less plumbing does not mean less design
+
+The best thing about React 19's form story is that it removes some incidental complexity.
+
+That should make the real complexity more visible.
+
+Forms still need:
+
+- accessible labels
+- field-level errors
+- focus management
+- loading states
+- disabled reasons
+- optimistic rollback
+- duplicate-submit protection
+- server validation
+- unsaved-change behavior
+- success states that do not erase useful context
+
+When the async wiring gets simpler, teams have fewer excuses to skip those states.
+
+## why it felt native
+
+HTML forms already have a strong model: fields, submit, action, result.
+
+React 19 moved closer to that model instead of forcing every app to reinvent a local submit state machine. The APIs give form submission, pending state, returned action state, and optimistic updates a clearer place in the component tree.
+
+That is why it felt native to me.
+
+Not because React made forms automatic. Because it made the boring states easier to represent where they belong.

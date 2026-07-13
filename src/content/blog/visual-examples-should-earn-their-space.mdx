@@ -8,24 +8,167 @@ author: "jeremy-london"
 tags: ["teaching", "visualization", "learning"]
 ---
 
-{/*
-Depth: quick-note
-Information map:
-- the concrete teaching problem
-- the example surface: a diagram helps when it lets the learner predict the next step, not when it decorates the page
-- the failure mode: the reader can copy the answer without understanding why it worked
-- the small decision I would keep
-- what would make the note wrong
-*/}
+Visual examples should earn their space.
 
-A diagram helps when it lets the learner predict the next step, not when it decorates the page.
+A diagram helps when it lets the learner predict the next step. It wastes space when it decorates the page, repeats the paragraph beside it, or makes a concept look more finished than it is.
 
-I would keep teaching small here. The useful part is a diagram helps when it lets the learner predict the next step, not when it decorates the page. That is enough material for a teaching note, not a manifesto.
+I like visual explanations. I use them a lot when teaching neural networks, matrix multiplication, attention, embeddings, and UI state. But visuals have a cost. They take screen space. They attract attention. They can make a shaky explanation feel authoritative. A polished diagram can be wrong with better posture.
 
-The teaching mistake is treating the observation as if it needs a complete theory around it. In practice, technical learning work usually gets better when the first version names the boundary and then stops. For teaching, that boundary is where explanation stops and experimentation starts.
+The test is simple: after looking at the visual, can the reader do something they could not do before?
 
-The teaching check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the teaching post has done its job. If the answer is no, adding three more teaching paragraphs will not fix it.
+## a diagram should change the next move
 
-The thing I would not add to teaching is a fake architecture section. A short teaching note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for teaching. The rest of teaching can wait until there is a real example to inspect.
+A useful diagram changes the reader's next move.
 
-I am leaving teaching as a short note because the idea is useful at this size. A longer teaching version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.
+For matrix multiplication, the visual should help the reader predict which dimensions must match. For backpropagation, it should show which value flows backward and why the local derivative matters. For a state machine, it should help the reader know which transition is legal. For an agent workflow, it should make the point where human approval happens impossible to miss.
+
+If the diagram only says "data flows through the system" with arrows between boxes, it probably has not earned the space.
+
+Bad diagram idea:
+
+~~~text
+input -> model -> output
+~~~
+
+That is fine as a first scratch on a whiteboard. In an article, it usually says what everyone already knows.
+
+Better:
+
+~~~text
+query
+  -> embed query
+  -> retrieve candidate chunks
+  -> filter by permission
+  -> rerank by freshness
+  -> assemble answer context
+~~~
+
+Now the reader can predict where permission bugs and stale-source bugs enter the system.
+
+## show the variable that changes
+
+The best learning visuals often change one variable at a time.
+
+If I am explaining a neuron, I want the reader to see how changing a weight changes the output. If I am explaining a filter predicate, I want the reader to see which elements survive. If I am explaining vector similarity, I want the reader to see how a query moves closer to one cluster and away from another.
+
+Static diagrams can do this with before and after states:
+
+~~~text
+before threshold:
+scores: [0.91, 0.72, 0.43, 0.12]
+kept:   [0.91, 0.72]
+
+after threshold increases:
+scores: [0.91, 0.72, 0.43, 0.12]
+kept:   [0.91]
+~~~
+
+Interactive diagrams can do it with sliders or toggles, but interaction is not automatically better. A slider with no consequence is a toy. A static comparison with the right contrast can teach more.
+
+## labels matter more than polish
+
+A diagram with weak labels is a puzzle.
+
+I would rather see a plain box labeled `permission filter` than a beautiful abstract node labeled `policy layer` if the article is about retrieval permissions. The label should name the job the component does, not the vocabulary the author wants to sound smart with.
+
+In technical diagrams, I also like labeling data shapes:
+
+~~~text
+raw document
+  -> chunk { text, section, version }
+  -> embedding { vector, model_version }
+  -> result { chunk_id, score, citation }
+~~~
+
+Those labels tell the reader what changes at each step. That is the whole point of the visual.
+
+Color should carry meaning too. If red means failure in one diagram and user input in the next, the visual language is making the reader work for no reason.
+
+## pictures can hide time
+
+Architecture diagrams are bad at time.
+
+Boxes and arrows make systems look simultaneous. Real systems have delays, retries, queues, stale caches, partial failures, and human review. If time matters, the diagram has to show it.
+
+For an approval workflow, a sequence is often clearer than a component map:
+
+~~~text
+assistant proposes edit
+user reviews diff
+tool applies patch
+checks run
+result is recorded
+~~~
+
+That shape tells the reader what happens first and what can block. A box called `approval service` may be technically accurate and educationally useless.
+
+When I see a diagram with five components and no time axis, I ask what failure it is hiding. Usually the answer is "the hard one."
+
+## visual examples should include wrong states
+
+Good visuals show mistakes.
+
+If a chart explains classification, show the ambiguous point near the boundary. If a diagram explains sync conflicts, show two edits to the same field. If an attention visualization explains focus, show the token that should not receive attention. If a UI state diagram explains form submission, show the disabled, pending, failed, and recovered states.
+
+The wrong state is often what makes the correct state meaningful.
+
+~~~text
+valid transition:
+draft -> pending_review -> published
+
+invalid transition:
+draft -> published
+~~~
+
+That small contrast teaches more than a polished happy-path diagram.
+
+## do not use diagrams as credibility theater
+
+Some visuals exist to make an article feel technical.
+
+You can usually spot them. The boxes have impressive names. The arrows are vague. The visual does not introduce a new distinction. The text never refers back to it. If you removed the diagram, nothing would change.
+
+That is credibility theater.
+
+I do not mind simple visuals. I mind ornamental complexity. A hand-drawn-looking sketch that teaches one relationship is better than a polished system diagram that teaches none.
+
+The question to ask during editing is brutal:
+
+~~~text
+What sentence can I delete because this visual exists?
+~~~
+
+If the answer is "none," the visual may not be doing work.
+
+## accessibility is part of the explanation
+
+Visual examples need text alternatives because not every reader sees the page the same way, and because text often clarifies the point for everyone.
+
+The alt text should explain the concept, not list every decorative element.
+
+Bad:
+
+~~~text
+Diagram with blue boxes and arrows.
+~~~
+
+Better:
+
+~~~text
+Sequence showing a query embedded, filtered by permission, reranked by freshness,
+and then passed into answer generation.
+~~~
+
+That description teaches the same structure the visual teaches.
+
+If the visual is interactive, the article should still explain the result. Interaction should deepen understanding, not lock it behind a mouse.
+
+## the visual earns its space by making prediction easier
+
+The best visual examples give the reader a little mental simulator.
+
+After the diagram, they can predict which matrix shapes multiply, which state transition is illegal, which retrieval candidate should be filtered, which token receives attention, or which UI state appears after an error.
+
+That is the bar. A visual should make the next step easier to reason about.
+
+If it cannot do that, the page probably needs a better example, not a prettier diagram.

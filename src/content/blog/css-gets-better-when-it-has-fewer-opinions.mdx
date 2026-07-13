@@ -8,55 +8,134 @@ author: "jeremy-london"
 tags: ["css", "design systems", "frontend"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete design systems problem
-- the example surface: Most site styling improves when the design system has fewer special cases and more predictable defaults
-- the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract
-- the responsibilities around the rendered page
-- the tradeoff between convenience and what the browser, content system, and deployment pipeline each own
-- the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time
-*/}
+CSS gets better when it has fewer opinions.
 
-Most site styling improves when the design system has fewer special cases and more predictable defaults.
+That sounds backwards if the site feels under-designed. The instinct is to add more style: another utility class, another component variant, another special margin, another clever hover state, another color that solves the current page.
 
-The practical version starts with Most site styling improves when the design system has fewer special cases and more predictable defaults. That gives design systems a shape you can reason about. It also keeps the design systems post out of slogan territory, which is where a lot of technical writing goes to die politely.
+Sometimes that is the right move. More often, the stylesheet is not missing opinions. It has too many small ones.
 
-## What has to be true
+One card has a custom radius. One page has a special heading size. One component has its own shadow. One link decides to be clever. One layout invents a new spacing scale because the existing one was almost right. None of those choices feels expensive when it is made. Together they turn the site into a negotiation.
 
-For design systems to be useful, the frontend engineer needs a clear rendered page. That artifact does not have to be fancy. For design systems, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for design systems is that it explains what happened without asking the next person to reconstruct intent from vibes.
+The CSS starts asking the next change to remember every previous exception.
 
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In web engineering, the annoying design systems bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for design systems, but the caller cannot tell whether it is safe. A script exits zero for design systems, but the output hides the one fact the maintainer needed.
+## defaults do more work than variants
 
-## Implementation shape
+A good default is worth more than five variants.
 
-I would make the first design systems version deliberately plain. The design systems system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make design systems enterprise software. It makes the work inspectable.
+Defaults are the choices the site makes when nobody is paying attention: body background, text rendering, heading wrapping, paragraph rhythm, focus styles, link behavior, code font, spacing, and color tokens. If those are solid, most pages can stay quiet.
 
-A useful design systems implementation question is where the record is created. If the design systems record is created only after success, it will miss the interesting failures. I would create the design systems record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+This site's global CSS has a few defaults I like:
 
-## Tradeoffs
+~~~css
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
 
-The design systems tradeoff is convenience versus what the browser, content system, and deployment pipeline each own. If the design systems system is too strict, people route around it. If the design systems system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For design systems, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+p,
+li {
+  text-wrap: pretty;
+}
 
-That contract can be boring. A useful design systems shape is:
-
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
+code,
+kbd,
+samp,
+pre,
+.type-mono {
+  font-family: var(--font-mono);
+  font-variant-ligatures: none;
 }
 ~~~
 
-The exact fields change by system. The design systems pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+Those rules do not announce themselves. They make many pages better without each page opting in.
 
-## What I would measure
+That is the kind of CSS opinion I trust: broad enough to reduce local decisions, small enough that it does not trap the design.
 
-The design systems metric is route coverage, feed validity, content validation, accessibility checks, and build time. That is more useful than asking whether design systems "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+## special cases should feel expensive
 
-For design systems, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those design systems numbers usually tell the truth before the happy-path dashboard does.
+Special cases are not forbidden. They should feel expensive enough to justify themselves.
 
-If the design systems system cannot answer those questions, I would keep the design smaller. Small design systems systems with honest receipts are easier to improve than large systems that only report success.
+A homepage profile treatment can have custom animation and layered visual behavior. That is a place where personality matters. A repeated blog-card layout probably should not invent its own local universe. A button should not need a new radius because this one page feels slightly different. A nav link should not pick a new focus treatment because the existing one was boring.
+
+The check I use is simple: will I want this behavior again?
+
+If yes, it might belong in the system. If no, it might still be fine, but I want the CSS to make the exception obvious. A one-off should look like a one-off when I come back later.
+
+The problem is not custom CSS. The problem is accidental precedent.
+
+## tokens should name decisions, not moods
+
+CSS variables are useful when they name stable decisions.
+
+They get messy when they name vibes.
+
+`--surface-wash` is a useful kind of token because it describes a role. `--profile-orbit-blue` is specific because it belongs to a particular visual system. Those names tell me where the value is supposed to be used.
+
+The weak version is a theme full of tokens like `--cool-blue`, `--soft-glow`, `--nice-shadow`, and `--modern-card`. Those names do not carry decisions. They carry mood, and mood rots quickly.
+
+A token should help the next person answer:
+
+- what role does this value play?
+- where is it allowed?
+- what breaks if it changes?
+- is it global or component-specific?
+
+If the token cannot answer those questions, a raw value might be more honest until the pattern repeats.
+
+## fewer layout dialects
+
+Layout drift is where CSS starts to feel haunted.
+
+One page uses flex with gap. Another uses grid with local margins. Another uses negative space because a hero needed to overlap. Another wraps content in two containers because one component was too wide. Again, each decision can be reasonable. The drift is the problem.
+
+I like layout systems that have a small vocabulary:
+
+- page container
+- prose container
+- dense toolbar
+- repeated item grid
+- split layout when the content actually needs it
+- full-width band for sections that need contrast
+
+When those patterns are consistent, new pages become easier. The author thinks about content instead of inventing a layout grammar.
+
+This matters for AI-generated UI too. A model will happily create a new layout dialect for every prompt unless the system gives it fewer legal moves.
+
+## component css should protect the component
+
+Component-specific CSS should protect the component's contract.
+
+A nav link needs hover, active, and focus behavior. A scrollbar helper needs cross-browser details. A profile visual can own its animation and internal variables. Those are good reasons for component CSS because the behavior belongs to the component.
+
+What I try to avoid is component CSS that compensates for an unclear system.
+
+If every component needs its own heading sizes, spacing overrides, link colors, and dark-mode patches, the global layer is not doing enough or the components are being asked to do too many different jobs.
+
+The component should mostly answer: what makes this thing itself?
+
+It should not have to restate the whole site.
+
+## dark mode exposes weak opinions
+
+Dark mode is a good test of whether the CSS has too many local decisions.
+
+If colors are role-based, dark mode is manageable. If colors are scattered through page-specific classes, every adjustment becomes a search party. The site may still work visually, but future changes get slower.
+
+The goal is not to abstract every color. That turns CSS into paperwork. The goal is to keep repeated roles named and keep one-off choices contained.
+
+Dark mode also catches decorative excess. Shadows, borders, glows, and low-contrast text that looked fine in light mode can become muddy quickly. A restrained system usually survives theme changes better because fewer pieces are competing for attention.
+
+## boring css is easier to trust
+
+The CSS I trust most is usually boring to read.
+
+It has a few theme decisions. It has a few component contracts. It avoids clever selectors unless the behavior earns them. It uses modern features where they make the code simpler, not to prove the stylesheet is current. It treats one-off visual moments as exceptions instead of letting them leak into the whole site.
+
+That kind of CSS does not make a site bland. It gives the distinctive parts room to matter.
+
+The profile treatment can be expressive because every card is not trying to be expressive. The navigation can have a recognizable interaction because links are not improvising everywhere else. The writing can carry the page because the layout is not arguing with it.
+
+Fewer opinions does not mean no taste.
+
+It means the stylesheet stops narrating every tiny choice and starts making the common path predictable.

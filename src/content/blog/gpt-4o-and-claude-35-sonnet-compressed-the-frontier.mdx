@@ -8,55 +8,120 @@ author: "jeremy-london"
 tags: ["openai", "anthropic", "gpt-4o", "claude-3.5-sonnet"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete openai problem
-- the example surface: The May and June 2024 launches made frontier quality feel faster, cheaper, more visual, and harder to rank with one benchmark
-- the failure mode: the release sounds important without changing any concrete decision
-- the responsibilities around the model decision note
-- the tradeoff between convenience and what changed in the model versus what changed in the product surface
-- the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work
-*/}
+[GPT-4o](https://openai.com/index/hello-gpt-4o/) and [Claude 3.5 Sonnet](https://www.anthropic.com/news/claude-3-5-sonnet) made the frontier feel compressed.
 
-The May and June 2024 launches made frontier quality feel faster, cheaper, more visual, and harder to rank with one benchmark.
+In May 2024, OpenAI released GPT-4o with GPT-4-level text performance, better vision and audio understanding, much faster responses, and lower API cost than GPT-4 Turbo. In June 2024, Anthropic released Claude 3.5 Sonnet as a faster Sonnet model with strong benchmark performance, a 200K context window, and pricing far below what teams associated with the largest frontier tier.
 
-The practical version starts with The May and June 2024 launches made frontier quality feel faster, cheaper, more visual, and harder to rank with one benchmark. That gives openai a shape you can reason about. It also keeps the openai post out of slogan territory, which is where a lot of technical writing goes to die politely.
+The specific benchmarks mattered. The shape mattered more.
 
-## What has to be true
+The frontier stopped feeling like one expensive model at the top of a ladder. It started feeling like capability was being pulled downward into faster, cheaper, more interactive product surfaces.
 
-For openai to be useful, the AI systems builder needs a clear model decision note. That artifact does not have to be fancy. For openai, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for openai is that it explains what happened without asking the next person to reconstruct intent from vibes.
+## speed changed the interface
 
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In model watch, the annoying openai bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for openai, but the caller cannot tell whether it is safe. A script exits zero for openai, but the output hides the one fact the maintainer needed.
+Latency is a product feature.
 
-## Implementation shape
+That sounds obvious, but model discussions often treat speed as an operations metric instead of an interface constraint. A slow model belongs behind a deliberate submit action. A fast model can sit inside a conversation, a coding loop, a design iteration, or a triage workflow without making the user feel like they are waiting for a batch job.
 
-I would make the first openai version deliberately plain. The openai system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make openai enterprise software. It makes the work inspectable.
+GPT-4o made this especially visible because the launch centered on real-time voice and multimodal interaction. Even if every product was not using the full audio path on day one, the direction was clear: frontier-level interaction was moving toward lower latency.
 
-A useful openai implementation question is where the record is created. If the openai record is created only after success, it will miss the interesting failures. I would create the openai record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+Claude 3.5 Sonnet pushed from another direction. It made a high-capability model feel usable for ordinary tool work: analysis, coding, multi-step support, and document-heavy workflows where a slower premium model would be reserved for special cases.
 
-## Tradeoffs
+That changes routing. If the capable model is fast enough, teams stop saving it only for final answers. They start using it during the work.
 
-The openai tradeoff is convenience versus what changed in the model versus what changed in the product surface. If the openai system is too strict, people route around it. If the openai system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For openai, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+## price changed default behavior
 
-That contract can be boring. A useful openai shape is:
+Price changes architecture because defaults multiply.
 
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
-}
+A model that is expensive per call gets used carefully. A model that is cheaper and good enough becomes part of the product fabric. It can classify, draft, inspect, revise, and verify more often. It can sit in background workflows. It can support retries. It can power lower-friction features that would have been hard to justify with an older frontier price.
+
+That does not mean cost disappears. It means the cost conversation moves from "can we afford to call the model?" to "which calls deserve this model?"
+
+For a product team, that is a better problem:
+
+~~~text
+cheap route:
+  classify, summarize short items, draft low-risk text
+
+compressed frontier route:
+  code edits, policy-sensitive answers, multimodal reasoning, longer documents
+
+premium or reasoning route:
+  hard planning, ambiguous failures, high-risk decisions
 ~~~
 
-The exact fields change by system. The openai pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+GPT-4o and Claude 3.5 Sonnet made the middle route more interesting. That middle route is where a lot of real product work lives.
 
-## What I would measure
+## multimodal moved closer to normal
 
-The openai metric is route changes, eval deltas, latency movement, cost movement, and migration work. That is more useful than asking whether openai "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+GPT-4o mattered because multimodal stopped feeling like a separate feature bolted onto text.
 
-For openai, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those openai numbers usually tell the truth before the happy-path dashboard does.
+The "o" mattered less as branding than as product direction. A model that can operate across text, vision, and audio changes how teams think about input. A support ticket can include a screenshot. A bug report can include a short screen recording. A classroom tool can listen and respond. A design review can ask about a visual artifact without translating everything into text first.
 
-If the openai system cannot answer those questions, I would keep the design smaller. Small openai systems with honest receipts are easier to improve than large systems that only report success.
+That does not make multimodal products easy. They still need evidence, timestamps, image regions, privacy rules, and fallback behavior when the model cannot inspect something confidently. But the default expectation shifted. Text-only stopped feeling like the natural boundary for high-end models.
+
+Claude 3.5 Sonnet's release was less about live multimodal interaction and more about capable visual/document reasoning inside a fast work model. Together, the releases made "the model can look at the artifact" feel less exotic.
+
+## benchmarks got less decisive
+
+When models differ by modality, latency, price, context, and interaction style, one leaderboard becomes less helpful.
+
+A model can win a coding benchmark and be worse for a voice interface. A model can be cheaper and good enough for support triage while losing on hard math. A model can have excellent visual understanding and still be the wrong choice for long context. A model can be fast enough to change the product even if it is not best on every academic score.
+
+So the eval has to match the product:
+
+- coding patch quality
+- tool-call argument stability
+- visual question answering on real screenshots
+- latency under normal user flows
+- cost per completed workflow
+- refusal behavior in exposed surfaces
+- citation quality on document tasks
+- user correction rate
+
+This is where the frontier compression became operational. Teams could no longer ask "which model is best?" and stop there. They had to ask which model was best for the route.
+
+## the middle got crowded
+
+The most interesting thing about these releases was the pressure on the middle.
+
+Before, many architectures had two obvious routes: cheap model for easy stuff, premium model for hard stuff. GPT-4o and Claude 3.5 Sonnet made a third route feel real: fast enough, strong enough, and affordable enough for a lot of serious work.
+
+That route is awkward in a good way. It forces the product to define "serious work":
+
+- Is this answer customer visible?
+- Does it touch code?
+- Does it need visual reasoning?
+- Does it need long context?
+- Is latency part of the experience?
+- Can a verifier catch failure cheaply?
+- Would a smaller model be fine?
+
+The middle route should not become the new lazy default. But it should exist. A lot of workflows need more than a tiny model and less than the slowest premium reasoning path.
+
+## compression creates maintenance
+
+Model compression sounds like a pure win until you operate it.
+
+If the cheaper faster model becomes good enough, teams start migrating routes. That creates comparison work. Does the new model match old behavior? Does it refuse differently? Does it change tone? Does it handle long documents the same way? Does it produce different JSON quirks? Does it make the interface feel faster but the failure mode harder to debug?
+
+Every route change needs a small migration plan:
+
+~~~text
+current route: premium-model-doc-review
+candidate route: compressed-frontier-doc-review
+expected win: lower latency and cost
+must not regress: citation accuracy, policy refusal, table extraction
+rollout: shadow on 10 percent of cases, then assisted review
+~~~
+
+The better models get, the more often this work happens. Model selection becomes maintenance, not a one-time platform choice.
+
+## what i remember about that month
+
+May and June 2024 made the frontier feel closer to the product surface.
+
+GPT-4o made fast multimodal interaction feel like the direction of travel. Claude 3.5 Sonnet made high capability feel less tied to the slowest and most expensive model tier. Together, they compressed the distance between demo-grade frontier behavior and deployable product behavior.
+
+That is why the releases were hard to rank with one benchmark. They were not only competing on raw intelligence. They were competing on where intelligence could live in the product.
+
+That is still the question I care about.

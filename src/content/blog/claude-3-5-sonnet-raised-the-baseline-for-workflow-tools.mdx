@@ -8,138 +8,117 @@ author: "jeremy-london"
 tags: ["claude", "agents", "workflow"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete claude problem
-- the example surface: a model action that crosses from text into a real system
-- the failure mode: the agent finishes a task without leaving enough evidence for a human to trust or resume it
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using approval rate, retry count, verifier disagreement, and time from tool call to accepted result
-- security or ownership boundary: file access, network access, credential use, and delegation between agents
-- latency, cost, and scaling implications
-*/}
+Claude 3.5 Sonnet changed the feel of workflow tools because it made the ordinary failures harder to excuse.
 
-Claude 3.5 Sonnet made many tool workflows feel less fragile, which also made weak process harder to excuse.
+Before that release, a lot of AI-assisted work still had a built-in apology. The model was helpful, but brittle. It could sketch the code but lose the surrounding constraint. It could write a decent explanation but miss the detail in the screenshot. It could follow a multi-step instruction until one step got weird. When the tool failed, it was easy to blame the model and move on.
 
-The interesting part of claude is not the name. It is the system pressure around a model action that crosses from text into a real system. Once that pressure shows up for claude, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+Claude 3.5 Sonnet raised the baseline. The June 2024 release was faster than the previous top-end Claude path and much stronger at coding, instruction following, and visual reasoning. Anthropic also put Artifacts next to the model, which mattered because it gave generated work a place to live outside the chat transcript.
 
-## The unit of work
+That combination changed the question.
 
-I would start by naming the unit of work for claude. In agent systems, the claude unit is usually smaller than the product surface and larger than a function call. For claude, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+If the model can produce better code, follow more nuance, and keep up with interactive work, the weak link shifts toward the workflow around it.
 
-A useful claude unit has four properties:
+## artifacts made output feel like work
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+Artifacts were easy to dismiss as interface polish. I think that misses the point.
 
-For claude, the boundary is file access, network access, credential use, and delegation between agents. That boundary should be visible in the claude data, not only in a policy document. If a claude request crosses the boundary, the trace should show it.
+A code block in chat is still a code block in chat. It is transient, narrow, and awkward to inspect. An artifact gives the output a surface. The user can look at it as a thing being made instead of a paragraph being spoken.
 
-## Data flow
+That matters for workflow tools because the artifact becomes a review target.
 
-The simple claude flow looks like this:
+If Claude writes a small React component, the component can be inspected. If it drafts a document, the document has shape. If it creates an SVG or a simple web page, the user can react to the result directly. The output is no longer buried in the conversational stream with apologies above it and commentary below it.
 
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
-~~~
+The shift is subtle, but it is important: the model stops being only a responder and starts acting more like a collaborator inside a workspace.
 
-The context builder gathers the minimum useful state for claude. The claude decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+That also raises expectations. Once the output has a surface, the tool has to support iteration. The user wants to revise, compare, test, copy, save, and reason about changes. The product cannot hide behind "the model wrote some text." It has created an object the user expects to work with.
 
-That receipt is the difference between a claude demo and an operable system. A demo can rely on a person watching closely. A claude system needs to explain itself after the person has moved on.
+## better coding makes process matter more
 
-A claude request envelope might look like this:
+When coding models are weak, the obvious problem is code quality.
 
-~~~json
-{
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
-}
-~~~
+When coding models get better, the process problems become more visible.
 
-The schema is deliberately plain. Fancy schemas do not save unclear claude systems. The useful claude work is deciding which fields are required, which are advisory, and which block the run when missing.
+Claude 3.5 Sonnet was good enough at routine code generation and explanation that many failures started to look less like "the model is dumb" and more like "the workflow gave it a bad job." Missing project context. No tests. No diff view. No linter output. No package constraints. No review step. No way to confirm the generated component actually fits the design system.
 
-## Implementation sketch
+That is a healthier failure mode, but it is still a failure mode.
 
-I would implement the first claude pass as a narrow pipeline rather than a general platform. Start claude with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+For coding tools, the baseline moved from:
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+```text
+can the model produce plausible code?
+```
 
-For claude, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The claude system still has to decide whether the proposal is usable under the current boundary.
+to:
 
-## Failure modes
+```text
+can the tool surround plausible code with enough context, verification, and review to make it usable?
+```
 
-The main claude failure mode is the agent finishes a task without leaving enough evidence for a human to trust or resume it. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The claude failure is that the next component cannot tell whether the result should be trusted.
+That is a much better question. It forces the product to care about the whole loop.
 
-I would test at least five claude cases:
+A strong coding assistant should know the local conventions, propose a small change, show a diff, run the right checks, explain what it did, and stop before turning one request into a surprise refactor. The model capability matters, but the workflow decides whether the capability lands safely.
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+## speed changes the interaction
 
-That last claude case matters. A confident claude answer is not the same thing as a verified result. If claude touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+Speed is not only a comfort feature.
 
-## Deployment shape
+When a model is slow, users batch their thoughts. They write a larger prompt, wait, then inspect a large answer. When the model is faster, the interaction becomes more conversational and more iterative. Users ask smaller questions. They correct direction sooner. They try one version, then another. They treat the model less like a job queue and more like a tool on the bench.
 
-I would not deploy claude as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For claude, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+Claude 3.5 Sonnet made that style feel more natural.
 
-That gives the router real work to do. For claude, it should not only choose small model or big model. It should choose a risk path:
+That matters for workflow tools because faster iteration changes product design. The tool needs to preserve state between turns. It needs to make changes comparable. It needs to avoid losing the user's current working context. It needs to let the user say, "keep this part, change that part," without forcing a full restart.
 
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
+Fast output without state discipline becomes churn. The user gets more versions, not better work.
 
-Each claude path has a different budget, verifier, and approval requirement. This is the part that makes claude feel less magical and more like infrastructure. The model is still important, but the claude route determines what kind of trust the system is asking for.
+The better tool keeps the loop tight while still keeping the work inspectable.
 
-## Measurement
+## visual reasoning expanded the input surface
 
-The measurement surface for claude is approval rate, retry count, verifier disagreement, and time from tool call to accepted result. I would track claude per route or case type, not only as a global average. Global averages hide the exact class of claude problems that make these systems feel unpredictable.
+The release also pushed visual reasoning forward.
 
-A simple eval table can carry a lot of weight:
+For workflow tools, vision matters because a lot of real work is visual or semi-visual: screenshots, charts, UI bugs, diagrams, scanned docs, dashboards, logs in a terminal screenshot, and product mocks. If the model can read more of that context, the tool can accept the artifact the user already has instead of forcing them to translate everything into prose.
 
-~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
-~~~
+That changes the shape of debugging.
 
-The point is not to build an eval cathedral for claude. The point is to preserve enough claude structure that regressions can be clustered. If failures cluster around one route, fix the route. If claude failures cluster around one policy boundary, fix the boundary. If claude failures cluster around one model, stop pretending the prompt is the whole system.
+A user can show a broken layout. The model can reason about spacing, hierarchy, and text overflow. A user can show a chart. The model can talk about the trend. A user can show a screenshot of an error. The model can connect visible state to likely code paths.
 
-## Operational concerns
+The danger is false confidence. Visual understanding is useful, but it should not replace direct inspection when direct inspection is available. A screenshot of a web page is a clue. The DOM, styles, accessibility tree, and runtime console are evidence.
 
-The operational question for claude is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap claude route becomes unreliable but the expensive route would blow the budget?
+The workflow tool should know the difference.
 
-For claude, I would put those answers in configuration, not in a heroic prompt. A small claude policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+## the baseline moved from answer to loop
 
-## Scaling behavior
+The thing I remember about Claude 3.5 Sonnet is not a single benchmark. It is that the surrounding products had less room to be sloppy.
 
-At small scale, a human can inspect weird claude cases by hand. At medium scale, the claude system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+If the model can reason better, then bad context assembly hurts more. If the model can code better, then missing tests become more embarrassing. If the model can work faster, then poor state management becomes more obvious. If the model can analyze images, then tools need to decide when an image is enough and when the system should inspect the underlying artifact.
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the claude system without being surprised by the downstream behavior?
+The baseline moved from "can this model help?" to "can this workflow use a capable model well?"
 
-For claude, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the claude system a spine.
+That is where a lot of AI tools still get exposed.
 
-## Where I land
+They have a strong model in the middle, but weak boundaries around the work:
 
-Claude deserves depth when it changes architecture, not when it merely sounds current. The claude implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+- no durable workspace object
+- no diff
+- no project-specific constraints
+- no verification command
+- no way to compare attempts
+- no clear handoff from generated output to owned code
 
-If the claude post answers those questions, it teaches something. If the claude post only says the topic matters, it is just a longer version of the headline.
+Claude 3.5 Sonnet made those gaps easier to see because the model was no longer the obvious excuse.
+
+## weak process became expensive
+
+Better models do not remove engineering discipline. They make the lack of it more expensive.
+
+If a weak model produces bad code, the user rejects it. If a strong model produces mostly good code inside a weak process, the bad part can slip through. The output looks credible enough to merge, paste, publish, or build on.
+
+That is why workflow tools need checks that match the work.
+
+For code, run tests or at least type checks and linters. For UI, render the state and inspect it. For writing, compare the draft against the intended argument. For data work, show the query, sample rows, and assumptions. For security work, name the permission boundary and the evidence.
+
+Claude 3.5 Sonnet raised the floor on what the model could do. The product still has to raise the floor on what happens after the model responds.
+
+That is the part I care about.
+
+The model getting better is exciting. The workflow getting more accountable is what makes it useful.

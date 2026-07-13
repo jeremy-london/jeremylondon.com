@@ -8,55 +8,168 @@ author: "jeremy-london"
 tags: ["anthropic", "openai", "claude-4", "gpt-5", "agents"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete anthropic problem
-- the example surface: Claude 4 pushed long-running coding agents, then GPT-5 turned automatic reasoning into the default ChatGPT path
-- the failure mode: the release sounds important without changing any concrete decision
-- the responsibilities around the model decision note
-- the tradeoff between convenience and what changed in the model versus what changed in the product surface
-- the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work
-*/}
+Claude 4 and GPT-5 pushed agent work into a less glamorous category: maintenance.
 
-Claude 4 pushed long-running coding agents, then GPT-5 turned automatic reasoning into the default ChatGPT path.
+That is not a complaint. It is the sign that the technology became real enough to operate.
 
-The practical version starts with Claude 4 pushed long-running coding agents, then GPT-5 turned automatic reasoning into the default ChatGPT path. That gives anthropic a shape you can reason about. It also keeps the anthropic post out of slogan territory, which is where a lot of technical writing goes to die politely.
+Claude 4 arrived in May 2025 with Opus 4 and Sonnet 4, and Anthropic was explicit about coding, advanced reasoning, and AI agents. Claude Code also moved into the center of the story. GPT-5 later made automatic reasoning the default ChatGPT path, with the product choosing when a request benefited from more reasoning instead of asking users to manage every model choice themselves.
 
-## What has to be true
+Those releases were easy to describe as capability jumps. They were also maintenance events.
 
-For anthropic to be useful, the AI systems builder needs a clear model decision note. That artifact does not have to be fancy. For anthropic, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for anthropic is that it explains what happened without asking the next person to reconstruct intent from vibes.
+When agents can work longer, reason more often, and operate across files or tools, the hard part shifts. The question is no longer whether the model can do a useful chunk of work. The question is whether the team can keep the agent workflow healthy after the demo.
 
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In model watch, the annoying anthropic bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for anthropic, but the caller cannot tell whether it is safe. A script exits zero for anthropic, but the output hides the one fact the maintainer needed.
+## long-running work creates state
 
-## Implementation shape
+A short chat answer can disappear into the transcript.
 
-I would make the first anthropic version deliberately plain. The anthropic system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make anthropic enterprise software. It makes the work inspectable.
+A long-running coding agent cannot. It has state. It has a plan. It has files it inspected, edits it made, commands it ran, checks it skipped, assumptions it carried, and user approvals it relied on. If that state is only implied by the conversation, the workflow becomes brittle.
 
-A useful anthropic implementation question is where the record is created. If the anthropic record is created only after success, it will miss the interesting failures. I would create the anthropic record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+Claude 4 made this more obvious because the agent-shaped coding story got stronger. A capable model can stay with a task longer. That means it can also accumulate more hidden context.
 
-## Tradeoffs
+The platform needs a durable run record:
 
-The anthropic tradeoff is convenience versus what changed in the model versus what changed in the product surface. If the anthropic system is too strict, people route around it. If the anthropic system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For anthropic, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+~~~text
+request
+  fix failing markdown validation in blog posts
 
-That contract can be boring. A useful anthropic shape is:
+state
+  editing batch 3 of 8
 
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
-}
+inspected
+  src/content/blog/*.mdx
+
+changed
+  12 files
+
+checks
+  markdown:check passed for changed files
+
+open questions
+  full build not yet run
 ~~~
 
-The exact fields change by system. The anthropic pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+Without that record, every interruption becomes expensive. The next run has to reconstruct what happened. The user has to remember. The agent guesses. That is not autonomy. That is unmanaged state.
 
-## What I would measure
+## automatic reasoning needs budgets
 
-The anthropic metric is route changes, eval deltas, latency movement, cost movement, and migration work. That is more useful than asking whether anthropic "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+GPT-5's default path made another maintenance problem clearer: reasoning can become an automatic product behavior.
 
-For anthropic, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those anthropic numbers usually tell the truth before the happy-path dashboard does.
+That is useful. Most users do not want to decide whether a model should reason every time they ask a question. A good product should route the request. But automatic routing still needs budgets, logs, and evaluation.
 
-If the anthropic system cannot answer those questions, I would keep the design smaller. Small anthropic systems with honest receipts are easier to improve than large systems that only report success.
+If the system decides when to spend more thinking time, the team needs to know when it did that and whether it helped.
+
+The maintenance questions are concrete:
+
+- which tasks used deeper reasoning?
+- how often did automatic reasoning improve accepted output?
+- how much latency did it add?
+- how much cost did it add?
+- did users cancel or retry slow answers?
+- did reasoning get used for tasks that should have stayed fast?
+- did hard tasks fail because the route stayed too cheap?
+
+Automatic does not mean unowned. It means the product owns the choice.
+
+## prompts become dependencies
+
+Agent workflows depend on prompts, tool descriptions, policies, and verifier instructions.
+
+Those assets change. They also rot.
+
+A prompt that worked with one model may become too heavy with another. A tool description that was clear enough for a weaker agent may become dangerously broad for a stronger one. A verifier instruction may fail to catch a new kind of false success. A policy phrase may move from harmless guidance to a confusing conflict after the model changes.
+
+This is why model upgrades are not only dependency bumps. They are behavior migrations.
+
+When a model changes, I want to know which prompt paths are affected:
+
+~~~text
+model route:
+  coding-agent-default
+
+prompts:
+  planner-v6
+  editor-v4
+  verifier-v3
+
+tools:
+  file-read
+  file-write
+  shell-check
+
+eval suites:
+  focused-edit
+  no-unrelated-files
+  markdown-repair
+~~~
+
+That inventory is boring until it saves the team from debugging a personality change as if it were a random user complaint.
+
+## evals need to follow the workflow
+
+Agent evals cannot stop at final answer quality.
+
+The workflow matters. Did the agent inspect the right files? Did it avoid unrelated edits? Did it ask for approval at the right moment? Did it run the correct checks? Did it stop when it hit uncertainty? Did it leave a useful handoff?
+
+Long-running agents can fail while still producing a plausible final summary. That is the annoying part. The answer can say "completed" while the repo is broken, the tests were never run, or the wrong file was edited.
+
+The eval should inspect the path:
+
+- plan quality
+- scope discipline
+- tool choice
+- edit locality
+- verification behavior
+- recovery after failure
+- honesty in final report
+
+Model releases change those behaviors. A better model may be more ambitious. More ambition can be useful, but it can also create bigger diffs, broader plans, and more confident final summaries. The eval needs to catch that.
+
+## approvals are maintenance surfaces
+
+Approvals also need maintenance.
+
+As agents get more capable, approval prompts that used to feel adequate may become too vague. "Allow file edit" is weak when the agent can restructure a directory. "Run command" is weak when the command can mutate generated files, hit the network, or consume a large budget.
+
+Approval language should be reviewed when the agent's capability changes.
+
+The product needs to ask whether the prompt still describes the real side effect:
+
+- does it name the target?
+- does it show the diff or command?
+- does it say which identity is used?
+- does it explain what happens after approval?
+- does it describe the rollback path?
+
+The approval system is not set-and-forget. It is part of the agent runtime, and the runtime changes when models change.
+
+## model retirement becomes operational work
+
+By 2025, model menus already felt less permanent.
+
+That has consequences for agents. A normal chat feature can often survive a model migration with some prompt tuning. An agent workflow has more moving parts: route, prompt, tools, approvals, evals, logs, and user expectations.
+
+When a model is retired or replaced, the team should treat it like an operational migration:
+
+1. map workflows using the model
+2. run local evals against the replacement
+3. compare cost and latency
+4. inspect changed failure modes
+5. update prompts and tool descriptions
+6. review approval copy
+7. monitor post-migration regressions
+
+That is not overkill for a workflow that edits files, touches customer data, or performs security analysis. It is normal maintenance.
+
+## the agent is a system now
+
+The main lesson from Claude 4 and GPT-5 was not that agents became finished.
+
+It was that agent work became system work.
+
+The model is one dependency. The prompt is another. Tools are another. The verifier is another. The approval UI is another. The run ledger, cost controls, routing policy, and eval suite are all part of the same product.
+
+Once those pieces exist, they have to be maintained.
+
+That sounds less exciting than "the agent can code for hours." Good. Excitement is cheap. A maintained agent workflow is much more useful.
+
+The releases made the future feel closer, but they also made the responsibility clearer: if an agent is doing real work, somebody owns the loop after launch.

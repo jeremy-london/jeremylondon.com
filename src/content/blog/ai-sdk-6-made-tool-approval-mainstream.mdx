@@ -8,138 +8,154 @@ author: "jeremy-london"
 tags: ["ai sdk", "mcp", "tool approval"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete tool approval problem
-- the example surface: a user deciding whether an agent should be allowed to continue
-- the failure mode: the agent finishes a task without leaving enough evidence for a human to trust or resume it
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using approval rate, retry count, verifier disagreement, and time from tool call to accepted result
-- security or ownership boundary: file access, network access, credential use, and delegation between agents
-- latency, cost, and scaling implications
-*/}
+AI SDK 6 is interesting to me because it treated approval like a normal part of an AI application instead of a strange little modal bolted onto the side of a demo.
 
-AI SDK 6 put agents, MCP, tool approval, and DevTools in the same conversation, which is where production AI apps were heading.
+That sounds small until you build anything agent-shaped.
 
-The interesting part of tool approval is not the name. It is the system pressure around a user deciding whether an agent should be allowed to continue. Once that pressure shows up for tool approval, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+The easy version of tool use is pleasant. The model asks to call a tool. The app runs the tool. A result comes back. The chat keeps moving. That is enough for weather, search, and low-risk helper actions. It is not enough when the tool can send an email, edit a file, create a ticket, run a command, query private data, or act through an MCP server that exposes half of somebody's working environment.
 
-## The unit of work
+At that point approval becomes part of the interface contract. The app has to explain what the model is asking for, which identity will be used, what input will be sent, what could change, and what happens after the human says yes.
 
-I would start by naming the unit of work for tool approval. In agent systems, the tool approval unit is usually smaller than the product surface and larger than a function call. For tool approval, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+That is a product problem. It is also a runtime problem. Pretending it is only one of those is how agent apps get weird.
 
-A useful tool approval unit has four properties:
+## approval is a state, not a button
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+The button is the least interesting part.
 
-For tool approval, the boundary is file access, network access, credential use, and delegation between agents. That boundary should be visible in the tool approval data, not only in a policy document. If a tool approval request crosses the boundary, the trace should show it.
+A useful approval flow has a state machine behind it. The tool call starts as proposed. It may need clarification because the model omitted a required field or produced an argument that does not satisfy the schema. It may be blocked by policy before the user ever sees it. It may be shown to the user with a plain explanation and a diff. It may be approved, denied, edited, expired, retried, or superseded by a newer plan.
 
-## Data flow
+Those states need names because the UI, server, logs, and debugging tools all need to agree on what happened.
 
-The simple tool approval flow looks like this:
+```ts
+type ToolApprovalState =
+  | { status: "proposed"; toolName: string; input: unknown }
+  | { status: "needs-user"; explanation: string; risk: "low" | "medium" | "high" }
+  | { status: "approved"; approvedBy: string; approvedAt: string }
+  | { status: "denied"; deniedBy: string; reason?: string }
+  | { status: "expired"; expiredAt: string }
+  | { status: "executed"; resultId: string }
+  | { status: "failed"; error: string; retryable: boolean };
+```
 
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
-~~~
+I care about the boring labels here because they keep different parts of the system from inventing their own private language. If the client thinks a call is pending, the server thinks it is approved, and the DevTools trace calls it blocked, nobody is debugging the same object anymore.
 
-The context builder gathers the minimum useful state for tool approval. The tool approval decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+This is where SDK support matters. A framework cannot decide your policy for you, but it can make the approval lifecycle feel like application state instead of scattered callbacks.
 
-That receipt is the difference between a tool approval demo and an operable system. A demo can rely on a person watching closely. A tool approval system needs to explain itself after the person has moved on.
+## mcp makes the surface area bigger
 
-A tool approval request envelope might look like this:
+MCP changes the approval conversation because tools stop being tiny local functions that the app author wrote yesterday.
 
-~~~json
+An MCP server can expose a filesystem tool, a database tool, a browser automation tool, a ticketing tool, or a company-specific workflow. The host application may not fully own the tool implementation. The model may see tool descriptions that came from a server configured outside the immediate app code. The same agent session may have access to several tool providers with different trust levels.
+
+That does not make MCP bad. It makes the boundary real.
+
+The approval prompt cannot say, "Allow the tool?" and call it a day. The human needs to know which server provided the tool, what permission scope is being used, and whether the requested action matches the original user intent.
+
+For a read-only knowledge lookup, the approval copy can be short. For a write action, I want more detail:
+
+```json
 {
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
+  "server": "github-workspace",
+  "tool": "create_issue",
+  "identity": "jeremy",
+  "intent": "track the regression found in the blog audit",
+  "arguments": {
+    "repo": "jeremy-london/jeremylondon.com",
+    "title": "Remove repeated prose templates from blog posts",
+    "labels": ["content", "quality"]
+  },
+  "writes": ["github.issue"],
+  "rollback": "close issue or edit labels/title after creation"
 }
-~~~
+```
 
-The schema is deliberately plain. Fancy schemas do not save unclear tool approval systems. The useful tool approval work is deciding which fields are required, which are advisory, and which block the run when missing.
+That object is not meant to be pretty. It is meant to make the approval inspectable. The interface can render it as a readable card, but the underlying record should stay specific enough that a trace later answers the obvious question: what did the user agree to?
 
-## Implementation sketch
+The thing I distrust is approval that only records the final boolean. `approved: true` is a shrug wearing a database column.
 
-I would implement the first tool approval pass as a narrow pipeline rather than a general platform. Start tool approval with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+## devtools matter because agents lie by omission
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+Most agent failures do not look like explosions. They look like a plausible answer that skipped a step.
 
-For tool approval, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The tool approval system still has to decide whether the proposal is usable under the current boundary.
+Maybe the model never requested the tool it should have used. Maybe it requested the right tool with a stale argument. Maybe the user approved a call after the conversation had moved on. Maybe the tool returned a partial result and the model treated it as complete. Maybe an MCP server changed its description and the model started using it differently.
 
-## Failure modes
+You do not find those failures from the chat transcript alone.
 
-The main tool approval failure mode is the agent finishes a task without leaving enough evidence for a human to trust or resume it. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The tool approval failure is that the next component cannot tell whether the result should be trusted.
+DevTools for AI apps matter because the transcript is the polished surface. The run trace is the system. I want to see the model message, the tool proposal, the normalized arguments, the policy decision, the approval state, the execution result, and the final answer in one timeline. If streaming is involved, I want timestamps too, because a slow approval step changes how the product feels.
 
-I would test at least five tool approval cases:
+The debugging view does not need to be theatrical. In fact, it gets worse when it tries to be. A good trace is closer to a database query plan than a magic show:
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+- model selected `create_issue`
+- input validation passed
+- policy required user approval because the tool writes external state
+- user approved after 41 seconds
+- tool executed with request id `tool_01k...`
+- result returned issue number `482`
+- assistant referenced the created issue in the final response
 
-That last tool approval case matters. A confident tool approval answer is not the same thing as a verified result. If tool approval touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+That trace is enough to debug the shape of the work. It also gives an evaluator something concrete to grade later.
 
-## Deployment shape
+## the approval copy has to carry the risk
 
-I would not deploy tool approval as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For tool approval, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+I have a low tolerance for vague approval language.
 
-That gives the router real work to do. For tool approval, it should not only choose small model or big model. It should choose a risk path:
+"Do you want to continue?" is fine for a wizard. It is weak for an agent. Continue what? With which data? Under whose account? Is this a read, a write, a purchase, a publish, a delete, or a permission change?
 
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
+The UI should be blunt.
 
-Each tool approval path has a different budget, verifier, and approval requirement. This is the part that makes tool approval feel less magical and more like infrastructure. The model is still important, but the tool approval route determines what kind of trust the system is asking for.
+For read tools:
 
-## Measurement
+> Read the selected repository files so the assistant can answer the question.
 
-The measurement surface for tool approval is approval rate, retry count, verifier disagreement, and time from tool call to accepted result. I would track tool approval per route or case type, not only as a global average. Global averages hide the exact class of tool approval problems that make these systems feel unpredictable.
+For write tools:
 
-A simple eval table can carry a lot of weight:
+> Create one GitHub issue in `jeremy-london/jeremylondon.com` using your account.
 
-~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
-~~~
+For risky local tools:
 
-The point is not to build an eval cathedral for tool approval. The point is to preserve enough tool approval structure that regressions can be clustered. If failures cluster around one route, fix the route. If tool approval failures cluster around one policy boundary, fix the boundary. If tool approval failures cluster around one model, stop pretending the prompt is the whole system.
+> Run `pnpm build` in this project. This may create local build output but should not modify source files.
 
-## Operational concerns
+That level of copy is not legal drama. It is courtesy. A user should not have to reverse-engineer a model's plan from a tool name and a blob of JSON.
 
-The operational question for tool approval is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap tool approval route becomes unreliable but the expensive route would blow the budget?
+There is a second reason to be explicit: approval language becomes product policy in practice. If the approval says "edit files" but the tool can also delete files, the product is lying even if the schema technically allowed it.
 
-For tool approval, I would put those answers in configuration, not in a heroic prompt. A small tool approval policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+## typed approval makes better product decisions possible
 
-## Scaling behavior
+Once approval is structured, the product can make different choices for different actions.
 
-At small scale, a human can inspect weird tool approval cases by hand. At medium scale, the tool approval system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+Some tools should run automatically after a policy check. Some should require approval every time. Some should allow session-level approval with a short expiration. Some should allow approval only for a specific resource. Some should never be exposed to the model at all, even if they exist on a connected server.
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the tool approval system without being surprised by the downstream behavior?
+That turns the permission model into product design:
 
-For tool approval, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the tool approval system a spine.
+```ts
+type ApprovalPolicy = {
+  toolName: string;
+  operation: "read" | "write" | "execute";
+  resourcePattern?: string;
+  defaultMode: "auto" | "ask" | "deny";
+  maxDurationMinutes?: number;
+  requireFreshContext?: boolean;
+};
+```
 
-## Where I land
+The important field in that example is `requireFreshContext`. A model can produce a valid tool call after the conversation has drifted. The user may approve something that made sense five messages ago but no longer matches the current goal. A good approval system can notice that the proposal was generated against old context and force the model to restate the plan before execution.
 
-Tool approval deserves depth when it changes architecture, not when it merely sounds current. The tool approval implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+That is the kind of detail that separates a usable agent product from a thrilling demo that slowly eats trust.
 
-If the tool approval post answers those questions, it teaches something. If the tool approval post only says the topic matters, it is just a longer version of the headline.
+## mainstream means boring enough to rely on
+
+When I say AI SDK 6 made tool approval mainstream, I do not mean every app suddenly became production-grade. I mean the center of gravity moved.
+
+Tool approval started to look like something normal teams would design, type, render, test, trace, and debug. MCP made the tool surface broader. Agent APIs made the run lifecycle more explicit. DevTools made hidden steps easier to inspect. Those pieces belong in the same conversation because they are the same product problem viewed from different angles.
+
+The model proposes work.
+
+The app decides whether that work is allowed.
+
+The human gets enough context to make a judgment.
+
+The runtime executes exactly what was approved.
+
+The trace leaves enough evidence to explain the outcome later.
+
+That is not glamorous, which is probably why I like it. The agent future keeps arriving wrapped in normal software concerns: state, permissions, copy, logs, schemas, timeouts, retries, and review. Tool approval is one of the places where all of that becomes visible at once.

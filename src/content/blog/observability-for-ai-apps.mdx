@@ -8,138 +8,169 @@ author: "jeremy-london"
 tags: ["observability", "ai apps", "debugging"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete observability problem
-- the example surface: a team arguing about whether the model improved or merely changed
-- the failure mode: the system succeeds once but gives the next maintainer no way to explain it
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using reproduction time, failing example coverage, queue age, and rollback confidence
-- security or ownership boundary: what must be proven before the change is trusted
-- latency, cost, and scaling implications
-*/}
+AI apps need boring observability.
 
-Production AI needs logs, traces, prompt records, retrieval records, and examples that can become evals.
+That sounds less exciting than better prompts, bigger context windows, or a new model release. It is also the difference between a demo and a system people can operate.
 
-The interesting part of observability is not the name. It is the system pressure around a team arguing about whether the model improved or merely changed. Once that pressure shows up for observability, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+When a normal web app fails, you want logs, traces, metrics, request IDs, error boundaries, and enough context to reproduce the problem. AI apps need all of that, plus the evidence that shaped the model's behavior: prompt versions, model versions, retrieval records, tool calls, generated outputs, refusals, reviewer corrections, and examples that can become evals.
 
-## The unit of work
+The model is probabilistic. The surrounding system does not get to be vague.
 
-I would start by naming the unit of work for observability. In engineering quality, the observability unit is usually smaller than the product surface and larger than a function call. For observability, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+## the bug report is usually incomplete
 
-A useful observability unit has four properties:
+User reports for AI features tend to be frustratingly thin.
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+"It gave a bad answer."
 
-For observability, the boundary is what must be proven before the change is trusted. That boundary should be visible in the observability data, not only in a policy document. If a observability request crosses the boundary, the trace should show it.
+"It missed the document."
 
-## Data flow
+"It hallucinated."
 
-The simple observability flow looks like this:
+"The agent did something weird."
 
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
-~~~
+Those reports are real, but they are not enough to debug. The bad behavior may come from the prompt, model, retrieved context, missing permissions, stale data, a tool result, user input, output parser, retry policy, or a downstream rendering bug.
 
-The context builder gathers the minimum useful state for observability. The observability decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+If the system did not record the run, the team starts guessing.
 
-That receipt is the difference between a observability demo and an operable system. A demo can rely on a person watching closely. A observability system needs to explain itself after the person has moved on.
+A useful run record answers:
 
-A observability request envelope might look like this:
+- what did the user ask?
+- which model handled it?
+- which prompt version was used?
+- which retrieval query ran?
+- which documents were returned?
+- which tools were called?
+- what did the model output before parsing?
+- what did the application accept or reject?
+- what did the user do after seeing it?
+
+You do not always need to store raw sensitive content forever. You do need enough structured evidence to debug behavior without reconstructing the run from memory.
+
+## prompts are deployable artifacts
+
+Prompt text should not be invisible runtime mist.
+
+If a prompt change ships, it should have a version. If an AI feature regresses, the team should be able to compare the prompt version that produced the good output with the one that produced the bad output. The same is true for system instructions, few-shot examples, schema descriptions, tool definitions, and safety instructions.
+
+I would record a compact prompt manifest with each run:
 
 ~~~json
 {
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
+  "runId": "run_01J9",
+  "feature": "support_summary",
+  "model": "provider/model-version",
+  "prompt": {
+    "systemVersion": "support-summary-system@8",
+    "templateVersion": "ticket-summary@14",
+    "schemaVersion": "summary-json@3"
+  },
+  "retrieval": {
+    "indexVersion": "docs-2025-01-22",
+    "queryId": "qry_8831",
+    "topK": 8
+  }
 }
 ~~~
 
-The schema is deliberately plain. Fancy schemas do not save unclear observability systems. The useful observability work is deciding which fields are required, which are advisory, and which block the run when missing.
+That record does not need to be beautiful. It needs to make regressions explainable.
 
-## Implementation sketch
+The worst prompt bugs are the ones that look like model drift because nobody knows which prompt produced which output.
 
-I would implement the first observability pass as a narrow pipeline rather than a general platform. Start observability with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+## retrieval needs its own trace
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+Retrieval-augmented systems fail in ways that look like model failures.
 
-For observability, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The observability system still has to decide whether the proposal is usable under the current boundary.
+The answer is wrong because the model ignored context. Or the answer is wrong because the right context was never retrieved. Or the answer is wrong because the index was stale. Or the answer is wrong because the permission filter removed the relevant document. Or the answer is wrong because the reranker buried the useful result below a similar but irrelevant one.
 
-## Failure modes
+Without a retrieval trace, those all collapse into "the model hallucinated."
 
-The main observability failure mode is the system succeeds once but gives the next maintainer no way to explain it. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The observability failure is that the next component cannot tell whether the result should be trusted.
+For each retrieval step, I want to see:
 
-I would test at least five observability cases:
+- query text or query vector reference
+- filters applied
+- index version
+- top candidates
+- candidate scores
+- reranker output
+- permission decisions
+- chunks passed to the model
+- source links shown to the user
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+The chunks passed to the model matter more than the documents in the index. A document can exist and still be absent from the model's actual context.
 
-That last observability case matters. A confident observability answer is not the same thing as a verified result. If observability touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+This is also where privacy shows up. Some teams should store full chunks. Some should store hashes, IDs, and short redacted previews. The right answer depends on the data. The wrong answer is storing nothing and calling the system observable.
 
-## Deployment shape
+## tool calls are spans
 
-I would not deploy observability as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For observability, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+Agentic apps should treat tool calls like spans in a trace.
 
-That gives the router real work to do. For observability, it should not only choose small model or big model. It should choose a risk path:
+The model decided to call a tool. The application validated the arguments. The tool executed or failed. The result returned. The model interpreted that result. Each step can fail differently.
 
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
+A tool trace should include:
 
-Each observability path has a different budget, verifier, and approval requirement. This is the part that makes observability feel less magical and more like infrastructure. The model is still important, but the observability route determines what kind of trust the system is asking for.
+- tool name
+- argument schema version
+- validated arguments
+- permission check result
+- execution duration
+- tool output summary
+- error class
+- retry count
+- model response after the tool result
 
-## Measurement
+This is how you distinguish "the model chose the wrong tool" from "the tool returned stale data" from "the application hid the tool error" from "the model ignored the result."
 
-The measurement surface for observability is reproduction time, failing example coverage, queue age, and rollback confidence. I would track observability per route or case type, not only as a global average. Global averages hide the exact class of observability problems that make these systems feel unpredictable.
+I do not want tool traces because I enjoy traces. I want them because agent bugs otherwise become ghost stories.
 
-A simple eval table can carry a lot of weight:
+## metrics need slices
+
+Global AI metrics lie politely.
+
+An average answer-quality score may improve while the product gets worse for long documents. Cost may go down while escalation goes up. Latency may improve because retrieval silently returned fewer chunks. Refusal rate may look stable while one policy category regresses.
+
+The useful metrics are sliced:
+
+- by feature
+- by model
+- by prompt version
+- by route
+- by user tier
+- by input length
+- by language
+- by retrieval hit quality
+- by tool path
+- by reviewer outcome
+
+For production, I care about operational metrics and quality metrics together. Latency without accepted-output rate is incomplete. Cost without retry rate is incomplete. Refusal rate without policy category is incomplete. User thumbs-up without task type is mostly decorative.
+
+## logs should feed evals
+
+The best eval examples often start as production misses.
+
+A user corrects a summary. A reviewer rejects an extraction. A support agent edits a draft. A code agent fails a test. A retrieval result is clicked and immediately abandoned. Those are signals. The observability system should make it easy to turn them into eval cases.
+
+The flow can be simple:
 
 ~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
+bad run
+  -> reviewed failure
+  -> redacted fixture
+  -> eval example
+  -> regression test for prompt, model, or route
 ~~~
 
-The point is not to build an eval cathedral for observability. The point is to preserve enough observability structure that regressions can be clustered. If failures cluster around one route, fix the route. If observability failures cluster around one policy boundary, fix the boundary. If observability failures cluster around one model, stop pretending the prompt is the whole system.
+This is how AI systems learn operationally without pretending production traffic is training data.
 
-## Operational concerns
+The eval fixture should preserve the thing that mattered: input shape, relevant context, expected behavior, and failure label. It should also record the run that produced it so future reviewers can understand why the example exists.
 
-The operational question for observability is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap observability route becomes unreliable but the expensive route would blow the budget?
+## boring is the point
 
-For observability, I would put those answers in configuration, not in a heroic prompt. A small observability policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+AI observability should feel a little dull.
 
-## Scaling behavior
+Run IDs. Prompt versions. Model versions. Retrieval traces. Tool spans. Reviewer labels. Latency. Cost. Failure slices. Eval fixtures. Redaction rules. Retention policies.
 
-At small scale, a human can inspect weird observability cases by hand. At medium scale, the observability system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+That is not the flashy part of AI work. It is the part that lets a team answer the first useful question after something goes wrong:
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the observability system without being surprised by the downstream behavior?
+What actually happened?
 
-For observability, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the observability system a spine.
-
-## Where I land
-
-Observability deserves depth when it changes architecture, not when it merely sounds current. The observability implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
-
-If the observability post answers those questions, it teaches something. If the observability post only says the topic matters, it is just a longer version of the headline.
+If the system cannot answer that, the team is not operating an AI application. It is operating a hope machine with logs around the edges.

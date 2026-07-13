@@ -12,29 +12,6 @@ load_pyodide: true
 import PythonModule from "@components/blog/shared/PythonModule.jsx";
 import HiddenLayers from "@components/blog/HiddenLayers.jsx";
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete hidden layers problem
-- the example surface: a plain-language explanation of hidden layers, why they help, and why the word hidden makes them sound stranger than they are
-- the failure mode: the explanation sounds right but the reader cannot reproduce the calculation
-- the responsibilities around the runnable example
-- the tradeoff between convenience and the exact step where a scalar, vector, matrix, or activation changes shape
-- the check or metric: whether the hand calculation, code output, and visual state agree
-*/}
-
-A plain-language explanation of hidden layers, why they help, and why the word hidden makes them sound stranger than they are.
-
-The practical version starts with a plain-language explanation of hidden layers, why they help, and why the word hidden makes them sound stranger than they are. That gives hidden layers a shape you can reason about. It also keeps the hidden layers post out of slogan territory, which is where a lot of technical writing goes to die politely.
-
-## What has to be true
-
-For hidden layers to be useful, the learner needs a clear runnable example. That artifact does not have to be fancy. For hidden layers, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for hidden layers is that it explains what happened without asking the next person to reconstruct intent from vibes.
-
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In deep learning basics, the annoying hidden layers bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for hidden layers, but the caller cannot tell whether it is safe. A script exits zero for hidden layers, but the output hides the one fact the maintainer needed.
-
-## Run the example
-
 <HiddenLayers client:only="react" />
 <PythonModule
   client:only="react"
@@ -42,34 +19,127 @@ The implementation detail I care about is ownership. Who creates the artifact? W
   outputRows={32}
 />
 
-## Implementation shape
+Hidden layers are just intermediate guesses.
 
-I would make the first hidden layers version deliberately plain. The hidden layers system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make hidden layers enterprise software. It makes the work inspectable.
+The word "hidden" makes them sound stranger than they are. In a small network, a hidden layer is simply a layer whose output is not the final answer. It sits between the input and the output, transforming the input into a new set of values that the next layer can use.
 
-A useful hidden layers implementation question is where the record is created. If the hidden layers record is created only after success, it will miss the interesting failures. I would create the hidden layers record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+That is it.
 
-## Tradeoffs
+The values are hidden from the final user-facing output, not hidden from us. In this lesson, they are right there in the grid: hidden `Z`, hidden `A`, output `Z`, output `A`.
 
-The hidden layers tradeoff is convenience versus the exact step where a scalar, vector, matrix, or activation changes shape. If the hidden layers system is too strict, people route around it. If the hidden layers system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For hidden layers, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+The useful question is not "what mysterious thing is the hidden layer doing?"
 
-That contract can be boring. A useful hidden layers shape is:
+The useful question is:
 
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
-}
+~~~text
+what intermediate signals did the first layer create for the second layer?
 ~~~
 
-The exact fields change by system. The hidden layers pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+## the first layer rewrites the input
 
-## What I would measure
+The input starts as three numbers.
 
-The hidden layers metric is whether the hand calculation, code output, and visual state agree. That is more useful than asking whether hidden layers "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+The first layer has four neurons. Each one sees the same input and produces its own raw score. Those raw scores are the hidden `Z` values. ReLU then turns them into hidden `A` values.
 
-For hidden layers, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those hidden layers numbers usually tell the truth before the happy-path dashboard does.
+That means the network has converted three input numbers into four activated hidden values.
 
-If the hidden layers system cannot answer those questions, I would keep the design smaller. Small hidden layers systems with honest receipts are easier to improve than large systems that only report success.
+This is the first important idea: the hidden layer changes the representation.
+
+The output layer does not see the original input directly in this example. It sees the hidden activations. The first layer has already filtered, shifted, and gated the input into a different shape.
+
+That is why hidden layers help. They create intermediate features the next layer can combine.
+
+## z and a keep the story readable
+
+The `Z` and `A` split matters.
+
+`Z` is the raw weighted sum before activation. `A` is the value after ReLU. In the hidden layer, that means each neuron first produces a raw score, then ReLU decides whether that score moves forward.
+
+If a hidden `Z` value is negative, the hidden `A` becomes zero. The output layer receives zero from that hidden unit for this input.
+
+That does not mean the hidden unit is useless. It means it is off for this example.
+
+Keeping both columns visible helps because ReLU can hide distance. A hidden `Z` of `-1` and a hidden `Z` of `-20` both become activation `0`, but they are not equally close to turning on.
+
+The raw value tells you where the boundary is. The activation tells you what signal actually moved forward.
+
+## the output layer combines hidden signals
+
+The second layer takes the hidden activations as its input.
+
+This is the part that makes hidden layers feel useful. The output layer is not starting from raw input features. It is combining the intermediate signals produced by the hidden layer.
+
+If the hidden layer creates four activations, the output layer can give each of those activations different weights. One output neuron might rely heavily on the first hidden signal. Another might mostly use the third. If a hidden activation is zero, that signal contributes nothing for this input.
+
+The network is building a small chain of transformations:
+
+~~~text
+input
+  -> hidden raw scores
+  -> hidden activations
+  -> output raw scores
+  -> output activations
+~~~
+
+That chain is the mental model worth keeping.
+
+## hidden does not mean unknowable
+
+Beginners sometimes hear "hidden layer" and assume the layer is beyond interpretation.
+
+It is not unknowable. It is just internal.
+
+In a tiny network, you can inspect every number. You can change a first-layer weight and see hidden `Z` move. You can watch hidden `A` turn on or off. You can then watch the output layer respond because its input changed.
+
+That is a complete causal path.
+
+The path gets harder to inspect in large networks because there are many layers and many activations. But the basic idea does not change. Hidden layers create intermediate values, and later layers use those values.
+
+The mystery comes from scale, not from the concept.
+
+## change the first layer, then the second
+
+Use the module in two passes.
+
+First, change a weight or bias in Layer 1. Before running the code, predict which hidden `Z` value should move. Then watch whether the corresponding hidden `A` changes after ReLU. Finally, check whether the output values changed.
+
+That shows how an early weight can affect the final output indirectly.
+
+Then change a weight in Layer 2. This time the hidden values should stay the same, but the output values should move. That shows the difference between changing the representation and changing how the representation is read.
+
+Those two experiments are the whole lesson:
+
+- Layer 1 changes the hidden signals.
+- Layer 2 changes how those signals become output.
+
+## why more layers help
+
+One layer can draw only simple boundaries around the input.
+
+Adding a hidden layer lets the model build intermediate signals first. Those signals can make the final decision easier. A hidden unit might activate for one pattern in the input. Another might activate for another pattern. The output layer can combine those signals instead of working from the raw input alone.
+
+This is the beginning of representation learning.
+
+That phrase can sound bigger than it needs to. In this small example, it just means the network creates a new set of numbers that may be more useful than the original input for the next step.
+
+The hidden layer is not a magic reasoning chamber. It is a transformation stage.
+
+## the useful habit
+
+When you look at a network with hidden layers, trace the values in order.
+
+Do not jump straight from input to output. Ask what each layer produced and what the next layer received.
+
+For this example:
+
+- input has three values
+- hidden layer creates four raw scores
+- ReLU turns those into four hidden activations
+- output layer combines those activations
+- final ReLU produces the output activations
+
+That path is small enough to debug.
+
+Once you can follow it here, deeper networks become less strange. They are longer chains of the same idea: transform, activate, pass forward.
+
+Hidden layers are intermediate guesses. The network learns to make those guesses useful.

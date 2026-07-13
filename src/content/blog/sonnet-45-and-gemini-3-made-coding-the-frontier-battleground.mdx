@@ -8,55 +8,111 @@ author: "jeremy-london"
 tags: ["anthropic", "google", "claude-sonnet-4.5", "gemini-3"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete anthropic problem
-- the example surface: Anthropic and Google ended 2025 by treating coding, agents, and computer use as the proving ground for frontier models
-- the failure mode: the release sounds important without changing any concrete decision
-- the responsibilities around the model decision note
-- the tradeoff between convenience and what changed in the model versus what changed in the product surface
-- the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work
-*/}
+Coding became the cleanest way to compare frontier models because code is rude. It either runs or it does not. The tests pass, or they do not. The diff is readable, or the reviewer starts making that face.
 
-Anthropic and Google ended 2025 by treating coding, agents, and computer use as the proving ground for frontier models.
+That does not make coding benchmarks perfect. It just makes the failure easier to inspect than a charming paragraph in a chat window.
 
-The practical version starts with Anthropic and Google ended 2025 by treating coding, agents, and computer use as the proving ground for frontier models. That gives anthropic a shape you can reason about. It also keeps the anthropic post out of slogan territory, which is where a lot of technical writing goes to die politely.
+By the time Sonnet 4.5 and Gemini 3 were framed around coding, agents, and computer use, the contest had moved away from "can it answer?" and toward "can it keep working after the first answer?"
 
-## What has to be true
+Anthropic described Sonnet 4.5 as a coding, agent, and computer-use model. Google described Gemini 3 as a major step for reasoning, multimodality, and agentic coding, and paired it with developer surfaces like AI Studio, Vertex AI, Gemini CLI, and Antigravity.
 
-For anthropic to be useful, the AI systems builder needs a clear model decision note. That artifact does not have to be fancy. For anthropic, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for anthropic is that it explains what happened without asking the next person to reconstruct intent from vibes.
+That positioning matters. The frontier fight was no longer only chat quality. It was whether the model could operate inside a work loop with tools, files, terminals, browsers, and review.
 
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In model watch, the annoying anthropic bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for anthropic, but the caller cannot tell whether it is safe. A script exits zero for anthropic, but the output hides the one fact the maintainer needed.
+## the benchmark is the beginning, not the job
 
-## Implementation shape
+SWE-style scores are useful, but they compress too much. A coding agent can pass the patch test and still be miserable to work with. Maybe it edits too broadly. Maybe it ignores the existing style. Maybe it fixes the symptom while missing the ownership boundary. Maybe it gets one test green and leaves the dev server broken.
 
-I would make the first anthropic version deliberately plain. The anthropic system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make anthropic enterprise software. It makes the work inspectable.
+The useful questions are more operational:
 
-A useful anthropic implementation question is where the record is created. If the anthropic record is created only after success, it will miss the interesting failures. I would create the anthropic record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+- Did it read the surrounding code before editing?
+- Did it keep the change small?
+- Did it explain the tradeoff in a way a reviewer can challenge?
+- Did it run the right checks?
+- Did it leave the repo easier to continue from?
 
-## Tradeoffs
+That last one matters more than benchmark culture wants to admit.
 
-The anthropic tradeoff is convenience versus what changed in the model versus what changed in the product surface. If the anthropic system is too strict, people route around it. If the anthropic system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For anthropic, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+Benchmarks are useful when they create pressure for better systems. They get weird when teams treat the score as the system. A real coding workflow includes setup, dependency weirdness, flaky tests, unclear ownership, local conventions, partial failures, and reviewer taste. The benchmark rarely captures all of that.
 
-That contract can be boring. A useful anthropic shape is:
+## computer use makes mistakes physical
 
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
-}
-~~~
+Computer-use models are weird because their errors leave tracks in the interface. A text model can hallucinate an API and move on. A computer-use model can click the wrong account, accept the wrong modal, scroll past the warning, or type into the wrong field. The model did not "almost" succeed. It changed state.
 
-The exact fields change by system. The anthropic pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+That makes verification different. Screenshots matter. Browser state matters. Account identity matters. So do boring things like focus, selected text, hidden menus, and whether the page finished loading before the model acted.
 
-## What I would measure
+For coding agents, the same thing happens in the repo. The state includes the final diff and the path the agent took to get there: files inspected, commands run, failed attempts, assumptions made, and tests skipped.
 
-The anthropic metric is route changes, eval deltas, latency movement, cost movement, and migration work. That is more useful than asking whether anthropic "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+That path should be inspectable. A good coding agent should leave receipts:
 
-For anthropic, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those anthropic numbers usually tell the truth before the happy-path dashboard does.
+- files read
+- commands run
+- tests attempted
+- generated patches
+- failures encountered
+- assumptions made
+- checks skipped and why
 
-If the anthropic system cannot answer those questions, I would keep the design smaller. Small anthropic systems with honest receipts are easier to improve than large systems that only report success.
+Without that trace, review becomes harder than writing the patch manually.
+
+## frontier coding is a workflow problem
+
+The model is only one piece. The harness around it decides whether the model's ability turns into useful work or expensive noise.
+
+A serious coding setup needs:
+
+- a scoped workspace
+- command receipts
+- clear permission boundaries
+- a way to inspect intermediate reasoning without treating it as truth
+- tests that match the requested change
+- a reviewer loop that is allowed to reject confident nonsense
+
+I care less about which model "wins coding" in the abstract than which model behaves well inside that loop. Some models are better first-draft writers. Some are better debuggers. Some follow local conventions more reliably. Some are more willing to stop and ask for missing context. Those differences should change routing.
+
+This is where Sonnet and Gemini competing on coding is useful. It gives teams choices. One model may be better at long repository edits. Another may be better at UI generation. Another may be better at terminal-heavy debugging. Another may be cheaper for small refactors.
+
+The product should route based on that behavior, not fandom.
+
+## the agent surface matters
+
+The coding model is shaped by the tool surface around it.
+
+An agent in an IDE has editor state, open files, diagnostics, and maybe terminal access. An agent in a remote sandbox has filesystem snapshots, command logs, and isolated execution. A browser-using agent has visual state, network delays, focus problems, and click targets. A CLI agent has shell history and repo context.
+
+Those surfaces change what "good at coding" means.
+
+For a serious coding agent, I want the environment to answer:
+
+- what files can it read?
+- what files can it edit?
+- which commands are allowed?
+- what happens if a command hangs?
+- can it access the network?
+- can it see test output?
+- can it take screenshots?
+- can it restore a checkpoint?
+- how does a human review the run?
+
+The model may be excellent. A sloppy surface can still make it dangerous or exhausting.
+
+## what i would measure
+
+I would measure patch acceptance, review comment density, test relevance, command failure recovery, file-touch count, and how often a human has to unwind an over-broad edit. I would also track something softer: does the model make the reviewer sharper, or does it bury the reviewer in cleanup?
+
+I would also separate task classes:
+
+- small local refactor
+- failing test repair
+- dependency upgrade
+- UI implementation
+- bug reproduction
+- codebase explanation
+- security review
+- migration planning
+- documentation update
+
+The same model will not win every class. A local eval suite should show that instead of pretending coding is one task.
+
+That is where the frontier battleground actually is. It is code generation, but it is also whether the model can participate in the maintenance loop without turning every task into an archaeological dig.
+
+The model that wins is the one that leaves the next engineer with less mystery.

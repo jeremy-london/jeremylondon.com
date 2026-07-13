@@ -8,138 +8,135 @@ author: "jeremy-london"
 tags: ["codex", "software agents", "openai"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete codex problem
-- the example surface: The Codex research preview made it easier to imagine software agents working in separate sandboxes instead of one chat thread
-- the failure mode: the agent finishes a task without leaving enough evidence for a human to trust or resume it
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using approval rate, retry count, verifier disagreement, and time from tool call to accepted result
-- security or ownership boundary: file access, network access, credential use, and delegation between agents
-- latency, cost, and scaling implications
-*/}
+The Codex research preview made parallel agent work feel less strange.
 
-The Codex research preview made it easier to imagine software agents working in separate sandboxes instead of one chat thread.
+That was the important shift for me. Not "an agent can write code." We already had plenty of demos in that direction. The more interesting idea was that software agents could work in separate sandboxes instead of all living inside one long chat thread.
 
-The interesting part of codex is not the name. It is the system pressure around The Codex research preview made it easier to imagine software agents working in separate sandboxes instead of one chat thread. Once that pressure shows up for codex, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+Parallelism changes the mental model.
 
-## The unit of work
+One agent can investigate a failing test. Another can draft a migration. Another can update docs. Another can try a refactor that might be thrown away. The user becomes less like a person typing into a single assistant and more like someone dispatching bounded work into separate workspaces.
 
-I would start by naming the unit of work for codex. In agent systems, the codex unit is usually smaller than the product surface and larger than a function call. For codex, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+That is powerful if the boundaries are real.
 
-A useful codex unit has four properties:
+## one thread is a bottleneck
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+A single chat thread is a bad shape for many engineering tasks.
 
-For codex, the boundary is file access, network access, credential use, and delegation between agents. That boundary should be visible in the codex data, not only in a policy document. If a codex request crosses the boundary, the trace should show it.
+It mixes unrelated context. It makes the model carry old decisions that no longer matter. It turns every side quest into another layer of conversation history. It gives the user one stream of work to supervise, even when the tasks are independent.
 
-## Data flow
+Engineering work is already parallel in practice. We investigate one thing while a test runs. We sketch a fix while waiting for a build. We ask a teammate to look at a separate bug. We try a branch and throw it away if the idea is bad.
 
-The simple codex flow looks like this:
+Agents should fit that rhythm.
+
+Parallel agents only help if each run has a clear task and isolated state. Otherwise the user just gets several messy chats instead of one.
+
+## isolation is the feature
+
+The useful part of parallel agent work is isolation.
+
+Each agent should have its own workspace, branch or worktree, command history, run log, and diff. It should not quietly share mutable state with another run. If two agents touch the same file, the system should make that visible before the user has to untangle a conflict.
+
+This is the shape I want:
 
 ~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
+agent a
+  task: fix markdown lint in three posts
+  workspace: worktree-a
+  allowed: src/content/blog
+  output: focused diff
+
+agent b
+  task: investigate rss build failure
+  workspace: worktree-b
+  allowed: src/pages, src/lib
+  output: findings, no edits yet
 ~~~
 
-The context builder gathers the minimum useful state for codex. The codex decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+That separation lets the user compare work instead of reconstructing it.
 
-That receipt is the difference between a codex demo and an operable system. A demo can rely on a person watching closely. A codex system needs to explain itself after the person has moved on.
+Isolation also makes failure cheaper. If an agent goes down a bad path, throw away that workspace. The rest of the work survives.
 
-A codex request envelope might look like this:
+## task size matters more in parallel
 
-~~~json
-{
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
-}
-~~~
+Parallelism rewards small tasks.
 
-The schema is deliberately plain. Fancy schemas do not save unclear codex systems. The useful codex work is deciding which fields are required, which are advisory, and which block the run when missing.
+If the user gives five agents five vague tasks, the result is five vague diffs. The review burden goes up. The merge story gets worse. The user now has to decide which version of ambiguity they prefer.
 
-## Implementation sketch
+Good parallel delegation starts with task slicing.
 
-I would implement the first codex pass as a narrow pipeline rather than a general platform. Start codex with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
-
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
-
-For codex, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The codex system still has to decide whether the proposal is usable under the current boundary.
-
-## Failure modes
-
-The main codex failure mode is the agent finishes a task without leaving enough evidence for a human to trust or resume it. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The codex failure is that the next component cannot tell whether the result should be trusted.
-
-I would test at least five codex cases:
-
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
-
-That last codex case matters. A confident codex answer is not the same thing as a verified result. If codex touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
-
-## Deployment shape
-
-I would not deploy codex as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For codex, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
-
-That gives the router real work to do. For codex, it should not only choose small model or big model. It should choose a risk path:
-
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
-
-Each codex path has a different budget, verifier, and approval requirement. This is the part that makes codex feel less magical and more like infrastructure. The model is still important, but the codex route determines what kind of trust the system is asking for.
-
-## Measurement
-
-The measurement surface for codex is approval rate, retry count, verifier disagreement, and time from tool call to accepted result. I would track codex per route or case type, not only as a global average. Global averages hide the exact class of codex problems that make these systems feel unpredictable.
-
-A simple eval table can carry a lot of weight:
+Instead of:
 
 ~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
+clean up the blog
 ~~~
 
-The point is not to build an eval cathedral for codex. The point is to preserve enough codex structure that regressions can be clustered. If failures cluster around one route, fix the route. If codex failures cluster around one policy boundary, fix the boundary. If codex failures cluster around one model, stop pretending the prompt is the whole system.
+use:
 
-## Operational concerns
+~~~text
+agent 1: find posts with generated repeated phrases, report only
+agent 2: rewrite the caching post, preserve frontmatter
+agent 3: verify markdown and build errors after recent edits
+agent 4: inspect RSS output for malformed excerpts
+~~~
 
-The operational question for codex is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap codex route becomes unreliable but the expensive route would blow the budget?
+Those tasks can run separately because they have different outputs. One reports. One edits. One verifies. One inspects generated output.
 
-For codex, I would put those answers in configuration, not in a heroic prompt. A small codex policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+The user should not have to merge five agents all trying to solve the same poorly defined problem.
 
-## Scaling behavior
+## review becomes the central workflow
 
-At small scale, a human can inspect weird codex cases by hand. At medium scale, the codex system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+Parallel agents move the bottleneck from generation to review.
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the codex system without being surprised by the downstream behavior?
+That is not bad. It is just honest.
 
-For codex, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the codex system a spine.
+If four agents produce useful work at the same time, the user still has to inspect the diffs, decide what to keep, resolve conflicts, and verify the combined result. The product should treat review as the main interface, not as an afterthought.
 
-## Where I land
+I want each run to end with:
 
-Codex deserves depth when it changes architecture, not when it merely sounds current. The codex implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+- changed files
+- commands run
+- checks passed
+- checks skipped
+- assumptions
+- conflicts with other runs
+- recommended next action
 
-If the codex post answers those questions, it teaches something. If the codex post only says the topic matters, it is just a longer version of the headline.
+Then I want the review surface to compare those runs without making me open four transcripts.
+
+Parallel work without review design becomes a pile of output. A pile of output is not productivity. It is inventory.
+
+## duplicate effort is acceptable if it is cheap
+
+One nice thing about agents is that duplicate exploration can be useful.
+
+Two agents can try different approaches to the same bug. One can produce a minimal patch. Another can investigate the deeper cause. A third can write a test. Humans do this too, but we are usually too expensive to duplicate casually.
+
+The trick is labeling the experiment.
+
+If two agents are intentionally competing, say that. If they are accidentally overlapping, stop one. If one run is speculative, keep it away from the mainline until review.
+
+Parallelism is useful when it creates options. It is wasteful when it creates hidden collisions.
+
+## merging is where the truth shows up
+
+The final system state matters more than any single agent result.
+
+An agent can pass its local checks and still produce a diff that conflicts with another accepted change. A documentation update can describe code that another agent just changed. A migration can pass in one workspace while a dependency update in another workspace changes the setup.
+
+The merge step needs its own verification.
+
+After accepting agent work, run the checks on the combined state. That sounds obvious, but it is easy to skip when every individual agent already reported success. Individual success does not prove integrated success.
+
+This is why parallel agent work needs a final owner. The agents can produce candidate work. The owner decides what lands.
+
+## why codex made it feel normal
+
+Codex made parallel agent work feel normal because it put the agent in a shape software teams already understand: separate workspaces, task boundaries, diffs, and review.
+
+That is much easier to reason about than one assistant accumulating every task in a single chat.
+
+The long-term version of this is not "replace the team with a swarm." It is more practical than that. Give agents bounded jobs. Let them work in isolation. Review their outputs. Keep the good diffs. Throw away the bad ones. Verify the integrated result.
+
+That is recognizably software work.
+
+The agent part is new. The workflow discipline is not.

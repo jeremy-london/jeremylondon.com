@@ -8,55 +8,155 @@ author: "jeremy-london"
 tags: ["deepseek", "kimi", "minimax", "reasoning models"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete deepseek problem
-- the example surface: The 2025 Chinese open-weight wave changed the cost story around reasoning, coding, and agentic model work
-- the failure mode: the release sounds important without changing any concrete decision
-- the responsibilities around the model decision note
-- the tradeoff between convenience and what changed in the model versus what changed in the product surface
-- the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work
-*/}
+The 2025 Chinese open-weight wave changed the cost story around reasoning.
 
-The 2025 Chinese open-weight wave changed the cost story around reasoning, coding, and agentic model work.
+DeepSeek-R1 made the first big dent. Kimi and MiniMax kept the pressure on from different directions. By the middle of 2025, it was much harder to treat reasoning as a capability that only lived behind expensive closed APIs.
 
-The practical version starts with The 2025 Chinese open-weight wave changed the cost story around reasoning, coding, and agentic model work. That gives deepseek a shape you can reason about. It also keeps the deepseek post out of slogan territory, which is where a lot of technical writing goes to die politely.
+That does not mean every open model was suddenly interchangeable with frontier hosted systems. It means the architecture conversation changed.
 
-## What has to be true
+Reasoning could be routed differently. Coding agents could use cheaper local or self-hosted paths for some work. Evals could run more often. Distillation became more practical. Teams could start asking which reasoning tasks needed a proprietary model and which ones needed a good enough open-weight model with better cost control.
 
-For deepseek to be useful, the AI systems builder needs a clear model decision note. That artifact does not have to be fancy. For deepseek, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for deepseek is that it explains what happened without asking the next person to reconstruct intent from vibes.
+That is a useful shift.
 
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In model watch, the annoying deepseek bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for deepseek, but the caller cannot tell whether it is safe. A script exits zero for deepseek, but the output hides the one fact the maintainer needed.
+## deepseek made reasoning feel reproducible
 
-## Implementation shape
+DeepSeek-R1 mattered because it made reasoning training feel less sealed off.
 
-I would make the first deepseek version deliberately plain. The deepseek system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make deepseek enterprise software. It makes the work inspectable.
+The paper described DeepSeek-R1-Zero using large-scale reinforcement learning without supervised fine-tuning as the preliminary step, then DeepSeek-R1 using cold-start data and multi-stage training to improve readability and behavior. DeepSeek also released distilled models based on Qwen and Llama sizes.
 
-A useful deepseek implementation question is where the record is created. If the deepseek record is created only after success, it will miss the interesting failures. I would create the deepseek record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+The interesting part was not only benchmark performance. It was the artifact.
 
-## Tradeoffs
+People could inspect the model family, run variants, compare distilled versions, and build local experiments around a reasoning model that did not require treating the provider as the only runtime.
 
-The deepseek tradeoff is convenience versus what changed in the model versus what changed in the product surface. If the deepseek system is too strict, people route around it. If the deepseek system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For deepseek, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+That changes engineering behavior. If a team can run a smaller distilled reasoning model for internal eval grading, first-pass code review, or narrow math checks, they can afford more iteration. They can test routing ideas without turning every experiment into a budget meeting.
 
-That contract can be boring. A useful deepseek shape is:
+Open weights make reasoning less precious.
 
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
-}
+## cost changes what gets measured
+
+Expensive reasoning models encourage rationing.
+
+Rationing is not always bad. Hard tasks deserve expensive tools. But high cost can make teams evaluate too little. They run small eval sets. They sample fewer failures. They avoid repeated judge passes. They rely on anecdotes because every thorough test feels like spend.
+
+Cheaper open reasoning changes that pressure.
+
+If the cost per run drops enough, a team can do more useful things:
+
+- run local regression suites more often
+- grade more candidate prompts
+- compare routing decisions across task slices
+- generate adversarial examples for narrow domains
+- use a reasoning model as a verifier for low-risk work
+- keep historical model comparisons around
+
+The point is not that the cheaper model is always best. The point is that cheaper reasoning can become part of the development loop instead of only the final answer path.
+
+That matters a lot for agent systems. Agents need repeated evaluation. They fail in weird ways. A cheap verifier that catches half the boring mistakes is valuable even if the final high-risk path still escalates to a stronger model.
+
+## kimi made scale feel less closed
+
+Kimi's open-weight releases made a different point: very large open models were becoming part of the normal model menu.
+
+Kimi K2 was widely discussed as a trillion-parameter mixture-of-experts model with a smaller active parameter count at inference time. That architecture matters because total size and active compute are different concerns. The model can contain a lot of capacity while activating only part of it for a given token.
+
+For product teams, the detail is not "one trillion parameters" as a trophy. The detail is that open-weight models were moving into the scale range where coding, tool use, and agentic tasks could be considered seriously.
+
+That changes vendor strategy.
+
+A team might still use a closed frontier model for the hardest requests. But open-weight models can become baselines, fallback paths, local privacy routes, or specialized self-hosted workers. They give teams leverage because the route is no longer binary: use the frontier API or do nothing.
+
+The model menu gets wider, and routing gets more important.
+
+## minimax made test-time compute an efficiency question
+
+MiniMax-M1 was interesting because it focused directly on scaling test-time compute efficiently.
+
+The paper described an open-weight large-scale hybrid-attention reasoning model with a mixture-of-experts architecture, long context support, and versions with different thinking budgets. It also emphasized training efficiency and released the model publicly.
+
+That is exactly the kind of release that makes reasoning feel like systems work.
+
+Reasoning is not only a model capability. It is inference-time compute, context length, latency, memory, hardware, and routing policy. If a model can spend more or less thinking budget, the product has to decide when that budget is worth it.
+
+MiniMax's framing made the cost side harder to ignore:
+
+~~~text
+short reasoning budget:
+  cheaper, faster, useful for routine checks
+
+long reasoning budget:
+  slower, more expensive, useful for complex tasks
 ~~~
 
-The exact fields change by system. The deepseek pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+That is the same product problem closed reasoning models created, but open weights make it possible to inspect and tune the deployment more directly.
 
-## What I would measure
+## open does not remove operations
 
-The deepseek metric is route changes, eval deltas, latency movement, cost movement, and migration work. That is more useful than asking whether deepseek "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+Open-weight reasoning models are not free just because the weights are available.
 
-For deepseek, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those deepseek numbers usually tell the truth before the happy-path dashboard does.
+Someone still has to serve them. Someone has to choose hardware. Someone has to monitor latency, memory, context length, batching, quantization, and failure rates. Someone has to patch dependencies, manage model versions, and keep evals current.
 
-If the deepseek system cannot answer those questions, I would keep the design smaller. Small deepseek systems with honest receipts are easier to improve than large systems that only report success.
+The cost moves. It does not disappear.
+
+Hosted APIs turn model operations into usage price and provider dependency. Self-hosted open models turn some of that into infrastructure work. Depending on the workload, that trade can be excellent or ridiculous.
+
+The practical question is workload shape:
+
+- how many requests need reasoning?
+- how sensitive is the data?
+- how much latency can users tolerate?
+- can the model be batched?
+- does quantization preserve quality?
+- how often does the model need updates?
+- what does failure cost?
+
+Those questions decide whether open reasoning belongs in the architecture.
+
+## routing gets more honest
+
+The best use of cheaper open reasoning is not always user-facing chat.
+
+Sometimes it belongs behind the scenes:
+
+- classify whether a task needs escalation
+- critique an agent plan
+- grade a proposed code change against a rubric
+- generate edge cases for evals
+- summarize long logs before a stronger model sees them
+- run privacy-preserving local analysis
+- handle high-volume low-risk reasoning tasks
+
+Those jobs can be valuable even when the open model is weaker than the best closed model.
+
+That is the routing point. A model does not need to be globally best to be architecturally useful. It needs to be good enough for a specific job at a cost and latency the system can afford.
+
+The 2025 open-weight wave made that tradeoff feel much more real.
+
+## cheaper reasoning raises the bar for evals
+
+There is a trap here.
+
+When reasoning gets cheaper, teams may route more work through reasoning models because they can. That can produce slow, overcomplicated systems if nobody measures whether the reasoning helped.
+
+Cheaper reasoning should lead to more evals, not less discipline.
+
+For each route, I want to know:
+
+- does the open model beat a simpler baseline?
+- which slices fail?
+- does a longer thinking budget improve the result?
+- where does it overthink?
+- when should it escalate?
+- how does it behave on private or domain-specific data?
+- does it create safety or policy regressions?
+
+Open weights make these questions easier to test. They do not answer them automatically.
+
+## the cost story changed
+
+DeepSeek, Kimi, and MiniMax made reasoning feel less like a scarce luxury.
+
+That is the part that stuck with me. Once capable open-weight reasoning models exist, teams can build different systems. More local evals. More routing experiments. More cheap verifiers. More privacy-sensitive deployments. More pressure on closed providers to justify cost with reliability, tooling, safety, and integration quality.
+
+The frontier still matters. The best hosted models still matter. But the default architecture got less obvious.
+
+Reasoning became something you can place in the stack, not only something you rent at the edge.

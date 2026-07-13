@@ -12,29 +12,6 @@ load_pyodide: true
 import PythonModule from "@components/blog/shared/PythonModule.jsx";
 import SingleNeuron from "@components/blog/SingleNeuron.jsx";
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete neural networks problem
-- the example surface: a slower, more practical walkthrough of weights, bias, ReLU, and the first little model worth drawing by hand
-- the failure mode: the explanation sounds right but the reader cannot reproduce the calculation
-- the responsibilities around the runnable example
-- the tradeoff between convenience and the exact step where a scalar, vector, matrix, or activation changes shape
-- the check or metric: whether the hand calculation, code output, and visual state agree
-*/}
-
-A slower, more practical walkthrough of weights, bias, ReLU, and the first little model worth drawing by hand.
-
-The practical version starts with a slower, more practical walkthrough of weights, bias, ReLU, and the first little model worth drawing by hand. That gives neural networks a shape you can reason about. It also keeps the neural networks post out of slogan territory, which is where a lot of technical writing goes to die politely.
-
-## What has to be true
-
-For neural networks to be useful, the learner needs a clear runnable example. That artifact does not have to be fancy. For neural networks, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for neural networks is that it explains what happened without asking the next person to reconstruct intent from vibes.
-
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In deep learning basics, the annoying neural networks bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for neural networks, but the caller cannot tell whether it is safe. A script exits zero for neural networks, but the output hides the one fact the maintainer needed.
-
-## Run the example
-
 <SingleNeuron client:only="react" />
 <PythonModule
   client:only="react"
@@ -42,34 +19,140 @@ The implementation detail I care about is ownership. Who creates the artifact? W
   outputRows={32}
 />
 
-## Implementation shape
+A single neuron is less mysterious when you run the numbers.
 
-I would make the first neural networks version deliberately plain. The neural networks system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make neural networks enterprise software. It makes the work inspectable.
+That is the whole reason to start this small. Neural networks get introduced with enough diagrams and terminology that the first useful calculation can disappear. A neuron sounds like a biological metaphor, a model sounds like a black box, and ReLU sounds like something you are supposed to accept before you understand it.
 
-A useful neural networks implementation question is where the record is created. If the neural networks record is created only after success, it will miss the interesting failures. I would create the neural networks record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+But this first version is tiny.
 
-## Tradeoffs
+There are inputs. There are weights. There is a bias. The neuron multiplies inputs by weights, adds the results, adds the bias, and passes the raw value through an activation function.
 
-The neural networks tradeoff is convenience versus the exact step where a scalar, vector, matrix, or activation changes shape. If the neural networks system is too strict, people route around it. If the neural networks system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For neural networks, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+That is enough to draw, run, and debug by hand.
 
-That contract can be boring. A useful neural networks shape is:
+## the neuron is a weighted question
 
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
-}
+Think of the neuron as asking one weighted question about the input.
+
+The input has three values:
+
+~~~text
+x = [2, 1, 3]
 ~~~
 
-The exact fields change by system. The neural networks pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+The neuron has three weights and one bias:
 
-## What I would measure
+~~~text
+weights = [1, -1, 1]
+bias = -5
+~~~
 
-The neural networks metric is whether the hand calculation, code output, and visual state agree. That is more useful than asking whether neural networks "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+The raw score is:
 
-For neural networks, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those neural networks numbers usually tell the truth before the happy-path dashboard does.
+~~~text
+z = 2 * 1 + 1 * -1 + 3 * 1 + -5
+~~~
 
-If the neural networks system cannot answer those questions, I would keep the design smaller. Small neural networks systems with honest receipts are easier to improve than large systems that only report success.
+That gives:
+
+~~~text
+z = -1
+~~~
+
+Nothing mystical happened. Each input value was scaled by a weight. The bias shifted the final sum. The result is the neuron's raw answer before activation.
+
+I like calling it a question because the weights decide what the neuron pays attention to. A positive weight pulls the score up when that input is large. A negative weight pulls the score down. A zero weight ignores that input for this neuron.
+
+## weights are knobs with direction
+
+A weight is not only a number. It has direction.
+
+If the first input is positive and its weight increases, the raw score goes up. If the second input has a negative weight, increasing that input may push the score down. If an input is zero, changing its weight does nothing for this particular example.
+
+That last case is worth noticing early. A weight can matter to the model in general while having no effect on one input.
+
+The interactive module is useful because you can change one weight and watch `Z`. Do not change five things at once. Change one value, predict the direction, then run it.
+
+The prediction is the lesson.
+
+If you expected `Z` to go up and it went down, the mistake is probably in the sign of the weight or the input value you paired it with. That is a good mistake. It means the arithmetic is still visible enough to fix your intuition.
+
+## bias shifts the raw score
+
+Bias is the easiest part to treat as a weird extra.
+
+It is not weird. It is the neuron's baseline shift.
+
+Weights make the output depend on the input. Bias lets the neuron move the threshold without needing every input to cooperate. In this example, the weighted input sum is:
+
+~~~text
+2 * 1 + 1 * -1 + 3 * 1 = 4
+~~~
+
+The bias is `-5`, so the raw score becomes `-1`.
+
+Change the bias to `-3` and the same inputs and weights produce:
+
+~~~text
+z = 1
+~~~
+
+That one change can flip the neuron from inactive to active after ReLU.
+
+The bias belongs to the neuron. It is part of the neuron's rule, not part of the input.
+
+## z comes before the activation
+
+`Z` is the raw score.
+
+I like keeping `Z` visible because it shows the calculation before the activation function changes the shape. If the raw score is surprising, the reason is in the weights, inputs, or bias.
+
+In a lot of explanations, this value gets rushed past because the final activated output feels more important. That is a mistake for learning. `Z` is where the weighted sum lives.
+
+Once you understand `Z`, activation functions become less mysterious. They are not guessing. They are transforming the raw score according to a rule.
+
+## relu is a simple gate
+
+ReLU is short for rectified linear unit, which is a terrible phrase to meet before coffee.
+
+The rule is simple:
+
+~~~text
+if z > 0, output z
+if z <= 0, output 0
+~~~
+
+In the module, `A` is the value after ReLU.
+
+If `Z` is `-1`, `A` becomes `0`. If `Z` is `3`, `A` stays `3`.
+
+That is it.
+
+ReLU is useful because it adds a non-linear step. Without activations, stacked layers would collapse into another linear transformation. You do not need to care about that whole argument yet. For this lesson, the practical point is smaller: ReLU lets the neuron be silent for some inputs and active for others.
+
+## the first model worth drawing
+
+This single neuron is not impressive as a model.
+
+That is good. Impressive would get in the way.
+
+The goal is to make the first little calculation inspectable:
+
+- inputs feed the neuron
+- weights scale the inputs
+- bias shifts the sum
+- `Z` shows the raw score
+- ReLU turns `Z` into `A`
+
+Once that is comfortable, four neurons are just four rows doing the same thing. A hidden layer is a group of these calculations. Matrix multiplication is the same pattern written compactly. Backpropagation is the process of deciding how these weights should move after the output is wrong.
+
+The whole stack gets bigger, but this small calculation keeps showing up.
+
+## what to try
+
+Start by changing the bias.
+
+Make `Z` cross zero and watch `A` flip from `0` to a positive value. Then change one weight. Predict whether `Z` should move up or down before running the code. Then change one input and ask which weight makes that input matter.
+
+Use the module like a debugger, not a demo.
+
+The point is not to admire the result. The point is to make the arithmetic feel ordinary enough that the next layer has somewhere to attach.

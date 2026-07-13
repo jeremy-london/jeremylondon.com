@@ -8,24 +8,184 @@ author: "jeremy-london"
 tags: ["caching", "ai apps", "performance"]
 ---
 
-{/*
-Depth: quick-note
-Information map:
-- the concrete caching problem
-- the example surface: Caching can make AI apps faster and cheaper, but production systems need careful keys, freshness rules, and safety checks
-- the failure mode: the system succeeds once but gives the next maintainer no way to explain it
-- the small decision I would keep
-- what would make the note wrong
-*/}
+Caching AI responses is tempting because the upside is obvious.
 
-Caching can make AI apps faster and cheaper, but production systems need careful keys, freshness rules, and safety checks.
+The app gets faster. The bill goes down. Repeated questions stop burning tokens. A slow model path starts to feel snappy. Everybody likes that version.
 
-I would keep caching small here. The useful part is Caching can make AI apps faster and cheaper, but production systems need careful keys, freshness rules, and safety checks. That is enough material for a caching note, not a manifesto.
+The dangerous version is quieter: the app returns an old answer with new confidence.
 
-The caching mistake is treating the observation as if it needs a complete theory around it. In practice, engineering quality work usually gets better when the first version names the boundary and then stops. For caching, that boundary is what must be proven before the change is trusted.
+That is the caching problem for AI systems. The cache does not only store bytes. It stores a behavior that was true under a particular model, prompt, context, policy, and user scope. If any of those change, the cached output may still look polished while becoming wrong, stale, unsafe, or unauthorized.
 
-The caching check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the caching post has done its job. If the answer is no, adding three more caching paragraphs will not fix it.
+I like caching AI responses. I just do not like pretending the cache key is a hash of the prompt.
 
-The thing I would not add to caching is a fake architecture section. A short caching note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for caching. The rest of caching can wait until there is a real example to inspect.
+## prompt text is not enough
 
-I am leaving caching as a short note because the idea is useful at this size. A longer caching version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.
+The same prompt can mean different things on different days.
+
+Ask, "Summarize the incident," and the answer depends on which incident record was retrieved, which user asked, which documents they can access, which model handled the request, which system prompt shaped the response, which safety policy applied, and what output schema the product expected.
+
+If the cache key only includes the user-visible prompt, it is lying about sameness.
+
+A safer key usually needs more pieces:
+
+```text
+model_id
+prompt_template_version
+user_or_tenant_scope
+retrieval_index_version
+retrieved_source_ids
+policy_version
+output_schema_version
+tool_result_versions
+```
+
+That list is not universal. A low-risk public FAQ bot may need fewer fields. A private workflow assistant needs more. The point is that the key should describe the conditions that made the response reusable.
+
+The cache key is a claim: this old output is valid for this new request.
+
+Make the claim specific.
+
+## freshness is a product decision
+
+Freshness rules are not the same for every AI feature.
+
+A cached explanation of a stable programming concept can live for a while. A cached answer about account access should probably be short-lived or avoided. A cached summary of a document should expire when the document changes. A cached retrieval-grounded answer should expire when the index changes or when source permissions change.
+
+Time-to-live is the blunt instrument. It is useful, but it cannot be the whole policy.
+
+For AI systems, freshness often depends on source state:
+
+- document updated
+- permissions changed
+- model route changed
+- prompt template changed
+- retrieval index rebuilt
+- tool result expired
+- policy version changed
+- output schema changed
+
+If a cache cannot notice those changes, it should be conservative.
+
+The worst cache is the one that survives the event that made the answer invalid. The product changes the policy, but old policy-shaped answers keep coming back. The document is corrected, but the old summary remains faster than the truth. A user loses access to a workspace, but cached context still leaks through a generated answer.
+
+Latency wins are not worth that.
+
+## permissions have to be inside the cache boundary
+
+Caching gets scary when private data is involved.
+
+The simple mistake is caching a response generated for one user and serving it to another user because the prompt matched. Most teams know not to do that. The subtler mistake is caching under a scope that sounds safe but is actually too broad.
+
+For example, a workspace-level cache may be safe for public project docs inside the workspace. It may be unsafe for a document summary if documents have per-user grants. A tenant-level cache may be safe for generic onboarding copy. It may be unsafe for search answers that include retrieved snippets from restricted folders.
+
+The cache has to know the permission boundary of the source material.
+
+I like storing the access scope with the cache entry:
+
+```json
+{
+  "scope": {
+    "tenantId": "t_123",
+    "resourceIds": ["doc_7", "doc_9"],
+    "permissionVersion": "perm_2026_07_13_1420"
+  },
+  "generatedBy": {
+    "model": "model-name",
+    "promptVersion": "support-summary-v12"
+  }
+}
+```
+
+The exact fields will vary, but the cache should be able to answer: who was this safe for when it was created, and is that still true?
+
+If the answer is fuzzy, skip the cache.
+
+## cached tool results are different from cached language
+
+There are at least two caches hiding in many AI apps.
+
+One stores model outputs. Another stores tool or retrieval results that feed the model. They have different rules.
+
+A tool result may have a clear source of truth and a natural expiration. A ticket lookup can include an updated timestamp. A database query can include a transaction time. A document fetch can include an etag or content hash.
+
+A model output is more interpretive. It may summarize, classify, transform, or reason over tool results. Its validity depends on both the inputs and the behavior of the prompt and model.
+
+This matters because a stale tool result can poison a fresh model call, and a stale model output can hide fresh tool data.
+
+I prefer caching closer to deterministic boundaries when possible. Cache the expensive retrieval result with source versions. Cache OCR output with a file hash. Cache parsed document structure. Then let the model response be regenerated when the higher-level behavior needs to be current.
+
+Full response caching can still be useful. It just deserves more suspicion.
+
+## the cache should explain itself
+
+A cache entry should carry enough metadata to debug why it was used.
+
+When a user reports a wrong answer, "cache hit" is not enough. I want to know which key matched, when the entry was created, what model generated it, which prompt version shaped it, which sources were used, and which freshness checks passed.
+
+This is the difference between an optimization and a haunted layer.
+
+Useful cache metadata looks dull:
+
+```text
+created_at: 2026-07-13T15:18:09Z
+model: reasoning-small-2026-06
+prompt_version: incident-summary-v4
+retrieval_index: incidents-prod-1842
+source_hashes: doc_123:8ac1, doc_456:91fb
+permission_version: workspace_77:44
+schema_version: summary-card-v2
+ttl: 30m
+invalidates_on: source_hash_change, permission_change, prompt_change
+```
+
+That metadata lets the system defend the cache hit. It also lets engineers reject it when the facts changed.
+
+## deterministic checks before reuse
+
+Before serving a cached AI response, the system should run cheap checks.
+
+Do the source hashes match? Does the user still have access? Is the prompt version unchanged? Is the output schema still accepted by the client? Is the policy version compatible? Has the model been retired or replaced for this route? Is the entry inside the freshness window?
+
+Those checks should be deterministic where possible. Do not ask another model whether the cached answer "seems relevant" unless the feature truly needs semantic reuse. Semantic cache matching can be useful for low-risk support suggestions or search expansion, but it is a poor default for private or policy-sensitive answers.
+
+Exact reuse should be boring. Semantic reuse should be labeled as a different feature with its own evals.
+
+## cached answers need visible uncertainty
+
+Sometimes the product should tell the user that an answer came from cache.
+
+Not always. Nobody needs a badge on every repeated public FAQ answer. But for analysis, dashboards, summaries, and operational workflows, freshness matters to interpretation. A cached answer from five minutes ago may be fine. A cached answer from yesterday may change the user's decision.
+
+The UI can be simple:
+
+```text
+Generated 12 minutes ago from the current document version.
+```
+
+or:
+
+```text
+Reused from cache. Source document has not changed since generation.
+```
+
+That small line gives the user a way to judge the result. It also makes the system less mysterious.
+
+## use caching where the failure is acceptable
+
+The easiest way to make AI caching safe is to avoid caching outputs where stale reuse is dangerous.
+
+Cache public documentation summaries. Cache parsed file structure. Cache embeddings for unchanged chunks. Cache low-risk suggestions. Cache eval fixture outputs when the fixture is versioned. Be careful with account-specific answers, permissions, billing, security decisions, medical or legal content, and anything that creates an action without review.
+
+The more the output affects a decision, the more the cache has to prove validity.
+
+I would rather pay for a fresh model call than spend a week debugging a fast answer that should never have been reused.
+
+## speed is only good when trust survives
+
+Caching is one of the best ways to make AI apps feel less heavy. It can cut latency, reduce spend, and make repeated workflows tolerable.
+
+But the cache has to respect the shape of the system around it. Model version. Prompt version. Retrieval state. Permissions. Policy. Tool results. Schema. Freshness.
+
+If those pieces are missing, the cache is not a performance layer. It is stale memory with a nice response time.
+
+Use it. Measure it. Make it explain itself.

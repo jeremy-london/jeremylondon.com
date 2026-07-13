@@ -8,138 +8,160 @@ author: "jeremy-london"
 tags: ["gpt-4.1", "coding", "openai"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete GPT 4.1 problem
-- the example surface: The GPT-4.1 API release made it clearer that coding performance is a product choice, not one generic model score
-- the failure mode: the tool saves a minute while hiding the mistake that costs an afternoon
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using time to diagnose, idempotent reruns, exit-code accuracy, and log usefulness
-- security or ownership boundary: what the tool may change without asking
-- latency, cost, and scaling implications
-*/}
+[GPT-4.1](https://openai.com/index/gpt-4-1/) made coding models feel more explicitly specialized.
 
-The GPT-4.1 API release made it clearer that coding performance is a product choice, not one generic model score.
+The API release was framed around a family: GPT-4.1, GPT-4.1 mini, and GPT-4.1 nano. OpenAI emphasized coding, instruction following, long-context comprehension, and lower costs compared with earlier routes. The coding benchmarks mattered, but the family shape mattered too.
 
-The interesting part of GPT 4.1 is not the name. It is the system pressure around The GPT-4.1 API release made it clearer that coding performance is a product choice, not one generic model score. Once that pressure shows up for GPT 4.1, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+It pushed model selection away from "use the best general model" and toward "pick the coding route that fits the job."
 
-## The unit of work
+That is closer to how developer tools actually work. Some coding tasks need deep repository reasoning. Some need fast edits in a narrow file. Some need cheap lint-style suggestions. Some need instruction following more than abstract reasoning. A single model default hides those differences.
 
-I would start by naming the unit of work for GPT 4.1. In developer tools, the GPT 4.1 unit is usually smaller than the product surface and larger than a function call. For GPT 4.1, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+## coding is not one workload
 
-A useful GPT 4.1 unit has four properties:
+The phrase "coding model" covers too much.
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+Generating a small component is different from fixing a failing integration test. Explaining an error is different from designing a migration. Updating docs is different from editing authentication logic. Planning a refactor is different from making a two-line type fix.
 
-For GPT 4.1, the boundary is what the tool may change without asking. That boundary should be visible in the GPT 4.1 data, not only in a policy document. If a GPT 4.1 request crosses the boundary, the trace should show it.
+Those tasks stress different behavior:
 
-## Data flow
+- repository navigation
+- instruction following
+- patch minimality
+- test selection
+- long-context use
+- tool-call reliability
+- style matching
+- refusal or escalation around risky changes
 
-The simple GPT 4.1 flow looks like this:
+GPT-4.1's release made that segmentation feel more natural. The model family was not only stronger. It was shaped for routing: full model when the task needs more capability, mini when the task needs a cheaper competent path, nano when speed and cost dominate.
+
+The product question becomes: which coding steps deserve which route?
+
+## long context helps, but patch discipline still matters
+
+A million-token context window is useful for coding work because repositories are full of scattered dependencies. The bug may involve a route handler, a helper, a test fixture, a schema, and one line in a config file. More context can reduce bad guesses.
+
+But long context does not automatically produce a good patch.
+
+A good coding model still has to keep the change small, preserve local conventions, avoid unrelated cleanup, and run the right checks. The model can see the whole neighborhood and still decide to renovate the wrong house.
+
+For coding agents, I would separate context quality from patch quality:
 
 ~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
+context quality:
+  read the relevant files
+  found related tests
+  included config and type definitions
+  avoided generated or irrelevant files
+
+patch quality:
+  changed the intended behavior
+  avoided unrelated edits
+  matched local style
+  added or updated focused tests
+  left the working tree understandable
 ~~~
 
-The context builder gathers the minimum useful state for GPT 4.1. The GPT 4.1 decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+Large context improves the first category. It does not excuse failures in the second.
 
-That receipt is the difference between a GPT 4.1 demo and an operable system. A demo can rely on a person watching closely. A GPT 4.1 system needs to explain itself after the person has moved on.
+## instruction following is a developer-tool feature
 
-A GPT 4.1 request envelope might look like this:
+Instruction following sounds generic until you put it inside a coding workflow.
+
+"Only change the failing test fixture" is an instruction. "Do not modify generated files" is an instruction. "Preserve the public API" is an instruction. "Use the existing helper instead of adding a new dependency" is an instruction. "Show the diff before running the migration" is an instruction.
+
+If the model treats those as vibes, the tool becomes expensive to supervise.
+
+This is why I care about instruction-following gains in coding models. The useful model is not the one that writes the most code. It is the one that respects constraints while writing the right code.
+
+The eval should include constraint failures:
 
 ~~~json
 {
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
+  "case": "generated-file-boundary",
+  "task": "Fix the route type error without editing generated files.",
+  "fail_if": [
+    "src/generated/** changes",
+    "public API changes",
+    "test command not run"
+  ]
 }
 ~~~
 
-The schema is deliberately plain. Fancy schemas do not save unclear GPT 4.1 systems. The useful GPT 4.1 work is deciding which fields are required, which are advisory, and which block the run when missing.
+That kind of case catches the difference between capable and usable.
 
-## Implementation sketch
+## mini and nano matter because coding has small chores
 
-I would implement the first GPT 4.1 pass as a narrow pipeline rather than a general platform. Start GPT 4.1 with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+The smaller GPT-4.1 models were not the glamorous part of the release, but they are important for product design.
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
+Developer tools have many small chores:
+
+- summarize a diff
+- name a test
+- explain a type error
+- classify a failure log
+- rewrite a commit message
+- suggest a command
+- extract changed files from output
+- generate a short docstring
+
+Sending every one of those to the largest model is wasteful. It also creates latency where the tool should feel immediate.
+
+A coding assistant can use smaller routes for low-risk, high-frequency work and reserve the larger model for tasks that need repository reasoning or careful patch generation. That is a better architecture than one giant "ask AI" path.
+
+The smaller route still needs evals. A cheap model that writes misleading failure summaries will waste more time than it saves. But when the task is narrow, the cheaper model can be the better product choice.
+
+## the benchmark is not the workflow
+
+SWE-bench and similar coding benchmarks are useful, especially because they measure more than isolated code completion. But a product workflow has extra requirements.
+
+An agent inside a real codebase has to handle permissions, dirty working trees, flaky tests, missing dependencies, local conventions, generated files, secrets, CI differences, and user intent that changes mid-task. It also has to know when to stop.
+
+So I would test GPT-4.1-style routes with workflow cases:
+
+- fix a bug with an existing failing test
+- add a test before changing code
+- update a dependency without broad refactoring
+- respect a no-new-dependency instruction
+- handle truncated command output
+- decline a request that would expose secrets
+- summarize a diff without inventing behavior
+- choose between full, mini, and nano routes
+
+That last one matters. The model family creates a routing problem. The eval should include route selection, not only final patch correctness.
+
+## coding models need receipts
+
+The better the model gets, the more important receipts become.
+
+A strong coding model can make a change that looks plausible and passes a narrow check. The user still needs to know what happened. Which files changed? Which tests ran? Which assumptions were made? Which risks remain? Was a command skipped because dependencies were missing?
+
+I want coding tools to produce a small work record:
+
+~~~json
+{
+  "task": "fix parser handling for quoted commas",
+  "model": "gpt-4.1",
+  "route": "full",
+  "files_changed": [
+    "src/parser/csv.ts",
+    "tests/parser/csv.test.ts"
+  ],
+  "commands": [
+    { "cmd": "pnpm test tests/parser/csv.test.ts", "status": "passed" }
+  ],
+  "risk": "Only CSV parser tests were run."
 }
 ~~~
 
-For GPT 4.1, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The GPT 4.1 system still has to decide whether the proposal is usable under the current boundary.
+That record is not decoration. It is how the developer decides whether to trust the patch, run more tests, or ask for another review.
 
-## Failure modes
+## what felt specialized
 
-The main GPT 4.1 failure mode is the tool saves a minute while hiding the mistake that costs an afternoon. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The GPT 4.1 failure is that the next component cannot tell whether the result should be trusted.
+GPT-4.1 made coding feel less like a side capability of a general chat model.
 
-I would test at least five GPT 4.1 cases:
+The release bundled the things developer tools care about: code performance, instruction following, long context, smaller routes, and pricing. That made it easier to think of coding models as infrastructure with task-specific routing rather than one magic assistant.
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+That is the useful shift. A coding assistant should not choose a model because it is the newest name in the menu. It should choose based on the job: edit, explain, classify, plan, review, or verify.
 
-That last GPT 4.1 case matters. A confident GPT 4.1 answer is not the same thing as a verified result. If GPT 4.1 touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
-
-## Deployment shape
-
-I would not deploy GPT 4.1 as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For GPT 4.1, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
-
-That gives the router real work to do. For GPT 4.1, it should not only choose small model or big model. It should choose a risk path:
-
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
-
-Each GPT 4.1 path has a different budget, verifier, and approval requirement. This is the part that makes GPT 4.1 feel less magical and more like infrastructure. The model is still important, but the GPT 4.1 route determines what kind of trust the system is asking for.
-
-## Measurement
-
-The measurement surface for GPT 4.1 is time to diagnose, idempotent reruns, exit-code accuracy, and log usefulness. I would track GPT 4.1 per route or case type, not only as a global average. Global averages hide the exact class of GPT 4.1 problems that make these systems feel unpredictable.
-
-A simple eval table can carry a lot of weight:
-
-~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
-~~~
-
-The point is not to build an eval cathedral for GPT 4.1. The point is to preserve enough GPT 4.1 structure that regressions can be clustered. If failures cluster around one route, fix the route. If GPT 4.1 failures cluster around one policy boundary, fix the boundary. If GPT 4.1 failures cluster around one model, stop pretending the prompt is the whole system.
-
-## Operational concerns
-
-The operational question for GPT 4.1 is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap GPT 4.1 route becomes unreliable but the expensive route would blow the budget?
-
-For GPT 4.1, I would put those answers in configuration, not in a heroic prompt. A small GPT 4.1 policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
-
-## Scaling behavior
-
-At small scale, a human can inspect weird GPT 4.1 cases by hand. At medium scale, the GPT 4.1 system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
-
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the GPT 4.1 system without being surprised by the downstream behavior?
-
-For GPT 4.1, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the GPT 4.1 system a spine.
-
-## Where I land
-
-GPT 4.1 deserves depth when it changes architecture, not when it merely sounds current. The GPT 4.1 implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
-
-If the GPT 4.1 post answers those questions, it teaches something. If the GPT 4.1 post only says the topic matters, it is just a longer version of the headline.
+The model can be specialized. The workflow has to be specialized too.

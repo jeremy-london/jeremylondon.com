@@ -8,138 +8,131 @@ author: "jeremy-london"
 tags: ["agents", "observability", "ai ops"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete agents problem
-- the example surface: AI operations need logs that explain what the agent did in product terms, not only infrastructure terms
-- the failure mode: a model path changes and the team notices only after user behavior drifts
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using quality regression rate, p95 latency, cost per accepted task, and incident replay coverage
-- security or ownership boundary: what the model can change without human review
-- latency, cost, and scaling implications
-*/}
+Agent observability gets weird because the interesting failure is often not an exception.
 
-AI operations need logs that explain what the agent did in product terms, not only infrastructure terms.
+The process did not crash. The HTTP call returned 200. The tool schema validated. The model produced text. The queue job completed. Every infrastructure signal looks fine, and the user is still staring at something wrong.
 
-The interesting part of agents is not the name. It is the system pressure around AI operations need logs that explain what the agent did in product terms, not only infrastructure terms. Once that pressure shows up for agents, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+That is the part normal observability misses. Agents operate across product state. They read a thing, infer a plan, choose a tool, modify something, check the result, and then explain themselves to a human. If the logs only show tokens, latency, and status codes, the system may be observable to the platform team and opaque to everyone else.
 
-## The unit of work
+AI operations need user-level events. Not because traces are bad. Traces are useful. But traces answer a different question. They tell you how the machine moved. They do not automatically tell you what the agent thought it was doing for the user.
 
-I would start by naming the unit of work for agents. In AI operations, the agents unit is usually smaller than the product surface and larger than a function call. For agents, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+## infrastructure events are too low-level
 
-A useful agents unit has four properties:
-
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
-
-For agents, the boundary is what the model can change without human review. That boundary should be visible in the agents data, not only in a policy document. If a agents request crosses the boundary, the trace should show it.
-
-## Data flow
-
-The simple agents flow looks like this:
+A traditional trace might show:
 
 ~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
+POST /api/agent/run 200 1842ms
+model_call gpt-x 1287 tokens
+tool_call update_document 200 231ms
+queue_job complete
 ~~~
 
-The context builder gathers the minimum useful state for agents. The agents decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+That is better than nothing, but it is not enough for an incident review. If the user says, "Why did the agent edit the wrong draft?", those events do not answer the question. They prove that the machinery ran. They do not prove that the work made sense.
 
-That receipt is the difference between a agents demo and an operable system. A demo can rely on a person watching closely. A agents system needs to explain itself after the person has moved on.
+The missing layer is product intent:
 
-A agents request envelope might look like this:
+~~~text
+user_requested: "tighten the intro on the desktop agents post"
+agent_selected_artifact: "chatgpt-work-made-desktop-agents-feel-inevitable.mdx"
+agent_reason_for_selection: "title match and active editor context"
+tool_action: "edit section: opening paragraphs"
+user_visible_effect: "updated draft content"
+verification: "markdown check passed, diff shown to user"
+~~~
+
+That record is not a replacement for traces. It sits above them. It is the part a support engineer, product owner, reviewer, or future agent can use without reconstructing the entire run from raw logs.
+
+## the run is the product event
+
+For agents, I would treat a run as the main observable object. A run has a user request, a scope, selected context, planned steps, tool calls, approvals, verification results, and final state.
+
+The run is where user-level events belong because the run is what the user experiences. They do not experience "span 4827." They experience "the agent changed my file after I approved a plan." If that sentence cannot be reconstructed from the logs, the observability model is too low-level.
+
+A useful run record might include:
+
+- requested task
+- visible user context
+- files, records, or browser state selected by the agent
+- tools made available
+- tools actually called
+- approval prompts shown
+- approval decisions
+- output artifacts
+- verification checks
+- user-facing summary
+- rollback pointer
+
+That sounds like a lot, but most of it already exists somewhere. The problem is that it is usually scattered across model telemetry, app logs, queue logs, browser state, and a chat transcript. The user-level event brings the story back together.
+
+## approval is an event, not a button
+
+Approval flows are especially easy to under-log. The UI shows a button. The user clicks it. The agent continues. Later, everyone argues about whether the user approved the thing that actually happened.
+
+An approval event should capture what the user saw at the time:
 
 ~~~json
 {
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
+  "event": "approval_requested",
+  "runId": "run_74",
+  "action": "edit_file",
+  "target": "src/content/blog/agent-observability-needs-user-level-events.mdx",
+  "summaryShown": "replace generated body with rewritten article",
+  "riskShown": "content change only",
+  "approvedBy": "user",
+  "approvedAt": "2025-08-07T10:14:03Z"
 }
 ~~~
 
-The schema is deliberately plain. Fancy schemas do not save unclear agents systems. The useful agents work is deciding which fields are required, which are advisory, and which block the run when missing.
+I care less about the exact schema than the principle: approval has to be replayable. If the user approved "rewrite this paragraph" and the agent edited five files, the system should show that mismatch. If the user approved a tool call without seeing the target, the product should treat that as a design bug.
 
-## Implementation sketch
+This matters even more when agents use tools with side effects. A model-generated explanation after the fact is not enough. The receipt needs to come from the application boundary.
 
-I would implement the first agents pass as a narrow pipeline rather than a general platform. Start agents with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+## failures need product names
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+Agent failures should be grouped by product behavior, not only technical cause.
 
-For agents, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The agents system still has to decide whether the proposal is usable under the current boundary.
+"Tool call failed" is a technical event. "Agent could not update the selected draft" is a product event. "Model exceeded context window" is technical. "Agent lost the user's active file context" is product-level. "Permission denied" is technical. "Agent attempted to read outside approved scope" is product-level.
 
-## Failure modes
+Those names change the incident review. They make the failure legible to people who own the workflow, not only the people who own the infrastructure.
 
-The main agents failure mode is a model path changes and the team notices only after user behavior drifts. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The agents failure is that the next component cannot tell whether the result should be trusted.
+I would track categories like:
 
-I would test at least five agents cases:
+- wrong artifact selected
+- stale context used
+- approval mismatch
+- tool result accepted without verification
+- user intent changed mid-run
+- scope boundary hit
+- rollback unavailable
+- summary contradicted the diff
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+These are not exotic. They are the actual failures that make agents feel untrustworthy.
 
-That last agents case matters. A confident agents answer is not the same thing as a verified result. If agents touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+## metrics that matter
 
-## Deployment shape
+Token count and latency still matter. Cost still matters. But agent observability needs product metrics beside the platform metrics.
 
-I would not deploy agents as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For agents, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+I would start with:
 
-That gives the router real work to do. For agents, it should not only choose small model or big model. It should choose a risk path:
+- run completion rate by task type
+- approval reversal rate
+- verifier disagreement rate
+- stale-context failures
+- wrong-artifact selections
+- tool retries after valid but useless output
+- rollback usage
+- user correction rate
 
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
+That last one is underrated. When users keep correcting an agent after "successful" runs, the system is telling you something. The platform sees success. The product sees cleanup.
 
-Each agents path has a different budget, verifier, and approval requirement. This is the part that makes agents feel less magical and more like infrastructure. The model is still important, but the agents route determines what kind of trust the system is asking for.
+## keep the trace and the story
 
-## Measurement
+The trick is not to replace technical observability with fluffy product logs. Keep the trace. Keep the spans. Keep model latency, token counts, queue timing, tool status, cache hits, and errors.
 
-The measurement surface for agents is quality regression rate, p95 latency, cost per accepted task, and incident replay coverage. I would track agents per route or case type, not only as a global average. Global averages hide the exact class of agents problems that make these systems feel unpredictable.
+Then add the story the user would recognize.
 
-A simple eval table can carry a lot of weight:
+An agent run should be debuggable from both directions. An engineer should be able to start from a slow span and find the product step it belonged to. A product owner should be able to start from "the agent edited the wrong draft" and find the model call, context selection, tool action, and approval event that led there.
 
-~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
-~~~
+That is the observability shape I trust: machine trace plus user-level event log.
 
-The point is not to build an eval cathedral for agents. The point is to preserve enough agents structure that regressions can be clustered. If failures cluster around one route, fix the route. If agents failures cluster around one policy boundary, fix the boundary. If agents failures cluster around one model, stop pretending the prompt is the whole system.
-
-## Operational concerns
-
-The operational question for agents is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap agents route becomes unreliable but the expensive route would blow the budget?
-
-For agents, I would put those answers in configuration, not in a heroic prompt. A small agents policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
-
-## Scaling behavior
-
-At small scale, a human can inspect weird agents cases by hand. At medium scale, the agents system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
-
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the agents system without being surprised by the downstream behavior?
-
-For agents, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the agents system a spine.
-
-## Where I land
-
-Agents deserves depth when it changes architecture, not when it merely sounds current. The agents implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
-
-If the agents post answers those questions, it teaches something. If the agents post only says the topic matters, it is just a longer version of the headline.
+Without both, agents become hard to operate in the most annoying way. They look healthy until someone asks what happened.

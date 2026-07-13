@@ -1,10 +1,10 @@
 {
-  "generatedAt": "2026-07-13T11:35:08.047Z",
+  "generatedAt": "2026-07-13T12:07:20.637Z",
   "distribution": {
     "quick-note": 35,
-    "engineering-note": 36,
-    "technical-deep-dive": 53,
-    "systems-essay": 13
+    "engineering-note": 60,
+    "technical-deep-dive": 35,
+    "systems-essay": 7
   },
   "posts": [
     {
@@ -14,11 +14,11 @@
       "depth": "quick-note",
       "subject": "writing",
       "informationMap": [
-        "the concrete writing problem",
-        "the example surface: a useful backlog stores ideas without turning every old note into a quiet accusation",
-        "the failure mode: the system depends on future energy it has no right to assume",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "task boundary",
+        "source artifact",
+        "state change",
+        "review evidence",
+        "failure case"
       ]
     },
     {
@@ -26,14 +26,15 @@
       "title": "Small model choices still matter",
       "category": "deep-learning-basics",
       "depth": "engineering-note",
-      "subject": "activation functions",
+      "subject": "model",
       "informationMap": [
-        "the concrete activation functions problem",
-        "the example surface: a short note on the small model details that still shape behavior when systems move into production",
-        "the failure mode: the explanation sounds right but the reader cannot reproduce the calculation",
-        "the responsibilities around the runnable example",
-        "the tradeoff between convenience and the exact step where a scalar, vector, matrix, or activation changes shape",
-        "the check or metric: whether the hand calculation, code output, and visual state agree"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk"
       ]
     },
     {
@@ -41,18 +42,17 @@
       "title": "Agent observability needs user-level events",
       "category": "ai-operations",
       "depth": "technical-deep-dive",
-      "subject": "agents",
+      "subject": "agent",
       "informationMap": [
-        "the concrete agents problem",
-        "the example surface: AI operations need logs that explain what the agent did in product terms, not only infrastructure terms",
-        "the failure mode: a model path changes and the team notices only after user behavior drifts",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using quality regression rate, p95 latency, cost per accepted task, and incident replay coverage",
-        "security or ownership boundary: what the model can change without human review",
-        "latency, cost, and scaling implications"
+        "task scope",
+        "tool grant",
+        "context slice",
+        "approval state",
+        "verifier note",
+        "run receipt",
+        "handoff line",
+        "revocation",
+        "stale context"
       ]
     },
     {
@@ -60,18 +60,17 @@
       "title": "Agent runbooks need failure examples",
       "category": "agent-workflows",
       "depth": "technical-deep-dive",
-      "subject": "agents",
+      "subject": "agent",
       "informationMap": [
-        "the concrete agents problem",
-        "the example surface: Runbooks for agents get better when they include the mistakes the agent is expected to make",
-        "the failure mode: the agent finishes a task without leaving enough evidence for a human to trust or resume it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using approval rate, retry count, verifier disagreement, and time from tool call to accepted result",
-        "security or ownership boundary: file access, network access, credential use, and delegation between agents",
-        "latency, cost, and scaling implications"
+        "task scope",
+        "tool grant",
+        "context slice",
+        "approval state",
+        "verifier note",
+        "run receipt",
+        "handoff line",
+        "revocation",
+        "stale context"
       ]
     },
     {
@@ -79,40 +78,34 @@
       "title": "Agents need boring boundaries",
       "category": "advance-deep-learning",
       "depth": "systems-essay",
-      "subject": "agents",
+      "subject": "tool",
       "informationMap": [
-        "the concrete agents problem",
-        "the example surface: an agent that is useful precisely because its filesystem, network, credential, and time boundaries are boring",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "why the obvious solution is insufficient",
-        "system constraints and trust boundaries",
-        "architecture and component responsibilities",
-        "request, event, and evidence flow",
-        "deterministic and semantic verification",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "latency, cost, and scale behavior",
-        "governance, revocation, and escalation",
-        "tradeoffs I would make",
-        "what remains unresolved"
+        "schema shape",
+        "argument check",
+        "idempotency key",
+        "result type",
+        "partial failure",
+        "timeout limit",
+        "permission scope",
+        "tool version",
+        "retry choice",
+        "caller record"
       ]
     },
     {
       "file": "ai-autocomplete-made-code-review-more-important.mdx",
       "title": "AI autocomplete raised the stakes for code review",
       "category": "developer-tools",
-      "depth": "technical-deep-dive",
-      "subject": "code review",
+      "depth": "engineering-note",
+      "subject": "tool",
       "informationMap": [
-        "the concrete code review problem",
-        "the example surface: Autocomplete got good enough to change the texture of everyday programming, but review still has to own the final judgment",
-        "the failure mode: the tool saves a minute while hiding the mistake that costs an afternoon",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using time to diagnose, idempotent reruns, exit-code accuracy, and log usefulness",
-        "security or ownership boundary: what the tool may change without asking",
-        "latency, cost, and scaling implications"
+        "schema shape",
+        "argument check",
+        "idempotency key",
+        "result type",
+        "partial failure",
+        "timeout limit",
+        "permission scope"
       ]
     },
     {
@@ -120,14 +113,15 @@
       "title": "AI-generated UI still needs a design system",
       "category": "design-systems",
       "depth": "engineering-note",
-      "subject": "AI ui",
+      "subject": "design",
       "informationMap": [
-        "the concrete AI ui problem",
-        "the example surface: AI can generate interface pieces quickly, which makes design-system boundaries more important rather than less",
-        "the failure mode: the UI looks consistent while the underlying decisions drift apart",
-        "the responsibilities around the component contract",
-        "the tradeoff between convenience and which decisions belong in tokens, components, product copy, or one-off layout",
-        "the check or metric: token reuse, unsupported variants, visual regression count, and handoff ambiguity"
+        "token meaning",
+        "variant pressure",
+        "state set",
+        "naming rule",
+        "handoff gap",
+        "visual diff",
+        "exception rule"
       ]
     },
     {
@@ -135,13 +129,13 @@
       "title": "AI incident reviews need model context",
       "category": "ai-operations",
       "depth": "quick-note",
-      "subject": "incident review",
+      "subject": "model",
       "informationMap": [
-        "the concrete incident review problem",
-        "the example surface: a user deciding whether an agent should be allowed to continue",
-        "the failure mode: a model path changes and the team notices only after user behavior drifts",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question"
       ]
     },
     {
@@ -149,14 +143,15 @@
       "title": "AI SDK 5 made chat state an interface",
       "category": "web-engineering",
       "depth": "engineering-note",
-      "subject": "AI SDK chat state",
+      "subject": "AI sdk",
       "informationMap": [
-        "the concrete AI SDK chat state problem",
-        "the example surface: Vercel AI SDK 5 treated chat as a typed, customizable application surface instead of a streaming demo",
-        "the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract",
-        "the responsibilities around the rendered page",
-        "the tradeoff between convenience and what the browser, content system, and deployment pipeline each own",
-        "the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time"
+        "task boundary",
+        "source artifact",
+        "state change",
+        "review evidence",
+        "failure case",
+        "measurement slice",
+        "scaling pressure"
       ]
     },
     {
@@ -164,18 +159,17 @@
       "title": "AI SDK 6 made tool approval mainstream",
       "category": "agent-workflows",
       "depth": "technical-deep-dive",
-      "subject": "tool approval",
+      "subject": "tool",
       "informationMap": [
-        "the concrete tool approval problem",
-        "the example surface: a user deciding whether an agent should be allowed to continue",
-        "the failure mode: the agent finishes a task without leaving enough evidence for a human to trust or resume it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using approval rate, retry count, verifier disagreement, and time from tool call to accepted result",
-        "security or ownership boundary: file access, network access, credential use, and delegation between agents",
-        "latency, cost, and scaling implications"
+        "schema shape",
+        "argument check",
+        "idempotency key",
+        "result type",
+        "partial failure",
+        "timeout limit",
+        "permission scope",
+        "tool version",
+        "retry choice"
       ]
     },
     {
@@ -183,13 +177,13 @@
       "title": "AI spend caps belong in product design",
       "category": "security-trust",
       "depth": "quick-note",
-      "subject": "AI cost",
+      "subject": "design",
       "informationMap": [
-        "the concrete AI cost problem",
-        "the example surface: As AI platforms added spend controls, it became clearer that budgets are part of user experience",
-        "the failure mode: the happy path works while the unsafe path stays unnamed",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "token meaning",
+        "variant pressure",
+        "state set",
+        "naming rule",
+        "handoff gap"
       ]
     },
     {
@@ -199,11 +193,11 @@
       "depth": "quick-note",
       "subject": "AI visuals",
       "informationMap": [
-        "the concrete AI visuals problem",
-        "the example surface: AI-generated visuals can help technical writing, but only when the visual teaches something the text cannot",
-        "the failure mode: the visual is interesting but does not teach the system underneath",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "task boundary",
+        "source artifact",
+        "state change",
+        "review evidence",
+        "failure case"
       ]
     },
     {
@@ -211,18 +205,17 @@
       "title": "Approval buttons need context",
       "category": "agent-workflows",
       "depth": "technical-deep-dive",
-      "subject": "agents",
+      "subject": "agent",
       "informationMap": [
-        "the concrete agents problem",
-        "the example surface: a user deciding whether an agent should be allowed to continue",
-        "the failure mode: the agent finishes a task without leaving enough evidence for a human to trust or resume it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using approval rate, retry count, verifier disagreement, and time from tool call to accepted result",
-        "security or ownership boundary: file access, network access, credential use, and delegation between agents",
-        "latency, cost, and scaling implications"
+        "task scope",
+        "tool grant",
+        "context slice",
+        "approval state",
+        "verifier note",
+        "run receipt",
+        "handoff line",
+        "revocation",
+        "stale context"
       ]
     },
     {
@@ -230,14 +223,15 @@
       "title": "Astro 4 brought content sites closer to something bigger",
       "category": "web-engineering",
       "depth": "engineering-note",
-      "subject": "astro",
+      "subject": "web",
       "informationMap": [
-        "the concrete astro problem",
-        "the example surface: Astro 4 landed near the end of 2023, and it made static content work feel more like a serious application surface",
-        "the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract",
-        "the responsibilities around the rendered page",
-        "the tradeoff between convenience and what the browser, content system, and deployment pipeline each own",
-        "the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time"
+        "route contract",
+        "content schema",
+        "browser state",
+        "render check",
+        "a11y pass",
+        "cache rule",
+        "component owner"
       ]
     },
     {
@@ -245,14 +239,15 @@
       "title": "Astro content is a real interface",
       "category": "web-engineering",
       "depth": "engineering-note",
-      "subject": "astro",
+      "subject": "web",
       "informationMap": [
-        "the concrete astro problem",
-        "the example surface: Static content systems still need schema discipline, naming conventions, and boring build checks",
-        "the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract",
-        "the responsibilities around the rendered page",
-        "the tradeoff between convenience and what the browser, content system, and deployment pipeline each own",
-        "the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time"
+        "route contract",
+        "content schema",
+        "browser state",
+        "render check",
+        "a11y pass",
+        "cache rule",
+        "component owner"
       ]
     },
     {
@@ -260,13 +255,13 @@
       "title": "Routing is the quiet part of AI platforms",
       "category": "deep-learning-networks",
       "depth": "quick-note",
-      "subject": "attention",
+      "subject": "routing",
       "informationMap": [
-        "the concrete attention problem",
-        "the example surface: a request with more than one plausible path through the system",
-        "the failure mode: a model choice is treated as isolated even though the surrounding system made the decision",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "route feature",
+        "sensitivity level",
+        "latency budget",
+        "cost ceiling",
+        "fallback branch"
       ]
     },
     {
@@ -274,32 +269,29 @@
       "title": "Audit logs should answer human questions",
       "category": "security-trust",
       "depth": "quick-note",
-      "subject": "audit logs",
+      "subject": "security",
       "informationMap": [
-        "the concrete audit logs problem",
-        "the example surface: Logs should tell a person what happened, who did it, and what changed without a forensic treasure hunt",
-        "the failure mode: the happy path works while the unsafe path stays unnamed",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "ownership test",
+        "permission edge",
+        "attack path",
+        "audit proof",
+        "secret leak"
       ]
     },
     {
       "file": "authorization-is-where-apps-get-personal.mdx",
       "title": "Authorization is where apps get personal",
       "category": "security-trust",
-      "depth": "technical-deep-dive",
+      "depth": "engineering-note",
       "subject": "security",
       "informationMap": [
-        "the concrete security problem",
-        "the example surface: a request that has identity but still needs an ownership check",
-        "the failure mode: the happy path works while the unsafe path stays unnamed",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using denied unsafe actions, ownership check coverage, secret exposure rate, and review latency",
-        "security or ownership boundary: who is allowed to act on which resource, with which evidence",
-        "latency, cost, and scaling implications"
+        "ownership test",
+        "permission edge",
+        "attack path",
+        "audit proof",
+        "secret leak",
+        "least privilege",
+        "revocation"
       ]
     },
     {
@@ -307,14 +299,15 @@
       "title": "Automation should leave a receipt",
       "category": "personal-systems",
       "depth": "engineering-note",
-      "subject": "automation",
+      "subject": "personal",
       "informationMap": [
-        "the concrete automation problem",
-        "the example surface: Personal automation is easier to trust when it leaves a plain record of what it did and why",
-        "the failure mode: the system depends on future energy it has no right to assume",
-        "the responsibilities around the small habit or note",
-        "the tradeoff between convenience and how much friction belongs at capture time versus review time",
-        "the check or metric: review frequency, abandoned draft count, and time to recover context"
+        "capture cost",
+        "review rhythm",
+        "stale note",
+        "energy budget",
+        "recovery cue",
+        "future context",
+        "small habit"
       ]
     },
     {
@@ -322,13 +315,13 @@
       "title": "Being recognized as AI Security Innovator of the Year",
       "category": "security-trust",
       "depth": "quick-note",
-      "subject": "AI security",
+      "subject": "security",
       "informationMap": [
-        "the concrete AI security problem",
-        "the example surface: The Hacker News Cybersecurity Stars Awards recognized me for the AI security work I have been building at Keeper",
-        "the failure mode: the happy path works while the unsafe path stays unnamed",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "ownership test",
+        "permission edge",
+        "attack path",
+        "audit proof",
+        "secret leak"
       ]
     },
     {
@@ -336,13 +329,13 @@
       "title": "Caching AI responses with care",
       "category": "deep-learning-principals",
       "depth": "quick-note",
-      "subject": "caching",
+      "subject": "web",
       "informationMap": [
-        "the concrete caching problem",
-        "the example surface: Caching can make AI apps faster and cheaper, but production systems need careful keys, freshness rules, and safety checks",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "route contract",
+        "content schema",
+        "browser state",
+        "render check",
+        "a11y pass"
       ]
     },
     {
@@ -350,59 +343,50 @@
       "title": "ChatGPT Work pushed desktop agents toward the default",
       "category": "agent-workflows",
       "depth": "systems-essay",
-      "subject": "desktop agents",
+      "subject": "agent",
       "informationMap": [
-        "the concrete desktop agents problem",
-        "the example surface: an agent that can see files, browser state, application context, approvals, and the receipts from its own work",
-        "the failure mode: the agent finishes a task without leaving enough evidence for a human to trust or resume it",
-        "why the obvious solution is insufficient",
-        "system constraints and trust boundaries",
-        "architecture and component responsibilities",
-        "request, event, and evidence flow",
-        "deterministic and semantic verification",
-        "measurement using approval rate, retry count, verifier disagreement, and time from tool call to accepted result",
-        "latency, cost, and scale behavior",
-        "governance, revocation, and escalation",
-        "tradeoffs I would make",
-        "what remains unresolved"
+        "task scope",
+        "tool grant",
+        "context slice",
+        "approval state",
+        "verifier note",
+        "run receipt",
+        "handoff line",
+        "revocation",
+        "stale context",
+        "delegation"
       ]
     },
     {
       "file": "claude-3-5-sonnet-raised-the-baseline-for-workflow-tools.mdx",
       "title": "Claude 3.5 Sonnet raised the baseline for workflow tools",
       "category": "agent-workflows",
-      "depth": "technical-deep-dive",
-      "subject": "claude",
+      "depth": "engineering-note",
+      "subject": "tool",
       "informationMap": [
-        "the concrete claude problem",
-        "the example surface: a model action that crosses from text into a real system",
-        "the failure mode: the agent finishes a task without leaving enough evidence for a human to trust or resume it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using approval rate, retry count, verifier disagreement, and time from tool call to accepted result",
-        "security or ownership boundary: file access, network access, credential use, and delegation between agents",
-        "latency, cost, and scaling implications"
+        "schema shape",
+        "argument check",
+        "idempotency key",
+        "result type",
+        "partial failure",
+        "timeout limit",
+        "permission scope"
       ]
     },
     {
       "file": "claude-3-7-made-thinking-a-product-control.mdx",
       "title": "Claude 3.7 made thinking a product control",
       "category": "deep-learning-networks",
-      "depth": "technical-deep-dive",
-      "subject": "claude",
+      "depth": "engineering-note",
+      "subject": "model",
       "informationMap": [
-        "the concrete claude problem",
-        "the example surface: Claude 3.7 Sonnet made hybrid reasoning visible enough that teams had to decide when thinking should cost time",
-        "the failure mode: a model choice is treated as isolated even though the surrounding system made the decision",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using task success, latency budget, memory footprint, batch behavior, and quality by route",
-        "security or ownership boundary: where the model stops and the serving system starts",
-        "latency, cost, and scaling implications"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk"
       ]
     },
     {
@@ -410,14 +394,15 @@
       "title": "Claude 3 gave the model picker real tradeoffs",
       "category": "model-watch",
       "depth": "engineering-note",
-      "subject": "anthropic",
+      "subject": "model",
       "informationMap": [
-        "the concrete anthropic problem",
-        "the example surface: Claude 3 turned Anthropic's lineup into a practical choice between speed, price, and capability instead of one vague assistant",
-        "the failure mode: the release sounds important without changing any concrete decision",
-        "the responsibilities around the model decision note",
-        "the tradeoff between convenience and what changed in the model versus what changed in the product surface",
-        "the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk"
       ]
     },
     {
@@ -425,14 +410,15 @@
       "title": "Spring 2025 split reasoning into products",
       "category": "model-watch",
       "depth": "engineering-note",
-      "subject": "openai",
+      "subject": "model",
       "informationMap": [
-        "the concrete openai problem",
-        "the example surface: Claude 3.7 Sonnet, Gemini 2.5 Pro, GPT-4.1, o3, and o4-mini made reasoning less like one capability and more like a set of product choices",
-        "the failure mode: the release sounds important without changing any concrete decision",
-        "the responsibilities around the model decision note",
-        "the tradeoff between convenience and what changed in the model versus what changed in the product surface",
-        "the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk"
       ]
     },
     {
@@ -440,71 +426,63 @@
       "title": "Claude 4 and GPT-5 made agent work a maintenance problem",
       "category": "model-watch",
       "depth": "engineering-note",
-      "subject": "anthropic",
+      "subject": "agent",
       "informationMap": [
-        "the concrete anthropic problem",
-        "the example surface: Claude 4 pushed long-running coding agents, then GPT-5 turned automatic reasoning into the default ChatGPT path",
-        "the failure mode: the release sounds important without changing any concrete decision",
-        "the responsibilities around the model decision note",
-        "the tradeoff between convenience and what changed in the model versus what changed in the product surface",
-        "the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work"
+        "task scope",
+        "tool grant",
+        "context slice",
+        "approval state",
+        "verifier note",
+        "run receipt",
+        "handoff line"
       ]
     },
     {
       "file": "claude-4-made-long-running-agent-work-less-hypothetical.mdx",
       "title": "Claude 4 made long-running agent work a planning problem",
       "category": "agent-workflows",
-      "depth": "technical-deep-dive",
-      "subject": "claude",
+      "depth": "engineering-note",
+      "subject": "agent",
       "informationMap": [
-        "the concrete claude problem",
-        "the example surface: Claude 4 pushed the conversation toward sustained coding and agent workflows, which raises the bar for supervision",
-        "the failure mode: the agent finishes a task without leaving enough evidence for a human to trust or resume it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using approval rate, retry count, verifier disagreement, and time from tool call to accepted result",
-        "security or ownership boundary: file access, network access, credential use, and delegation between agents",
-        "latency, cost, and scaling implications"
+        "task scope",
+        "tool grant",
+        "context slice",
+        "approval state",
+        "verifier note",
+        "run receipt",
+        "handoff line"
       ]
     },
     {
       "file": "codex-ga-made-agent-admin-a-real-job.mdx",
       "title": "Codex GA made agent admin a real job",
       "category": "security-trust",
-      "depth": "technical-deep-dive",
-      "subject": "codex",
+      "depth": "engineering-note",
+      "subject": "agent",
       "informationMap": [
-        "the concrete codex problem",
-        "the example surface: When coding agents move from preview into regular team use, admin controls become part of engineering quality",
-        "the failure mode: the happy path works while the unsafe path stays unnamed",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using denied unsafe actions, ownership check coverage, secret exposure rate, and review latency",
-        "security or ownership boundary: who is allowed to act on which resource, with which evidence",
-        "latency, cost, and scaling implications"
+        "task scope",
+        "tool grant",
+        "context slice",
+        "approval state",
+        "verifier note",
+        "run receipt",
+        "handoff line"
       ]
     },
     {
       "file": "codex-made-parallel-agent-work-feel-normal.mdx",
       "title": "Codex made parallel agent work feel normal",
       "category": "agent-workflows",
-      "depth": "technical-deep-dive",
-      "subject": "codex",
+      "depth": "engineering-note",
+      "subject": "agent",
       "informationMap": [
-        "the concrete codex problem",
-        "the example surface: The Codex research preview made it easier to imagine software agents working in separate sandboxes instead of one chat thread",
-        "the failure mode: the agent finishes a task without leaving enough evidence for a human to trust or resume it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using approval rate, retry count, verifier disagreement, and time from tool call to accepted result",
-        "security or ownership boundary: file access, network access, credential use, and delegation between agents",
-        "latency, cost, and scaling implications"
+        "task scope",
+        "tool grant",
+        "context slice",
+        "approval state",
+        "verifier note",
+        "run receipt",
+        "handoff line"
       ]
     },
     {
@@ -512,18 +490,17 @@
       "title": "Codex sandboxing is the agent story I care about",
       "category": "security-trust",
       "depth": "technical-deep-dive",
-      "subject": "Codex sandboxing",
+      "subject": "sandbox",
       "informationMap": [
-        "the concrete Codex sandboxing problem",
-        "the example surface: The interesting agent work in 2026 is less about personality and more about controlled file access, network limits, and recovery",
-        "the failure mode: the happy path works while the unsafe path stays unnamed",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using denied unsafe actions, ownership check coverage, secret exposure rate, and review latency",
-        "security or ownership boundary: who is allowed to act on which resource, with which evidence",
-        "latency, cost, and scaling implications"
+        "path scope",
+        "command list",
+        "network rule",
+        "secret wall",
+        "temporary grant",
+        "receipt log",
+        "workspace lease",
+        "authority drift",
+        "diff view"
       ]
     },
     {
@@ -531,14 +508,15 @@
       "title": "CSS gets better when it has fewer opinions",
       "category": "web-engineering",
       "depth": "engineering-note",
-      "subject": "design systems",
+      "subject": "design",
       "informationMap": [
-        "the concrete design systems problem",
-        "the example surface: Most site styling improves when the design system has fewer special cases and more predictable defaults",
-        "the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract",
-        "the responsibilities around the rendered page",
-        "the tradeoff between convenience and what the browser, content system, and deployment pipeline each own",
-        "the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time"
+        "token meaning",
+        "variant pressure",
+        "state set",
+        "naming rule",
+        "handoff gap",
+        "visual diff",
+        "exception rule"
       ]
     },
     {
@@ -546,18 +524,17 @@
       "title": "Data cleaning is model work",
       "category": "deep-learning-principals",
       "depth": "technical-deep-dive",
-      "subject": "data cleaning",
+      "subject": "data",
       "informationMap": [
-        "the concrete data cleaning problem",
-        "the example surface: Better data often improves AI systems more than another round of prompt tweaks",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "security or ownership boundary: what must be proven before the change is trusted",
-        "latency, cost, and scaling implications"
+        "source meaning",
+        "schema drift",
+        "freshness test",
+        "join quality",
+        "contract check",
+        "lineage note",
+        "missing value",
+        "retention",
+        "consumer need"
       ]
     },
     {
@@ -565,18 +542,17 @@
       "title": "Data contracts are where AI quality starts",
       "category": "data-engineering",
       "depth": "technical-deep-dive",
-      "subject": "data contracts",
+      "subject": "data",
       "informationMap": [
-        "the concrete data contracts problem",
-        "the example surface: a boundary where two systems can disagree without noticing",
-        "the failure mode: the pipeline produces output after the meaning of a field has moved",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using schema drift, null-rate changes, freshness, join quality, and contract failures",
-        "security or ownership boundary: where raw data becomes a product promise",
-        "latency, cost, and scaling implications"
+        "source meaning",
+        "schema drift",
+        "freshness test",
+        "join quality",
+        "contract check",
+        "lineage note",
+        "missing value",
+        "retention",
+        "consumer need"
       ]
     },
     {
@@ -584,14 +560,15 @@
       "title": "Batch processing stops the lesson from lying",
       "category": "deep-learning-basics",
       "depth": "engineering-note",
-      "subject": "batching",
+      "subject": "learning",
       "informationMap": [
-        "the concrete batching problem",
-        "the example surface: Why running several inputs at once gives a more honest picture of what a model is doing",
-        "the failure mode: the explanation sounds right but the reader cannot reproduce the calculation",
-        "the responsibilities around the runnable example",
-        "the tradeoff between convenience and the exact step where a scalar, vector, matrix, or activation changes shape",
-        "the check or metric: whether the hand calculation, code output, and visual state agree"
+        "input shape",
+        "worked step",
+        "wrong guess",
+        "run check",
+        "visual state",
+        "debug point",
+        "notation gap"
       ]
     },
     {
@@ -599,14 +576,15 @@
       "title": "Backpropagation is bookkeeping with consequences",
       "category": "deep-learning-basics",
       "depth": "engineering-note",
-      "subject": "backpropagation",
+      "subject": "learning",
       "informationMap": [
-        "the concrete backpropagation problem",
-        "the example surface: a slower explanation of gradients, loss, and weight updates for people who want the mechanism without the fog machine",
-        "the failure mode: the explanation sounds right but the reader cannot reproduce the calculation",
-        "the responsibilities around the runnable example",
-        "the tradeoff between convenience and the exact step where a scalar, vector, matrix, or activation changes shape",
-        "the check or metric: whether the hand calculation, code output, and visual state agree"
+        "input shape",
+        "worked step",
+        "wrong guess",
+        "run check",
+        "visual state",
+        "debug point",
+        "notation gap"
       ]
     },
     {
@@ -614,14 +592,15 @@
       "title": "Four neurons are enough to expose the wiring",
       "category": "deep-learning-basics",
       "depth": "engineering-note",
-      "subject": "neural networks",
+      "subject": "learning",
       "informationMap": [
-        "the concrete neural networks problem",
-        "the example surface: a grounded walkthrough of a small neural network where the important part is the shape of the calculation",
-        "the failure mode: the explanation sounds right but the reader cannot reproduce the calculation",
-        "the responsibilities around the runnable example",
-        "the tradeoff between convenience and the exact step where a scalar, vector, matrix, or activation changes shape",
-        "the check or metric: whether the hand calculation, code output, and visual state agree"
+        "input shape",
+        "worked step",
+        "wrong guess",
+        "run check",
+        "visual state",
+        "debug point",
+        "notation gap"
       ]
     },
     {
@@ -629,14 +608,15 @@
       "title": "Matrix multiplication is the first batch trick",
       "category": "deep-learning-basics",
       "depth": "engineering-note",
-      "subject": "matrices",
+      "subject": "learning",
       "informationMap": [
-        "the concrete matrices problem",
-        "the example surface: a practical note on why neural network examples turn into matrices as soon as more than one example shows up",
-        "the failure mode: the explanation sounds right but the reader cannot reproduce the calculation",
-        "the responsibilities around the runnable example",
-        "the tradeoff between convenience and the exact step where a scalar, vector, matrix, or activation changes shape",
-        "the check or metric: whether the hand calculation, code output, and visual state agree"
+        "input shape",
+        "worked step",
+        "wrong guess",
+        "run check",
+        "visual state",
+        "debug point",
+        "notation gap"
       ]
     },
     {
@@ -644,14 +624,15 @@
       "title": "A single neuron is less mysterious when you run the numbers",
       "category": "deep-learning-basics",
       "depth": "engineering-note",
-      "subject": "neural networks",
+      "subject": "learning",
       "informationMap": [
-        "the concrete neural networks problem",
-        "the example surface: a slower, more practical walkthrough of weights, bias, ReLU, and the first little model worth drawing by hand",
-        "the failure mode: the explanation sounds right but the reader cannot reproduce the calculation",
-        "the responsibilities around the runnable example",
-        "the tradeoff between convenience and the exact step where a scalar, vector, matrix, or activation changes shape",
-        "the check or metric: whether the hand calculation, code output, and visual state agree"
+        "input shape",
+        "worked step",
+        "wrong guess",
+        "run check",
+        "visual state",
+        "debug point",
+        "notation gap"
       ]
     },
     {
@@ -659,14 +640,15 @@
       "title": "Hidden layers are just intermediate guesses",
       "category": "deep-learning-basics",
       "depth": "engineering-note",
-      "subject": "hidden layers",
+      "subject": "learning",
       "informationMap": [
-        "the concrete hidden layers problem",
-        "the example surface: a plain-language explanation of hidden layers, why they help, and why the word hidden makes them sound stranger than they are",
-        "the failure mode: the explanation sounds right but the reader cannot reproduce the calculation",
-        "the responsibilities around the runnable example",
-        "the tradeoff between convenience and the exact step where a scalar, vector, matrix, or activation changes shape",
-        "the check or metric: whether the hand calculation, code output, and visual state agree"
+        "input shape",
+        "worked step",
+        "wrong guess",
+        "run check",
+        "visual state",
+        "debug point",
+        "notation gap"
       ]
     },
     {
@@ -674,14 +656,15 @@
       "title": "An MLP is a stack of small calculations",
       "category": "deep-learning-basics",
       "depth": "engineering-note",
-      "subject": "neural networks",
+      "subject": "learning",
       "informationMap": [
-        "the concrete neural networks problem",
-        "the example surface: a patient walkthrough of multi-layer perceptrons without pretending the acronym is more important than the arithmetic",
-        "the failure mode: the explanation sounds right but the reader cannot reproduce the calculation",
-        "the responsibilities around the runnable example",
-        "the tradeoff between convenience and the exact step where a scalar, vector, matrix, or activation changes shape",
-        "the check or metric: whether the hand calculation, code output, and visual state agree"
+        "input shape",
+        "worked step",
+        "wrong guess",
+        "run check",
+        "visual state",
+        "debug point",
+        "notation gap"
       ]
     },
     {
@@ -689,14 +672,15 @@
       "title": "DeepSeek, Kimi, and MiniMax made open reasoning cheaper",
       "category": "model-watch",
       "depth": "engineering-note",
-      "subject": "deepseek",
+      "subject": "model",
       "informationMap": [
-        "the concrete deepseek problem",
-        "the example surface: The 2025 Chinese open-weight wave changed the cost story around reasoning, coding, and agentic model work",
-        "the failure mode: the release sounds important without changing any concrete decision",
-        "the responsibilities around the model decision note",
-        "the tradeoff between convenience and what changed in the model versus what changed in the product surface",
-        "the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk"
       ]
     },
     {
@@ -704,13 +688,13 @@
       "title": "Dependencies are part of the threat model",
       "category": "security-trust",
       "depth": "quick-note",
-      "subject": "dependencies",
+      "subject": "security",
       "informationMap": [
-        "the concrete dependencies problem",
-        "the example surface: Package choices affect security, maintenance, performance, and how quickly a team can patch",
-        "the failure mode: the happy path works while the unsafe path stays unnamed",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "ownership test",
+        "permission edge",
+        "attack path",
+        "audit proof",
+        "secret leak"
       ]
     },
     {
@@ -718,14 +702,15 @@
       "title": "Design tokens need owners",
       "category": "design-systems",
       "depth": "engineering-note",
-      "subject": "design tokens",
+      "subject": "design",
       "informationMap": [
-        "the concrete design tokens problem",
-        "the example surface: a design decision that needs a name before it spreads",
-        "the failure mode: the UI looks consistent while the underlying decisions drift apart",
-        "the responsibilities around the component contract",
-        "the tradeoff between convenience and which decisions belong in tokens, components, product copy, or one-off layout",
-        "the check or metric: token reuse, unsupported variants, visual regression count, and handoff ambiguity"
+        "token meaning",
+        "variant pressure",
+        "state set",
+        "naming rule",
+        "handoff gap",
+        "visual diff",
+        "exception rule"
       ]
     },
     {
@@ -733,59 +718,51 @@
       "title": "Generative systems need constraints",
       "category": "advance-deep-learning",
       "depth": "technical-deep-dive",
-      "subject": "diffusion",
+      "subject": "model",
       "informationMap": [
-        "the concrete diffusion problem",
-        "the example surface: Generative AI is useful when the system has constraints, review paths, and clear expectations for output quality",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "security or ownership boundary: what must be proven before the change is trusted",
-        "latency, cost, and scaling implications"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk",
+        "fallback plan",
+        "retirement"
       ]
     },
     {
       "file": "distillation-and-smaller-teachers.mdx",
       "title": "Smaller models belong in the architecture",
       "category": "deep-learning-networks",
-      "depth": "systems-essay",
-      "subject": "distillation",
+      "depth": "technical-deep-dive",
+      "subject": "model",
       "informationMap": [
-        "the concrete distillation problem",
-        "the example surface: a practical note on using smaller models for focused jobs instead of sending every request to the largest model",
-        "the failure mode: a model choice is treated as isolated even though the surrounding system made the decision",
-        "why the obvious solution is insufficient",
-        "system constraints and trust boundaries",
-        "architecture and component responsibilities",
-        "request, event, and evidence flow",
-        "deterministic and semantic verification",
-        "measurement using task success, latency budget, memory footprint, batch behavior, and quality by route",
-        "latency, cost, and scale behavior",
-        "governance, revocation, and escalation",
-        "tradeoffs I would make",
-        "what remains unresolved"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk",
+        "fallback plan",
+        "retirement"
       ]
     },
     {
       "file": "duckdb-made-local-analytics-feel-normal.mdx",
       "title": "DuckDB made local analytics feel normal",
       "category": "data-engineering",
-      "depth": "technical-deep-dive",
-      "subject": "duckdb",
+      "depth": "engineering-note",
+      "subject": "local",
       "informationMap": [
-        "the concrete duckdb problem",
-        "the example surface: software that keeps working when the network stops helping",
-        "the failure mode: the pipeline produces output after the meaning of a field has moved",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using schema drift, null-rate changes, freshness, join quality, and contract failures",
-        "security or ownership boundary: where raw data becomes a product promise",
-        "latency, cost, and scaling implications"
+        "port owner",
+        "PID file",
+        "reset path",
+        "signal trap",
+        "seed state",
+        "stale process",
+        "log path"
       ]
     },
     {
@@ -793,40 +770,35 @@
       "title": "Embeddings are product plumbing",
       "category": "deep-learning-principals",
       "depth": "technical-deep-dive",
-      "subject": "embeddings",
+      "subject": "embedding",
       "informationMap": [
-        "the concrete embeddings problem",
-        "the example surface: a retrieval system that has to prove it found the right neighborhood, not just a nearby vector",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "security or ownership boundary: what must be proven before the change is trusted",
-        "latency, cost, and scaling implications"
+        "encoder choice",
+        "normalization rule",
+        "chunk boundary",
+        "metadata filter",
+        "neighbor index",
+        "hard negative",
+        "rerank pass",
+        "permission filter",
+        "recall score"
       ]
     },
     {
       "file": "eval-dashboards-for-real-feedback.mdx",
       "title": "Eval dashboards for real feedback",
       "category": "advance-deep-learning",
-      "depth": "systems-essay",
-      "subject": "evals",
+      "depth": "technical-deep-dive",
+      "subject": "eval",
       "informationMap": [
-        "the concrete evals problem",
-        "the example surface: a team arguing about whether the model improved or merely changed",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "why the obvious solution is insufficient",
-        "system constraints and trust boundaries",
-        "architecture and component responsibilities",
-        "request, event, and evidence flow",
-        "deterministic and semantic verification",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "latency, cost, and scale behavior",
-        "governance, revocation, and escalation",
-        "tradeoffs I would make",
-        "what remains unresolved"
+        "eval unit",
+        "baseline run",
+        "slice miss",
+        "judge variance",
+        "fixture source",
+        "regression gate",
+        "CI block",
+        "model version",
+        "failure cluster"
       ]
     },
     {
@@ -834,40 +806,34 @@
       "title": "Evals are how AI teams stay honest",
       "category": "deep-learning-principals",
       "depth": "systems-essay",
-      "subject": "evals",
+      "subject": "eval",
       "informationMap": [
-        "the concrete evals problem",
-        "the example surface: an evaluation suite that catches a regression before a model swap quietly changes product behavior",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "why the obvious solution is insufficient",
-        "system constraints and trust boundaries",
-        "architecture and component responsibilities",
-        "request, event, and evidence flow",
-        "deterministic and semantic verification",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "latency, cost, and scale behavior",
-        "governance, revocation, and escalation",
-        "tradeoffs I would make",
-        "what remains unresolved"
+        "eval unit",
+        "baseline run",
+        "slice miss",
+        "judge variance",
+        "fixture source",
+        "regression gate",
+        "CI block",
+        "model version",
+        "failure cluster",
+        "deploy stop"
       ]
     },
     {
       "file": "evals-before-agent-hype.mdx",
       "title": "Evals should have come before agent hype",
       "category": "deep-learning-principals",
-      "depth": "technical-deep-dive",
-      "subject": "evals",
+      "depth": "engineering-note",
+      "subject": "eval",
       "informationMap": [
-        "the concrete evals problem",
-        "the example surface: a team arguing about whether the model improved or merely changed",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "security or ownership boundary: what must be proven before the change is trusted",
-        "latency, cost, and scaling implications"
+        "eval unit",
+        "baseline run",
+        "slice miss",
+        "judge variance",
+        "fixture source",
+        "regression gate",
+        "CI block"
       ]
     },
     {
@@ -875,14 +841,15 @@
       "title": "Fable 5, Sonnet 5, and GPT-5.6 raised the safety and routing bar",
       "category": "model-watch",
       "depth": "engineering-note",
-      "subject": "anthropic",
+      "subject": "routing",
       "informationMap": [
-        "the concrete anthropic problem",
-        "the example surface: a request with more than one plausible path through the system",
-        "the failure mode: the release sounds important without changing any concrete decision",
-        "the responsibilities around the model decision note",
-        "the tradeoff between convenience and what changed in the model versus what changed in the product surface",
-        "the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work"
+        "route feature",
+        "sensitivity level",
+        "latency budget",
+        "cost ceiling",
+        "fallback branch",
+        "policy denial",
+        "model inventory"
       ]
     },
     {
@@ -892,11 +859,11 @@
       "depth": "quick-note",
       "subject": "feature flags",
       "informationMap": [
-        "the concrete feature flags problem",
-        "the example surface: Flags are not just rollout switches. They record uncertainty, ownership, and the path back",
-        "the failure mode: the feature works in the happy path but leaves the user guessing at the boundary",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "task boundary",
+        "source artifact",
+        "state change",
+        "review evidence",
+        "failure case"
       ]
     },
     {
@@ -906,11 +873,11 @@
       "depth": "quick-note",
       "subject": "figma",
       "informationMap": [
-        "the concrete figma problem",
-        "the example surface: Figma Dev Mode made handoff feel less like a screenshot exchange and more like an inspectable workflow",
-        "the failure mode: the feature works in the happy path but leaves the user guessing at the boundary",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "task boundary",
+        "source artifact",
+        "state change",
+        "review evidence",
+        "failure case"
       ]
     },
     {
@@ -918,35 +885,31 @@
       "title": "Figma Dev Mode made components easier to inspect",
       "category": "design-systems",
       "depth": "quick-note",
-      "subject": "figma",
+      "subject": "design",
       "informationMap": [
-        "the concrete figma problem",
-        "the example surface: Dev Mode made design-system drift easier to see because the design file became more inspectable by developers",
-        "the failure mode: the UI looks consistent while the underlying decisions drift apart",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "token meaning",
+        "variant pressure",
+        "state set",
+        "naming rule",
+        "handoff gap"
       ]
     },
     {
       "file": "fine-tuning-is-not-a-shortcut.mdx",
       "title": "Fine-tuning is not a shortcut",
       "category": "advance-deep-learning",
-      "depth": "systems-essay",
-      "subject": "fine tuning",
+      "depth": "technical-deep-dive",
+      "subject": "fine",
       "informationMap": [
-        "the concrete fine tuning problem",
-        "the example surface: a team arguing about whether the model improved or merely changed",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "why the obvious solution is insufficient",
-        "system constraints and trust boundaries",
-        "architecture and component responsibilities",
-        "request, event, and evidence flow",
-        "deterministic and semantic verification",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "latency, cost, and scale behavior",
-        "governance, revocation, and escalation",
-        "tradeoffs I would make",
-        "what remains unresolved"
+        "frozen baseline",
+        "behavioral delta",
+        "label disagreement",
+        "holdout split",
+        "checkpoint comparison",
+        "regression slice",
+        "training configuration",
+        "rollback gate",
+        "contamination check"
       ]
     },
     {
@@ -954,13 +917,13 @@
       "title": "Forms are where product quality leaks",
       "category": "product-engineering",
       "depth": "quick-note",
-      "subject": "forms",
+      "subject": "web",
       "informationMap": [
-        "the concrete forms problem",
-        "the example surface: Form quality shows up in pending, failed, duplicate, and partially valid states more than in the first screenshot",
-        "the failure mode: the feature works in the happy path but leaves the user guessing at the boundary",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "route contract",
+        "content schema",
+        "browser state",
+        "render check",
+        "a11y pass"
       ]
     },
     {
@@ -968,33 +931,31 @@
       "title": "Forms deserve the boring states",
       "category": "web-engineering",
       "depth": "engineering-note",
-      "subject": "forms",
+      "subject": "web",
       "informationMap": [
-        "the concrete forms problem",
-        "the example surface: The quality of a form shows up in loading, empty, invalid, and submitted states, not just the first screenshot",
-        "the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract",
-        "the responsibilities around the rendered page",
-        "the tradeoff between convenience and what the browser, content system, and deployment pipeline each own",
-        "the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time"
+        "route contract",
+        "content schema",
+        "browser state",
+        "render check",
+        "a11y pass",
+        "cache rule",
+        "component owner"
       ]
     },
     {
       "file": "fresh-context-review-is-not-bureaucracy.mdx",
       "title": "Fresh context review is not bureaucracy",
       "category": "agent-workflows",
-      "depth": "technical-deep-dive",
-      "subject": "verification",
+      "depth": "engineering-note",
+      "subject": "agent",
       "informationMap": [
-        "the concrete verification problem",
-        "the example surface: Verifier agents catch different failures when they are not soaked in the builder rationale",
-        "the failure mode: the agent finishes a task without leaving enough evidence for a human to trust or resume it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using approval rate, retry count, verifier disagreement, and time from tool call to accepted result",
-        "security or ownership boundary: file access, network access, credential use, and delegation between agents",
-        "latency, cost, and scaling implications"
+        "task scope",
+        "tool grant",
+        "context slice",
+        "approval state",
+        "verifier note",
+        "run receipt",
+        "handoff line"
       ]
     },
     {
@@ -1002,14 +963,15 @@
       "title": "Gemini 1 arrived with a multimodal reset",
       "category": "model-watch",
       "depth": "engineering-note",
-      "subject": "google",
+      "subject": "multimodal",
       "informationMap": [
-        "the concrete google problem",
-        "the example surface: Google's Gemini 1.0 launch was not only about catching GPT-4. It was Google saying the next model fight would be multimodal and tiered",
-        "the failure mode: the release sounds important without changing any concrete decision",
-        "the responsibilities around the model decision note",
-        "the tradeoff between convenience and what changed in the model versus what changed in the product surface",
-        "the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work"
+        "modality encoder",
+        "shared space",
+        "OCR doubt",
+        "region crop",
+        "audio window",
+        "video sample",
+        "evidence join"
       ]
     },
     {
@@ -1017,14 +979,15 @@
       "title": "Gemini 1.5 made long context the main event",
       "category": "model-watch",
       "depth": "engineering-note",
-      "subject": "google",
+      "subject": "model",
       "informationMap": [
-        "the concrete google problem",
-        "the example surface: Gemini 1.5 Pro changed the Google story from catch-up to a specific advantage: very large context across mixed media",
-        "the failure mode: the release sounds important without changing any concrete decision",
-        "the responsibilities around the model decision note",
-        "the tradeoff between convenience and what changed in the model versus what changed in the product surface",
-        "the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk"
       ]
     },
     {
@@ -1032,18 +995,17 @@
       "title": "Gemini 2.5 made long context feel operational",
       "category": "advance-deep-learning",
       "depth": "technical-deep-dive",
-      "subject": "gemini",
+      "subject": "model",
       "informationMap": [
-        "the concrete gemini problem",
-        "the example surface: Gemini 2.5 Pro pushed long-context reasoning further into ordinary developer planning and product work",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "security or ownership boundary: what must be proven before the change is trusted",
-        "latency, cost, and scaling implications"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk",
+        "fallback plan",
+        "retirement"
       ]
     },
     {
@@ -1051,33 +1013,31 @@
       "title": "Gemma and Phi made small models feel serious again",
       "category": "model-watch",
       "depth": "engineering-note",
-      "subject": "gemma",
+      "subject": "model",
       "informationMap": [
-        "the concrete gemma problem",
-        "the example surface: Google Gemma and Microsoft Phi-3 pushed small open models into the product conversation instead of leaving them as demo hardware toys",
-        "the failure mode: the release sounds important without changing any concrete decision",
-        "the responsibilities around the model decision note",
-        "the tradeoff between convenience and what changed in the model versus what changed in the product surface",
-        "the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk"
       ]
     },
     {
       "file": "git-history-should-explain-the-decision.mdx",
       "title": "Git history should explain the decision",
       "category": "developer-tools",
-      "depth": "technical-deep-dive",
-      "subject": "commits",
+      "depth": "engineering-note",
+      "subject": "git",
       "informationMap": [
-        "the concrete commits problem",
-        "the example surface: a commit message is one of the cheapest places to preserve why a change happened",
-        "the failure mode: the tool saves a minute while hiding the mistake that costs an afternoon",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using time to diagnose, idempotent reruns, exit-code accuracy, and log usefulness",
-        "security or ownership boundary: what the tool may change without asking",
-        "latency, cost, and scaling implications"
+        "task boundary",
+        "source artifact",
+        "state change",
+        "review evidence",
+        "failure case",
+        "measurement slice",
+        "scaling pressure"
       ]
     },
     {
@@ -1085,56 +1045,49 @@
       "title": "GLiNER turned entity extraction into a small-model job",
       "category": "model-watch",
       "depth": "technical-deep-dive",
-      "subject": "gliner",
+      "subject": "model",
       "informationMap": [
-        "the concrete gliner problem",
-        "the example surface: GLiNER was a useful reminder that not every language task needs a decoder LLM pretending to be a classifier",
-        "the failure mode: the release sounds important without changing any concrete decision",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using route changes, eval deltas, latency movement, cost movement, and migration work",
-        "security or ownership boundary: what changed in the model versus what changed in the product surface",
-        "latency, cost, and scaling implications"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk",
+        "fallback plan",
+        "retirement"
       ]
     },
     {
       "file": "good-cli-output-is-a-kind-of-api.mdx",
       "title": "Good CLI output is a kind of API",
       "category": "developer-tools",
-      "depth": "technical-deep-dive",
-      "subject": "developer tools",
+      "depth": "engineering-note",
+      "subject": "tool",
       "informationMap": [
-        "the concrete developer tools problem",
-        "the example surface: Terminal output should be written for the person debugging at 11 p.m., not for the happy path demo",
-        "the failure mode: the tool saves a minute while hiding the mistake that costs an afternoon",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using time to diagnose, idempotent reruns, exit-code accuracy, and log usefulness",
-        "security or ownership boundary: what the tool may change without asking",
-        "latency, cost, and scaling implications"
+        "schema shape",
+        "argument check",
+        "idempotency key",
+        "result type",
+        "partial failure",
+        "timeout limit",
+        "permission scope"
       ]
     },
     {
       "file": "gpt-4-1-made-coding-models-feel-specialized.mdx",
       "title": "GPT-4.1 made coding models feel specialized",
       "category": "developer-tools",
-      "depth": "technical-deep-dive",
-      "subject": "GPT 4.1",
+      "depth": "engineering-note",
+      "subject": "model",
       "informationMap": [
-        "the concrete GPT 4.1 problem",
-        "the example surface: The GPT-4.1 API release made it clearer that coding performance is a product choice, not one generic model score",
-        "the failure mode: the tool saves a minute while hiding the mistake that costs an afternoon",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using time to diagnose, idempotent reruns, exit-code accuracy, and log usefulness",
-        "security or ownership boundary: what the tool may change without asking",
-        "latency, cost, and scaling implications"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk"
       ]
     },
     {
@@ -1142,14 +1095,15 @@
       "title": "GPT-4 Turbo made context a product budget",
       "category": "model-watch",
       "depth": "engineering-note",
-      "subject": "openai",
+      "subject": "model",
       "informationMap": [
-        "the concrete openai problem",
-        "the example surface: OpenAI's DevDay launch made bigger context windows feel like something product teams had to price, test, and explain",
-        "the failure mode: the release sounds important without changing any concrete decision",
-        "the responsibilities around the model decision note",
-        "the tradeoff between convenience and what changed in the model versus what changed in the product surface",
-        "the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk"
       ]
     },
     {
@@ -1157,14 +1111,15 @@
       "title": "GPT-4o and Claude 3.5 Sonnet compressed the frontier",
       "category": "model-watch",
       "depth": "engineering-note",
-      "subject": "openai",
+      "subject": "model",
       "informationMap": [
-        "the concrete openai problem",
-        "the example surface: The May and June 2024 launches made frontier quality feel faster, cheaper, more visual, and harder to rank with one benchmark",
-        "the failure mode: the release sounds important without changing any concrete decision",
-        "the responsibilities around the model decision note",
-        "the tradeoff between convenience and what changed in the model versus what changed in the product surface",
-        "the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk"
       ]
     },
     {
@@ -1172,18 +1127,17 @@
       "title": "GPT-4o made multimodal product work real",
       "category": "advance-deep-learning",
       "depth": "technical-deep-dive",
-      "subject": "GPT 4o",
+      "subject": "multimodal",
       "informationMap": [
-        "the concrete GPT 4o problem",
-        "the example surface: The GPT-4o launch made audio, vision, and text feel like one product surface instead of three demos",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "security or ownership boundary: what must be proven before the change is trusted",
-        "latency, cost, and scaling implications"
+        "modality encoder",
+        "shared space",
+        "OCR doubt",
+        "region crop",
+        "audio window",
+        "video sample",
+        "evidence join",
+        "grounding check",
+        "review correction"
       ]
     },
     {
@@ -1191,37 +1145,33 @@
       "title": "Guardrails are product decisions",
       "category": "advance-deep-learning",
       "depth": "technical-deep-dive",
-      "subject": "guardrails",
+      "subject": "design",
       "informationMap": [
-        "the concrete guardrails problem",
-        "the example surface: AI guardrails define what a product should do, refuse, explain, log, and escalate",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "security or ownership boundary: what must be proven before the change is trusted",
-        "latency, cost, and scaling implications"
+        "token meaning",
+        "variant pressure",
+        "state set",
+        "naming rule",
+        "handoff gap",
+        "visual diff",
+        "exception rule",
+        "consumer API",
+        "migration path"
       ]
     },
     {
       "file": "handoffs-are-part-of-the-agent.mdx",
       "title": "Handoffs are part of the agent",
       "category": "agent-workflows",
-      "depth": "technical-deep-dive",
-      "subject": "agents",
+      "depth": "engineering-note",
+      "subject": "agent",
       "informationMap": [
-        "the concrete agents problem",
-        "the example surface: a handoff file is not ceremony. It is how an agent leaves enough state for the next run to be useful",
-        "the failure mode: the agent finishes a task without leaving enough evidence for a human to trust or resume it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using approval rate, retry count, verifier disagreement, and time from tool call to accepted result",
-        "security or ownership boundary: file access, network access, credential use, and delegation between agents",
-        "latency, cost, and scaling implications"
+        "task scope",
+        "tool grant",
+        "context slice",
+        "approval state",
+        "verifier note",
+        "run receipt",
+        "handoff line"
       ]
     },
     {
@@ -1231,11 +1181,11 @@
       "depth": "quick-note",
       "subject": "security",
       "informationMap": [
-        "the concrete security problem",
-        "the example surface: Validation rules are not just defensive code. They describe what the product accepts as real",
-        "the failure mode: the happy path works while the unsafe path stays unnamed",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "ownership test",
+        "permission edge",
+        "attack path",
+        "audit proof",
+        "secret leak"
       ]
     },
     {
@@ -1245,11 +1195,11 @@
       "depth": "quick-note",
       "subject": "interactive essays",
       "informationMap": [
-        "the concrete interactive essays problem",
-        "the example surface: an interactive technical essay should let the reader change the system, not just admire a captured result",
-        "the failure mode: the visual is interesting but does not teach the system underneath",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "task boundary",
+        "source artifact",
+        "state change",
+        "review evidence",
+        "failure case"
       ]
     },
     {
@@ -1259,11 +1209,11 @@
       "depth": "quick-note",
       "subject": "kubernetes",
       "informationMap": [
-        "the concrete kubernetes problem",
-        "the example surface: Kubernetes releases are a calendar discipline, not just a cluster administrator concern",
-        "the failure mode: a model path changes and the team notices only after user behavior drifts",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "task boundary",
+        "source artifact",
+        "state change",
+        "review evidence",
+        "failure case"
       ]
     },
     {
@@ -1271,13 +1221,13 @@
       "title": "LFM made small models an architecture question",
       "category": "model-watch",
       "depth": "quick-note",
-      "subject": "liquid AI",
+      "subject": "model",
       "informationMap": [
-        "the concrete liquid AI problem",
-        "the example surface: Liquid Foundation Models made small language models feel less like compressed LLMs and more like a different design bet",
-        "the failure mode: the release sounds important without changing any concrete decision",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question"
       ]
     },
     {
@@ -1285,33 +1235,29 @@
       "title": "Llama 3 and 3.1 made open weight the default baseline",
       "category": "model-watch",
       "depth": "engineering-note",
-      "subject": "meta",
+      "subject": "model",
       "informationMap": [
-        "the concrete meta problem",
-        "the example surface: Meta's 2024 Llama releases changed the question from whether to test open weights to where they fit in the stack",
-        "the failure mode: the release sounds important without changing any concrete decision",
-        "the responsibilities around the model decision note",
-        "the tradeoff between convenience and what changed in the model versus what changed in the product surface",
-        "the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk"
       ]
     },
     {
       "file": "local-dev-needs-an-exit-ramp.mdx",
       "title": "Local dev needs an exit ramp",
       "category": "developer-tools",
-      "depth": "technical-deep-dive",
-      "subject": "dev servers",
+      "depth": "quick-note",
+      "subject": "local",
       "informationMap": [
-        "the concrete dev servers problem",
-        "the example surface: software that keeps working when the network stops helping",
-        "the failure mode: the tool saves a minute while hiding the mistake that costs an afternoon",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using time to diagnose, idempotent reruns, exit-code accuracy, and log usefulness",
-        "security or ownership boundary: what the tool may change without asking",
-        "latency, cost, and scaling implications"
+        "port owner",
+        "PID file",
+        "reset path",
+        "signal trap",
+        "seed state"
       ]
     },
     {
@@ -1319,18 +1265,17 @@
       "title": "Local models are part of the platform",
       "category": "deep-learning-networks",
       "depth": "technical-deep-dive",
-      "subject": "local models",
+      "subject": "local",
       "informationMap": [
-        "the concrete local models problem",
-        "the example surface: software that keeps working when the network stops helping",
-        "the failure mode: a model choice is treated as isolated even though the surrounding system made the decision",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using task success, latency budget, memory footprint, batch behavior, and quality by route",
-        "security or ownership boundary: where the model stops and the serving system starts",
-        "latency, cost, and scaling implications"
+        "port owner",
+        "PID file",
+        "reset path",
+        "signal trap",
+        "seed state",
+        "stale process",
+        "log path",
+        "health probe",
+        "env drift"
       ]
     },
     {
@@ -1338,18 +1283,17 @@
       "title": "Long context changed retrieval expectations",
       "category": "deep-learning-networks",
       "depth": "technical-deep-dive",
-      "subject": "long context",
+      "subject": "eval",
       "informationMap": [
-        "the concrete long context problem",
-        "the example surface: a team arguing about whether the model improved or merely changed",
-        "the failure mode: a model choice is treated as isolated even though the surrounding system made the decision",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using task success, latency budget, memory footprint, batch behavior, and quality by route",
-        "security or ownership boundary: where the model stops and the serving system starts",
-        "latency, cost, and scaling implications"
+        "eval unit",
+        "baseline run",
+        "slice miss",
+        "judge variance",
+        "fixture source",
+        "regression gate",
+        "CI block",
+        "model version",
+        "failure cluster"
       ]
     },
     {
@@ -1357,13 +1301,13 @@
       "title": "Maintenance days are real work",
       "category": "personal-systems",
       "depth": "quick-note",
-      "subject": "maintenance",
+      "subject": "personal",
       "informationMap": [
-        "the concrete maintenance problem",
-        "the example surface: Cleaning dependencies, notes, drafts, and small broken workflows is work, even when it does not feel like shipping",
-        "the failure mode: the system depends on future energy it has no right to assume",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "capture cost",
+        "review rhythm",
+        "stale note",
+        "energy budget",
+        "recovery cue"
       ]
     },
     {
@@ -1371,13 +1315,13 @@
       "title": "Math clicks when the shapes stop moving",
       "category": "learning-lab",
       "depth": "quick-note",
-      "subject": "math",
+      "subject": "learning",
       "informationMap": [
-        "the concrete math problem",
-        "the example surface: Stable notation and repeated small examples do more for intuition than a tour through every formula",
-        "the failure mode: the reader can copy the answer without understanding why it worked",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "input shape",
+        "worked step",
+        "wrong guess",
+        "run check",
+        "visual state"
       ]
     },
     {
@@ -1385,21 +1329,18 @@
       "title": "MCP turned agent tools into an interface",
       "category": "agent-workflows",
       "depth": "systems-essay",
-      "subject": "MCP tool surfaces",
+      "subject": "tool",
       "informationMap": [
-        "the concrete MCP tool surfaces problem",
-        "the example surface: a model action that crosses from text into a real system",
-        "the failure mode: the agent finishes a task without leaving enough evidence for a human to trust or resume it",
-        "why the obvious solution is insufficient",
-        "system constraints and trust boundaries",
-        "architecture and component responsibilities",
-        "request, event, and evidence flow",
-        "deterministic and semantic verification",
-        "measurement using approval rate, retry count, verifier disagreement, and time from tool call to accepted result",
-        "latency, cost, and scale behavior",
-        "governance, revocation, and escalation",
-        "tradeoffs I would make",
-        "what remains unresolved"
+        "schema shape",
+        "argument check",
+        "idempotency key",
+        "result type",
+        "partial failure",
+        "timeout limit",
+        "permission scope",
+        "tool version",
+        "retry choice",
+        "caller record"
       ]
     },
     {
@@ -1407,14 +1348,15 @@
       "title": "Mixtral made open weights feel usefully weird",
       "category": "model-watch",
       "depth": "engineering-note",
-      "subject": "mistral",
+      "subject": "model",
       "informationMap": [
-        "the concrete mistral problem",
-        "the example surface: Mixtral 8x7B was the release that made sparse open-weight models feel like a practical path, not only a research curiosity",
-        "the failure mode: the release sounds important without changing any concrete decision",
-        "the responsibilities around the model decision note",
-        "the tradeoff between convenience and what changed in the model versus what changed in the product surface",
-        "the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk"
       ]
     },
     {
@@ -1422,13 +1364,13 @@
       "title": "Model retirements made AI maintenance visible",
       "category": "deep-learning-principals",
       "depth": "quick-note",
-      "subject": "models",
+      "subject": "model",
       "informationMap": [
-        "the concrete models problem",
-        "the example surface: By early 2026, model menus and deprecation dates made it obvious that AI applications need maintenance plans",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question"
       ]
     },
     {
@@ -1436,43 +1378,36 @@
       "title": "Model routing is a systems problem",
       "category": "advance-deep-learning",
       "depth": "systems-essay",
-      "subject": "model routing",
+      "subject": "routing",
       "informationMap": [
-        "the concrete model routing problem",
-        "the example surface: a gateway deciding whether a request needs a cheap local model, a frontier model, retrieval, or a human stop",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "why the obvious solution is insufficient",
-        "system constraints and trust boundaries",
-        "architecture and component responsibilities",
-        "request, event, and evidence flow",
-        "deterministic and semantic verification",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "latency, cost, and scale behavior",
-        "governance, revocation, and escalation",
-        "tradeoffs I would make",
-        "what remains unresolved"
+        "route feature",
+        "sensitivity level",
+        "latency budget",
+        "cost ceiling",
+        "fallback branch",
+        "policy denial",
+        "model inventory",
+        "gateway trace",
+        "outage case",
+        "route score"
       ]
     },
     {
       "file": "multimodal-embeddings-made-search-feel-wider.mdx",
       "title": "Multimodal embeddings made search feel wider",
       "category": "advance-deep-learning",
-      "depth": "systems-essay",
-      "subject": "embeddings",
+      "depth": "technical-deep-dive",
+      "subject": "embedding",
       "informationMap": [
-        "the concrete embeddings problem",
-        "the example surface: a retrieval system that has to prove it found the right neighborhood, not just a nearby vector",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "why the obvious solution is insufficient",
-        "system constraints and trust boundaries",
-        "architecture and component responsibilities",
-        "request, event, and evidence flow",
-        "deterministic and semantic verification",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "latency, cost, and scale behavior",
-        "governance, revocation, and escalation",
-        "tradeoffs I would make",
-        "what remains unresolved"
+        "encoder choice",
+        "normalization rule",
+        "chunk boundary",
+        "metadata filter",
+        "neighbor index",
+        "hard negative",
+        "rerank pass",
+        "permission filter",
+        "recall score"
       ]
     },
     {
@@ -1482,16 +1417,15 @@
       "depth": "technical-deep-dive",
       "subject": "multimodal",
       "informationMap": [
-        "the concrete multimodal problem",
-        "the example surface: Multimodal models are useful when they fit into a real workflow with clear inputs, checks, and ownership",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "security or ownership boundary: what must be proven before the change is trusted",
-        "latency, cost, and scaling implications"
+        "modality encoder",
+        "shared space",
+        "OCR doubt",
+        "region crop",
+        "audio window",
+        "video sample",
+        "evidence join",
+        "grounding check",
+        "review correction"
       ]
     },
     {
@@ -1499,33 +1433,31 @@
       "title": "Next 15 made upgrades feel like product work",
       "category": "web-engineering",
       "depth": "engineering-note",
-      "subject": "nextjs",
+      "subject": "web",
       "informationMap": [
-        "the concrete nextjs problem",
-        "the example surface: a request with more than one plausible path through the system",
-        "the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract",
-        "the responsibilities around the rendered page",
-        "the tradeoff between convenience and what the browser, content system, and deployment pipeline each own",
-        "the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time"
+        "route contract",
+        "content schema",
+        "browser state",
+        "render check",
+        "a11y pass",
+        "cache rule",
+        "component owner"
       ]
     },
     {
       "file": "node-26-reminded-me-runtime-upgrades-are-calendar-work.mdx",
       "title": "Node 26 reminded me runtime upgrades are calendar work",
       "category": "developer-tools",
-      "depth": "technical-deep-dive",
+      "depth": "engineering-note",
       "subject": "node",
       "informationMap": [
-        "the concrete node problem",
-        "the example surface: Node release lines keep moving, and the least painful teams treat runtime upgrades as scheduled maintenance",
-        "the failure mode: the tool saves a minute while hiding the mistake that costs an afternoon",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using time to diagnose, idempotent reruns, exit-code accuracy, and log usefulness",
-        "security or ownership boundary: what the tool may change without asking",
-        "latency, cost, and scaling implications"
+        "task boundary",
+        "source artifact",
+        "state change",
+        "review evidence",
+        "failure case",
+        "measurement slice",
+        "scaling pressure"
       ]
     },
     {
@@ -1535,11 +1467,11 @@
       "depth": "quick-note",
       "subject": "notes",
       "informationMap": [
-        "the concrete notes problem",
-        "the example surface: Fast capture is useful, but the real value comes from making review and reuse easy enough to happen",
-        "the failure mode: the system depends on future energy it has no right to assume",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "task boundary",
+        "source artifact",
+        "state change",
+        "review evidence",
+        "failure case"
       ]
     },
     {
@@ -1547,33 +1479,31 @@
       "title": "o1 and Gemini 2.0 pushed agents toward the default",
       "category": "model-watch",
       "depth": "engineering-note",
-      "subject": "openai",
+      "subject": "agent",
       "informationMap": [
-        "the concrete openai problem",
-        "the example surface: a model action that crosses from text into a real system",
-        "the failure mode: the release sounds important without changing any concrete decision",
-        "the responsibilities around the model decision note",
-        "the tradeoff between convenience and what changed in the model versus what changed in the product surface",
-        "the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work"
+        "task scope",
+        "tool grant",
+        "context slice",
+        "approval state",
+        "verifier note",
+        "run receipt",
+        "handoff line"
       ]
     },
     {
       "file": "o3-and-o4-mini-made-routing-more-honest.mdx",
       "title": "o3 and o4-mini made routing harder to dodge",
       "category": "deep-learning-networks",
-      "depth": "technical-deep-dive",
-      "subject": "openai",
+      "depth": "engineering-note",
+      "subject": "routing",
       "informationMap": [
-        "the concrete openai problem",
-        "the example surface: a request with more than one plausible path through the system",
-        "the failure mode: a model choice is treated as isolated even though the surrounding system made the decision",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using task success, latency budget, memory footprint, batch behavior, and quality by route",
-        "security or ownership boundary: where the model stops and the serving system starts",
-        "latency, cost, and scaling implications"
+        "route feature",
+        "sensitivity level",
+        "latency budget",
+        "cost ceiling",
+        "fallback branch",
+        "policy denial",
+        "model inventory"
       ]
     },
     {
@@ -1583,16 +1513,15 @@
       "depth": "technical-deep-dive",
       "subject": "observability",
       "informationMap": [
-        "the concrete observability problem",
-        "the example surface: a team arguing about whether the model improved or merely changed",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "security or ownership boundary: what must be proven before the change is trusted",
-        "latency, cost, and scaling implications"
+        "task boundary",
+        "source artifact",
+        "state change",
+        "review evidence",
+        "failure case",
+        "measurement slice",
+        "scaling pressure",
+        "owner choice",
+        "rollback path"
       ]
     },
     {
@@ -1602,44 +1531,45 @@
       "depth": "quick-note",
       "subject": "offline first",
       "informationMap": [
-        "the concrete offline first problem",
-        "the example surface: software that keeps working when the network stops helping",
-        "the failure mode: the app works online but loses the user when the network or device state changes",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "task boundary",
+        "source artifact",
+        "state change",
+        "review evidence",
+        "failure case"
       ]
     },
     {
       "file": "on-device-ai-and-private-workflows.mdx",
       "title": "On-device AI fits private workflows",
       "category": "deep-learning-networks",
-      "depth": "quick-note",
-      "subject": "on device AI",
+      "depth": "technical-deep-dive",
+      "subject": "local",
       "informationMap": [
-        "the concrete on device AI problem",
-        "the example surface: software that keeps working when the network stops helping",
-        "the failure mode: a model choice is treated as isolated even though the surrounding system made the decision",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "port owner",
+        "PID file",
+        "reset path",
+        "signal trap",
+        "seed state",
+        "stale process",
+        "log path",
+        "health probe",
+        "env drift"
       ]
     },
     {
       "file": "opentelemetry-profiling-made-performance-less-separate.mdx",
       "title": "OpenTelemetry profiling brought performance closer to the main stack",
       "category": "ai-operations",
-      "depth": "technical-deep-dive",
-      "subject": "opentelemetry",
+      "depth": "engineering-note",
+      "subject": "web",
       "informationMap": [
-        "the concrete opentelemetry problem",
-        "the example surface: Profiling moving into the OpenTelemetry conversation made performance feel closer to traces, metrics, and logs",
-        "the failure mode: a model path changes and the team notices only after user behavior drifts",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using quality regression rate, p95 latency, cost per accepted task, and incident replay coverage",
-        "security or ownership boundary: what the model can change without human review",
-        "latency, cost, and scaling implications"
+        "route contract",
+        "content schema",
+        "browser state",
+        "render check",
+        "a11y pass",
+        "cache rule",
+        "component owner"
       ]
     },
     {
@@ -1647,18 +1577,17 @@
       "title": "Opir made guardrails look like classifiers again",
       "category": "model-watch",
       "depth": "technical-deep-dive",
-      "subject": "OPIR-style guardrails",
+      "subject": "OPIR",
       "informationMap": [
-        "the concrete OPIR-style guardrails problem",
-        "the example surface: Opir put safety filtering back in the small-model conversation with encoder guardrails for toxicity, jailbreaks, and policy categories",
-        "the failure mode: the release sounds important without changing any concrete decision",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using route changes, eval deltas, latency movement, cost movement, and migration work",
-        "security or ownership boundary: what changed in the model versus what changed in the product surface",
-        "latency, cost, and scaling implications"
+        "semantic probe",
+        "threshold edge",
+        "false positive",
+        "false negative",
+        "paraphrase set",
+        "quoted text",
+        "translation shift",
+        "role frame",
+        "cluster map"
       ]
     },
     {
@@ -1668,30 +1597,27 @@
       "depth": "quick-note",
       "subject": "portfolio",
       "informationMap": [
-        "the concrete portfolio problem",
-        "the example surface: a personal site needs occasional pruning because old work keeps speaking after the context disappears",
-        "the failure mode: the system depends on future energy it has no right to assume",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "task boundary",
+        "source artifact",
+        "state change",
+        "review evidence",
+        "failure case"
       ]
     },
     {
       "file": "postgres-17-reminded-me-json-is-table-work-too.mdx",
       "title": "Postgres 17 reminded me JSON is table work too",
       "category": "data-engineering",
-      "depth": "technical-deep-dive",
-      "subject": "postgres",
+      "depth": "engineering-note",
+      "subject": "data",
       "informationMap": [
-        "the concrete postgres problem",
-        "the example surface: Postgres 17 put more SQL/JSON work into the database, which made messy application data feel less separate from relational design",
-        "the failure mode: the pipeline produces output after the meaning of a field has moved",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using schema drift, null-rate changes, freshness, join quality, and contract failures",
-        "security or ownership boundary: where raw data becomes a product promise",
-        "latency, cost, and scaling implications"
+        "source meaning",
+        "schema drift",
+        "freshness test",
+        "join quality",
+        "contract check",
+        "lineage note",
+        "missing value"
       ]
     },
     {
@@ -1699,13 +1625,13 @@
       "title": "Private AI workflows want local state",
       "category": "local-first-software",
       "depth": "quick-note",
-      "subject": "private AI",
+      "subject": "local",
       "informationMap": [
-        "the concrete private AI problem",
-        "the example surface: software that keeps working when the network stops helping",
-        "the failure mode: the app works online but loses the user when the network or device state changes",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "port owner",
+        "PID file",
+        "reset path",
+        "signal trap",
+        "seed state"
       ]
     },
     {
@@ -1715,11 +1641,11 @@
       "depth": "quick-note",
       "subject": "product specs",
       "informationMap": [
-        "the concrete product specs problem",
-        "the example surface: a product spec that skips loading, empty, error, permission, and rollback states is not finished",
-        "the failure mode: the feature works in the happy path but leaves the user guessing at the boundary",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "task boundary",
+        "source artifact",
+        "state change",
+        "review evidence",
+        "failure case"
       ]
     },
     {
@@ -1729,16 +1655,15 @@
       "depth": "technical-deep-dive",
       "subject": "prompts",
       "informationMap": [
-        "the concrete prompts problem",
-        "the example surface: Prompts become more reliable when teams treat them like versioned software with tests, owners, and review",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "security or ownership boundary: what must be proven before the change is trusted",
-        "latency, cost, and scaling implications"
+        "task boundary",
+        "source artifact",
+        "state change",
+        "review evidence",
+        "failure case",
+        "measurement slice",
+        "scaling pressure",
+        "owner choice",
+        "rollback path"
       ]
     },
     {
@@ -1748,11 +1673,11 @@
       "depth": "quick-note",
       "subject": "pyodide",
       "informationMap": [
-        "the concrete pyodide problem",
-        "the example surface: Running Python in the page changes a tutorial from explanation into a small lab",
-        "the failure mode: the reader can copy the answer without understanding why it worked",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "task boundary",
+        "source artifact",
+        "state change",
+        "review evidence",
+        "failure case"
       ]
     },
     {
@@ -1760,18 +1685,17 @@
       "title": "Queues make AI workflows calmer",
       "category": "deep-learning-principals",
       "depth": "technical-deep-dive",
-      "subject": "queues",
+      "subject": "queue",
       "informationMap": [
-        "the concrete queues problem",
-        "the example surface: work that can wait without losing its place",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "security or ownership boundary: what must be proven before the change is trusted",
-        "latency, cost, and scaling implications"
+        "job id",
+        "lease timeout",
+        "idempotency key",
+        "retry count",
+        "dead letter",
+        "worker pool",
+        "backpressure",
+        "poison item",
+        "queue age"
       ]
     },
     {
@@ -1779,14 +1703,15 @@
       "title": "Qwen 2.5 and Qwen3 made open models feel global",
       "category": "model-watch",
       "depth": "engineering-note",
-      "subject": "qwen",
+      "subject": "model",
       "informationMap": [
-        "the concrete qwen problem",
-        "the example surface: Alibaba's Qwen releases showed that the open-weight race was no longer centered on one country, one lab, or one model shape",
-        "the failure mode: the release sounds important without changing any concrete decision",
-        "the responsibilities around the model decision note",
-        "the tradeoff between convenience and what changed in the model versus what changed in the product surface",
-        "the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk"
       ]
     },
     {
@@ -1794,18 +1719,17 @@
       "title": "RAG only works if retrieval is boringly good",
       "category": "advance-deep-learning",
       "depth": "technical-deep-dive",
-      "subject": "retrieval",
+      "subject": "eval",
       "informationMap": [
-        "the concrete retrieval problem",
-        "the example surface: a team arguing about whether the model improved or merely changed",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "security or ownership boundary: what must be proven before the change is trusted",
-        "latency, cost, and scaling implications"
+        "eval unit",
+        "baseline run",
+        "slice miss",
+        "judge variance",
+        "fixture source",
+        "regression gate",
+        "CI block",
+        "model version",
+        "failure cluster"
       ]
     },
     {
@@ -1813,14 +1737,15 @@
       "title": "React 19 made form state feel native again",
       "category": "web-engineering",
       "depth": "engineering-note",
-      "subject": "react",
+      "subject": "web",
       "informationMap": [
-        "the concrete react problem",
-        "the example surface: React 19 stabilized a set of APIs that made async UI feel less like plumbing and more like application code",
-        "the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract",
-        "the responsibilities around the rendered page",
-        "the tradeoff between convenience and what the browser, content system, and deployment pipeline each own",
-        "the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time"
+        "route contract",
+        "content schema",
+        "browser state",
+        "render check",
+        "a11y pass",
+        "cache rule",
+        "component owner"
       ]
     },
     {
@@ -1828,18 +1753,17 @@
       "title": "Reasoning models changed where latency belongs",
       "category": "deep-learning-networks",
       "depth": "technical-deep-dive",
-      "subject": "reasoning models",
+      "subject": "model",
       "informationMap": [
-        "the concrete reasoning models problem",
-        "the example surface: The o1 preview made it easier to talk about spending extra time on hard steps instead of every step",
-        "the failure mode: a model choice is treated as isolated even though the surrounding system made the decision",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using task success, latency budget, memory footprint, batch behavior, and quality by route",
-        "security or ownership boundary: where the model stops and the serving system starts",
-        "latency, cost, and scaling implications"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk",
+        "fallback plan",
+        "retirement"
       ]
     },
     {
@@ -1847,18 +1771,17 @@
       "title": "Ranking shows up everywhere",
       "category": "deep-learning-networks",
       "depth": "technical-deep-dive",
-      "subject": "recommenders",
+      "subject": "ranking",
       "informationMap": [
-        "the concrete recommenders problem",
-        "the example surface: a team arguing about whether the model improved or merely changed",
-        "the failure mode: a model choice is treated as isolated even though the surrounding system made the decision",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using task success, latency budget, memory footprint, batch behavior, and quality by route",
-        "security or ownership boundary: where the model stops and the serving system starts",
-        "latency, cost, and scaling implications"
+        "candidate pool",
+        "score feature",
+        "position bias",
+        "pairwise label",
+        "freshness signal",
+        "diversity rule",
+        "nDCG slice",
+        "click drift",
+        "cold start"
       ]
     },
     {
@@ -1866,32 +1789,29 @@
       "title": "RSS is still good plumbing",
       "category": "web-engineering",
       "depth": "quick-note",
-      "subject": "publishing",
+      "subject": "web",
       "informationMap": [
-        "the concrete publishing problem",
-        "the example surface: Feeds are unglamorous, durable, and still worth maintaining for a personal site",
-        "the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "route contract",
+        "content schema",
+        "browser state",
+        "render check",
+        "a11y pass"
       ]
     },
     {
       "file": "scripts-should-be-idempotent-by-default.mdx",
       "title": "Scripts should be idempotent by default",
       "category": "developer-tools",
-      "depth": "technical-deep-dive",
-      "subject": "scripts",
+      "depth": "engineering-note",
+      "subject": "tool",
       "informationMap": [
-        "the concrete scripts problem",
-        "the example surface: The best project scripts can run twice without making the second run weird",
-        "the failure mode: the tool saves a minute while hiding the mistake that costs an afternoon",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using time to diagnose, idempotent reruns, exit-code accuracy, and log usefulness",
-        "security or ownership boundary: what the tool may change without asking",
-        "latency, cost, and scaling implications"
+        "schema shape",
+        "argument check",
+        "idempotency key",
+        "result type",
+        "partial failure",
+        "timeout limit",
+        "permission scope"
       ]
     },
     {
@@ -1901,11 +1821,11 @@
       "depth": "quick-note",
       "subject": "security",
       "informationMap": [
-        "the concrete security problem",
-        "the example surface: a secret scanner is boring right up until it saves a weekend",
-        "the failure mode: the happy path works while the unsafe path stays unnamed",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "ownership test",
+        "permission edge",
+        "attack path",
+        "audit proof",
+        "secret leak"
       ]
     },
     {
@@ -1913,37 +1833,33 @@
       "title": "Semantic search needs permissions",
       "category": "advance-deep-learning",
       "depth": "technical-deep-dive",
-      "subject": "semantic search",
+      "subject": "embedding",
       "informationMap": [
-        "the concrete semantic search problem",
-        "the example surface: a team arguing about whether the model improved or merely changed",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "security or ownership boundary: what must be proven before the change is trusted",
-        "latency, cost, and scaling implications"
+        "encoder choice",
+        "normalization rule",
+        "chunk boundary",
+        "metadata filter",
+        "neighbor index",
+        "hard negative",
+        "rerank pass",
+        "permission filter",
+        "recall score"
       ]
     },
     {
       "file": "shader-toys-are-debugging-tools-too.mdx",
       "title": "Shader toys are debugging tools too",
       "category": "creative-coding",
-      "depth": "technical-deep-dive",
-      "subject": "shaders",
+      "depth": "engineering-note",
+      "subject": "tool",
       "informationMap": [
-        "the concrete shaders problem",
-        "the example surface: a model action that crosses from text into a real system",
-        "the failure mode: the visual is interesting but does not teach the system underneath",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using frame time, parameter sensitivity, interaction quality, and explanation value",
-        "security or ownership boundary: what the user can manipulate versus what the system hides",
-        "latency, cost, and scaling implications"
+        "schema shape",
+        "argument check",
+        "idempotency key",
+        "result type",
+        "partial failure",
+        "timeout limit",
+        "permission scope"
       ]
     },
     {
@@ -1951,33 +1867,31 @@
       "title": "Small data warehouses need maintenance too",
       "category": "data-engineering",
       "depth": "technical-deep-dive",
-      "subject": "analytics",
+      "subject": "warehouse",
       "informationMap": [
-        "the concrete analytics problem",
-        "the example surface: Even small analytical stores need ownership, naming, retention, and boring checks before they feed product decisions",
-        "the failure mode: the pipeline produces output after the meaning of a field has moved",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using schema drift, null-rate changes, freshness, join quality, and contract failures",
-        "security or ownership boundary: where raw data becomes a product promise",
-        "latency, cost, and scaling implications"
+        "fact grain",
+        "dimension owner",
+        "freshness check",
+        "lineage edge",
+        "retention rule",
+        "null drift",
+        "schema promise",
+        "metric name",
+        "partition plan"
       ]
     },
     {
       "file": "small-sites-need-smoke-tests-too.mdx",
       "title": "Small sites need smoke tests too",
       "category": "web-engineering",
-      "depth": "engineering-note",
-      "subject": "testing",
+      "depth": "quick-note",
+      "subject": "web",
       "informationMap": [
-        "the concrete testing problem",
-        "the example surface: a personal site can still break routes, feeds, images, and content collections if nobody checks the full path",
-        "the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract",
-        "the responsibilities around the rendered page",
-        "the tradeoff between convenience and what the browser, content system, and deployment pipeline each own",
-        "the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time"
+        "route contract",
+        "content schema",
+        "browser state",
+        "render check",
+        "a11y pass"
       ]
     },
     {
@@ -1985,74 +1899,65 @@
       "title": "Sonnet 4.5 and Gemini 3 made coding the frontier battleground",
       "category": "model-watch",
       "depth": "engineering-note",
-      "subject": "anthropic",
+      "subject": "model",
       "informationMap": [
-        "the concrete anthropic problem",
-        "the example surface: Anthropic and Google ended 2025 by treating coding, agents, and computer use as the proving ground for frontier models",
-        "the failure mode: the release sounds important without changing any concrete decision",
-        "the responsibilities around the model decision note",
-        "the tradeoff between convenience and what changed in the model versus what changed in the product surface",
-        "the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk"
       ]
     },
     {
       "file": "sqlite-in-the-browser-changes-the-default.mdx",
       "title": "SQLite in the browser changes the default",
       "category": "local-first-software",
-      "depth": "technical-deep-dive",
-      "subject": "SQLite",
+      "depth": "engineering-note",
+      "subject": "local",
       "informationMap": [
-        "the concrete SQLite problem",
-        "the example surface: software that keeps working when the network stops helping",
-        "the failure mode: the app works online but loses the user when the network or device state changes",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using conflict rate, recovery time, local durability, and sync queue age",
-        "security or ownership boundary: what must be true before the server is reachable",
-        "latency, cost, and scaling implications"
+        "port owner",
+        "PID file",
+        "reset path",
+        "signal trap",
+        "seed state",
+        "stale process",
+        "log path"
       ]
     },
     {
       "file": "structured-outputs-made-prompts-less-magical.mdx",
       "title": "Structured Outputs made prompts less magical",
       "category": "deep-learning-principals",
-      "depth": "systems-essay",
-      "subject": "structured outputs",
+      "depth": "technical-deep-dive",
+      "subject": "structured",
       "informationMap": [
-        "the concrete structured outputs problem",
-        "the example surface: OpenAI Structured Outputs moved a common integration problem from prompt superstition into schema work",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "why the obvious solution is insufficient",
-        "system constraints and trust boundaries",
-        "architecture and component responsibilities",
-        "request, event, and evidence flow",
-        "deterministic and semantic verification",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "latency, cost, and scale behavior",
-        "governance, revocation, and escalation",
-        "tradeoffs I would make",
-        "what remains unresolved"
+        "schema version",
+        "nullable field",
+        "enum change",
+        "validation error",
+        "consumer promise",
+        "strict mode",
+        "fixture set",
+        "migration step",
+        "fallback parse"
       ]
     },
     {
       "file": "swe-bench-stopped-being-enough.mdx",
       "title": "SWE-bench stopped being enough",
       "category": "developer-tools",
-      "depth": "technical-deep-dive",
-      "subject": "benchmarks",
+      "depth": "engineering-note",
+      "subject": "eval",
       "informationMap": [
-        "the concrete benchmarks problem",
-        "the example surface: a team arguing about whether the model improved or merely changed",
-        "the failure mode: the tool saves a minute while hiding the mistake that costs an afternoon",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using time to diagnose, idempotent reruns, exit-code accuracy, and log usefulness",
-        "security or ownership boundary: what the tool may change without asking",
-        "latency, cost, and scaling implications"
+        "eval unit",
+        "baseline run",
+        "slice miss",
+        "judge variance",
+        "fixture source",
+        "regression gate",
+        "CI block"
       ]
     },
     {
@@ -2060,13 +1965,13 @@
       "title": "Sync conflicts are interface problems",
       "category": "local-first-software",
       "depth": "quick-note",
-      "subject": "sync",
+      "subject": "local",
       "informationMap": [
-        "the concrete sync problem",
-        "the example surface: Conflict resolution belongs in the product experience, not only in the replication layer",
-        "the failure mode: the app works online but loses the user when the network or device state changes",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "port owner",
+        "PID file",
+        "reset path",
+        "signal trap",
+        "seed state"
       ]
     },
     {
@@ -2074,21 +1979,18 @@
       "title": "Synthetic data is useful for evals",
       "category": "advance-deep-learning",
       "depth": "systems-essay",
-      "subject": "synthetic data pipelines",
+      "subject": "synthetic",
       "informationMap": [
-        "the concrete synthetic data pipelines problem",
-        "the example surface: a team arguing about whether the model improved or merely changed",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "why the obvious solution is insufficient",
-        "system constraints and trust boundaries",
-        "architecture and component responsibilities",
-        "request, event, and evidence flow",
-        "deterministic and semantic verification",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "latency, cost, and scale behavior",
-        "governance, revocation, and escalation",
-        "tradeoffs I would make",
-        "what remains unresolved"
+        "teacher prompt",
+        "label source",
+        "coverage aim",
+        "hard negative",
+        "leak check",
+        "holdout split",
+        "slice balance",
+        "dedupe step",
+        "judge match",
+        "retire date"
       ]
     },
     {
@@ -2096,14 +1998,15 @@
       "title": "Tailwind 4 made CSS configuration feel like CSS",
       "category": "web-engineering",
       "depth": "engineering-note",
-      "subject": "tailwind",
+      "subject": "web",
       "informationMap": [
-        "the concrete tailwind problem",
-        "the example surface: Tailwind CSS v4 moved more of the system into CSS itself, which made configuration feel less separate from styling",
-        "the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract",
-        "the responsibilities around the rendered page",
-        "the tradeoff between convenience and what the browser, content system, and deployment pipeline each own",
-        "the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time"
+        "route contract",
+        "content schema",
+        "browser state",
+        "render check",
+        "a11y pass",
+        "cache rule",
+        "component owner"
       ]
     },
     {
@@ -2111,14 +2014,15 @@
       "title": "Tailwind 4 made tokens feel closer to CSS",
       "category": "design-systems",
       "depth": "engineering-note",
-      "subject": "tailwind",
+      "subject": "web",
       "informationMap": [
-        "the concrete tailwind problem",
-        "the example surface: a design decision that needs a name before it spreads",
-        "the failure mode: the UI looks consistent while the underlying decisions drift apart",
-        "the responsibilities around the component contract",
-        "the tradeoff between convenience and which decisions belong in tokens, components, product copy, or one-off layout",
-        "the check or metric: token reuse, unsupported variants, visual regression count, and handoff ambiguity"
+        "route contract",
+        "content schema",
+        "browser state",
+        "render check",
+        "a11y pass",
+        "cache rule",
+        "component owner"
       ]
     },
     {
@@ -2128,11 +2032,11 @@
       "depth": "quick-note",
       "subject": "writing",
       "informationMap": [
-        "the concrete writing problem",
-        "the example surface: a good tutorial shows the mistake the reader is about to make and gives them a way back",
-        "the failure mode: the reader can copy the answer without understanding why it worked",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "task boundary",
+        "source artifact",
+        "state change",
+        "review evidence",
+        "failure case"
       ]
     },
     {
@@ -2142,25 +2046,29 @@
       "depth": "quick-note",
       "subject": "teaching",
       "informationMap": [
-        "the concrete teaching problem",
-        "the example surface: Readers build their mental model from the first runnable example, so that example has to be honest",
-        "the failure mode: the reader can copy the answer without understanding why it worked",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "task boundary",
+        "source artifact",
+        "state change",
+        "review evidence",
+        "failure case"
       ]
     },
     {
       "file": "time-series-models-and-rhythm.mdx",
       "title": "Threat analytics is time series work too",
       "category": "deep-learning-networks",
-      "depth": "quick-note",
-      "subject": "time series",
+      "depth": "technical-deep-dive",
+      "subject": "model",
       "informationMap": [
-        "the concrete time series problem",
-        "the example surface: Security signals often come down to timing, baselines, drift, and knowing when a pattern changed",
-        "the failure mode: a model choice is treated as isolated even though the surrounding system made the decision",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "release surface",
+        "capability shift",
+        "route effect",
+        "latency cost",
+        "eval question",
+        "migration work",
+        "adoption risk",
+        "fallback plan",
+        "retirement"
       ]
     },
     {
@@ -2168,81 +2076,68 @@
       "title": "Tool calling is a contract",
       "category": "deep-learning-principals",
       "depth": "systems-essay",
-      "subject": "tool calling",
+      "subject": "tool",
       "informationMap": [
-        "the concrete tool calling problem",
-        "the example surface: a model producing a tool call that is syntactically valid but operationally incomplete",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "why the obvious solution is insufficient",
-        "system constraints and trust boundaries",
-        "architecture and component responsibilities",
-        "request, event, and evidence flow",
-        "deterministic and semantic verification",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "latency, cost, and scale behavior",
-        "governance, revocation, and escalation",
-        "tradeoffs I would make",
-        "what remains unresolved"
+        "schema shape",
+        "argument check",
+        "idempotency key",
+        "result type",
+        "partial failure",
+        "timeout limit",
+        "permission scope",
+        "tool version",
+        "retry choice",
+        "caller record"
       ]
     },
     {
       "file": "tooling-should-make-the-safe-path-short.mdx",
       "title": "Tooling should make the safe path short",
       "category": "developer-tools",
-      "depth": "technical-deep-dive",
-      "subject": "tooling",
+      "depth": "engineering-note",
+      "subject": "tool",
       "informationMap": [
-        "the concrete tooling problem",
-        "the example surface: a model action that crosses from text into a real system",
-        "the failure mode: the tool saves a minute while hiding the mistake that costs an afternoon",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using time to diagnose, idempotent reruns, exit-code accuracy, and log usefulness",
-        "security or ownership boundary: what the tool may change without asking",
-        "latency, cost, and scaling implications"
+        "schema shape",
+        "argument check",
+        "idempotency key",
+        "result type",
+        "partial failure",
+        "timeout limit",
+        "permission scope"
       ]
     },
     {
       "file": "typescript-5-5-made-filter-code-less-annoying.mdx",
       "title": "TypeScript 5.5 cut some friction from filter code",
       "category": "developer-tools",
-      "depth": "technical-deep-dive",
-      "subject": "TypeScript",
+      "depth": "engineering-note",
+      "subject": "tool",
       "informationMap": [
-        "the concrete TypeScript problem",
-        "the example surface: Inferred type predicates were not flashy, but they removed a small daily tax from TypeScript code",
-        "the failure mode: the tool saves a minute while hiding the mistake that costs an afternoon",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using time to diagnose, idempotent reruns, exit-code accuracy, and log usefulness",
-        "security or ownership boundary: what the tool may change without asking",
-        "latency, cost, and scaling implications"
+        "schema shape",
+        "argument check",
+        "idempotency key",
+        "result type",
+        "partial failure",
+        "timeout limit",
+        "permission scope"
       ]
     },
     {
       "file": "vector-databases-and-memory.mdx",
       "title": "Vector stores need product discipline",
       "category": "advance-deep-learning",
-      "depth": "systems-essay",
-      "subject": "vector stores",
+      "depth": "technical-deep-dive",
+      "subject": "eval",
       "informationMap": [
-        "the concrete vector stores problem",
-        "the example surface: a team arguing about whether the model improved or merely changed",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "why the obvious solution is insufficient",
-        "system constraints and trust boundaries",
-        "architecture and component responsibilities",
-        "request, event, and evidence flow",
-        "deterministic and semantic verification",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "latency, cost, and scale behavior",
-        "governance, revocation, and escalation",
-        "tradeoffs I would make",
-        "what remains unresolved"
+        "eval unit",
+        "baseline run",
+        "slice miss",
+        "judge variance",
+        "fixture source",
+        "regression gate",
+        "CI block",
+        "model version",
+        "failure cluster"
       ]
     },
     {
@@ -2250,18 +2145,17 @@
       "title": "Vector search needed product questions in 2023",
       "category": "advance-deep-learning",
       "depth": "technical-deep-dive",
-      "subject": "vector search",
+      "subject": "eval",
       "informationMap": [
-        "the concrete vector search problem",
-        "the example surface: The vector database rush made semantic search easy to demo and surprisingly easy to ship without product discipline",
-        "the failure mode: the system succeeds once but gives the next maintainer no way to explain it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using reproduction time, failing example coverage, queue age, and rollback confidence",
-        "security or ownership boundary: what must be proven before the change is trusted",
-        "latency, cost, and scaling implications"
+        "eval unit",
+        "baseline run",
+        "slice miss",
+        "judge variance",
+        "fixture source",
+        "regression gate",
+        "CI block",
+        "model version",
+        "failure cluster"
       ]
     },
     {
@@ -2269,13 +2163,13 @@
       "title": "Visual examples should earn their space",
       "category": "learning-lab",
       "depth": "quick-note",
-      "subject": "teaching",
+      "subject": "learning",
       "informationMap": [
-        "the concrete teaching problem",
-        "the example surface: a diagram helps when it lets the learner predict the next step, not when it decorates the page",
-        "the failure mode: the reader can copy the answer without understanding why it worked",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "input shape",
+        "worked step",
+        "wrong guess",
+        "run check",
+        "visual state"
       ]
     },
     {
@@ -2283,32 +2177,29 @@
       "title": "WebGPU made browser graphics feel serious",
       "category": "creative-coding",
       "depth": "quick-note",
-      "subject": "WebGPU",
+      "subject": "web",
       "informationMap": [
-        "the concrete WebGPU problem",
-        "the example surface: Chrome 113 shipping WebGPU made high-performance browser graphics feel like a practical surface to learn from",
-        "the failure mode: the visual is interesting but does not teach the system underneath",
-        "the small decision I would keep",
-        "what would make the note wrong"
+        "route contract",
+        "content schema",
+        "browser state",
+        "render check",
+        "a11y pass"
       ]
     },
     {
       "file": "why-i-like-small-agent-tools.mdx",
       "title": "Why I like small agent tools",
       "category": "agent-workflows",
-      "depth": "technical-deep-dive",
-      "subject": "tooling",
+      "depth": "engineering-note",
+      "subject": "tool",
       "informationMap": [
-        "the concrete tooling problem",
-        "the example surface: a model action that crosses from text into a real system",
-        "the failure mode: the agent finishes a task without leaving enough evidence for a human to trust or resume it",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using approval rate, retry count, verifier disagreement, and time from tool call to accepted result",
-        "security or ownership boundary: file access, network access, credential use, and delegation between agents",
-        "latency, cost, and scaling implications"
+        "schema shape",
+        "argument check",
+        "idempotency key",
+        "result type",
+        "partial failure",
+        "timeout limit",
+        "permission scope"
       ]
     },
     {
@@ -2318,16 +2209,15 @@
       "depth": "technical-deep-dive",
       "subject": "OPIR",
       "informationMap": [
-        "the concrete OPIR problem",
-        "the example surface: I was one of the first-place winners of Wordcab's Opir Challenge after probing where semantic guardrails get thin",
-        "the failure mode: the happy path works while the unsafe path stays unnamed",
-        "input shape and request data",
-        "component responsibilities",
-        "control flow and state transitions",
-        "failure modes and recovery",
-        "measurement using denied unsafe actions, ownership check coverage, secret exposure rate, and review latency",
-        "security or ownership boundary: who is allowed to act on which resource, with which evidence",
-        "latency, cost, and scaling implications"
+        "semantic probe",
+        "threshold edge",
+        "false positive",
+        "false negative",
+        "paraphrase set",
+        "quoted text",
+        "translation shift",
+        "role frame",
+        "cluster map"
       ]
     }
   ]

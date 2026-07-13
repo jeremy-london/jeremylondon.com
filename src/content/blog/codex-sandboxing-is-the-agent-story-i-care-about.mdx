@@ -8,138 +8,168 @@ author: "jeremy-london"
 tags: ["codex", "sandboxing", "agents"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete Codex sandboxing problem
-- the example surface: The interesting agent work in 2026 is less about personality and more about controlled file access, network limits, and recovery
-- the failure mode: the happy path works while the unsafe path stays unnamed
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using denied unsafe actions, ownership check coverage, secret exposure rate, and review latency
-- security or ownership boundary: who is allowed to act on which resource, with which evidence
-- latency, cost, and scaling implications
-*/}
+Codex sandboxing is the agent story I care about because coding agents touch real working state.
 
-The interesting agent work in 2026 is less about personality and more about controlled file access, network limits, and recovery.
+A model producing a diff is interesting. A model producing a diff inside a clear filesystem, command, network, and credential boundary is useful. The second version has a chance to survive review.
 
-The interesting part of Codex sandboxing is not the name. It is the system pressure around The interesting agent work in 2026 is less about personality and more about controlled file access, network limits, and recovery. Once that pressure shows up for Codex sandboxing, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+The repo is not one permission. Reading source is different from reading secrets. Editing a blog draft is different from editing a migration. Running tests is different from opening the network. Installing a dependency is different from formatting a file. A sandbox should name those differences directly.
 
-## The unit of work
+Agent safety gets vague when it stays at the level of personality. Is the agent careful? Is it aligned? Does it understand the task? Fine questions, but too soft for the part where a process is about to mutate a checkout.
 
-I would start by naming the unit of work for Codex sandboxing. In security systems, the Codex sandboxing unit is usually smaller than the product surface and larger than a function call. For Codex sandboxing, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+The sandbox is where the claims become concrete.
 
-A useful Codex sandboxing unit has four properties:
+## filesystem scope is the first line
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+The first sandbox question is what the agent can read and write.
 
-For Codex sandboxing, the boundary is who is allowed to act on which resource, with which evidence. That boundary should be visible in the Codex sandboxing data, not only in a policy document. If a Codex sandboxing request crosses the boundary, the trace should show it.
+Read access and write access should be separate. A coding agent may need to read a broad part of the repo to understand the system, but only write to a narrow set of files. It may need to inspect package metadata but should not edit lockfiles unless the task explicitly involves dependencies. It may need to read tests but only change source, or the reverse.
 
-## Data flow
-
-The simple Codex sandboxing flow looks like this:
-
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
-~~~
-
-The context builder gathers the minimum useful state for Codex sandboxing. The Codex sandboxing decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
-
-That receipt is the difference between a Codex sandboxing demo and an operable system. A demo can rely on a person watching closely. A Codex sandboxing system needs to explain itself after the person has moved on.
-
-A Codex sandboxing request envelope might look like this:
+A useful grant is explicit:
 
 ~~~json
 {
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
+  "paths": {
+    "read": ["src", "scripts", "package.json"],
+    "write": ["src/content/blog"]
+  }
 }
 ~~~
 
-The schema is deliberately plain. Fancy schemas do not save unclear Codex sandboxing systems. The useful Codex sandboxing work is deciding which fields are required, which are advisory, and which block the run when missing.
+That shape lets the runtime catch boundary crossings. If the agent tries to edit `src/content.config.ts` during a blog rewrite, the system can stop and ask. Maybe the edit is justified. Maybe the agent drifted. The point is that the crossing becomes visible.
 
-## Implementation sketch
+The worst version is a workspace-wide write grant for a narrow task. That turns every agent mistake into a repo-wide review problem.
 
-I would implement the first Codex sandboxing pass as a narrow pipeline rather than a general platform. Start Codex sandboxing with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+## commands need their own policy
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
+Shell access is not one permission either.
+
+Running `pnpm markdown:check` is different from running a migration. Running tests is different from installing packages. Running a formatter is different from deleting generated output. Commands deserve the same scoping as files.
+
+I like command allowlists for routine work:
+
+~~~json
+{
+  "commands": {
+    "allow": [
+      "pnpm markdown:check",
+      "pnpm check",
+      "pnpm astro check"
+    ],
+    "ask": [
+      "pnpm build",
+      "pnpm install"
+    ],
+    "deny": [
+      "rm -rf",
+      "git push"
+    ]
+  }
 }
 ~~~
 
-For Codex sandboxing, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The Codex sandboxing system still has to decide whether the proposal is usable under the current boundary.
+This is not about pretending an allowlist solves every shell risk. Commands can be composed. Scripts can do surprising things. But a command policy gives the runtime a starting point and gives the user something to review.
 
-## Failure modes
+If the agent needs a new command, that is useful information. It means the task has changed shape or the environment is missing something.
 
-The main Codex sandboxing failure mode is the happy path works while the unsafe path stays unnamed. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The Codex sandboxing failure is that the next component cannot tell whether the result should be trusted.
+## network access should be deliberate
 
-I would test at least five Codex sandboxing cases:
+Network access is where coding agents can quietly leave the local problem.
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+Sometimes network is necessary. The agent may need documentation, package metadata, an issue tracker, or a remote API. Sometimes network is exactly what should be blocked, especially when the workspace might contain private code or credentials.
 
-That last Codex sandboxing case matters. A confident Codex sandboxing answer is not the same thing as a verified result. If Codex sandboxing touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
-
-## Deployment shape
-
-I would not deploy Codex sandboxing as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For Codex sandboxing, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
-
-That gives the router real work to do. For Codex sandboxing, it should not only choose small model or big model. It should choose a risk path:
-
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
-
-Each Codex sandboxing path has a different budget, verifier, and approval requirement. This is the part that makes Codex sandboxing feel less magical and more like infrastructure. The model is still important, but the Codex sandboxing route determines what kind of trust the system is asking for.
-
-## Measurement
-
-The measurement surface for Codex sandboxing is denied unsafe actions, ownership check coverage, secret exposure rate, and review latency. I would track Codex sandboxing per route or case type, not only as a global average. Global averages hide the exact class of Codex sandboxing problems that make these systems feel unpredictable.
-
-A simple eval table can carry a lot of weight:
+The sandbox should separate local work from external calls:
 
 ~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
+network:
+  localhost: allow
+  package registry: ask
+  arbitrary web: ask
+  internal services: deny unless explicitly granted
 ~~~
 
-The point is not to build an eval cathedral for Codex sandboxing. The point is to preserve enough Codex sandboxing structure that regressions can be clustered. If failures cluster around one route, fix the route. If Codex sandboxing failures cluster around one policy boundary, fix the boundary. If Codex sandboxing failures cluster around one model, stop pretending the prompt is the whole system.
+Localhost access is useful for testing web apps. Arbitrary web access is a different decision. Internal services are different again.
 
-## Operational concerns
+The agent should not get to decide that a failing test probably requires searching the web if the user asked for an offline repo cleanup. It can ask. The sandbox should enforce the answer.
 
-The operational question for Codex sandboxing is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap Codex sandboxing route becomes unreliable but the expensive route would blow the budget?
+## secrets should be absent by default
 
-For Codex sandboxing, I would put those answers in configuration, not in a heroic prompt. A small Codex sandboxing policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+The best secret available to an agent is the one it cannot read.
 
-## Scaling behavior
+That sounds obvious until a local development environment leaks credentials through `.env`, shell history, config files, package manager auth, cloud CLI state, or browser sessions. A coding agent operating near a real workspace can stumble into sensitive material without malicious intent.
 
-At small scale, a human can inspect weird Codex sandboxing cases by hand. At medium scale, the Codex sandboxing system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+The sandbox should make secrets unavailable by default. If a task genuinely requires a credential, the credential should be resolved through a controlled tool with a narrow purpose, not exposed as raw text to the model.
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the Codex sandboxing system without being surprised by the downstream behavior?
+For most coding tasks, the correct secret policy is simple:
 
-For Codex sandboxing, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the Codex sandboxing system a spine.
+~~~text
+secrets:
+  environment: stripped
+  dotfiles: read blocked
+  credential helpers: unavailable
+  secret lookup: tool-specific approval required
+~~~
 
-## Where I land
+That policy may feel strict. Good. The agent can still do a surprising amount of useful work without seeing secrets.
 
-Codex sandboxing deserves depth when it changes architecture, not when it merely sounds current. The Codex sandboxing implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+## recovery is part of the sandbox
 
-If the Codex sandboxing post answers those questions, it teaches something. If the Codex sandboxing post only says the topic matters, it is just a longer version of the headline.
+A sandbox is not only about preventing bad actions. It is also about making recovery cheap.
+
+If an agent edits inside a worktree, the user can inspect or discard the diff. If the agent writes only inside scoped paths, cleanup is smaller. If commands are logged, failures are easier to replay. If network calls are recorded, unexpected external dependencies can be investigated.
+
+Recovery should be designed into the run:
+
+~~~text
+before:
+  capture git status
+
+during:
+  log file writes and commands
+
+after:
+  show diff, checks, denied actions, and cleanup steps
+~~~
+
+That record makes the sandbox practical. It is not enough to say the agent was contained. The user needs to know what happened inside the container.
+
+## authority drift is the real failure
+
+The failure mode I watch for is authority drift.
+
+A task starts small. The agent reads a file. It finds a failing check. It edits a helper. The helper depends on another module. A test needs a fixture update. A dependency is stale. Suddenly the agent wants broader write access, a new command, and network access to check documentation.
+
+Some of that may be legitimate. Some of it may be the agent turning a focused task into a wandering repair session.
+
+The sandbox should make each escalation explicit:
+
+- new write path requested
+- new command requested
+- network requested
+- secret lookup requested
+- external write requested
+
+Those are not errors by default. They are decision points.
+
+This is where sandboxing supports productivity. It lets the agent continue when the expansion is justified and stops it when the expansion is just momentum.
+
+## measure the boring things
+
+The metrics I want for sandboxed agents are not flashy.
+
+Count files touched. Count denied writes. Count permission escalations. Count commands run. Count failed commands. Count network requests. Count runs discarded. Count runs accepted after review. Count cases where the receipt did not match the diff.
+
+Those numbers tell you whether the sandbox is helping or getting in the way.
+
+If every useful task needs three escalations, the default scope is too tight or the task slicer is bad. If agents rarely hit boundaries but produce huge diffs, the scope may be too broad. If reviewers discard many runs after command failures, verification is happening too late.
+
+Sandboxing should be tuned from evidence, not from fear.
+
+## the point is reviewable autonomy
+
+I do not care about sandboxing because I want agents to be timid.
+
+I care because autonomy without reviewable boundaries is a mess. A coding agent should be able to do real work. It should read code, make edits, run checks, and report back. But that work should happen inside a shape the user can understand.
+
+Filesystem scope. Command policy. Network rules. Secret isolation. Escalation. Recovery. Receipts.
+
+That is the agent story I care about because it turns capability into something a team can operate.

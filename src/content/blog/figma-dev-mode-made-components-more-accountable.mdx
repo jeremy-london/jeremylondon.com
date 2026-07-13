@@ -8,24 +8,141 @@ author: "jeremy-london"
 tags: ["figma", "components", "design systems"]
 ---
 
-{/*
-Depth: quick-note
-Information map:
-- the concrete figma problem
-- the example surface: Dev Mode made design-system drift easier to see because the design file became more inspectable by developers
-- the failure mode: the UI looks consistent while the underlying decisions drift apart
-- the small decision I would keep
-- what would make the note wrong
-*/}
+Figma Dev Mode made component drift harder to ignore.
 
-Dev Mode made design-system drift easier to see because the design file became more inspectable by developers.
+That is the part I like. A design system can look healthy from a distance while its components slowly separate from the codebase. The button in Figma has six variants. The production button has nine. The design file uses one spacing token. The app uses another. A disabled state exists in code but not in the component sheet. A loading state exists in the mockup but not in the implementation.
 
-I would keep figma small here. The useful part is Dev Mode made design-system drift easier to see because the design file became more inspectable by developers. That is enough material for a figma note, not a manifesto.
+Before developers had a better inspection surface, some of that drift stayed fuzzy. You could still find it, but the conversation often started from a screenshot or a comment thread. Dev Mode made the mismatch more concrete. Developers can inspect frames, variables, measurements, code snippets, and component details in a surface meant for their job.
 
-The figma mistake is treating the observation as if it needs a complete theory around it. In practice, design systems work usually gets better when the first version names the boundary and then stops. For figma, that boundary is which decisions belong in tokens, components, product copy, or one-off layout.
+That does not fix the design system. It makes the design system more accountable.
 
-The figma check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the figma post has done its job. If the answer is no, adding three more figma paragraphs will not fix it.
+## a component is a contract
 
-The thing I would not add to figma is a fake architecture section. A short figma note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for figma. The rest of figma can wait until there is a real example to inspect.
+A component is not a pretty reusable layer. It is a contract between design, code, product behavior, and accessibility.
 
-I am leaving figma as a short note because the idea is useful at this size. A longer figma version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.
+For a button, the contract includes size, spacing, label behavior, disabled state, loading state, focus style, icon placement, density, destructive styling, and what happens when the text is longer than expected. For a card, it includes content hierarchy, truncation, interactive regions, empty media, keyboard behavior, and responsive layout.
+
+If the Figma component only captures the visual happy path, the contract is incomplete. If the code component only captures implementation convenience, the contract is also incomplete. The useful component lives where the two meet.
+
+Dev Mode raises the cost of pretending otherwise. When a developer inspects a component and sees raw values instead of tokens, detached instances, unnamed layers, or variants that do not match production props, the design-system gap is visible.
+
+That visibility is uncomfortable in a productive way.
+
+## variants need to map to behavior
+
+Figma variants are easy to multiply. `primary`, `secondary`, `large`, `small`, `icon`, `disabled`, `danger`, `selected`, `pressed`, `mobile`, `desktop`. Soon the component has a grid that looks complete and still does not match the code.
+
+The problem is not the number of variants. The problem is whether the variants describe behavior the product actually supports.
+
+If code exposes this API:
+
+~~~ts
+type ButtonProps = {
+  variant: "primary" | "secondary" | "danger"
+  size: "sm" | "md"
+  loading?: boolean
+  disabled?: boolean
+  iconBefore?: ReactNode
+}
+~~~
+
+Then the Figma component should not quietly invent a `tertiary-large-danger-icon-after-pressed` combination unless the production component can render it. Maybe that variant is a proposal. Maybe it is a future state. Maybe it belongs in exploration. But if it sits in the ready component library, developers will treat it as part of the contract.
+
+The inverse is also true. If production supports a loading state and the design component does not, engineers will create loading behavior without design guidance. That is how systems get weird little spinners, bad text shifts, and inconsistent disabled styles.
+
+Dev Mode helps because inspection makes those mismatches easier to catch at handoff time instead of during QA.
+
+## tokens reveal intent
+
+Raw values are sometimes fine during exploration. They are much less fine in a component library.
+
+A developer inspecting `#2563eb` has to guess whether that value is the brand blue, an old alias, a one-off choice, or a mistake. A token tells a better story. It says the value belongs to a named decision: `color.action.primary.background`, `space.3`, `radius.sm`, `font.body.medium`.
+
+When Dev Mode shows variables and code syntax, the design file can point toward the implementation language. That does not mean the snippet should be pasted blindly. It means the design artifact can speak in the same nouns as the codebase.
+
+The more useful component sheet is full of named decisions:
+
+~~~text
+button.primary.background = color.action.primary
+button.primary.text = color.text.inverse
+button.height.md = size.control.md
+button.radius = radius.control
+button.gap = space.2
+~~~
+
+That kind of mapping gives reviewers something to check. If a designer changes a token, the impact is visible. If an engineer uses a hardcoded value, the divergence is obvious. If the token name is wrong, the conversation moves to the token system instead of a pixel argument.
+
+## component ownership has to cross the file boundary
+
+Design-system ownership cannot stop at the Figma library.
+
+The library component, production component, docs page, tests, and examples all describe the same thing. If they drift, users experience the drift as product inconsistency. Developers experience it as extra interpretation. Designers experience it as "why did engineering build it that way?"
+
+I like components with a boring ownership record:
+
+~~~text
+component: Alert
+design owner: product design systems
+code owner: web platform
+docs: /docs/components/alert
+production package: @site/ui/alert
+figma library: Web Components / Alert
+last reviewed: 2024-02-07
+known gaps: no inline action variant in native app
+~~~
+
+That record does not need to live in Figma, but Figma should point to it. The code should point back. The goal is to make the component traceable across the places where it exists.
+
+Dev Mode makes the file more inspectable. Ownership makes inspection actionable.
+
+## inspection is not the same as alignment
+
+It is possible to inspect a component perfectly and still build the wrong thing.
+
+The file might encode an outdated pattern. The codebase might have a newer primitive. The design might show a desktop layout while the product mostly fails on mobile. The component might look correct but miss keyboard behavior. The measurement might be exact but the information architecture might be wrong.
+
+Inspection helps with translation. It does not replace product judgment.
+
+This is why component review should include behavior:
+
+- keyboard focus
+- disabled and loading states
+- validation and error copy
+- responsive layout
+- dark mode or theme modes
+- localization and long labels
+- accessibility names and roles
+- data-dependent empty states
+
+Figma can represent some of this. Code has to prove the rest.
+
+The handoff should make it clear which parts are specified visually and which parts are enforced by component tests or documentation. When the division is unclear, both sides assume the other side has it covered.
+
+## drift should be treated as a bug
+
+Design-system drift is easy to normalize because it rarely breaks everything at once.
+
+One component gets a custom margin. One variant is missing. One color value is hardcoded. One prop name differs from the design label. One screen uses an older component because migration was inconvenient. Each exception feels reasonable. Together they make the system harder to trust.
+
+Dev Mode gives teams a better surface for catching drift, but the team still has to decide that drift matters.
+
+I would track a few boring signals:
+
+- detached instances in ready-for-dev frames
+- raw color or spacing values in component library usage
+- variants present in Figma but absent in code
+- props present in code but absent in Figma
+- screenshots from implementation that diverge from component examples
+- accessibility states documented in code but absent from design guidance
+
+Those signals are not about blaming designers or engineers. They are about keeping the shared contract current.
+
+## the better handoff is a smaller translation
+
+The best version of Dev Mode is not "developers can extract code from designs." That framing is too shallow.
+
+The better version is that developers and designers have fewer translations to perform. The inspected component uses the same tokens as the code. The variant names match the props. The ready state says which frame matters. The notes explain behavior that pixels cannot. The linked resource points to production docs. The implementation can be reviewed against the same component contract.
+
+That is why Dev Mode made components easier to inspect and more accountable. It moved design-system drift out of vague opinion and into visible artifacts.
+
+Visible drift is still drift. But at least now the team can point at it.

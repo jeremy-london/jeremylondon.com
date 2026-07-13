@@ -8,24 +8,177 @@ author: "jeremy-london"
 tags: ["writing", "teaching", "debugging"]
 ---
 
-{/*
-Depth: quick-note
-Information map:
-- the concrete writing problem
-- the example surface: a good tutorial shows the mistake the reader is about to make and gives them a way back
-- the failure mode: the reader can copy the answer without understanding why it worked
-- the small decision I would keep
-- what would make the note wrong
-*/}
+Technical writing gets better when it leaves room for wrong guesses.
 
-A good tutorial shows the mistake the reader is about to make and gives them a way back.
+A lot of tutorials are written as if the reader will walk the same clean path the author walked in the final draft. Install the dependency. Create the file. Paste the code. Run the command. See the expected output. The problem is that readers do not experience tutorials that way.
 
-I would keep writing small here. The useful part is a good tutorial shows the mistake the reader is about to make and gives them a way back. That is enough material for a writing note, not a manifesto.
+They miss a step. They use a different version. They paste into the wrong file. They already have a port running. They skim the sentence that explains the one assumption that matters. Then the output is wrong in a way that feels personal.
 
-The writing mistake is treating the observation as if it needs a complete theory around it. In practice, technical learning work usually gets better when the first version names the boundary and then stops. For writing, that boundary is where explanation stops and experimentation starts.
+A good tutorial should expect that.
 
-The writing check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the writing post has done its job. If the answer is no, adding three more writing paragraphs will not fix it.
+## the wrong guess is part of the lesson
 
-The thing I would not add to writing is a fake architecture section. A short writing note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for writing. The rest of writing can wait until there is a real example to inspect.
+When I write or read technical material, I care less about whether the happy path works on the author's machine and more about whether the article understands the mistake I am about to make.
 
-I am leaving writing as a short note because the idea is useful at this size. A longer writing version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.
+For example, a beginner learning matrix multiplication often guesses that matching the total number of values is enough. It is not. The inner dimensions have to match. A good explanation names that wrong guess before the reader falls into it.
+
+~~~text
+This works:
+
+(2 x 3) dot (3 x 4) -> (2 x 4)
+
+This does not:
+
+(2 x 3) dot (2 x 4)
+~~~
+
+That small failure case saves a lot of confusion. It tells the reader what rule they were probably using and why the rule is wrong.
+
+The same pattern applies to software tutorials. If a command depends on the current directory, show what failure looks like from the wrong directory. If a package requires Node 22, show the version check before the install. If an API returns a shape that changed between versions, show the mismatch.
+
+## clean examples can lie
+
+Clean examples are useful. They can also hide the thing the reader needs to learn.
+
+~~~ts
+const user = await getUser(id)
+return user.name
+~~~
+
+That example teaches the shape of an async call, but it does not teach the boundary. Can `getUser` return `null`? Can it throw? Does `id` come from a route parameter? Is the caller authorized to read the user? Is this code running on the server or in a client component?
+
+The wrong guesses are where the real learning is:
+
+~~~ts
+const user = await getUser(id)
+
+if (!user) {
+  return new Response("User not found", { status: 404 })
+}
+
+return user.name
+~~~
+
+This is less pretty. It is also more honest.
+
+A tutorial does not need to include every production concern. That would bury the idea. But it should include the failure that changes the meaning of the example.
+
+## show the diagnostic move
+
+Readers need more than the answer. They need the move that found the answer.
+
+Bad:
+
+~~~text
+If this fails, check your configuration.
+~~~
+
+Better:
+
+~~~text
+If the command says "module not found", first run `pwd` and make sure
+you are in the project root. Then run `ls` and confirm that `package.json`
+is in the same directory.
+~~~
+
+That is not glamorous writing. It is useful writing.
+
+The diagnostic move is often tiny:
+
+- print the value before transforming it
+- run the command with `--verbose`
+- check the generated file instead of the source file
+- inspect the network response before changing client code
+- reduce the input to one failing case
+- verify the version before debugging behavior
+
+Those moves teach the reader how to get unstuck. The tutorial becomes a map instead of a magic trick.
+
+## version drift deserves a sentence
+
+Technical writing ages badly when it pretends tools do not change.
+
+I do not want every tutorial to become a changelog. But if a topic is version-sensitive, the article should say what assumption it is making.
+
+~~~text
+This example uses Tailwind CSS v4 syntax with `@import "tailwindcss"`.
+If you are on v3, you will still see the older `@tailwind` directives.
+~~~
+
+That sentence gives the reader a way to explain the mismatch. Without it, the reader may think they copied something wrong when the real issue is that they are reading across versions.
+
+The same thing happens with framework routers, package managers, model APIs, browser features, and cloud consoles. The article does not have to support every version. It should be honest about the one it is teaching.
+
+## wrong output is better than vague warning
+
+Warnings often fail because they describe a category instead of a symptom.
+
+~~~text
+Be careful with stale state.
+~~~
+
+That is true and almost useless.
+
+Show the wrong output:
+
+~~~text
+You clicked "save", but the UI still shows the previous title because
+the optimistic state updated the local draft and the server response
+replaced it with an older cached value.
+~~~
+
+Now the reader has something to recognize.
+
+I like tutorials that include at least one "if you see this, it probably means..." paragraph. It feels modest, but it carries a lot of teaching weight. It tells the reader that failure is expected and specific.
+
+## do not turn every article into a rescue manual
+
+There is a limit.
+
+If every paragraph branches into troubleshooting, the reader loses the main path. The trick is picking the wrong guesses that reveal the concept.
+
+For a React form article, the useful wrong guess might be assuming pending state belongs to the parent component. For a local-first sync article, it might be assuming last-write-wins is harmless. For an embeddings article, it might be assuming cosine similarity means the same thing across every modality. For a Kubernetes upgrade note, it might be assuming the cluster version is the only version that matters.
+
+Each wrong guess should earn its space by teaching the subject.
+
+## examples should be falsifiable
+
+An example should be specific enough to fail.
+
+If the reader cannot tell whether the example worked, the example is decoration. A command should produce output. A code block should have an expected shape. A UI step should change state. A model eval should define what counts as pass or fail.
+
+~~~text
+Run the script and look for this line:
+
+loaded 12 markdown files
+generated 12 route entries
+~~~
+
+That gives the reader a target. If they see `loaded 0 markdown files`, they know the bug is probably file discovery, not rendering.
+
+This is the same reason I like small smoke tests. They give technical writing a backbone. The prose says what should happen. The command proves whether the claim survived contact with the project.
+
+## the author should admit the path was edited
+
+Every good tutorial is edited. That is fine.
+
+What bothers me is when the editing removes every trace of uncertainty. The final article can make it sound like the author knew the shape of the solution from the beginning, when the real work involved dead ends, bad assumptions, and small fixes.
+
+I do not need a diary of every mistake. I do want the article to preserve the important wrong turn.
+
+~~~text
+I originally tried to solve this in the component, but the bug was in the
+data loader. The component rendered exactly what it received.
+~~~
+
+That sentence teaches debugging judgment. It also makes the article sound like a person wrote it after touching the system.
+
+## recovery is the trust signal
+
+The best technical writing does not merely say, "do this."
+
+It says, "you will probably think this other thing, and here is why it breaks." Then it gives the reader a way back.
+
+That is the difference between a tutorial that works once and a tutorial that teaches. The first one helps the reader reproduce the author's result. The second one helps the reader understand what to do when their result is different.
+
+Wrong guesses are not clutter. They are the shape of learning.

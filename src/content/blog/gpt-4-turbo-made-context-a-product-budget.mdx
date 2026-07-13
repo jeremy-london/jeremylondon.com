@@ -8,55 +8,141 @@ author: "jeremy-london"
 tags: ["openai", "gpt-4-turbo", "model-watch"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete openai problem
-- the example surface: OpenAI's DevDay launch made bigger context windows feel like something product teams had to price, test, and explain
-- the failure mode: the release sounds important without changing any concrete decision
-- the responsibilities around the model decision note
-- the tradeoff between convenience and what changed in the model versus what changed in the product surface
-- the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work
-*/}
+[GPT-4 Turbo](https://openai.com/index/new-models-and-developer-products-announced-at-devday/) made context feel like a product budget.
 
-OpenAI's DevDay launch made bigger context windows feel like something product teams had to price, test, and explain.
+The headline at OpenAI DevDay was easy to understand: 128K context, lower pricing than GPT-4, fresher knowledge, and a developer platform that was becoming more agent-shaped. The 128K number was the part that stuck in my head.
 
-The practical version starts with OpenAI's DevDay launch made bigger context windows feel like something product teams had to price, test, and explain. That gives openai a shape you can reason about. It also keeps the openai post out of slogan territory, which is where a lot of technical writing goes to die politely.
+Not because bigger context automatically solves everything. It does not. It stuck because it made context feel like a design material. Product teams suddenly had enough room to include longer documents, richer conversation history, more examples, larger code snippets, and more retrieved context. That raised a harder question:
 
-## What has to be true
+What deserves to be in the prompt?
 
-For openai to be useful, the AI systems builder needs a clear model decision note. That artifact does not have to be fancy. For openai, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for openai is that it explains what happened without asking the next person to reconstruct intent from vibes.
+When context is scarce, the system is forced to be frugal. When context gets cheaper and larger, waste becomes easier to hide.
 
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In model watch, the annoying openai bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for openai, but the caller cannot tell whether it is safe. A script exits zero for openai, but the output hides the one fact the maintainer needed.
+## bigger context changes product temptation
 
-## Implementation shape
+A 128K window made a lot of old workarounds feel negotiable.
 
-I would make the first openai version deliberately plain. The openai system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make openai enterprise software. It makes the work inspectable.
+You could include the whole policy doc instead of three chunks. You could carry more of the conversation. You could add examples and schemas without immediately crowding out the user's request. You could ask a coding model to inspect a larger set of files. You could build assistants that felt less forgetful because the raw material survived longer.
 
-A useful openai implementation question is where the record is created. If the openai record is created only after success, it will miss the interesting failures. I would create the openai record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+That was genuinely useful.
 
-## Tradeoffs
+It also created a product temptation: put more in, think less about it.
 
-The openai tradeoff is convenience versus what changed in the model versus what changed in the product surface. If the openai system is too strict, people route around it. If the openai system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For openai, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+The problem is that context is not only capacity. It is attention, cost, latency, privacy, and explanation. If the system includes ten documents, it should know why. If it includes old conversation history, it should know whether that history is still relevant. If it includes user data, it should know whether the model is allowed to see it.
 
-That contract can be boring. A useful openai shape is:
+The prompt is not a junk drawer. Or it should not be.
 
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
+## context has competing budgets
+
+There are at least four budgets hiding inside "context window."
+
+The first is token cost. Bigger inputs cost money, even when pricing improves. The second is latency. Larger prompts take longer to process. The third is attention quality. More material can distract the model or bury the detail that matters. The fourth is trust. The more private or stale material the system includes, the more careful the product has to be.
+
+Those budgets fight each other.
+
+A support assistant might want full account history for quality, but the privacy budget says no. A coding assistant might want the whole repository, but latency says pick relevant files. A policy assistant might want every document, but attention says identify the source of truth first. A writing assistant might want long memory, but trust says do not keep temporary instructions forever.
+
+I would make context planning explicit:
+
+~~~json
+{
+  "request": "answer_refund_policy_question",
+  "context_budget_tokens": 24000,
+  "included": [
+    { "source": "current_policy", "tokens": 8200, "reason": "source_of_truth" },
+    { "source": "account_plan", "tokens": 500, "reason": "eligibility" },
+    { "source": "recent_message", "tokens": 900, "reason": "user_intent" }
+  ],
+  "excluded": [
+    { "source": "old_policy_archive", "reason": "stale" },
+    { "source": "billing_notes", "reason": "not needed for answer" }
+  ]
 }
 ~~~
 
-The exact fields change by system. The openai pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+The manifest is more important as the context window grows. Without it, nobody knows whether the model answered from the right material or simply had a lot of text nearby.
 
-## What I would measure
+## retrieval became less desperate
 
-The openai metric is route changes, eval deltas, latency movement, cost movement, and migration work. That is more useful than asking whether openai "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+GPT-4 Turbo did not make retrieval obsolete. It made retrieval less desperate.
 
-For openai, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those openai numbers usually tell the truth before the happy-path dashboard does.
+With tiny windows, retrieval has to be aggressive. Chunk small. Rank hard. Compress everything. Hope the right paragraph survives. With more room, retrieval can return larger coherent units. A whole section. A whole file. A policy plus its exceptions. A test file plus the implementation it covers.
 
-If the openai system cannot answer those questions, I would keep the design smaller. Small openai systems with honest receipts are easier to improve than large systems that only report success.
+That is a better place to be. The model gets more natural context, and the system does less lossy pre-processing.
+
+But retrieval still owns important decisions:
+
+- permission
+- freshness
+- source ranking
+- deduplication
+- eligibility
+- source attribution
+
+Longer context does not decide which document is authoritative. It only gives the system room to include it.
+
+## examples are part of the budget
+
+Few-shot examples are easy to spend.
+
+When the context window grows, teams add more examples because they can. That often helps. It can also make prompts brittle. The examples may anchor the model too strongly, encode outdated behavior, or crowd out task-specific evidence.
+
+A product prompt should treat examples like dependencies:
+
+~~~text
+example purpose: teach output format
+example scope: refund policy answer
+remove when: structured output validator replaces format example
+risk: example uses outdated cancellation copy
+~~~
+
+That sounds excessive until a model keeps repeating an old phrase because the prompt example survived three product revisions.
+
+Context budget is not only about user-provided material. It is also about the scaffolding the team keeps adding to make the model behave.
+
+## conversation history needs expiration
+
+Large context made it easier to carry long conversations. That was useful and dangerous.
+
+Users expect an assistant to remember what they said earlier in the task. They do not always expect a temporary preference, discarded idea, or corrected misunderstanding to keep shaping the answer forever.
+
+Conversation history needs rules:
+
+- what stays in the live context
+- what gets summarized
+- what gets dropped
+- what becomes durable memory
+- what the user can inspect or delete
+
+The larger window delays the hard decision. It does not remove it.
+
+For agent workflows, this matters even more. An old plan can contaminate a new one. A corrected tool result can sit next to the incorrect result. A stale instruction can survive because nobody pruned it. More context can create more ways for the model to follow yesterday's wrong assumption.
+
+## what to measure
+
+I would measure context like a product feature.
+
+Useful metrics include:
+
+- tokens included by source type
+- answer quality by context size
+- latency by context size
+- cost per successful answer
+- citation accuracy
+- stale-source usage
+- retrieval miss rate
+- user correction rate after long-context answers
+
+The interesting metric is not "average prompt length." It is whether extra context improved the task. If the 80K-token route performs the same as the 12K-token route, the extra context is probably waste. If the larger route helps only on a specific slice, the router should learn that slice.
+
+Context should earn its place.
+
+## the devday shift
+
+GPT-4 Turbo made a bigger context window feel normal enough that product teams had to stop treating context as a hidden implementation detail.
+
+The question moved from "can it fit?" to "should it fit?" That is a better question. It forces decisions about source selection, privacy, latency, cost, examples, history, and evidence.
+
+A larger window gives the model more room. It gives the product team more responsibility.
+
+That is the budget I care about.

@@ -12,29 +12,6 @@ load_pyodide: true
 import PythonModule from "@components/blog/shared/PythonModule.jsx";
 import BatchProcessing from "@components/blog/BatchProcessing.jsx";
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete batching problem
-- the example surface: Why running several inputs at once gives a more honest picture of what a model is doing
-- the failure mode: the explanation sounds right but the reader cannot reproduce the calculation
-- the responsibilities around the runnable example
-- the tradeoff between convenience and the exact step where a scalar, vector, matrix, or activation changes shape
-- the check or metric: whether the hand calculation, code output, and visual state agree
-*/}
-
-Why running several inputs at once gives a more honest picture of what a model is doing.
-
-The practical version starts with Why running several inputs at once gives a more honest picture of what a model is doing. That gives batching a shape you can reason about. It also keeps the batching post out of slogan territory, which is where a lot of technical writing goes to die politely.
-
-## What has to be true
-
-For batching to be useful, the learner needs a clear runnable example. That artifact does not have to be fancy. For batching, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for batching is that it explains what happened without asking the next person to reconstruct intent from vibes.
-
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In deep learning basics, the annoying batching bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for batching, but the caller cannot tell whether it is safe. A script exits zero for batching, but the output hides the one fact the maintainer needed.
-
-## Run the example
-
 <BatchProcessing client:only="react" />
 <PythonModule
   client:only="react"
@@ -42,34 +19,119 @@ The implementation detail I care about is ownership. Who creates the artifact? W
   outputRows={32}
 />
 
-## Implementation shape
+Batch processing is the point where a toy neural network lesson starts telling the truth.
 
-I would make the first batching version deliberately plain. The batching system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make batching enterprise software. It makes the work inspectable.
+A single input is useful for learning the arithmetic. You can draw the neuron, multiply a few weights, add the bias, run ReLU, and see one output. That is a good first step because the moving parts are small enough to hold in your head.
 
-A useful batching implementation question is where the record is created. If the batching record is created only after success, it will miss the interesting failures. I would create the batching record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+But a model that only runs one example at a time can give you a false sense of understanding.
 
-## Tradeoffs
+One input can make a bad weight look harmless. One input can hide that a ReLU is shutting off a hidden unit for half the cases. One input can make a bias feel like a random constant instead of a shift that changes many examples at once.
 
-The batching tradeoff is convenience versus the exact step where a scalar, vector, matrix, or activation changes shape. If the batching system is too strict, people route around it. If the batching system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For batching, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+Running three inputs together is the first time the lesson starts to look like the real thing.
 
-That contract can be boring. A useful batching shape is:
+## the shape changes first
 
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
-}
+The most important change is not speed. It is shape.
+
+With one input, the calculation looks like this:
+
+~~~text
+z = W x + b
 ~~~
 
-The exact fields change by system. The batching pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+With a batch, `x` becomes a matrix. Each column can be one example. The same weights and biases are applied to several inputs at once.
 
-## What I would measure
+~~~text
+Z = W X + b
+~~~
 
-The batching metric is whether the hand calculation, code output, and visual state agree. That is more useful than asking whether batching "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+That capital `X` is doing a lot of work. It says the model is not changing its weights for each example. The same little machine is being tested against several cases.
 
-For batching, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those batching numbers usually tell the truth before the happy-path dashboard does.
+That is the useful mental model: batching is not three different networks. It is one network seeing three inputs.
 
-If the batching system cannot answer those questions, I would keep the design smaller. Small batching systems with honest receipts are easier to improve than large systems that only report success.
+## batching exposes brittle intuition
+
+Single-example intuition is fragile.
+
+Suppose one hidden neuron fires for the first input. It is tempting to think that neuron is "active" or "useful." Then the second and third inputs run through the same weights, and the neuron goes to zero after ReLU. Now the picture is different.
+
+The neuron did not become useless. It became conditional.
+
+That is why batching helps. It shows that a weight is not good or bad in isolation. A weight changes how a feature contributes across a set of inputs. A bias does not only fix one example. It shifts the activation boundary for every example in the batch.
+
+When you change one value in the interactive grid, watch more than the output you expected to change. Watch the other columns too. That is where the lesson is hiding.
+
+## relu is easier to see in columns
+
+ReLU can feel too simple when you only run it once.
+
+Negative becomes zero. Positive stays positive. Fine.
+
+In a batch, ReLU becomes a pattern. A hidden layer may produce a row like this:
+
+~~~text
+[-3, 2, 5]
+~~~
+
+After ReLU:
+
+~~~text
+[0, 2, 5]
+~~~
+
+That row tells you something about the hidden unit. For the first input, it contributes nothing downstream. For the second and third, it contributes. The same unit is present in all three examples, but its effect depends on the input.
+
+This is where hidden layers stop feeling like a pile of abstract neurons and start feeling like intermediate tests. Each hidden unit is asking a weighted question. ReLU decides whether the answer is allowed to keep moving.
+
+## bias moves the boundary for everyone
+
+Bias is easy to under-teach.
+
+In a single-example walkthrough, bias can look like an extra number tacked on because the formula needed one. In a batch, bias becomes easier to understand because the same bias is added across every example for that neuron.
+
+If a hidden unit is almost active for two inputs and deeply negative for one input, changing the bias may flip the first two while leaving the third off. That is more informative than watching one number move.
+
+The bias is not a personal adjustment for one row of data. It is part of the neuron's decision boundary.
+
+That is why the interactive version is worth playing with slowly. Change a bias by one. Predict which columns will cross zero. Then run it. If your guess is wrong, the wrong guess is useful. It tells you which part of the calculation you were holding too loosely.
+
+## batching is honest about reuse
+
+The real reason batching matters is that it shows reuse.
+
+The same `W1`, `b1`, `W2`, and `b2` process every input in the batch. That is what makes the network a model instead of a lookup table. It has to reuse its parameters across different examples.
+
+This is also why batch examples are a better bridge to training. During training, the model sees many examples and receives a signal about how the shared weights performed across them. A weight update is not supposed to make one input happy while wrecking the rest. The batch is the first small hint of that pressure.
+
+You do not need backpropagation yet to feel the idea. Just watch a single weight change affect multiple examples at once.
+
+## the notation is trying to help
+
+Matrix notation can look like someone made the lesson harder for sport.
+
+I get that reaction. If you are learning neural networks from scratch, the jump from a hand-drawn neuron to matrix multiplication can feel like the author changed subjects.
+
+But the notation is useful once there is more than one input.
+
+Writing out three separate forward passes repeats the same idea three times. Matrix form says the repeated structure out loud. The columns are examples. The rows are neurons. The multiplication is the same weighted sum applied across the batch.
+
+That is the moment where the notation earns its keep.
+
+The goal is not to memorize shapes as trivia. The goal is to know enough shape discipline that you can tell when a calculation is wrong.
+
+## what to try in the module
+
+Use the interactive grid like a lab, not a calculator.
+
+Pick one input column. Predict which hidden values will be positive before ReLU. Change one weight in `W1`. Run the code and see whether only the column you expected changed. Then change a bias and watch whether the activation boundary moves for several inputs.
+
+The useful questions are small:
+
+- which hidden units turn off for which inputs?
+- does changing one weight affect all columns or only one?
+- which output changes after a hidden value crosses zero?
+- where did my prediction fail?
+
+That last question is the best one. The point of a small batch is not to get every number right on the first pass. It is to make the model's behavior visible enough that a wrong guess teaches something.
+
+Batch processing stops the lesson from lying because it refuses to let one example stand in for the whole system.

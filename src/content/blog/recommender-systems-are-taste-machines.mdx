@@ -1,6 +1,6 @@
 ---
 title: "Ranking shows up everywhere"
-excerpt: "Ranking is not only for recommendations. It shows up in retrieval, alerts, model routing, and engineering workflows."
+excerpt: "Ranking shows up in recommendations, retrieval, alerts, model routing, and engineering workflows."
 publishDate: "2025-06-25T19:00:00Z"
 category: "deep-learning-networks"
 draft: false
@@ -8,138 +8,127 @@ author: "jeremy-london"
 tags: ["recommenders", "ranking", "personalization"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete recommenders problem
-- the example surface: a team arguing about whether the model improved or merely changed
-- the failure mode: a model choice is treated as isolated even though the surrounding system made the decision
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using task success, latency budget, memory footprint, batch behavior, and quality by route
-- security or ownership boundary: where the model stops and the serving system starts
-- latency, cost, and scaling implications
-*/}
+Ranking shows up everywhere: feeds, search results, triage queues, dashboards, recommendations, alert lists, and model routing. Any time a system chooses what someone sees first, ranking has entered the room.
 
-Ranking is not only for recommendations. It shows up in retrieval, alerts, model routing, and engineering workflows.
+The hard part is not sorting. The hard part is deciding what the score means and what the product will learn from it.
 
-The interesting part of recommenders is not the name. It is the system pressure around a team arguing about whether the model improved or merely changed. Once that pressure shows up for recommenders, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+## candidates come before scores
 
-## The unit of work
+A ranking system starts before the ranking function.
 
-I would start by naming the unit of work for recommenders. In model systems, the recommenders unit is usually smaller than the product surface and larger than a function call. For recommenders, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+Candidate generation decides what can possibly win. If the right item never enters the candidate set, no scoring function can save it.
 
-A useful recommenders unit has four properties:
+Candidate sources might include:
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+- keyword search
+- embedding retrieval
+- graph neighbors
+- subscriptions
+- recently updated records
+- popularity
+- user history
+- business rules
+- alerts over a threshold
+- model routes that are eligible for a task
 
-For recommenders, the boundary is where the model stops and the serving system starts. That boundary should be visible in the recommenders data, not only in a policy document. If a recommenders request crosses the boundary, the trace should show it.
+This matters outside classic recommendations. In RAG, the candidate set is the retrieved chunks. In alerting, it is the events that pass the first filter. In model routing, it is the allowed routes. In an engineering dashboard, it is the list of incidents, PRs, builds, or flaky tests worth showing.
 
-## Data flow
+The first ranking bug is often a recall bug. The best result was not ranked low. It was missing.
 
-The simple recommenders flow looks like this:
+## scoring should name its values
+
+After candidate generation comes scoring.
+
+A simple scoring function might look like this:
 
 ~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
+score = 0.45 * relevance + 0.20 * freshness + 0.15 * trust + 0.10 * diversity + 0.10 * context
 ~~~
 
-The context builder gathers the minimum useful state for recommenders. The recommenders decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+The weights are less important than the discipline of naming the signals.
 
-That receipt is the difference between a recommenders demo and an operable system. A demo can rely on a person watching closely. A recommenders system needs to explain itself after the person has moved on.
+Relevance to what? Fresh for how long? Trust according to whom? Diversity across which dimension? Context from the current user, team, task, location, query, or device?
 
-A recommenders request envelope might look like this:
+These are product decisions hiding inside math.
 
-~~~json
-{
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
-}
-~~~
+For a documentation search surface, trust might mean official docs beat forum posts. For incident triage, severity may beat recency. For model routing, policy eligibility may beat quality. For a feed, diversity may prevent one source from flooding the first page.
 
-The schema is deliberately plain. Fancy schemas do not save unclear recommenders systems. The useful recommenders work is deciding which fields are required, which are advisory, and which block the run when missing.
+The score is a compressed argument about what the product values.
 
-## Implementation sketch
+## ranking teaches the system
 
-I would implement the first recommenders pass as a narrow pipeline rather than a general platform. Start recommenders with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+Position bias makes top results look better because they were shown first. Freshness can bury durable work. Popularity can create feedback loops. Personalization can narrow the world too far. Diversity constraints can help, but only if the system knows what kind of repetition is bad.
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+The scary thing is that the system may learn from its own display choices.
 
-For recommenders, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The recommenders system still has to decide whether the proposal is usable under the current boundary.
+If top results get more clicks because they are on top, clicks become a noisy label. If popular items get shown more, they become more popular. If a ranking system hides long-tail documents, the system gets less evidence about whether those documents were useful. If an alert queue always shows one category first, operators may train the system by responding to what it already prioritized.
 
-## Failure modes
+Ranking systems create feedback loops. That is true for social feeds and also true for internal tools.
 
-The main recommenders failure mode is a model choice is treated as isolated even though the surrounding system made the decision. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The recommenders failure is that the next component cannot tell whether the result should be trusted.
+The product should know which feedback signals are biased by position, exposure, and UI design.
 
-I would test at least five recommenders cases:
+## metrics are useful and incomplete
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+Offline ranking metrics are worth using.
 
-That last recommenders case matters. A confident recommenders answer is not the same thing as a verified result. If recommenders touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+Recall@K tells you whether relevant items appear in the top results. Precision@K tells you whether the top results are mostly useful. nDCG cares about order and graded relevance. MAP can help with ranked retrieval across many queries.
 
-## Deployment shape
+Those metrics are necessary for repeatable work. They are not the whole product.
 
-I would not deploy recommenders as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For recommenders, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+Online behavior matters too:
 
-That gives the router real work to do. For recommenders, it should not only choose small model or big model. It should choose a risk path:
+- clicks
+- dwell time
+- hides
+- saves
+- conversions
+- reformulated queries
+- manual overrides
+- complaints
+- downstream task success
 
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
+The problem is that online behavior is full of confounders. A click may mean interest, confusion, habit, or a bad title. Dwell time may mean engagement or difficulty. A user may not click the right answer because the snippet already answered the question.
 
-Each recommenders path has a different budget, verifier, and approval requirement. This is the part that makes recommenders feel less magical and more like infrastructure. The model is still important, but the recommenders route determines what kind of trust the system is asking for.
+Metrics need interpretation. Ranking is where data science and product judgment constantly annoy each other.
 
-## Measurement
+## explanations help debugging
 
-The measurement surface for recommenders is task success, latency budget, memory footprint, batch behavior, and quality by route. I would track recommenders per route or case type, not only as a global average. Global averages hide the exact class of recommenders problems that make these systems feel unpredictable.
+I want ranking systems to leave evidence.
 
-A simple eval table can carry a lot of weight:
+For any surprising result, an operator should be able to ask:
 
-~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
-~~~
+- which candidates were considered?
+- which candidates were filtered out?
+- which signals dominated?
+- which rule overrode the score?
+- which model version scored it?
+- which user or query context mattered?
+- what feedback has this item received before?
 
-The point is not to build an eval cathedral for recommenders. The point is to preserve enough recommenders structure that regressions can be clustered. If failures cluster around one route, fix the route. If recommenders failures cluster around one policy boundary, fix the boundary. If recommenders failures cluster around one model, stop pretending the prompt is the whole system.
+That does not mean showing all of this to the end user. It means the team can debug the ranking.
 
-## Operational concerns
+I would keep examples where the ranking was surprising. Which signal dominated? Which candidate was missing? Did a business rule override relevance? Did the model learn a proxy for something we do not actually want?
 
-The operational question for recommenders is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap recommenders route becomes unreliable but the expensive route would blow the budget?
+Those examples are more useful than aggregate dashboards alone. They show the system's taste in concrete form.
 
-For recommenders, I would put those answers in configuration, not in a heroic prompt. A small recommenders policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+## ranking in ai systems
 
-## Scaling behavior
+AI systems are full of ranking decisions.
 
-At small scale, a human can inspect weird recommenders cases by hand. At medium scale, the recommenders system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+Retrieval ranks chunks before generation. A router ranks model paths. An agent ranks tools or next steps. An eval dashboard ranks failures. A threat analytics system ranks alerts. A code review assistant ranks files to inspect. A memory system ranks prior context.
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the recommenders system without being surprised by the downstream behavior?
+That means ranking quality affects far more than recommendation feeds.
 
-For recommenders, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the recommenders system a spine.
+For AI work, I care about whether the ranking system preserves the evidence needed for the next step. The top retrieved chunk should support the answer. The top alert should be actionable. The top model route should satisfy policy and quality. The top tool should be allowed and useful.
 
-## Where I land
+Ranking mistakes become downstream reasoning mistakes.
 
-Recommenders deserves depth when it changes architecture, not when it merely sounds current. The recommenders implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+## taste encoded as infrastructure
 
-If the recommenders post answers those questions, it teaches something. If the recommenders post only says the topic matters, it is just a longer version of the headline.
+Ranking is taste encoded as infrastructure.
+
+That makes it powerful and annoying. Powerful because small ranking changes can make a product feel much smarter. Annoying because the system will optimize whatever signals you give it, including bad proxies.
+
+A good ranking system should be measurable, debuggable, and humble about the difference between a score and a user's actual intent.
+
+The score is not the truth. It is a guess about what should be seen first.

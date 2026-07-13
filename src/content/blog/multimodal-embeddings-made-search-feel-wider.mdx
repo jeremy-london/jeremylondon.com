@@ -8,193 +8,145 @@ author: "jeremy-london"
 tags: ["embeddings", "multimodal", "search"]
 ---
 
-{/*
-Depth: systems-essay
-Information map:
-- the concrete embeddings problem
-- the example surface: a retrieval system that has to prove it found the right neighborhood, not just a nearby vector
-- the failure mode: the system succeeds once but gives the next maintainer no way to explain it
-- why the obvious solution is insufficient
-- system constraints and trust boundaries
-- architecture and component responsibilities
-- request, event, and evidence flow
-- deterministic and semantic verification
-- measurement using reproduction time, failing example coverage, queue age, and rollback confidence
-- latency, cost, and scale behavior
-- governance, revocation, and escalation
-- tradeoffs I would make
-- what remains unresolved
-*/}
+Text search assumes the thing you want can be turned into words before retrieval starts.
 
-By 2026, embedding work was moving beyond text into image, audio, video, and PDF retrieval.
+That assumption is fine for a lot of product work. It is also weirdly limiting. People remember things visually. They remember a chart shape, a screenshot with a red banner, a slide that had three boxes, the part of a video where someone opened a terminal, or the audio clip where a customer said the product name wrong. If the search system only indexes text, all of that memory has to be translated before the machine can help.
 
-The hard part of embeddings is not making a prototype move. Prototypes move. They call tools, retrieve documents, choose models, draw diagrams, and produce embeddings output that looks close enough to keep going. The hard part is deciding what the embeddings system is allowed to do after it produces something plausible.
+Multimodal embeddings widened the retrieval surface. A PDF page, image region, frame sequence, waveform window, table, diagram, or screenshot can become something the index understands.
 
-I think about embeddings as a control problem more than a prompt problem. The prompt matters for embeddings, but the prompt is only one component inside a larger machine: context construction, policy, routing, tool execution, verification, storage, approval, and replay. If those pieces are missing, the embeddings system may still look impressive in a demo. It will just be unpleasant to operate.
+That sounds magical until you build the retrieval system. Then it becomes familiar engineering: segmentation, metadata, normalization, permission filtering, ranking, evaluation, and the deeply annoying question of what a similarity score actually means.
 
-## The problem
+## search starts before the vector
 
-The concrete surface here is a retrieval system that has to prove it found the right neighborhood, not just a nearby vector. That embeddings surface creates pressure because it crosses from language into work. Once a embeddings system can affect files, route requests, inspect user state, call tools, spend money, or produce security-relevant conclusions, "the model answered" is no longer the end of the story.
+The important decision is often not the embedding model. It is the unit being embedded.
 
-The embeddings system needs to answer different questions:
+Text has trained us to think in chunks: paragraphs, sections, pages, documents. Multimodal content makes that decision more visible. A whole image embedding may find the right photo, but it may miss the small object in the corner. A PDF-page embedding may find the page with the diagram, but it may not distinguish the caption from the table. A video embedding across a five-minute window may catch the topic and lose the exact moment the user wanted.
 
-- What exactly was requested?
-- Which context was used?
-- Which policy boundary applied?
-- Which component made the decision?
-- What evidence supported the result?
-- What was verified deterministically?
-- What was judged semantically?
-- Who approved the action, if approval was needed?
-- How would we replay the case after a failure?
+The retrieval unit needs to match the way the result will be used.
 
-Those questions sound administrative until something breaks. Then they become the only questions that matter.
+For PDFs, I usually think in layers:
 
-## Why the obvious solution is insufficient
+- document-level embedding for broad discovery
+- page-level embedding for navigation
+- block-level embedding for text, tables, figures, and captions
+- image crop embedding for diagrams and screenshots
+- extracted text embedding for exact language
 
-The obvious embeddings solution is to add a better model and a thicker prompt. That helps embeddings, but it does not solve the operating problem. A stronger model can still break embeddings: call the wrong tool, use stale context, skip a permission boundary, or produce a technically valid answer that is useless to the person who has to act on it.
+For video, the unit might be a scene, a sampled frame cluster, a transcript segment, or a time window around an action. For audio, it might be transcript text, acoustic features, speaker turns, or fixed windows. Each choice changes what the system can retrieve.
 
-The second obvious embeddings solution is to put a human approval button at the dangerous step. That also helps embeddings, but only if the approval has context. A embeddings button that says "approve" without showing the diff, tool arguments, policy boundary, expected side effect, and rollback path is not governance. It is a liability with a nicer label.
+The vector is downstream of that decision. If the segmentation is wrong, the index can be technically healthy and still useless.
 
-For embeddings, I would treat approvals as part of the data flow. The approval is not a modal. It is a signed embeddings decision attached to the run record.
+## shared space is useful, not neutral
 
-## Constraints
+Most multimodal retrieval systems project different inputs into a shared vector space. Text goes through one encoder path. Images may go through another. Audio and video may be represented through specialist encoders, transcripts, sampled frames, or model-specific fusion layers. The system then compares vectors with cosine similarity, dot product, or another distance measure.
 
-A production embeddings version has to live with several constraints at once.
+The useful promise is cross-modal retrieval:
 
-The first is latency. Verification cannot be so slow that everyone disables it. The second is cost. Running a frontier model as judge for every small embeddings step may be correct and still unaffordable. The third is privacy. For embeddings, context windows are tempting places to dump everything, but credential material, user state, and internal documents need boundaries. The fourth is replay. If a embeddings failure cannot be replayed, it will be explained with folklore.
+- text query finds an image
+- screenshot finds a support article
+- chart image finds the source PDF
+- spoken phrase finds a video segment
+- error dialog finds similar bug reports
 
-The trust boundary is what must be proven before the change is trusted. I would make that boundary explicit in the request envelope rather than burying it in code comments.
+The trap is assuming every score means the same thing.
+
+Text-to-text similarity, text-to-image similarity, image-to-image similarity, and transcript-to-video similarity can have different score distributions. A `0.78` in one path may be strong while a `0.78` in another is weak. Mixing them in one ranked list without calibration can make the product feel random.
+
+That is where retrieval stops being a model demo. The ranking layer needs to know which modality produced the candidate, how the query was encoded, whether the score has been normalized, and whether another reranker should compare the top results with richer context.
+
+## metadata keeps search honest
 
 ~~~json
 {
-  "runId": "run_2026_07_13_001",
-  "actor": "agent-or-human-id",
-  "input": "requested work",
-  "contextRefs": ["doc:policy", "file:target", "trace:previous-step"],
-  "scope": {
-    "filesystem": ["read:src", "write:docs"],
-    "network": ["deny"],
-    "credentials": ["none"],
-    "expiresAt": "2026-07-13T18:00:00Z"
+  "assetId": "incident-review-2026-03",
+  "modality": "video",
+  "segment": {
+    "startMs": 42000,
+    "endMs": 51000
   },
-  "decision": null,
-  "evidence": [],
-  "approval": null
+  "representation": "frame_cluster",
+  "embeddingModel": "multimodal-encoder-v2",
+  "sourceUri": "s3://internal-review/video.mp4",
+  "permissions": ["team:security-research"],
+  "createdAt": "2026-03-14T10:08:00Z",
+  "derivedFrom": ["transcript:segment-31", "frame:000843"]
 }
 ~~~
 
-That envelope is not meant to be universal. It is meant to force the design conversation. What scope exists? Who grants it? When does it expire? What evidence must be present before the next state transition?
+The metadata is as important as the vector.
 
-## Architecture
+The vector tells the index where to search. The metadata tells the product whether the result can be shown, where it came from, what time range it covers, which model produced it, which permissions apply, and how to explain it to the user.
 
-The architecture I would start with has six components:
+This matters more when the index mixes modalities. A text result can usually be quoted. A video result needs a timestamp. A PDF figure needs page number and maybe a crop. A chart result needs the source document, not merely a thumbnail. An audio result may need a transcript window so the user can inspect the match without replaying minutes of sound.
 
-- context builder
-- policy engine
-- router
-- executor
-- verifier
-- run ledger
+Permissions also have to run before ranking leaks information. If a user searches for "layoff plan" and the system returns a redacted title from a restricted document, the retrieval layer already leaked too much. Metadata filters should narrow the candidate set before nearest-neighbor results become user-visible.
 
-The context builder gathers only the state needed for the next decision. The policy engine decides whether the requested action is allowed. The router chooses the model, tool, or human path. The executor does the work. The verifier checks the result. The run ledger stores the envelope, transitions, evidence, approvals, and outputs.
+## indexing has more than one path
 
-The important part is separation. The component that proposes an action should not be the only component that decides whether the action is acceptable. That does not mean every verifier needs to be another model. Some of the best verifiers are boring: schema validation, type checks, path checks, diff checks, policy checks, budget checks, and deterministic tests.
+I would not build one giant undifferentiated vector bucket and hope the distance metric figures it out.
 
-A rough state machine looks like this:
+There are cases where a single approximate-nearest-neighbor index is fine. There are also cases where separate indexes by modality, permission class, tenant, or representation make the system easier to operate. A product may keep text chunks in one index, image regions in another, and video frame clusters in a third, then merge candidates after retrieval.
+
+The merge step is where calibration gets real. The system might retrieve top candidates from each modality, apply metadata filters, rerank with a cross-encoder or multimodal judge, then produce a mixed result list with citations.
 
 ~~~text
-created
-  -> context_ready
-  -> policy_checked
-  -> routed
-  -> executed
-  -> verified
-  -> approved | rejected | escalated
-  -> recorded
+query
+  -> encode query as text vector
+  -> retrieve text candidates
+  -> retrieve image candidates
+  -> retrieve video candidates
+  -> apply permission filters
+  -> rerank top candidates with richer context
+  -> return cited results with modality-specific previews
 ~~~
 
-Each transition should be cheap to inspect. If the system jumps from created to recorded, the architecture is lying to you.
+The preview is part of relevance. A user needs to know why a result matched. For text, a highlighted passage may be enough. For an image, maybe the crop matters. For video, the timestamp and nearby transcript matter. For a PDF, the page thumbnail, extracted text, and document title all work together.
 
-## Operating loop
+## hard negatives are where the system grows up
 
-The operating loop is where embeddings can become reliable or collapse into a pile of impressive transcripts. I would make every run produce a record that can be inspected by a human, replayed by a test harness, and summarized by an eval dashboard. Those are three different consumers, so the record cannot be only prose.
+Multimodal retrieval needs hard negatives.
 
-The loop I would want is:
+The easy positive example is "find the slide with the architecture diagram" when there is only one architecture diagram. The useful eval set contains close mistakes:
 
-~~~text
-capture -> propose -> check -> approve -> execute -> verify -> record -> learn
-~~~
+- a red error dialog versus a red success banner
+- a phishing training slide versus a real phishing email screenshot
+- two charts with the same shape but different axes
+- a dashboard screenshot before and after a deployment
+- two video segments with the same person doing different actions
+- an audio clip with the same phrase used sarcastically and literally
+- a PDF page with the term in a footer rather than the body
 
-Capture stores the request and context references. Propose creates the candidate action. Check runs policy and deterministic validation. Approve attaches a human decision when the action needs one. Execute performs the work. Verify compares the result with the contract. Record stores the transition. Learn turns accepted and rejected runs into future eval cases.
+These examples teach you whether the system is retrieving semantics or surface resemblance.
 
-That last step is easy to skip and expensive to recover later. If the system only stores successes, it trains the team to forget the edge cases. The rejected runs are often more useful because they show where the boundary was unclear, where the model overreached, or where the tool contract was underspecified.
+I would track Recall@K and nDCG, but I would also keep a review set that humans inspect. Multimodal failures are often obvious to a person and hard to describe with one number. The top result may be visually close and semantically wrong. The correct result may be ranked fifth because the image encoder loved the colors in another candidate.
 
-## Information flow
+For a product search surface, I care about:
 
-Information should move forward as evidence, not as vibes. The executor should not hand the verifier a blob of text and hope for the best. It should hand over the tool call, arguments, output, affected resources, timing, cost, and any claimed reasoning that the verifier is expected to check.
+- whether the right asset appears in the top results
+- whether the correct segment or region is returned
+- whether the explanation points to the right evidence
+- whether restricted assets are absent
+- whether common queries behave consistently across modalities
+- whether adding a new modality makes old text search worse
 
-For embeddings, I would separate three kinds of evidence:
+That last one is easy to miss. A wider index should not make ordinary text search feel worse.
 
-- deterministic evidence, such as tests, schemas, diffs, permissions, and checksums
-- semantic evidence, such as a judge model comparing output to intent
-- operational evidence, such as latency, cost, retries, and approval history
+## multimodal retrieval is not automatically grounded
 
-These evidence types age differently. Deterministic evidence is easier to replay. Semantic evidence may drift when the judge model changes. Operational evidence explains whether the system was usable under the actual constraints.
+A multimodal index can make search feel richer, but it can also make hallucination look better dressed.
 
-## Failure modes
+If a generation step uses retrieved images, clips, or pages, it should cite them in a way the user can inspect. "Based on the video" is weak. "Based on 00:42 to 00:51, where the terminal shows the failed migration command" is better. The user needs a path back to the source.
 
-The obvious failure is the system succeeds once but gives the next maintainer no way to explain it. The less obvious failures are more interesting.
+Grounding is also about refusing weak matches. If the nearest neighbors are all mediocre, the product should say that. A forced answer with a pretty thumbnail is still a forced answer.
 
-A confused deputy failure happens when one component has authority another component should not inherit. An agent reads a private file, summarizes it into a shared context, and a later tool call leaks the summary. The filesystem permission looked correct, but the information boundary was already broken.
+I like retrieval systems that expose uncertainty in the interface. Show the matched page. Show the timestamp. Show the crop. Let the user open the source. Let them correct the result. Those corrections become eval material later.
 
-A stale-context failure happens when the model acts on a snapshot that is no longer true. This is common in coding agents, dashboards, and approval workflows. The user approves an action based on one diff, but the underlying file changed before execution.
+## what changed
 
-A verifier collapse happens when the verifier shares too much context, too much prompt structure, or too much failure mode with the generator. It agrees because it is making the same mistake. This is where deterministic checks earn their keep.
+The interesting shift is that search moved closer to how people remember work.
 
-A governance failure happens when approvals exist but revocation does not. Temporary access that cannot expire is not temporary. Tool scopes that cannot be audited are not scopes. A run ledger that cannot answer who approved what is not a ledger.
+People do not always remember filenames, exact phrases, or document titles. They remember a screenshot, a chart, a voice, a scene, a rough layout, or a visual state. Multimodal embeddings give systems a way to meet that memory halfway.
 
-## Measurement
+The engineering work remains stubbornly practical. Choose the retrieval unit. Keep metadata attached. Filter by permission early. Calibrate scores. Use modality-aware previews. Build hard-negative evals. Watch for regressions when the index expands.
 
-The measurement surface for embeddings is reproduction time, failing example coverage, queue age, and rollback confidence. I would not roll that into one success score. One number will hide the shape of the system.
-
-I would track:
-
-- task acceptance rate by route
-- verifier disagreement by case type
-- deterministic failure rate
-- semantic judge variance
-- approval latency
-- retry count
-- p50 and p95 end-to-end latency
-- cost per accepted run
-- escalation rate
-- replay success rate
-
-Replay success rate is underrated. If the team cannot replay a failed run with the same inputs, context references, policy version, and model versions, the incident review becomes storytelling.
-
-## Scaling behavior
-
-At small scale, the system can be strict and noisy. A human can read every rejection. At medium scale, the noise becomes expensive. The system needs triage, clustering, and better defaults. At large scale, the risk moves again: the bottleneck is no longer whether one run was correct, but whether teams can change models, prompts, tools, and policies without creating invisible regressions.
-
-That is where versioning matters. The model version, prompt version, tool schema version, policy version, and verifier version all belong in the run record. Otherwise a future failure will be impossible to attribute.
-
-I would also expect routing to become more conservative over time. Early prototypes overuse the strongest model because it is convenient. Production systems usually end up with a portfolio: cheap classifiers, small local models, retrieval paths, frontier models, deterministic tools, and human escalation. The router becomes an economic and governance component, not only a quality component.
-
-## Tradeoffs I would make
-
-I would spend complexity on the run ledger before spending it on fancy orchestration. If the system cannot explain what happened, better orchestration just fails faster.
-
-I would prefer narrow tool scopes that are annoying but inspectable over broad scopes that feel magical. The annoyance is real. So is the cost of a broad permission that nobody can audit.
-
-I would use model judges carefully. They are useful for semantic comparison, ranking, and clustering. They are weak as the only gate on irreversible actions. When the action matters, pair the judge with deterministic checks and human escalation.
-
-I would keep approvals contextual. Show the proposed action, affected resources, evidence, expected side effect, rollback story, and expiration. If that makes the approval UI crowded, the operation may be too vague.
-
-## What remains unresolved
-
-I do not think there is one clean answer for embeddings. The shape depends on the cost of failure, the sensitivity of the data, the reversibility of the action, and the review capacity of the team.
-
-The unresolved question is how much friction belongs in the default path. Too much friction and people avoid the system. Too little and the system accumulates invisible risk. The answer probably changes by task class, not by company slogan.
-
-That is the part I find interesting. The future of embeddings is not a chat box with more buttons. It is a work surface with memory, scope, evidence, review, revocation, and enough humility to stop when it cannot prove what it just did.
+The model widens the map. The product still has to make the map readable.

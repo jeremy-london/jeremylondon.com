@@ -1,6 +1,6 @@
 ---
 title: "Gemini 1 arrived with a multimodal reset"
-excerpt: "Google's Gemini 1.0 launch was not only about catching GPT-4. It was Google saying the next model fight would be multimodal and tiered."
+excerpt: "Google's Gemini 1.0 launch made the next model fight feel multimodal, tiered, and product-shaped."
 publishDate: "2023-12-07T14:00:00Z"
 category: "model-watch"
 draft: false
@@ -8,55 +8,100 @@ author: "jeremy-london"
 tags: ["google", "gemini", "model-watch"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete google problem
-- the example surface: Google's Gemini 1.0 launch was not only about catching GPT-4. It was Google saying the next model fight would be multimodal and tiered
-- the failure mode: the release sounds important without changing any concrete decision
-- the responsibilities around the model decision note
-- the tradeoff between convenience and what changed in the model versus what changed in the product surface
-- the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work
-*/}
+[Gemini 1.0](https://deepmind.google/blog/2023-a-year-of-groundbreaking-advances-in-ai-and-computing/) felt like Google changing the frame of the model race.
 
-Google's Gemini 1.0 launch was not only about catching GPT-4. It was Google saying the next model fight would be multimodal and tiered.
+The obvious read in December 2023 was competition with GPT-4. That was real. Google talked about benchmark performance, MMLU, coding, reasoning, and the usual frontier-model scoreboard. But the more interesting part was the product shape: Gemini arrived as a family, with Ultra for the largest tasks, Pro for broad use, and Nano for on-device work. It was also presented as multimodal from the ground up across text, audio, image, and video.
 
-The practical version starts with Google's Gemini 1.0 launch was not only about catching GPT-4. It was Google saying the next model fight would be multimodal and tiered. That gives google a shape you can reason about. It also keeps the google post out of slogan territory, which is where a lot of technical writing goes to die politely.
+That combination mattered more than one benchmark table.
 
-## What has to be true
+It said the next model fight would not be a single chatbot answering a single text prompt. It would be model tiers, device placement, multimodal inputs, developer surfaces, product integrations, and safety reviews all moving at once.
 
-For google to be useful, the AI systems builder needs a clear model decision note. That artifact does not have to be fancy. For google, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for google is that it explains what happened without asking the next person to reconstruct intent from vibes.
+## the family shape mattered
 
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In model watch, the annoying google bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for google, but the caller cannot tell whether it is safe. A script exits zero for google, but the output hides the one fact the maintainer needed.
+Ultra, Pro, and Nano were a product architecture statement.
 
-## Implementation shape
+Ultra was the frontier bet. Pro was the model meant to spread through developer and product workflows. Nano was the reminder that not every useful AI feature belongs in a remote data center. That split made the model conversation feel less like a ladder and more like a deployment map.
 
-I would make the first google version deliberately plain. The google system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make google enterprise software. It makes the work inspectable.
+I like that framing because real systems do not have one kind of work. A phone keyboard suggestion, a document summarizer, a coding assistant, a visual reasoning task, and an enterprise workflow should not all route to the same model by default. They have different latency, privacy, cost, reliability, and capability needs.
 
-A useful google implementation question is where the record is created. If the google record is created only after success, it will miss the interesting failures. I would create the google record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+The tiering made those tradeoffs visible:
 
-## Tradeoffs
-
-The google tradeoff is convenience versus what changed in the model versus what changed in the product surface. If the google system is too strict, people route around it. If the google system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For google, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
-
-That contract can be boring. A useful google shape is:
-
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
-}
+~~~text
+Nano: local or device-adjacent tasks where latency and privacy matter
+Pro: broad application work where cost and availability matter
+Ultra: hard reasoning and complex tasks where capability dominates
 ~~~
 
-The exact fields change by system. The google pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+That is simplified, but it is the useful simplified version. The model family forced product teams to ask where intelligence should live, not only how much intelligence they could buy.
 
-## What I would measure
+## multimodal stopped sounding like an add-on
 
-The google metric is route changes, eval deltas, latency movement, cost movement, and migration work. That is more useful than asking whether google "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+Before Gemini, a lot of multimodal product work still felt bolted together. Text model here. Vision model there. OCR in front. Speech in another service. A workflow stitched the pieces into something that looked unified to the user.
 
-For google, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those google numbers usually tell the truth before the happy-path dashboard does.
+Gemini's launch language pushed a different idea: multimodality as a native model assumption.
 
-If the google system cannot answer those questions, I would keep the design smaller. Small google systems with honest receipts are easier to improve than large systems that only report success.
+That matters because multimodal systems fail at the joins. OCR loses layout. Image captioning drops the detail the reasoning step needed. Audio transcripts flatten timing and tone. Video gets reduced to a few sampled frames. Then the text model reasons over a degraded shadow of the original input.
+
+A model that can reason across modalities directly does not eliminate those problems, but it changes the product ambition. It makes a PDF, screenshot, chart, video clip, whiteboard photo, and voice note feel like first-class inputs instead of pre-processing chores.
+
+For builders, that opens different workflows:
+
+- ask questions about a chart without manually extracting the table
+- inspect UI screenshots alongside bug reports
+- reason over a document page with layout intact
+- connect audio or video evidence to a written summary
+- use image context as part of a larger task rather than a separate captioning step
+
+The important part is not that every one of those worked perfectly on day one. The important part is that the interface expectation changed.
+
+## nano made placement part of the conversation
+
+Nano was easy to underrate if you only cared about frontier demos.
+
+On-device models are not impressive in the same way as a giant reasoning model. They are useful because they change boundaries. A local model can help with latency, offline behavior, privacy-sensitive input, and high-frequency interactions where a remote call would feel ridiculous.
+
+That has product consequences. If a feature runs locally, the UI can feel immediate. If it can inspect sensitive local context without sending it away, the trust model changes. If it works when the network is unreliable, it can live in parts of the product a cloud-only model cannot reach.
+
+The tradeoff is capability and maintenance. Local models have device constraints, memory budgets, update problems, and a wider deployment surface. The product has to decide which tasks are narrow enough to live there.
+
+Gemini 1.0 made that decision feel less like an edge case. The family itself said: some intelligence belongs on the device.
+
+## the benchmark story was only part of it
+
+Google's technical report and launch materials made strong claims about Gemini Ultra across academic benchmarks, including MMLU and multimodal benchmarks. Those numbers mattered because Google needed to show it was back in the frontier conversation.
+
+But benchmark wins are not the same as product fit.
+
+A multimodal model can score well and still struggle with the messy inputs a product sees: blurry screenshots, cropped mobile photos, tables with weird formatting, policy documents with contradictory sections, audio with background noise, or video where the important event happens between sampled frames.
+
+The product question is always more specific:
+
+- Does the model handle the modality the user actually provides?
+- Does it preserve enough evidence to cite or explain the answer?
+- Does it know when vision or audio evidence is ambiguous?
+- Does it route smaller tasks away from the frontier path?
+- Does the system evaluate multimodal failures separately from text failures?
+
+The launch made the possibility space larger. It did not remove the need for product-level evals.
+
+## developer surfaces were part of the launch
+
+Gemini Pro becoming available through AI Studio and Vertex AI mattered because model launches are also distribution events.
+
+A model that exists only inside a demo changes expectations. A model exposed through developer tools changes roadmaps. Suddenly teams can ask whether their document workflow, support triage, data extraction, or mobile feature should use a multimodal model path.
+
+That is where the hard work begins. The interface has to accept richer inputs. The storage layer has to preserve files and derived representations. The eval harness has to compare answers against visual or audio evidence. The privacy model has to name which inputs leave the device or workspace. The failure UI has to handle "the model could not inspect this image well enough" instead of pretending every failure is a text misunderstanding.
+
+Multimodal capability is not one endpoint. It is a product redesign pressure.
+
+## what it changed for me
+
+Gemini 1.0 made me think less about "the best model" and more about model placement.
+
+Which tasks belong on the device? Which tasks need broad cloud availability? Which tasks deserve the largest model? Which inputs should stay multimodal through the reasoning step instead of being flattened into text early? Which failures need a human to inspect the original artifact?
+
+Those questions feel normal now, but they were less normal in the text-first chatbot moment.
+
+The reset was that multimodal stopped being a side quest and tiering stopped being only a pricing detail. Together, they made model architecture feel more like product architecture.
+
+That is what I remember about Gemini 1.0. It was a competitive launch, sure. More importantly, it made the next set of product questions harder to keep text-only.

@@ -8,55 +8,147 @@ author: "jeremy-london"
 tags: ["astro", "content", "static sites"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete astro problem
-- the example surface: Static content systems still need schema discipline, naming conventions, and boring build checks
-- the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract
-- the responsibilities around the rendered page
-- the tradeoff between convenience and what the browser, content system, and deployment pipeline each own
-- the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time
-*/}
+Astro content collections are easy to undersell because the source files look simple.
 
-Static content systems still need schema discipline, naming conventions, and boring build checks.
+There is a folder. It has Markdown or MDX files. Each file has frontmatter. Astro loads the collection, validates the shape, and turns the entries into pages. For a small site, that can feel like file organization with a nicer API.
 
-The practical version starts with Static content systems still need schema discipline, naming conventions, and boring build checks. That gives astro a shape you can reason about. It also keeps the astro post out of slogan territory, which is where a lot of technical writing goes to die politely.
+It is more than that.
 
-## What has to be true
+Content is an interface. The route layer depends on it. The RSS feed depends on it. Search can depend on it. Related-post logic depends on it. The archive page depends on it. Build checks depend on it. Any agent or script that edits posts depends on it, whether it admits that or not.
 
-For astro to be useful, the frontend engineer needs a clear rendered page. That artifact does not have to be fancy. For astro, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for astro is that it explains what happened without asking the next person to reconstruct intent from vibes.
+Once content has consumers, the schema is not a clerical detail. It is the boundary between writing and the rest of the site.
 
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In web engineering, the annoying astro bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for astro, but the caller cannot tell whether it is safe. A script exits zero for astro, but the output hides the one fact the maintainer needed.
+## frontmatter is application data
 
-## Implementation shape
+The frontmatter at the top of a post looks like metadata, but the site treats it like application data.
 
-I would make the first astro version deliberately plain. The astro system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make astro enterprise software. It makes the work inspectable.
+This repo's blog collection expects fields like `title`, `excerpt`, `category`, `author`, `tags`, `publishDate`, and a couple of optional flags for heavier page behavior:
 
-A useful astro implementation question is where the record is created. If the astro record is created only after success, it will miss the interesting failures. I would create the astro record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+```ts
+z.object({
+  title: z.string(),
+  excerpt: z.string(),
+  category: z.string().trim(),
+  author: z.string().trim(),
+  draft: z.boolean().optional(),
+  tags: z.array(z.string()),
+  image: image().optional(),
+  publishDate: z.string().transform((str) => new Date(str)),
+  load_pyodide: z.boolean().optional(),
+  load_mathjax: z.boolean().optional(),
+})
+```
 
-## Tradeoffs
+That shape is doing real work. It tells the site what a post is allowed to be. It keeps draft state from becoming a magic string. It keeps tags as arrays instead of comma-separated improvisation. It lets heavier runtime features be opt-in instead of accidentally loaded everywhere.
 
-The astro tradeoff is convenience versus what the browser, content system, and deployment pipeline each own. If the astro system is too strict, people route around it. If the astro system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For astro, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+The useful habit is to treat every field as a product decision.
 
-That contract can be boring. A useful astro shape is:
+`excerpt` is not filler. It is the promise shown on an archive page or feed reader. `category` is not decoration. It controls grouping and reader expectations. `publishDate` is not merely a timestamp. It decides ordering and gives the post historical context. Optional runtime flags are especially important because they change the page payload. A post that loads Pyodide or MathJax should do so because the article needs it, not because a copied frontmatter block dragged the flag along.
 
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
-}
-~~~
+## names become routes
 
-The exact fields change by system. The astro pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+File names are part of the interface too.
 
-## What I would measure
+A slug like `astro-content-is-a-real-interface` is doing several jobs at once. It gives the generated route a readable path. It makes the article easier to grep. It gives editors and agents a stable handle. It shows up in links, feeds, search results, analytics, and sometimes screenshots.
 
-The astro metric is route coverage, feed validity, content validation, accessibility checks, and build time. That is more useful than asking whether astro "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+Bad names age badly. So do clever names that require the title for context.
 
-For astro, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those astro numbers usually tell the truth before the happy-path dashboard does.
+I like slugs that are boring enough to survive:
 
-If the astro system cannot answer those questions, I would keep the design smaller. Small astro systems with honest receipts are easier to improve than large systems that only report success.
+```text
+approval-buttons-need-context.mdx
+queues-make-ai-workflows-calmer.mdx
+small-sites-need-smoke-tests-too.mdx
+```
+
+They are not trying to be funny. They are durable identifiers. If a future cleanup script, search index, or agent workflow has to touch the post, the path gives it a fighting chance.
+
+That matters more in a personal site than it seems. Personal sites are long-lived junk drawers unless somebody keeps the drawers labeled. The route is one of the labels.
+
+## mdx makes the contract wider
+
+Plain Markdown has a small surface area. MDX is more powerful, which means it can fail in more interesting ways.
+
+An MDX post may import a component, mount a React island, require a runtime flag, or depend on a client-only library. That turns the article into a little application. The content schema still validates the frontmatter, but it does not prove the interactive piece is correct, accessible, fast, or even visible.
+
+This is why I do not like treating MDX as "Markdown, but with widgets." It is source code living in the content folder.
+
+If a post imports an interactive component, the post should make the dependency obvious. If it needs MathJax, the flag should be present. If it uses Pyodide, the reader should get enough value from the executable example to justify the heavier page. If an island breaks, the article should not collapse into a blank section with no explanation.
+
+The content interface has to cover the boring parts around the widget:
+
+- what the article needs to load
+- whether the component has stable props
+- what happens if the component fails
+- whether the page still builds in production
+- whether the example still matches the prose
+
+That is a lot of responsibility for something sitting next to paragraphs.
+
+## build checks are editorial tools
+
+I like build checks for content because they catch mistakes before they turn into archaeology.
+
+A missing frontmatter field is not a runtime mystery if the schema rejects it. A malformed date should fail before the archive silently sorts wrong. A broken MDX import should fail before the page deploys. Markdown lint can catch small consistency issues that are annoying to find later.
+
+The point is not to make writing feel like a compliance workflow. The point is to keep the feedback close to the edit.
+
+Content breaks in boring ways:
+
+- title copied from another post
+- excerpt left generic
+- draft flag forgotten
+- category typo creates a new bucket
+- date string parses differently than expected
+- imported component renamed
+- link moved
+- code fence left unclosed
+- image path works locally by accident
+
+None of those failures are glamorous. They are exactly the kind of failures a static site can catch cheaply.
+
+The moment an agent edits content, these checks become even more important. A model can produce plausible frontmatter that looks right and is subtly wrong. The schema is the first reviewer that does not care how confident the prose sounds.
+
+## content changes need review like code
+
+I do not mean every paragraph needs a pull request ceremony. I mean content changes should be reviewed against the systems they touch.
+
+A post rewrite changes more than the body text. It can change archive balance, tags, search behavior, reading time, internal links, and whether a page needs a client runtime. A title change can break external expectations even when the slug stays fixed. A category change can move a post away from related work. An excerpt change can make the archive sound repetitive.
+
+That is why "it builds" is necessary but not complete.
+
+For content-heavy sites, I want a review pass that asks:
+
+- does the frontmatter match the article?
+- does the excerpt say something specific?
+- are tags useful for navigation?
+- does the slug still match the piece?
+- did the post import anything new?
+- does the article add a new runtime requirement?
+- does it duplicate a nearby post?
+
+Those are interface questions. They decide how the post behaves inside the site.
+
+## the schema should stay boring
+
+There is a temptation to solve every editorial problem with a new field.
+
+Reading depth. Series. Canonical URL. Featured state. Topic cluster. Related posts. Hero image. Social image. Language. Revision date. Confidence. Review status.
+
+Some of those fields may be useful. Many become clutter. Every new field creates a maintenance obligation for old posts and every future post. If the field is optional, it can become meaningless. If it is required, it can become busywork.
+
+I prefer adding fields only when a real consumer exists.
+
+If the archive needs `category`, keep it. If the build needs `load_mathjax`, keep it. If no page, feed, script, or review process uses `reviewStatus`, do not add it because it sounds mature.
+
+A content schema should make the site more reliable, not turn writing into data entry.
+
+## static does not mean informal
+
+The nice thing about Astro is that the content can stay close to the filesystem. The dangerous thing is that close-to-filesystem work can feel informal until it breaks.
+
+A static content site still has contracts. The schema is a contract. The slug is a contract. The optional MDX runtime flags are contracts. The build command is a contract. The archive and feed are consumers. Readers are consumers too.
+
+Treating content as an interface does not make the site heavier. It makes the quiet assumptions visible.
+
+That is the version of Astro I like best: plain files, strong enough boundaries, and boring checks that let the writing stay fast without letting the site become sloppy.

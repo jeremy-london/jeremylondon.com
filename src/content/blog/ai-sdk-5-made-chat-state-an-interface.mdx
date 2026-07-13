@@ -8,55 +8,99 @@ author: "jeremy-london"
 tags: ["ai sdk", "chat ui", "typescript"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete AI SDK chat state problem
-- the example surface: Vercel AI SDK 5 treated chat as a typed, customizable application surface instead of a streaming demo
-- the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract
-- the responsibilities around the rendered page
-- the tradeoff between convenience and what the browser, content system, and deployment pipeline each own
-- the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time
-*/}
+Chat used to be the easiest AI demo to build and one of the easiest product surfaces to under-design.
 
-Vercel AI SDK 5 treated chat as a typed, customizable application surface instead of a streaming demo.
+You stream tokens into a box. The user types into another box. Maybe there is a loading spinner, maybe a stop button, maybe some markdown rendering. It looks like a product because it moves.
 
-The practical version starts with Vercel AI SDK 5 treated chat as a typed, customizable application surface instead of a streaming demo. That gives AI SDK chat state a shape you can reason about. It also keeps the AI SDK chat state post out of slogan territory, which is where a lot of technical writing goes to die politely.
+Then the first real workflow shows up and the demo shape starts to crack.
 
-## What has to be true
+The user wants to edit a previous message. The assistant calls a tool. The tool needs approval. The app needs to show partial state without lying. A message contains files, citations, structured parts, or a recoverable error. The conversation has to survive refresh, sync, retry, and model changes. Suddenly "chat" is not a textarea and a stream anymore. It is application state.
 
-For AI SDK chat state to be useful, the frontend engineer needs a clear rendered page. That artifact does not have to be fancy. For AI SDK chat state, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for AI SDK chat state is that it explains what happened without asking the next person to reconstruct intent from vibes.
+That is why AI SDK 5 felt interesting to me. The direction was not only "make streaming easier." It treated chat as something typed, customizable, and owned by the application.
 
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In web engineering, the annoying AI SDK chat state bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for AI SDK chat state, but the caller cannot tell whether it is safe. A script exits zero for AI SDK chat state, but the output hides the one fact the maintainer needed.
+## messages are not strings
 
-## Implementation shape
+The first mistake in a lot of AI apps is treating a message as a string with a role attached.
 
-I would make the first AI SDK chat state version deliberately plain. The AI SDK chat state system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make AI SDK chat state enterprise software. It makes the work inspectable.
+That works for the hello-world path. It fails as soon as the assistant response contains something the product has to understand. A tool call needs structure. So does a citation, a refusal, a partial result, a file reference, a pending approval, and a retryable error.
 
-A useful AI SDK chat state implementation question is where the record is created. If the AI SDK chat state record is created only after success, it will miss the interesting failures. I would create the AI SDK chat state record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+Once those states exist, TypeScript matters. Not because types make the model safer by magic, but because the application stops pretending every assistant output is the same blob.
 
-## Tradeoffs
+A typed chat surface lets the UI ask better questions:
 
-The AI SDK chat state tradeoff is convenience versus what the browser, content system, and deployment pipeline each own. If the AI SDK chat state system is too strict, people route around it. If the AI SDK chat state system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For AI SDK chat state, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+- is this message still streaming?
+- does it contain a tool invocation?
+- is the tool waiting on approval?
+- did the model produce structured data?
+- can the user retry this part?
+- which message owns the error?
 
-That contract can be boring. A useful AI SDK chat state shape is:
+Those questions are product behavior. They should not live in scattered string parsing.
+
+## state belongs to the app
+
+The model does not own the chat state. The framework does not fully own it either. The app owns it.
+
+That sounds like a small distinction, but it changes how I think about AI UI. If the app owns the state, the app can decide how much history to show, which parts to persist, how approvals work, what gets summarized, what gets hidden, and how errors recover.
+
+A streaming demo usually has one main state: tokens are arriving. A real chat product has many:
+
+- idle
+- composing
+- submitted
+- streaming
+- tool pending
+- approval required
+- tool running
+- recoverable error
+- terminal error
+- cancelled
+- replayed
+
+If those states are implicit, the UI will drift. One component will think the run is still active. Another will show a retry button. A third will allow a new prompt that mutates the same conversation. That is how chat apps become flaky in ways that are hard to explain.
+
+I like chat state as an interface because it forces those decisions into the product surface.
+
+## tool approval changes the shape
+
+Once tools enter the chat, messages become more like a workflow log.
+
+The assistant proposes an action. The app renders the action. The user approves or rejects it. The tool runs. The assistant observes the result. The UI has to show enough of that path for the user to trust what happened.
+
+If the approval is just another assistant message, the product is probably hiding too much. The approval state needs to be inspectable. The user should know what tool will run, what resource it will touch, and what happens after approval.
+
+That requires state the app can render, not prose the model happened to generate.
 
 ~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
-}
+type ChatPart =
+  | { type: "text"; text: string }
+  | { type: "tool-request"; name: string; status: "pending" | "approved" | "rejected" }
+  | { type: "tool-result"; name: string; ok: boolean }
+  | { type: "error"; retryable: boolean; message: string }
 ~~~
 
-The exact fields change by system. The AI SDK chat state pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+The exact type is not the point. The point is that the UI can reason about the conversation without scraping its own transcript.
 
-## What I would measure
+## chat needs boring recovery
 
-The AI SDK chat state metric is route coverage, feed validity, content validation, accessibility checks, and build time. That is more useful than asking whether AI SDK chat state "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+The recovery path is where chat demos usually reveal themselves.
 
-For AI SDK chat state, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those AI SDK chat state numbers usually tell the truth before the happy-path dashboard does.
+What happens if the stream drops halfway through? What if the tool succeeds but the model fails to summarize the result? What if the user rejects the tool call? What if the model returns a structured part the current client does not understand? What if the same conversation opens in two tabs?
 
-If the AI SDK chat state system cannot answer those questions, I would keep the design smaller. Small AI SDK chat state systems with honest receipts are easier to improve than large systems that only report success.
+These are not edge cases once the chat is part of the product. They are normal application states.
+
+I want the app to preserve enough information to recover without gaslighting the user. Do not show a finished answer if the stream died. Do not hide a failed tool call behind a generic assistant apology. Do not make the user guess whether retrying will rerun the tool or only regenerate the final text.
+
+The chat state should make recovery boring.
+
+## the interface is the contract
+
+AI SDK 5 mattered because it pointed in the right direction: chat is not a decorative wrapper around a model call. It is a contract between the model, tools, application state, and user.
+
+That contract needs types. It needs recoverable states. It needs a way to render tool calls and errors without turning the transcript into a junk drawer. It needs enough customization that the product can be itself instead of inheriting the shape of a demo.
+
+The more AI apps move from novelty to daily work, the less I want chat treated as a magic stream.
+
+It is an interface. Interfaces need state.
+
+And once you admit that, a lot of the boring frontend work comes back into view. That is a good thing.

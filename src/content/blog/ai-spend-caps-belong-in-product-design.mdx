@@ -8,24 +8,136 @@ author: "jeremy-london"
 tags: ["ai cost", "budgets", "governance"]
 ---
 
-{/*
-Depth: quick-note
-Information map:
-- the concrete AI cost problem
-- the example surface: As AI platforms added spend controls, it became clearer that budgets are part of user experience
-- the failure mode: the happy path works while the unsafe path stays unnamed
-- the small decision I would keep
-- what would make the note wrong
-*/}
+The first version of an AI budget usually lives in the wrong place.
 
-As AI platforms added spend controls, it became clearer that budgets are part of user experience.
+It starts as a billing setting. Somebody sets a monthly cap in a vendor console, maybe adds an alert at 80 percent, and calls it governance. That is better than waking up to a surprise invoice, but it is not enough once AI features become normal product behavior.
 
-I would keep AI cost small here. The useful part is As AI platforms added spend controls, it became clearer that budgets are part of user experience. That is enough material for a AI cost note, not a manifesto.
+The user does not experience a spend cap as a finance control. They experience it as the moment the product changes its mind.
 
-The AI cost mistake is treating the observation as if it needs a complete theory around it. In practice, security systems work usually gets better when the first version names the boundary and then stops. For AI cost, that boundary is who is allowed to act on which resource, with which evidence.
+The answer gets shorter. The expensive model stops being available. A batch job pauses halfway through. A document analysis feature refuses to process the next file. An agent that was happily working through a queue suddenly asks for permission to continue. If the product has not designed that moment, the cap feels arbitrary even when the policy is reasonable.
 
-The AI cost check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the AI cost post has done its job. If the answer is no, adding three more AI cost paragraphs will not fix it.
+Budgets belong in product design because cost is now part of the interaction.
 
-The thing I would not add to AI cost is a fake architecture section. A short AI cost note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for AI cost. The rest of AI cost can wait until there is a real example to inspect.
+## cost has to show up before failure
 
-I am leaving AI cost as a short note because the idea is useful at this size. A longer AI cost version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.
+The worst budget experience is silence followed by refusal.
+
+The user asks the system to do something expensive, the product accepts the request, work begins, and then a generic error appears because an account, workspace, or project hit a cap. Technically the cap worked. Practically the product lied. It allowed the user to form an expectation it could no longer satisfy.
+
+AI systems make this easier to mess up because cost is often hidden until after the request is shaped. A prompt may trigger retrieval. Retrieved context may expand the model input. The model may call tools. A tool may produce more text that gets fed back into the model. The user thinks they asked for one answer. The platform sees a chain of metered operations.
+
+The product does not need to show every token estimate in the happy path. Most users do not want a receipt before every sentence. But the product should know when a request is likely to cross a meaningful threshold and say something before the work starts.
+
+There is a huge difference between these two moments:
+
+> This analysis will use a higher-cost model because the file is long. Continue?
+
+and:
+
+> Your workspace has reached its AI budget.
+
+The first gives the user agency. The second gives them cleanup.
+
+## budgets are policy with a user attached
+
+A spend cap is never only a number. It answers questions the product has to care about.
+
+Who owns the budget? Is it personal, project-level, team-level, or organization-wide? Do admins set the cap while individual users spend against it? Can a high-priority workflow borrow from a shared pool? Does the product treat eval runs differently from user-facing requests? Are background jobs allowed to continue after interactive use is blocked?
+
+Those choices are policy. They also shape the interface.
+
+A personal research tool can be blunt: "You set a daily limit of $5 and this job would exceed it." A team product needs more nuance. The person clicking the button may not own the budget. The budget owner may not understand the workload. The admin might want controls by feature, model tier, environment, or department.
+
+This is where finance controls start looking like permissions. The product needs to know who can spend, who can approve more spend, who can see usage, and who gets notified when a cap changes behavior.
+
+I do not think every AI feature needs a giant budget dashboard. I do think every serious AI product needs a clear answer to one question: when cost changes behavior, who is supposed to understand that change?
+
+If the answer is "nobody until support gets a ticket," the cap is unfinished.
+
+## graceful degradation beats surprise shutdown
+
+The useful design work begins when the product asks what should happen at 90 percent, 100 percent, and 110 percent of the budget.
+
+At 90 percent, maybe the product warns admins and starts nudging users toward cheaper workflows. At 100 percent, maybe it blocks large batch jobs but keeps short interactive requests alive. At 110 percent, maybe it allows only explicitly approved requests. Different products will make different choices, but the choices should be named.
+
+AI products have more degradation options than traditional SaaS features because there are often several ways to answer the same request:
+
+- use a smaller model
+- reduce context size
+- skip expensive reranking
+- process fewer files per run
+- delay background work until the next budget window
+- ask the user to narrow the request
+- require approval for high-cost paths
+
+Some of those options are honest. Some are dangerous.
+
+Using a cheaper model for a low-risk summarization task may be fine. Using a cheaper model for a security-sensitive classification path without telling anyone could be a quality regression hiding inside a cost policy. Reducing context for a casual brainstorm is different from reducing context for contract review.
+
+The cap should not silently turn the product into a worse version of itself.
+
+If the system degrades, the user-facing contract needs to change too. The interface can say, "Using the faster low-cost path for this request," or "Large-file analysis is paused until the workspace budget resets." That copy is not decoration. It prevents the user from interpreting a cost-controlled result as the full-strength path.
+
+## estimation is allowed to be rough
+
+Teams sometimes avoid cost previews because exact estimates are hard. That is true. It is also not a good excuse.
+
+The product rarely needs perfect prediction. It needs enough information to prevent absurd surprises. A rough estimate can still distinguish a cheap chat reply from a 400-page document analysis, a one-off completion from a thousand-row batch run, or a small model classification from a frontier reasoning pass with tool calls.
+
+I like estimates that admit their uncertainty:
+
+```text
+expected cost: about $0.40 to $0.70
+reason: 183 pages, OCR enabled, long-context model selected
+budget impact: 7 percent of today's project limit
+```
+
+That kind of estimate is useful because it connects cost to cause. The user can see the levers. If OCR is driving the cost, maybe they upload cleaner source files. If the long-context model is driving the cost, maybe they split the document. If the project limit is the issue, maybe the request should happen tomorrow or require approval.
+
+Cost feedback should teach the user how the system behaves.
+
+The alternative is a mystery meter. It goes down. Nobody knows why. Eventually a feature stops working.
+
+## caps should create artifacts
+
+Budget events should be logged in a way humans can read later.
+
+This is especially important for teams. If a cap blocks a workflow, the product should preserve enough context to answer what happened without making somebody reconstruct it from vendor billing exports.
+
+Useful records look boring:
+
+- project `customer-risk-review` reached 95 percent of the monthly AI budget
+- background extraction jobs were paused
+- interactive chat remained enabled on the low-cost model tier
+- three requests required manager approval
+- one request was denied because it would have exceeded the hard cap
+
+That record helps engineering, finance, product, and support have the same conversation. It also keeps budget policy from becoming folklore.
+
+The artifact matters even more when spend controls interact with evals or agents. If a nightly eval stops running because the workspace hit a cap, the team may lose quality signal without noticing. If an agent pauses halfway through a long-running task, the next run needs to know whether it paused because of cost, policy, failure, or user choice.
+
+Cost is operational state. It deserves the same basic respect as any other state that changes product behavior.
+
+## budget controls should be tested like features
+
+I would test spend caps with product scenarios, not only billing-unit tests.
+
+Can a user understand why a request is blocked? Can an admin see which feature consumed the budget? Does a batch job pause cleanly and resume later? Does the product avoid starting work it already knows it cannot finish? Are low-cost fallback paths labeled clearly? Do evals and background jobs have separate limits? Does the support team have enough detail to answer a complaint?
+
+Those are not accounting questions. They are product quality questions.
+
+The uncomfortable part is that a cost cap is easiest to test after something expensive happens. Good systems create smaller fixtures. A staging workspace should be able to run with a tiny fake budget. A test user should be able to hit a cap with a few requests. The UI should show warning, blocked, degraded, and approval-required states without needing a real bill to arrive.
+
+I want the expensive path to be boring before it becomes expensive.
+
+## the budget is part of the promise
+
+AI features made software feel variable in a new way. The same button can cost different amounts depending on model, context, retrieval, tools, file size, and reasoning effort. That variability is manageable, but only if the product treats it as part of the design.
+
+A spend cap should protect the user without surprising them. It should give admins control without making individual users decode finance policy. It should let the product degrade gracefully when that is acceptable and refuse clearly when it is not.
+
+The goal is not to make everyone stare at token math all day. The goal is to keep cost from becoming an invisible product dependency.
+
+When budgets live only in billing settings, the product discovers them at the worst possible moment.
+
+Put them in the interface earlier. Give them names. Give them owners. Give them states the user can understand.

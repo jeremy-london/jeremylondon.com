@@ -8,55 +8,161 @@ author: "jeremy-london"
 tags: ["automation", "personal systems", "logging"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete automation problem
-- the example surface: Personal automation is easier to trust when it leaves a plain record of what it did and why
-- the failure mode: the system depends on future energy it has no right to assume
-- the responsibilities around the small habit or note
-- the tradeoff between convenience and how much friction belongs at capture time versus review time
-- the check or metric: review frequency, abandoned draft count, and time to recover context
-*/}
+I trust small automation more when it leaves a receipt.
 
-Personal automation is easier to trust when it leaves a plain record of what it did and why.
+That is true for boring scripts, personal workflows, AI agents, file cleanup jobs, and little scheduled tasks that I forget exist until they break. If something moves files, changes notes, posts reminders, rewrites text, updates a feed, or cleans a directory, I want a plain record of what happened.
 
-The practical version starts with Personal automation is easier to trust when it leaves a plain record of what it did and why. That gives automation a shape you can reason about. It also keeps the automation post out of slogan territory, which is where a lot of technical writing goes to die politely.
+The record does not need to be elaborate. In fact, elaborate is usually a warning sign. I do not need a dashboard for a script that renames screenshots. I need to know what it touched, what it skipped, and whether I need to care.
 
-## What has to be true
+Silent automation feels magical for about a week. Then it becomes spooky.
 
-For automation to be useful, the future self needs a clear small habit or note. That artifact does not have to be fancy. For automation, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for automation is that it explains what happened without asking the next person to reconstruct intent from vibes.
+## silent success is still a problem
 
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In personal systems, the annoying automation bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for automation, but the caller cannot tell whether it is safe. A script exits zero for automation, but the output hides the one fact the maintainer needed.
+People usually add logs after failures. That makes sense, but silent success creates its own damage.
 
-## Implementation shape
+If a workflow runs every morning and changes something, I eventually stop knowing whether the current state came from me, a tool, a cron job, an agent, or a script I wrote during a burst of optimism. When everything works, the system slowly erases its own authorship.
 
-I would make the first automation version deliberately plain. The automation system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make automation enterprise software. It makes the work inspectable.
+That is fine for truly invisible plumbing. It is not fine for personal systems where the output becomes part of my working memory.
 
-A useful automation implementation question is where the record is created. If the automation record is created only after success, it will miss the interesting failures. I would create the automation record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+If an automation archives stale notes, I want to know which notes moved. If it cleans a downloads folder, I want to know what it deleted. If it updates generated documentation, I want to know which source files changed. If it rewrites draft titles, I want a diff or a before-and-after list.
 
-## Tradeoffs
+The receipt is not there because I plan to read every line every day. It is there because the day I do need it, guessing is expensive.
 
-The automation tradeoff is convenience versus how much friction belongs at capture time versus review time. If the automation system is too strict, people route around it. If the automation system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For automation, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+## the receipt should be where the work happened
 
-That contract can be boring. A useful automation shape is:
+I like receipts close to the thing they describe.
 
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
-}
-~~~
+For a repo script, that might be terminal output plus a log file under `tmp` or `.local`. For a notes workflow, it might be a small daily note entry. For a file cleanup job, it might be a `cleanup.log` next to the folder. For an agent run, it might be a handoff summary in the workspace.
 
-The exact fields change by system. The automation pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+The wrong place is usually "some monitoring system I will never open for personal work."
 
-## What I would measure
+Personal automation lives at a different scale than production observability. I do not need distributed tracing to understand why a script moved three files. I need a durable note with enough detail:
 
-The automation metric is review frequency, abandoned draft count, and time to recover context. That is more useful than asking whether automation "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+```text
+2026-07-13 08:12
+workflow: draft-title-cleanup
+changed:
+  - posts/old-agent-note.md -> posts/agent-runbooks-need-failure-examples.md
+skipped:
+  - posts/untitled.md, missing title
+next:
+  - review skipped file manually
+```
 
-For automation, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those automation numbers usually tell the truth before the happy-path dashboard does.
+That is enough. It gives me a memory of the action and a next step.
 
-If the automation system cannot answer those questions, I would keep the design smaller. Small automation systems with honest receipts are easier to improve than large systems that only report success.
+## make the receipt boring to scan
+
+A useful receipt has a shape the eye can learn.
+
+I want the same basic nouns most of the time:
+
+- workflow name
+- time
+- input
+- changed items
+- skipped items
+- errors
+- next action
+
+The point is not to make every automation look like a formal audit event. The point is to make review cheap. If I have to read a paragraph of cheerful prose to learn that the script failed on one file, the receipt is trying too hard.
+
+I prefer dry output:
+
+```text
+processed: 42
+changed: 7
+skipped: 3
+failed: 1
+log: .local/receipts/image-cleanup-2026-07-13.txt
+```
+
+Then the detail can live in the linked receipt.
+
+The summary should fit in a terminal, a notification, or a daily note. The detailed record should be available when something smells off.
+
+## skipped work matters
+
+Receipts should include skipped items.
+
+Skipped work is where future confusion hides. A script that says "done" after changing five files may have ignored twenty more because they did not match a pattern. That can be correct. It can also be the first clue that the pattern is wrong.
+
+For personal automation, skipped items are often more useful than changed items because they preserve the edge of the system. They show what the automation refused to touch.
+
+Examples:
+
+- file skipped because the name was ambiguous
+- note skipped because frontmatter was missing
+- reminder skipped because the date was in the past
+- image skipped because metadata could not be read
+- draft skipped because the script would have overwritten manual edits
+
+That list lets the automation stay conservative without becoming invisible.
+
+I would rather have a small pile of skipped items than an automation that confidently guesses.
+
+## receipts make undo possible
+
+If automation changes state, the receipt should help me undo or at least understand the undo path.
+
+For file moves, record source and destination. For text edits, preserve a diff or point at the git diff. For generated files, record the command and inputs. For deletions, use a trash folder or dry-run mode unless deletion is truly harmless. For external actions, record the target and any identifier the external system returned.
+
+Undo does not have to be a full rollback button. It can be as simple as:
+
+```text
+undo:
+  move files listed under changed back to original path
+  restore text edits from git
+  delete created calendar event evt_123
+```
+
+That is enough to keep the action from feeling irreversible.
+
+This matters because small automations often start as personal conveniences. They do not get the same design care as production features. Then they become load-bearing. A receipt is a cheap way to avoid waking up one day with a system you no longer understand.
+
+## notifications should be earned
+
+Receipts do not always need notifications.
+
+This is the annoying tradeoff. If every automation sends a message, the messages become noise. If nothing sends a message, the system becomes mysterious.
+
+My default is:
+
+- no notification for clean routine success
+- quiet summary where I naturally review work
+- notification for failures, skipped items above a threshold, or surprising changes
+- loud notification for destructive actions
+
+That keeps attention attached to exceptions without hiding the normal trail.
+
+A daily digest can work well for personal systems. "Three workflows ran, one skipped two files, nothing failed" is enough. I can open the details if I care.
+
+## agents need receipts even more
+
+AI agents make this habit more important because their work can be harder to predict.
+
+A script usually follows the same path every time. An agent may inspect different files, choose different tools, rewrite different text, or stop at a different point depending on context. That flexibility is useful, but it makes memory more fragile.
+
+For an agent, I want the receipt to include:
+
+- the user request
+- the files or resources inspected
+- the files or resources changed
+- commands run
+- checks passed or failed
+- assumptions made
+- unfinished work
+
+That receipt is not a trophy. It is how the next run starts without pretending the previous run never happened.
+
+## plain records make automation feel safe
+
+The small receipt habit changes how automation feels.
+
+I am more willing to automate when I know the system will tell me what it did. I am more willing to let a script skip uncertain cases when the skip is visible. I am more willing to trust a scheduled workflow when failures produce a useful note instead of a vague notification.
+
+This is not about turning personal systems into enterprise software. Please, no.
+
+It is about leaving enough evidence that the tool remains understandable after the novelty wears off.
+
+Automation should save attention, not steal it later through mystery.

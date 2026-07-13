@@ -1,6 +1,6 @@
 ---
 title: "Shader toys are debugging tools too"
-excerpt: "Small visual programs are not only toys. They are a way to make math and state visible."
+excerpt: "Small visual programs can be toys and debugging tools because they make math and state visible."
 publishDate: "2025-04-09T11:00:00Z"
 category: "creative-coding"
 draft: false
@@ -8,138 +8,132 @@ author: "jeremy-london"
 tags: ["shaders", "webgpu", "visualization"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete shaders problem
-- the example surface: a model action that crosses from text into a real system
-- the failure mode: the visual is interesting but does not teach the system underneath
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using frame time, parameter sensitivity, interaction quality, and explanation value
-- security or ownership boundary: what the user can manipulate versus what the system hides
-- latency, cost, and scaling implications
-*/}
+Shader toys are easy to dismiss because they look playful.
 
-Small visual programs are not only toys. They are a way to make math and state visible.
+A little fragment shader. A gradient. A field of particles. A signed-distance function. A noise pattern that moves when the mouse moves. None of that looks like serious engineering if you judge it by business output.
 
-The interesting part of shaders is not the name. It is the system pressure around a model action that crosses from text into a real system. Once that pressure shows up for shaders, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+I think that misses the useful part.
 
-## The unit of work
+Small visual programs are debugging tools because they make invisible state visible. They turn math into something you can inspect with your eyes.
 
-I would start by naming the unit of work for shaders. In creative coding, the shaders unit is usually smaller than the product surface and larger than a function call. For shaders, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+## pixels are cheap instrumentation
 
-A useful shaders unit has four properties:
+When a value becomes color, a lot of bugs get less abstract.
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+You can see discontinuities. You can see wrapping errors. You can see coordinate systems flipped. You can see a normalization bug because the whole screen clips to white. You can see a smoothing function because the edge changes shape. You can see time because the pattern drifts.
 
-For shaders, the boundary is what the user can manipulate versus what the system hides. That boundary should be visible in the shaders data, not only in a policy document. If a shaders request crosses the boundary, the trace should show it.
+That feedback is fast.
 
-## Data flow
+A shader toy is often a tiny lab:
 
-The simple shaders flow looks like this:
-
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
+~~~glsl
+vec2 uv = fragCoord.xy / iResolution.xy;
+float d = length(uv - 0.5);
+vec3 color = vec3(smoothstep(0.3, 0.31, d));
+fragColor = vec4(color, 1.0);
 ~~~
 
-The context builder gathers the minimum useful state for shaders. The shaders decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+Change the threshold. Change the coordinate space. Add time. The result moves immediately.
 
-That receipt is the difference between a shaders demo and an operable system. A demo can rely on a person watching closely. A shaders system needs to explain itself after the person has moved on.
+That immediacy is why it works as debugging. The loop is shorter than logging ten intermediate values and trying to imagine the shape.
 
-A shaders request envelope might look like this:
+## coordinate bugs become obvious
 
-~~~json
-{
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
-}
-~~~
+Graphics programming is full of coordinate mistakes.
 
-The schema is deliberately plain. Fancy schemas do not save unclear shaders systems. The useful shaders work is deciding which fields are required, which are advisory, and which block the run when missing.
+Pixel space versus normalized space. Center origin versus top-left origin. Aspect ratio correction. Clip space. Texture coordinates. Device pixel ratio. Matrix order. The math may be correct in one coordinate system and nonsense in another.
 
-## Implementation sketch
+A visual program exposes that quickly.
 
-I would implement the first shaders pass as a narrow pipeline rather than a general platform. Start shaders with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+If a circle becomes an ellipse, aspect ratio is wrong. If motion goes the wrong way, an axis is flipped. If a texture swims, coordinates are not stable. If a pattern changes with resolution, normalization is wrong.
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+That kind of bug is easier to see than to reason about from code alone.
 
-For shaders, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The shaders system still has to decide whether the proposal is usable under the current boundary.
+## state fields are easier to trust when drawn
 
-## Failure modes
+This is not limited to pretty graphics.
 
-The main shaders failure mode is the visual is interesting but does not teach the system underneath. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The shaders failure is that the next component cannot tell whether the result should be trusted.
+Any system with a field can benefit from visualization:
 
-I would test at least five shaders cases:
+- heat maps
+- distance fields
+- vector fields
+- masks
+- confidence maps
+- simulation grids
+- attention-like weights
+- collision volumes
+- signed distance functions
+- particle velocities
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+In AI and data systems, I keep coming back to this. Embeddings, attention, classifications, saliency, cluster membership, uncertainty, and time-series drift are all easier to debug when some slice becomes visual.
 
-That last shaders case matters. A confident shaders answer is not the same thing as a verified result. If shaders touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+A shader toy is a low-cost way to practice that habit. What does the state look like? Where does it change? Where is it discontinuous? Where does it saturate?
 
-## Deployment shape
+## toys lower the cost of experiments
 
-I would not deploy shaders as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For shaders, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+The word "toy" is useful when it means the stakes are low.
 
-That gives the router real work to do. For shaders, it should not only choose small model or big model. It should choose a risk path:
+A toy shader can be wrong without wasting a sprint. It can test one idea: noise, interpolation, easing, ray marching, field composition, palette mapping, temporal feedback. If the idea works, bring the intuition back to the real system. If it fails, throw it away.
 
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
+That is how I like using small visual programs. They are not mini-products. They are sketches.
 
-Each shaders path has a different budget, verifier, and approval requirement. This is the part that makes shaders feel less magical and more like infrastructure. The model is still important, but the shaders route determines what kind of trust the system is asking for.
+The sketch can answer questions:
 
-## Measurement
+- what does this easing function feel like?
+- how does this noise combine across octaves?
+- what happens when the field wraps?
+- where does this threshold become unstable?
+- how does precision loss appear visually?
 
-The measurement surface for shaders is frame time, parameter sensitivity, interaction quality, and explanation value. I would track shaders per route or case type, not only as a global average. Global averages hide the exact class of shaders problems that make these systems feel unpredictable.
+Those are debugging questions with a nicer interface.
 
-A simple eval table can carry a lot of weight:
+## webgpu makes the habit more practical
 
-~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
-~~~
+WebGPU makes browser graphics feel closer to serious compute, but the habit does not require a giant stack.
 
-The point is not to build an eval cathedral for shaders. The point is to preserve enough shaders structure that regressions can be clustered. If failures cluster around one route, fix the route. If shaders failures cluster around one policy boundary, fix the boundary. If shaders failures cluster around one model, stop pretending the prompt is the whole system.
+You can learn a lot from fragment shaders, Canvas, WebGL, WebGPU, or even a small Python image script. The important part is the feedback loop: write a tiny program, expose state visually, mutate inputs, and see the bug.
 
-## Operational concerns
+WebGPU matters because it makes more of that work feel native to the browser. Compute passes, buffers, textures, and GPU-side state become things you can experiment with without leaving the page.
 
-The operational question for shaders is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap shaders route becomes unreliable but the expensive route would blow the budget?
+That is useful for teaching, debugging, and intuition building.
 
-For shaders, I would put those answers in configuration, not in a heroic prompt. A small shaders policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+## precision problems have a look
 
-## Scaling behavior
+Shader sketches also teach the feel of precision problems.
 
-At small scale, a human can inspect weird shaders cases by hand. At medium scale, the shaders system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+Banding, flicker, aliasing, z-fighting, unstable edges, and sudden color jumps are all visual symptoms of numerical behavior. Sometimes the fix is more precision. Sometimes it is a different mapping. Sometimes it is smoothing, clamping, dithering, or changing the coordinate space.
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the shaders system without being surprised by the downstream behavior?
+Seeing the artifact helps you build a memory for it.
 
-For shaders, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the shaders system a spine.
+That memory transfers. A ranking score that saturates too early, a classifier threshold that flips near a boundary, or a time-series chart that jitters because of sampling noise all have similar debugging shape. The screen teaches you to ask where the value became unstable.
 
-## Where I land
+## a tiny debugger can be enough
 
-Shaders deserves depth when it changes architecture, not when it merely sounds current. The shaders implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+The useful shader toy does not need a polished UI.
 
-If the shaders post answers those questions, it teaches something. If the shaders post only says the topic matters, it is just a longer version of the headline.
+I usually want a few controls:
+
+- time on or off
+- mouse position
+- one or two numeric sliders
+- a way to freeze a frame
+- a way to display intermediate values as color
+
+That is enough to answer many questions. If a field is wrong, draw the field. If a mask is wrong, draw the mask. If a value is out of range, map it to color and make the bad range loud.
+
+The habit is the tool.
+
+## visual debugging changes the question
+
+Logs ask: what value happened?
+
+Visual debugging asks: what shape did the values make?
+
+Both are useful. The shape often reveals the bug faster.
+
+When a system has spatial state, temporal state, probability, thresholds, interpolation, or fields, I want at least one visual handle. Shader toys are a good way to build that instinct.
+
+They are playful, yes. That is part of the point. Play makes it cheap to notice what the math is doing.
+
+Cheap noticing is underrated engineering practice. Make state visible first.

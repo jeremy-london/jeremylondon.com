@@ -12,29 +12,6 @@ load_pyodide: true
 import PythonModule from "@components/blog/shared/PythonModule.jsx";
 import FourNeuron from "@components/blog/FourNeuron.jsx";
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete neural networks problem
-- the example surface: a grounded walkthrough of a small neural network where the important part is the shape of the calculation
-- the failure mode: the explanation sounds right but the reader cannot reproduce the calculation
-- the responsibilities around the runnable example
-- the tradeoff between convenience and the exact step where a scalar, vector, matrix, or activation changes shape
-- the check or metric: whether the hand calculation, code output, and visual state agree
-*/}
-
-A grounded walkthrough of a small neural network where the important part is the shape of the calculation.
-
-The practical version starts with a grounded walkthrough of a small neural network where the important part is the shape of the calculation. That gives neural networks a shape you can reason about. It also keeps the neural networks post out of slogan territory, which is where a lot of technical writing goes to die politely.
-
-## What has to be true
-
-For neural networks to be useful, the learner needs a clear runnable example. That artifact does not have to be fancy. For neural networks, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for neural networks is that it explains what happened without asking the next person to reconstruct intent from vibes.
-
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In deep learning basics, the annoying neural networks bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for neural networks, but the caller cannot tell whether it is safe. A script exits zero for neural networks, but the output hides the one fact the maintainer needed.
-
-## Run the example
-
 <FourNeuron client:only="react" />
 <PythonModule
   client:only="react"
@@ -42,34 +19,113 @@ The implementation detail I care about is ownership. Who creates the artifact? W
   outputRows={32}
 />
 
-## Implementation shape
+Four neurons are enough to expose the wiring.
 
-I would make the first neural networks version deliberately plain. The neural networks system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make neural networks enterprise software. It makes the work inspectable.
+A single neuron is good for learning the basic calculation: multiply inputs by weights, add a bias, pass the result through an activation. But one neuron can also make the lesson feel too tidy. It hides the fact that a layer is really several small calculations running beside each other.
 
-A useful neural networks implementation question is where the record is created. If the neural networks record is created only after success, it will miss the interesting failures. I would create the neural networks record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+Four neurons is still small enough to inspect by hand. It is also large enough to show the shape of a layer.
 
-## Tradeoffs
+That is the sweet spot for this lesson. The point is not to make a useful model. The point is to see how the calculation is organized before the notation gets bigger.
 
-The neural networks tradeoff is convenience versus the exact step where a scalar, vector, matrix, or activation changes shape. If the neural networks system is too strict, people route around it. If the neural networks system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For neural networks, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+## each row is a neuron
 
-That contract can be boring. A useful neural networks shape is:
+In the interactive example, the input has three numbers.
 
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
-}
+Each neuron has three weights and one bias. The row is the neuron's little rule:
+
+~~~text
+weighted sum = input_1 * weight_1
+             + input_2 * weight_2
+             + input_3 * weight_3
+             + bias
 ~~~
 
-The exact fields change by system. The neural networks pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+Four rows means four neurons. Each one sees the same input, but each one asks a different weighted question.
 
-## What I would measure
+That is a useful mental model. A layer is not one mysterious block. It is a stack of small tests. The output of the layer is the list of answers from those tests.
 
-The neural networks metric is whether the hand calculation, code output, and visual state agree. That is more useful than asking whether neural networks "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+The matrix format is just a compact way to write that stack.
 
-For neural networks, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those neural networks numbers usually tell the truth before the happy-path dashboard does.
+## bias is part of the neuron's rule
 
-If the neural networks system cannot answer those questions, I would keep the design smaller. Small neural networks systems with honest receipts are easier to improve than large systems that only report success.
+The bias column is easy to treat as an extra number that got bolted onto the end.
+
+It is more useful to think of the bias as the neuron's offset. The weights decide how much each input matters. The bias shifts the final sum before activation.
+
+That shift can change whether the neuron fires after ReLU.
+
+If a neuron's weighted sum is slightly negative, increasing the bias may push it above zero. If the weighted sum is deeply negative, the same bias change may not matter. That is why the bias is easier to understand when you can see `Z` before ReLU and `A` after ReLU.
+
+The bias does not belong to the input. It belongs to the neuron.
+
+## z is the raw answer
+
+The `Z` column shows the raw weighted sums.
+
+This is the layer before the activation function changes anything. It is the cleanest place to debug the arithmetic. If a value in `Z` surprises you, the cause is in the input, weights, or bias.
+
+I like pausing at `Z` because it prevents ReLU from hiding the calculation too early.
+
+For example, if two neurons both end up with activation `0`, they may not be equally close to firing. One `Z` might be `-1`. Another might be `-30`. ReLU turns both into zero, but those raw values tell different stories.
+
+That difference matters later during training, but even before training it matters for intuition.
+
+## relu turns raw answers into active signals
+
+The `A` column shows the values after ReLU.
+
+ReLU is simple:
+
+~~~text
+if z > 0, keep z
+if z <= 0, output 0
+~~~
+
+That simplicity is why it is good for a first layer example. You can see which neurons are active and which ones are silent for the current input.
+
+The important part is that ReLU does not change the weights. It changes the signal that moves forward. A negative raw answer stops contributing downstream. A positive raw answer keeps its value.
+
+This is where the layer starts to feel less like arithmetic homework and more like a set of gates.
+
+## change one number at a time
+
+The interactive module is most useful when you move slowly.
+
+Change one weight in one row. Before running the code, predict which `Z` value should change. Then run it and check. If the input value paired with that weight is large, the change should be larger. If the paired input is zero, that weight change should do nothing for the current input.
+
+That last case is worth noticing.
+
+A weight can exist and still have no effect on a specific example if the corresponding input is zero. That does not mean the weight is useless. It means this input did not exercise it.
+
+This is why multiple examples eventually matter. One input can only test part of the wiring.
+
+## four neurons make comparison possible
+
+With four neurons, you can compare behavior inside the layer.
+
+One neuron may be sensitive to the first input. Another may mostly respond to the second and third. Another may be held back by a negative bias. Another may stay active across a wide range of input values.
+
+You can see that by changing the input and watching which rows move.
+
+The layer starts to look like several small opinions about the same input. None of the neurons understands the whole problem. Each one produces a partial signal. Later layers can combine those signals into something more useful.
+
+That is the basic shape of neural networks: small computations composed into larger behavior.
+
+## the lesson is the wiring, not the numbers
+
+The exact numbers in the example do not matter much.
+
+What matters is learning to read the wiring:
+
+- input values feed every neuron
+- each row has its own weights and bias
+- `Z` shows the raw weighted sums
+- ReLU turns `Z` into `A`
+- active values continue forward
+- silent values become zero for this input
+
+Once that shape is familiar, deeper networks are less mysterious. A larger layer is more rows. A batch is more input columns. Another layer is another round of weighted sums and activations.
+
+The notation gets bigger, but the basic habit stays the same.
+
+Follow the numbers. Predict before you run. Let the wrong guess show you which wire you misunderstood.

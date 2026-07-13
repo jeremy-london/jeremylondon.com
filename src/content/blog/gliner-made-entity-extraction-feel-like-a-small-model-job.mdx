@@ -8,138 +8,148 @@ author: "jeremy-london"
 tags: ["gliner", "ner", "classification"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete gliner problem
-- the example surface: GLiNER was a useful reminder that not every language task needs a decoder LLM pretending to be a classifier
-- the failure mode: the release sounds important without changing any concrete decision
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using route changes, eval deltas, latency movement, cost movement, and migration work
-- security or ownership boundary: what changed in the model versus what changed in the product surface
-- latency, cost, and scaling implications
-*/}
+[GLiNER](https://github.com/urchade/GLiNER) is the kind of model that makes a task feel smaller in the right way.
 
-GLiNER was a useful reminder that not every language task needs a decoder LLM pretending to be a classifier.
+Entity extraction is often treated like a reason to reach for a general LLM. Give the model a paragraph, ask it to return JSON, repair the JSON when it drifts, argue with the prompt when it misses a label, and eventually build enough scaffolding that the "simple extraction" step is now a tiny application.
 
-The interesting part of gliner is not the name. It is the system pressure around GLiNER was a useful reminder that not every language task needs a decoder LLM pretending to be a classifier. Once that pressure shows up for gliner, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+Sometimes that is the right move. Plenty of extraction problems need reasoning, context, or normalization beyond spans. But a lot of named entity recognition is narrower than that. Find these spans. Label them. Return offsets and confidence.
 
-## The unit of work
+That is where GLiNER is interesting. It is a lightweight generalist NER model that can extract arbitrary entity types from text using labels you provide at inference time. The output is a list of spans with `start`, `end`, `text`, `label`, and `score`.
 
-I would start by naming the unit of work for gliner. In model watch, the gliner unit is usually smaller than the product surface and larger than a function call. For gliner, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+That shape is boring. Boring is exactly what extraction needs.
 
-A useful gliner unit has four properties:
+## spans are better than vibes
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+For extraction, the span matters.
 
-For gliner, the boundary is what changed in the model versus what changed in the product surface. That boundary should be visible in the gliner data, not only in a policy document. If a gliner request crosses the boundary, the trace should show it.
+If the system says a support ticket contains a customer ID, I want the exact characters. If it says a security report contains an API key, I want the start and end offsets. If it says an incident note mentions a vendor, I want the text it matched and the confidence that led to the label.
 
-## Data flow
+A decoder LLM can return structured JSON, but it often wants to explain, normalize, infer, or be helpful. That is dangerous when the downstream system needs evidence. Entity extraction should preserve the link between the prediction and the source text.
 
-The simple gliner flow looks like this:
+GLiNER's output shape is useful because it keeps that link:
 
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
-~~~
-
-The context builder gathers the minimum useful state for gliner. The gliner decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
-
-That receipt is the difference between a gliner demo and an operable system. A demo can rely on a person watching closely. A gliner system needs to explain itself after the person has moved on.
-
-A gliner request envelope might look like this:
-
-~~~json
+~~~python
 {
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
+    "start": 18,
+    "end": 24,
+    "text": "SpaceX",
+    "label": "organization",
+    "score": 0.97,
 }
 ~~~
 
-The schema is deliberately plain. Fancy schemas do not save unclear gliner systems. The useful gliner work is deciding which fields are required, which are advisory, and which block the run when missing.
+Now the product can highlight the span, redact it, review it, or pass it to another stage. If the prediction is wrong, a reviewer can point at the exact error. That is much better than a generated answer that says "the organization is probably SpaceX" without anchoring the claim.
 
-## Implementation sketch
+## labels are an interface
 
-I would implement the first gliner pass as a narrow pipeline rather than a general platform. Start gliner with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+GLiNER lets you pass labels at inference time:
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
+~~~python
+from gliner import GLiNER
+
+model = GLiNER.from_pretrained("urchade/gliner_medium-v2.1")
+
+text = "Maya renewed the Acme contract on April 12 after the SOC 2 review."
+labels = ["person", "company", "date", "compliance report"]
+
+entities = model.predict_entities(text, labels, threshold=0.5)
 ~~~
 
-For gliner, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The gliner system still has to decide whether the proposal is usable under the current boundary.
+That looks simple, but the labels are doing real product work.
 
-## Failure modes
+`company` and `customer` may not mean the same thing. `incident` and `security event` may overlap. `credential` may be too broad if the product needs to distinguish passwords, API keys, private keys, and session tokens. A label name is part of the extraction contract.
 
-The main gliner failure mode is the release sounds important without changing any concrete decision. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The gliner failure is that the next component cannot tell whether the result should be trusted.
+I would treat labels like API fields. Name them carefully. Document them. Add examples. Decide whether labels are mutually exclusive. Decide what should happen when spans overlap. Decide whether the system should allow an `unknown` bucket or simply return no span.
 
-I would test at least five gliner cases:
+The model can accept arbitrary labels. The product still has to own the taxonomy.
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+## thresholds are product choices
 
-That last gliner case matters. A confident gliner answer is not the same thing as a verified result. If gliner touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+The confidence threshold is not a technical afterthought.
 
-## Deployment shape
+A high threshold reduces false positives and misses more real entities. A low threshold catches more entities and creates more review noise. The right threshold depends on what the extraction drives.
 
-I would not deploy gliner as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For gliner, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+For a highlight feature in a note-taking app, false positives may be acceptable. For secret redaction, false negatives are expensive. For CRM enrichment, a wrong entity can pollute records. For incident review, missing a vendor name might be less severe than incorrectly tagging a person as an owner.
 
-That gives the router real work to do. For gliner, it should not only choose small model or big model. It should choose a risk path:
-
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
-
-Each gliner path has a different budget, verifier, and approval requirement. This is the part that makes gliner feel less magical and more like infrastructure. The model is still important, but the gliner route determines what kind of trust the system is asking for.
-
-## Measurement
-
-The measurement surface for gliner is route changes, eval deltas, latency movement, cost movement, and migration work. I would track gliner per route or case type, not only as a global average. Global averages hide the exact class of gliner problems that make these systems feel unpredictable.
-
-A simple eval table can carry a lot of weight:
+I would tune thresholds by label, not only globally:
 
 ~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
+label              threshold   reason
+private_key          0.35      prefer review noise over leaks
+person               0.70      avoid tagging ordinary words
+company              0.60      moderate review cost
+date                 0.80      formats are usually clear
 ~~~
 
-The point is not to build an eval cathedral for gliner. The point is to preserve enough gliner structure that regressions can be clustered. If failures cluster around one route, fix the route. If gliner failures cluster around one policy boundary, fix the boundary. If gliner failures cluster around one model, stop pretending the prompt is the whole system.
+That table might live in code, config, or an eval note. The important part is that the threshold expresses risk.
 
-## Operational concerns
+## extraction is not normalization
 
-The operational question for gliner is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap gliner route becomes unreliable but the expensive route would blow the budget?
+Named entity recognition finds spans. It does not solve every downstream problem.
 
-For gliner, I would put those answers in configuration, not in a heroic prompt. A small gliner policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+If GLiNER extracts `Acme`, the system still has to decide whether that means `Acme Corp`, `ACME Inc.`, a test fixture, or a customer alias. If it extracts `April 12`, the system still has to resolve the year and timezone. If it extracts `SOC 2`, the system still has to decide whether that is a report type, a compliance requirement, or part of a document title.
 
-## Scaling behavior
+That distinction matters because teams often overload extraction. They want the model to find, classify, normalize, deduplicate, and decide. Those are separate jobs.
 
-At small scale, a human can inspect weird gliner cases by hand. At medium scale, the gliner system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+A cleaner pipeline might be:
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the gliner system without being surprised by the downstream behavior?
+~~~text
+text
+  -> span extraction
+  -> type-specific normalization
+  -> entity resolution
+  -> confidence and review policy
+  -> write to product state
+~~~
 
-For gliner, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the gliner system a spine.
+GLiNER can own the first step. The rest of the pipeline should remain explicit.
 
-## Where I land
+## where this fits in ai systems
 
-Gliner deserves depth when it changes architecture, not when it merely sounds current. The gliner implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+Entity extraction shows up everywhere around AI products.
 
-If the gliner post answers those questions, it teaches something. If the gliner post only says the topic matters, it is just a longer version of the headline.
+Before retrieval, extraction can identify product names, document IDs, customer names, dates, or policy references. Before logging, extraction can catch secrets or PII. During evals, extraction can compare whether required facts appeared in the answer. In agent workflows, extraction can turn messy tool output into structured candidates for a safer deterministic step.
+
+The small-model angle is practical. If extraction runs cheaply and locally, it can sit closer to the data. It can process logs before storage. It can scan documents before they leave a workspace. It can run as a batch job over historical data without turning the bill into a meeting.
+
+That does not mean every extraction task belongs to GLiNER. Long documents, tables, nested schemas, cross-sentence reasoning, and domain-specific normalization may need additional machinery. But the first pass does not always need a large decoder model.
+
+## eval the span, not the sentence
+
+Entity extraction evals should be picky.
+
+A generated summary can be directionally useful. A span extractor is either aligned with the source text or it is not. The eval should measure exact matches, partial overlaps, label correctness, false positives, false negatives, and performance by label.
+
+For example:
+
+~~~text
+label          precision   recall   notes
+person           0.94      0.91     misses initials
+company          0.88      0.84     aliases need resolver
+api_key          0.97      0.72     threshold too strict
+date             0.96      0.95     strong
+~~~
+
+Partial overlaps deserve review. If the gold span is `Austin, Texas` and the model returns `Austin`, maybe that is acceptable for some products and wrong for others. If the gold span is `April 12` and the model returns `April`, that is probably wrong. The eval has to match the product use.
+
+I would also keep adversarial examples:
+
+- names that are also common words
+- fake keys that look real
+- companies with punctuation
+- dates without years
+- copied logs with mixed formatting
+- multilingual names
+- overlapping spans
+
+Small extraction models can be excellent, but they should be tested where span boundaries get annoying.
+
+## the useful reminder
+
+GLiNER is useful because it makes entity extraction feel like its own job again.
+
+That is the reminder I like. Not every language task needs a chat model pretending to be a classifier, a parser, and a database writer. Sometimes the right tool is a smaller model with a narrower output shape and a better relationship to the source text.
+
+When the job is "find the spans and label them," use a tool that respects spans. Then build the rest of the system around review, normalization, resolution, and product risk.
+
+That is less dramatic than asking a giant model to do everything. It is also much easier to operate.

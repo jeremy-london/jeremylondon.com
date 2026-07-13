@@ -1,6 +1,6 @@
 ---
 title: "Forms deserve the boring states"
-excerpt: "The quality of a form shows up in loading, empty, invalid, and submitted states, not just the first screenshot."
+excerpt: "The quality of a form shows up in loading, empty, invalid, and submitted states more than in the first screenshot."
 publishDate: "2025-04-05T10:00:00Z"
 category: "web-engineering"
 draft: false
@@ -8,55 +8,110 @@ author: "jeremy-london"
 tags: ["forms", "frontend", "ux"]
 ---
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete forms problem
-- the example surface: The quality of a form shows up in loading, empty, invalid, and submitted states, not just the first screenshot
-- the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract
-- the responsibilities around the rendered page
-- the tradeoff between convenience and what the browser, content system, and deployment pipeline each own
-- the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time
-*/}
+The boring states are the form.
 
-The quality of a form shows up in loading, empty, invalid, and submitted states, not just the first screenshot.
+The clean screenshot is only one frame in a longer interaction. A user arrives with no data. They type. They make a mistake. They fix it. They submit. The request waits. The server rejects one field. The network drops. The browser restores a draft. The form saves, but the next step fails.
 
-The practical version starts with The quality of a form shows up in loading, empty, invalid, and submitted states, not just the first screenshot. That gives forms a shape you can reason about. It also keeps the forms post out of slogan territory, which is where a lot of technical writing goes to die politely.
+If the design only covers the empty happy path, the implementation has to invent the rest under pressure.
 
-## What has to be true
+I like treating forms as small state machines. Not because every form needs formal machinery, but because the state names force better conversations.
 
-For forms to be useful, the frontend engineer needs a clear rendered page. That artifact does not have to be fancy. For forms, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for forms is that it explains what happened without asking the next person to reconstruct intent from vibes.
+## name the states
 
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In web engineering, the annoying forms bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for forms, but the caller cannot tell whether it is safe. A script exits zero for forms, but the output hides the one fact the maintainer needed.
+Even a simple form has more states than people admit:
 
-## Implementation shape
-
-I would make the first forms version deliberately plain. The forms system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make forms enterprise software. It makes the work inspectable.
-
-A useful forms implementation question is where the record is created. If the forms record is created only after success, it will miss the interesting failures. I would create the forms record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
-
-## Tradeoffs
-
-The forms tradeoff is convenience versus what the browser, content system, and deployment pipeline each own. If the forms system is too strict, people route around it. If the forms system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For forms, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
-
-That contract can be boring. A useful forms shape is:
-
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
-}
+~~~text
+idle_empty
+idle_dirty
+locally_invalid
+server_validating
+submitting
+submit_failed
+partially_saved
+saved
+restored_draft
+permission_blocked
 ~~~
 
-The exact fields change by system. The forms pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+The names do not need to ship in code exactly like that. They need to exist somewhere in the design and implementation conversation.
 
-## What I would measure
+`idle_empty` needs useful initial copy. `idle_dirty` may need unsaved-change behavior. `locally_invalid` needs field errors and focus handling. `server_validating` needs a pending state that does not feel frozen. `submit_failed` needs recovery. `partially_saved` needs honesty. `permission_blocked` needs a reason, not a mystery disabled button.
 
-The forms metric is route coverage, feed validity, content validation, accessibility checks, and build time. That is more useful than asking whether forms "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+Once the states are named, the form stops being a rectangle with fields and starts being a workflow.
 
-For forms, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those forms numbers usually tell the truth before the happy-path dashboard does.
+## empty is not neutral
 
-If the forms system cannot answer those questions, I would keep the design smaller. Small forms systems with honest receipts are easier to improve than large systems that only report success.
+The empty state teaches the user what kind of input the system expects.
+
+Placeholders are usually too weak for that job. They disappear when the user types, they often get mistaken for actual values, and they rarely explain constraints. A good empty form gives the user enough structure to begin without reading a separate manual.
+
+That might mean examples near the field, helper text under the label, default values that are genuinely safe, or a small note explaining where the value will be used. It also means avoiding fake defaults that look harmless and create bad data.
+
+For internal tools, I care about provenance. If a field is prefilled from a system of record, say so. If it is a suggestion from an AI model, say so. If it came from the last value the user entered, say so. The same text in an input can mean very different things depending on where it came from.
+
+## dirty state protects work
+
+Dirty state means the form has changes that are not saved.
+
+That state should affect the interface. Maybe the save button becomes available. Maybe navigation asks for confirmation. Maybe autosave starts. Maybe a draft indicator appears. The exact behavior depends on the risk, but the system should know the difference between untouched and changed.
+
+This matters more in admin tools and long forms. A user editing billing settings, incident notes, product copy, or access controls should not lose changes because the app treated navigation like a harmless click.
+
+Dirty state also helps avoid fake work. If nothing changed, the save button can stay quiet. If something changed and then changed back, the form can return to clean. That seems small until users spend all day in forms and start trusting the interface to tell them whether they have pending work.
+
+## invalid should be specific
+
+Invalid state should point to a fix.
+
+The error belongs near the field when the field is the problem. It belongs at the form level when the relationship between fields is the problem. It belongs at the action when the user's permission or the record's current state blocks submission.
+
+Examples:
+
+~~~text
+Field error:
+Use a domain you control.
+
+Cross-field error:
+End date must be after start date.
+
+Action error:
+You can edit billing contacts, but only workspace owners can change payment method.
+~~~
+
+The distinction matters. If the system puts every error in a banner, the user has to map the problem back to the form. If the system puts a permission error on a field, the user may try to fix a value that was never the issue.
+
+## pending should prevent double intent
+
+Pending state has two jobs: show that work is happening and prevent duplicate intent.
+
+Disabling the submit button during a request is fine, but it is not enough. The UI should preserve the values, avoid layout jumps, and give the user a sense that the request is still alive. If the action is slow, a spinner with no text is lazy.
+
+The backend should also defend against duplicate submissions. Users refresh pages, networks retry, and browsers do surprising things. A form that creates records, sends invites, charges cards, or triggers jobs should have idempotency somewhere below the button.
+
+The user sees a calm pending state. The system needs a stronger contract.
+
+## success should say what happened
+
+Success copy should match the action.
+
+"Saved" is enough for a small settings change. It is not enough for a workflow that creates background work, sends email, starts an import, or changes permissions. In those cases, success should say what happened and what happens next.
+
+~~~text
+Saved.
+
+Import started. We will email you when 2,418 rows finish processing.
+
+Invite sent to maya@example.com. They will have editor access after accepting.
+~~~
+
+The success state is a receipt. If the form triggered a side effect, the receipt should name it.
+
+## recovery is the quality test
+
+The best test for a form is not the happy path. It is recovery.
+
+Can the user fix one field without retyping everything? Can they retry after a network failure? Can they see which rows failed in a bulk upload? Can they return to a draft? Can they understand whether the action happened before the error appeared?
+
+Those questions make forms feel less like disposable UI and more like product infrastructure.
+
+Most forms do not need to be fancy. They need to be considerate under pressure. That usually means naming the boring states before the implementation has to improvise them.

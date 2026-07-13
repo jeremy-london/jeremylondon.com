@@ -12,29 +12,6 @@ load_pyodide: true
 import PythonModule from "@components/blog/shared/PythonModule.jsx";
 import MatrixMultiplication from "@components/blog/MatrixMultiplication.jsx";
 
-{/*
-Depth: engineering-note
-Information map:
-- the concrete matrices problem
-- the example surface: a practical note on why neural network examples turn into matrices as soon as more than one example shows up
-- the failure mode: the explanation sounds right but the reader cannot reproduce the calculation
-- the responsibilities around the runnable example
-- the tradeoff between convenience and the exact step where a scalar, vector, matrix, or activation changes shape
-- the check or metric: whether the hand calculation, code output, and visual state agree
-*/}
-
-A practical note on why neural network examples turn into matrices as soon as more than one example shows up.
-
-The practical version starts with a practical note on why neural network examples turn into matrices as soon as more than one example shows up. That gives matrices a shape you can reason about. It also keeps the matrices post out of slogan territory, which is where a lot of technical writing goes to die politely.
-
-## What has to be true
-
-For matrices to be useful, the learner needs a clear runnable example. That artifact does not have to be fancy. For matrices, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for matrices is that it explains what happened without asking the next person to reconstruct intent from vibes.
-
-The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In deep learning basics, the annoying matrices bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for matrices, but the caller cannot tell whether it is safe. A script exits zero for matrices, but the output hides the one fact the maintainer needed.
-
-## Run the example
-
 <MatrixMultiplication client:only="react" />
 <PythonModule
   client:only="react"
@@ -42,34 +19,122 @@ The implementation detail I care about is ownership. Who creates the artifact? W
   outputRows={32}
 />
 
-## Implementation shape
+Matrix multiplication is the first batch trick.
 
-I would make the first matrices version deliberately plain. The matrices system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make matrices enterprise software. It makes the work inspectable.
+That is the point I wish more neural network introductions made earlier. Matrices do not show up because someone wanted the lesson to look more mathematical. They show up because repeated dot products get annoying fast.
 
-A useful matrices implementation question is where the record is created. If the matrices record is created only after success, it will miss the interesting failures. I would create the matrices record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+With one neuron and one input, you can write the calculation out by hand:
 
-## Tradeoffs
-
-The matrices tradeoff is convenience versus the exact step where a scalar, vector, matrix, or activation changes shape. If the matrices system is too strict, people route around it. If the matrices system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For matrices, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
-
-That contract can be boring. A useful matrices shape is:
-
-~~~ts
-type WorkRecord = {
-  input: string
-  decision: string
-  evidence: string[]
-  actor: string
-  accepted: boolean
-}
+~~~text
+output = input_1 * weight_1 + input_2 * weight_2 + bias
 ~~~
 
-The exact fields change by system. The matrices pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+That is fine. It is even useful. But as soon as there are several neurons or several examples, the repeated structure becomes the real lesson. Matrix multiplication is the compact way to say, "do all of these related weighted sums at once."
 
-## What I would measure
+The notation is not the enemy. The notation is trying to save you from copying the same arithmetic until you stop seeing the pattern.
 
-The matrices metric is whether the hand calculation, code output, and visual state agree. That is more useful than asking whether matrices "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+## rows meet columns
 
-For matrices, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those matrices numbers usually tell the truth before the happy-path dashboard does.
+The core rule is simple enough to say without mysticism.
 
-If the matrices system cannot answer those questions, I would keep the design smaller. Small matrices systems with honest receipts are easier to improve than large systems that only report success.
+Each value in the output comes from one row of the left matrix and one column of the right matrix. Multiply matching entries. Add the products.
+
+In this example, Matrix A is `2x2` and Matrix B is `2x3`. The result is Matrix C, which is `2x3`.
+
+Why `2x3`?
+
+Because A has two rows and B has three columns. Each row-column meeting produces one value.
+
+~~~text
+A rows: 2
+B columns: 3
+C shape: 2 x 3
+~~~
+
+The shared middle dimension is the part that has to match. A is `2x2`. B is `2x3`. The inner `2` is what makes the multiplication legal.
+
+That shape rule is worth learning early because neural network bugs are often shape bugs wearing more complicated clothes.
+
+## the output cell has a story
+
+Pick one cell in Matrix C.
+
+It is not magic. It is a small dot product.
+
+If you want the value at row 1, column 2 of C, take row 1 from A and column 2 from B. Multiply the paired numbers and add them.
+
+~~~text
+C[1, 2] = A row 1 dot B column 2
+~~~
+
+That is all matrix multiplication is doing, repeatedly.
+
+The interactive grid makes this easier to feel. Change one value in A. Watch which output cells change. Then change one value in B. The affected cells are different because the value participates in different row-column meetings.
+
+This is the useful intuition: a number inside a matrix has a neighborhood of consequences.
+
+## why neural networks care
+
+Neural networks use matrix multiplication because layers are repeated weighted sums.
+
+If a layer has several neurons, each neuron has its own weights. Stack those weights into rows, and the layer becomes a matrix. If you have several input examples, place them into columns or rows depending on the convention, and the layer can process a batch.
+
+The math is the same idea as the small example:
+
+~~~text
+outputs = weights * inputs
+~~~
+
+Then the model adds biases and applies an activation function.
+
+The important part is that the matrix operation keeps the relationship organized. Rows can represent neurons. Columns can represent examples or features depending on the layout. The shape tells you what is being combined with what.
+
+Once that clicks, the jump from "one neuron" to "a layer" is less dramatic. A layer is many dot products arranged so the computer can do them efficiently.
+
+## batching hides repetition in a good way
+
+Batching is the first place matrix multiplication starts to earn its keep.
+
+Imagine running three inputs through the same layer. You could write three separate calculations. That might help once. After that, it becomes noise. The model is not changing between examples. The same weights are being reused.
+
+A matrix lets the lesson say that directly.
+
+The batch is not a different model. It is the same model applied to multiple inputs.
+
+That distinction matters because it is easy to think of a batch as a pile of examples. It is more useful to think of it as pressure on the same parameters. The same weights have to handle all examples in the batch.
+
+Matrix multiplication is the operation that makes that reuse visible.
+
+## shapes are debugging tools
+
+Learning matrix multiplication is partly learning to debug shapes.
+
+If A is `2x2` and B is `2x3`, the multiplication works. If A is `2x3` and B is `2x2`, it does not. The numbers may look innocent, but the shape says no.
+
+This is not pedantry. In neural network code, a wrong transpose can make the model combine examples as if they were features or features as if they were examples. Sometimes the code errors. Sometimes it broadcasts or reshapes in a way that runs and gives nonsense.
+
+The first defense is knowing what shape you expected.
+
+Before running the example, ask:
+
+- how many rows should the result have?
+- how many columns should it have?
+- which dimension has to match?
+- what does each row mean?
+- what does each column mean?
+
+Those questions are boring and extremely useful.
+
+## use the module slowly
+
+Change one number in Matrix A and predict which row of Matrix C will move.
+
+Then change one number in Matrix B and predict which column or set of cells will move. The exact arithmetic matters less than the dependency pattern. Which outputs depend on the changed value?
+
+That is the part you want to keep.
+
+Matrix multiplication is not a symbol to memorize before the neural network starts. It is the first place the network's repeated structure becomes visible.
+
+Rows meet columns. Dot products become cells. Cells become a layer output.
+
+Once you can see that in a `2x2` times `2x3` example, the larger versions feel less like a wall of notation and more like the same small trick scaled up.

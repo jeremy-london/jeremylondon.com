@@ -8,193 +8,172 @@ author: "jeremy-london"
 tags: ["evals", "dashboards", "model quality"]
 ---
 
-{/*
-Depth: systems-essay
-Information map:
-- the concrete evals problem
-- the example surface: a team arguing about whether the model improved or merely changed
-- the failure mode: the system succeeds once but gives the next maintainer no way to explain it
-- why the obvious solution is insufficient
-- system constraints and trust boundaries
-- architecture and component responsibilities
-- request, event, and evidence flow
-- deterministic and semantic verification
-- measurement using reproduction time, failing example coverage, queue age, and rollback confidence
-- latency, cost, and scale behavior
-- governance, revocation, and escalation
-- tradeoffs I would make
-- what remains unresolved
-*/}
+An eval dashboard should make a model change harder to hand-wave.
 
-An eval dashboard turns model examples into a clearer view of quality, regressions, latency, and cost.
+That is the whole job. The dashboard is not there to make the eval program look mature. It is there so somebody can ask, "Did this change make the product better?" and get closer to an answer without opening eight notebooks, three CSVs, and a Slack thread full of screenshots.
 
-The hard part of evals is not making a prototype move. Prototypes move. They call tools, retrieve documents, choose models, draw diagrams, and produce evals output that looks close enough to keep going. The hard part is deciding what the evals system is allowed to do after it produces something plausible.
+The first dashboard people build is usually a leaderboard: model name, score, cost, latency, maybe a green arrow. I get the appeal. It is compact. It looks decisive. It also hides the parts that matter.
 
-I think about evals as a control problem more than a prompt problem. The prompt matters for evals, but the prompt is only one component inside a larger machine: context construction, policy, routing, tool execution, verification, storage, approval, and replay. If those pieces are missing, the evals system may still look impressive in a demo. It will just be unpleasant to operate.
+Most AI regressions are not evenly distributed. A model gets better at polite summaries and worse at terse bug reports. A router improves obvious cases and fails on mixed intent. A retrieval change helps fresh docs and buries old runbooks. A safety prompt blocks more bad requests and also blocks the exact internal workflow the team depends on.
 
-## The problem
+An eval dashboard has to show that shape.
 
-The concrete surface here is a team arguing about whether the model improved or merely changed. That evals surface creates pressure because it crosses from language into work. Once a evals system can affect files, route requests, inspect user state, call tools, spend money, or produce security-relevant conclusions, "the model answered" is no longer the end of the story.
+## the top line is only a doorway
 
-The evals system needs to answer different questions:
+I still want a top-line score. It is useful for scanning. But it should behave like a doorway into evidence, not a verdict.
 
-- What exactly was requested?
-- Which context was used?
-- Which policy boundary applied?
-- Which component made the decision?
-- What evidence supported the result?
-- What was verified deterministically?
-- What was judged semantically?
-- Who approved the action, if approval was needed?
-- How would we replay the case after a failure?
+A dashboard card that says `pass rate: 91.4%` should answer the next questions quickly:
 
-Those questions sound administrative until something breaks. Then they become the only questions that matter.
+- Which eval suite produced that number?
+- How many cases ran?
+- Which model, prompt, retriever, or tool version ran?
+- What changed from the previous run?
+- Which slices improved?
+- Which slices regressed?
+- Which examples flipped?
+- Which failures are new?
 
-## Why the obvious solution is insufficient
+If the dashboard cannot answer those questions, the score is decorative.
 
-The obvious evals solution is to add a better model and a thicker prompt. That helps evals, but it does not solve the operating problem. A stronger model can still break evals: call the wrong tool, use stale context, skip a permission boundary, or produce a technically valid answer that is useless to the person who has to act on it.
+The unit of inspection should be the eval case. A case needs an input, expected behavior, observed output, grader result, model metadata, cost, latency, and enough context to debug. The dashboard can summarize, but the row has to be there.
 
-The second obvious evals solution is to put a human approval button at the dangerous step. That also helps evals, but only if the approval has context. A evals button that says "approve" without showing the diff, tool arguments, policy boundary, expected side effect, and rollback path is not governance. It is a liability with a nicer label.
-
-For evals, I would treat approvals as part of the data flow. The approval is not a modal. It is a signed evals decision attached to the run record.
-
-## Constraints
-
-A production evals version has to live with several constraints at once.
-
-The first is latency. Verification cannot be so slow that everyone disables it. The second is cost. Running a frontier model as judge for every small evals step may be correct and still unaffordable. The third is privacy. For evals, context windows are tempting places to dump everything, but credential material, user state, and internal documents need boundaries. The fourth is replay. If a evals failure cannot be replayed, it will be explained with folklore.
-
-The trust boundary is what must be proven before the change is trusted. I would make that boundary explicit in the request envelope rather than burying it in code comments.
-
-~~~json
-{
-  "runId": "run_2026_07_13_001",
-  "actor": "agent-or-human-id",
-  "input": "requested work",
-  "contextRefs": ["doc:policy", "file:target", "trace:previous-step"],
-  "scope": {
-    "filesystem": ["read:src", "write:docs"],
-    "network": ["deny"],
-    "credentials": ["none"],
-    "expiresAt": "2026-07-13T18:00:00Z"
-  },
-  "decision": null,
-  "evidence": [],
-  "approval": null
+~~~ts
+type EvalCaseResult = {
+  runId: string
+  caseId: string
+  suite: string
+  slice: string[]
+  inputRef: string
+  expected: string
+  output: string
+  passed: boolean
+  grader: "deterministic" | "llm" | "human"
+  score?: number
+  latencyMs: number
+  costUsd?: number
+  model: string
+  promptVersion?: string
+  retrieverVersion?: string
 }
 ~~~
 
-That envelope is not meant to be universal. It is meant to force the design conversation. What scope exists? Who grants it? When does it expire? What evidence must be present before the next state transition?
+That record is not the dashboard design. It is the data shape that keeps the dashboard honest.
 
-## Architecture
+## slices are where the truth leaks out
 
-The architecture I would start with has six components:
+Aggregate scores are useful until they hide the thing you care about.
 
-- context builder
-- policy engine
-- router
-- executor
-- verifier
-- run ledger
+A support assistant might have a 94 percent pass rate overall and still fail refund-policy questions at twice the previous rate. A code agent might improve benchmark tasks while getting worse on dependency updates. A classifier might look stable because one dominant class covers the regression in a small but expensive class.
 
-The context builder gathers only the state needed for the next decision. The policy engine decides whether the requested action is allowed. The router chooses the model, tool, or human path. The executor does the work. The verifier checks the result. The run ledger stores the envelope, transitions, evidence, approvals, and outputs.
+The dashboard should make slicing cheap. Product area, language, customer tier, risk level, route, document source, prompt family, tool used, input length, and model family can all become useful slices depending on the system.
 
-The important part is separation. The component that proposes an action should not be the only component that decides whether the action is acceptable. That does not mean every verifier needs to be another model. Some of the best verifiers are boring: schema validation, type checks, path checks, diff checks, policy checks, budget checks, and deterministic tests.
+I do not want every dashboard to show every slice all the time. That becomes visual soup. I want the dashboard to make the important slice visible when something moves. If the total score rose by 1.2 points and a critical slice dropped by 8, the dashboard should make the drop louder than the celebration.
 
-A rough state machine looks like this:
+This is one place where boring tables beat fancy charts. A sorted regression table with case counts and confidence intervals is often more useful than a smooth line chart.
 
 ~~~text
-created
-  -> context_ready
-  -> policy_checked
-  -> routed
-  -> executed
-  -> verified
-  -> approved | rejected | escalated
-  -> recorded
+slice                      cases   current   previous   delta
+refund_policy                82     0.841      0.927   -0.086
+login_recovery              144     0.965      0.951   +0.014
+mixed_intent                 39     0.692      0.718   -0.026
+spanish_support              57     0.912      0.895   +0.017
 ~~~
 
-Each transition should be cheap to inspect. If the system jumps from created to recorded, the architecture is lying to you.
+The table does not solve the problem. It points to the examples worth reading.
 
-## Operating loop
+## failures need neighborhoods
 
-The operating loop is where evals can become reliable or collapse into a pile of impressive transcripts. I would make every run produce a record that can be inspected by a human, replayed by a test harness, and summarized by an eval dashboard. Those are three different consumers, so the record cannot be only prose.
+A dashboard that lists 300 failed cases is technically transparent and practically useless.
 
-The loop I would want is:
+Failures need clustering. Not because clustering is fancy, but because people cannot reason about hundreds of rows at once. Group failures by likely cause: missing retrieval, stale source, formatting violation, hallucinated claim, bad tool argument, refusal, timeout, rubric disagreement, or output too vague.
+
+Some clusters can be assigned automatically. Deterministic validators can identify schema failures, missing citations, bad JSON, and timeout classes. Other clusters need human labels. That is fine. The point is to preserve the labels so the next run can show whether the cluster shrank.
+
+I like dashboards that let a reviewer mark a failure with a short reason:
 
 ~~~text
-capture -> propose -> check -> approve -> execute -> verify -> record -> learn
+case: refund-042
+result: fail
+reason: cited old cancellation policy
+owner: docs
+action: update retrieval freshness filter
 ~~~
 
-Capture stores the request and context references. Propose creates the candidate action. Check runs policy and deterministic validation. Approve attaches a human decision when the action needs one. Execute performs the work. Verify compares the result with the contract. Record stores the transition. Learn turns accepted and rejected runs into future eval cases.
+Now the eval result can become work. Without that handoff, the dashboard becomes a place where failures go to be admired.
 
-That last step is easy to skip and expensive to recover later. If the system only stores successes, it trains the team to forget the edge cases. The rejected runs are often more useful because they show where the boundary was unclear, where the model overreached, or where the tool contract was underspecified.
+## latency and cost belong next to quality
 
-## Information flow
+Quality alone is not enough. A model change that improves pass rate by one point and doubles latency may still be wrong for the product. A routing change that saves cost but moves failures into high-risk cases is not a win. A retriever that adds better context while making p95 unpredictable can make the interface feel worse even when the answer is better.
 
-Information should move forward as evidence, not as vibes. The executor should not hand the verifier a blob of text and hope for the best. It should hand over the tool call, arguments, output, affected resources, timing, cost, and any claimed reasoning that the verifier is expected to check.
+The dashboard should show quality, latency, and cost together because users experience them together.
 
-For evals, I would separate three kinds of evidence:
+The useful view is rarely one number. I want distributions:
 
-- deterministic evidence, such as tests, schemas, diffs, permissions, and checksums
-- semantic evidence, such as a judge model comparing output to intent
-- operational evidence, such as latency, cost, retries, and approval history
+- p50, p95, and p99 latency by route
+- cost per successful case
+- retry count by model
+- timeout rate by tool
+- token usage by prompt version
+- quality score by latency bucket
 
-These evidence types age differently. Deterministic evidence is easier to replay. Semantic evidence may drift when the judge model changes. Operational evidence explains whether the system was usable under the actual constraints.
+That last one matters more than people expect. Sometimes the slow path is also the bad path. Long context retrieval may bring in too much noise. Tool retries may correlate with poor final answers. Very large prompts may hide uncertainty instead of resolving it.
 
-## Failure modes
+If the dashboard separates operational metrics from quality metrics, those connections get missed.
 
-The obvious failure is the system succeeds once but gives the next maintainer no way to explain it. The less obvious failures are more interesting.
+## grader disagreement is a signal
 
-A confused deputy failure happens when one component has authority another component should not inherit. An agent reads a private file, summarizes it into a shared context, and a later tool call leaks the summary. The filesystem permission looked correct, but the information boundary was already broken.
+LLM-as-judge results should not be treated like gravity.
 
-A stale-context failure happens when the model acts on a snapshot that is no longer true. This is common in coding agents, dashboards, and approval workflows. The user approves an action based on one diff, but the underlying file changed before execution.
+They are useful, especially for qualitative tasks, but they have variance, bias, and prompt sensitivity. The dashboard should show when the grader is uncertain or when graders disagree. A deterministic check failing is different from a judge model giving a 0.62 on helpfulness. A human reviewer overturning the judge is different again.
 
-A verifier collapse happens when the verifier shares too much context, too much prompt structure, or too much failure mode with the generator. It agrees because it is making the same mistake. This is where deterministic checks earn their keep.
+For important evals, I want to see:
 
-A governance failure happens when approvals exist but revocation does not. Temporary access that cannot expire is not temporary. Tool scopes that cannot be audited are not scopes. A run ledger that cannot answer who approved what is not a ledger.
+- grader type
+- grader version
+- rubric version
+- judge confidence if available
+- repeated-judge variance for sampled cases
+- human override rate
+- examples where graders disagree
 
-## Measurement
+Disagreement is not noise to hide. It is a pointer to ambiguous requirements. If reviewers cannot agree whether a case passed, the product may need a clearer expected behavior before the model needs another prompt.
 
-The measurement surface for evals is reproduction time, failing example coverage, queue age, and rollback confidence. I would not roll that into one success score. One number will hide the shape of the system.
+This also protects the team from optimizing against a weak judge. A model can improve on the dashboard by learning the judge's preferences instead of improving the product. The dashboard should make that failure at least visible.
 
-I would track:
+## compare runs like deployments
 
-- task acceptance rate by route
-- verifier disagreement by case type
-- deterministic failure rate
-- semantic judge variance
-- approval latency
-- retry count
-- p50 and p95 end-to-end latency
-- cost per accepted run
-- escalation rate
-- replay success rate
+An eval run is a release artifact. Treat it that way.
 
-Replay success rate is underrated. If the team cannot replay a failed run with the same inputs, context references, policy version, and model versions, the incident review becomes storytelling.
+When a model, prompt, retriever, dataset, tool schema, or grader changes, the dashboard should compare the new run against a named baseline. "Previous run" is sometimes useful, but named baselines are safer. The previous run might be an experiment. The baseline should be the current production behavior or the last approved candidate.
 
-## Scaling behavior
+The comparison should show case flips:
 
-At small scale, the system can be strict and noisy. A human can read every rejection. At medium scale, the noise becomes expensive. The system needs triage, clustering, and better defaults. At large scale, the risk moves again: the bottleneck is no longer whether one run was correct, but whether teams can change models, prompts, tools, and policies without creating invisible regressions.
+- pass to fail
+- fail to pass
+- changed output but same grade
+- same output but changed grade
+- skipped or newly added cases
 
-That is where versioning matters. The model version, prompt version, tool schema version, policy version, and verifier version all belong in the run record. Otherwise a future failure will be impossible to attribute.
+Case flips are where the review gets real. A pass-rate delta tells you that something moved. Flips show what moved.
 
-I would also expect routing to become more conservative over time. Early prototypes overuse the strongest model because it is convenient. Production systems usually end up with a portfolio: cheap classifiers, small local models, retrieval paths, frontier models, deterministic tools, and human escalation. The router becomes an economic and governance component, not only a quality component.
+I also want a short deployment note attached to promoted runs:
 
-## Tradeoffs I would make
+~~~text
+candidate: support-router-2026-03-10
+baseline: support-router-prod-2026-02-28
+decision: promote to 10 percent shadow traffic
+reason: improves billing and cancellation slices, no regression in high-risk policy slice
+watch: mixed-intent route, p95 latency
+~~~
 
-I would spend complexity on the run ledger before spending it on fancy orchestration. If the system cannot explain what happened, better orchestration just fails faster.
+That note is small, but it turns the dashboard from a report into part of the release process.
 
-I would prefer narrow tool scopes that are annoying but inspectable over broad scopes that feel magical. The annoyance is real. So is the cost of a broad permission that nobody can audit.
+## dashboards should make review faster
 
-I would use model judges carefully. They are useful for semantic comparison, ranking, and clustering. They are weak as the only gate on irreversible actions. When the action matters, pair the judge with deterministic checks and human escalation.
+The best eval dashboard does not ask every engineer to become an eval researcher. It makes the next review action obvious.
 
-I would keep approvals contextual. Show the proposed action, affected resources, evidence, expected side effect, rollback story, and expiration. If that makes the approval UI crowded, the operation may be too vague.
+If a slice regressed, open the examples. If a failure cluster grew, assign an owner. If latency moved, inspect routes and tool calls. If graders disagree, review the rubric. If a candidate improves all important slices and stays within budget, promote it with a watch list.
 
-## What remains unresolved
+That is the level of feedback I want. Not "the model is better." Better where? Worse where? Cheaper for which route? Slower for which users? More faithful to which sources? More brittle under which inputs?
 
-I do not think there is one clean answer for evals. The shape depends on the cost of failure, the sensitivity of the data, the reversibility of the action, and the review capacity of the team.
-
-The unresolved question is how much friction belongs in the default path. Too much friction and people avoid the system. Too little and the system accumulates invisible risk. The answer probably changes by task class, not by company slogan.
-
-That is the part I find interesting. The future of evals is not a chat box with more buttons. It is a work surface with memory, scope, evidence, review, revocation, and enough humility to stop when it cannot prove what it just did.
+A real dashboard keeps asking those questions with evidence attached. It is less flattering than a leaderboard, which is exactly why it is useful.

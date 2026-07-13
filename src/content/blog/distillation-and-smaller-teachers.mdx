@@ -8,193 +8,156 @@ author: "jeremy-london"
 tags: ["distillation", "small models", "training"]
 ---
 
-{/*
-Depth: systems-essay
-Information map:
-- the concrete distillation problem
-- the example surface: a practical note on using smaller models for focused jobs instead of sending every request to the largest model
-- the failure mode: a model choice is treated as isolated even though the surrounding system made the decision
-- why the obvious solution is insufficient
-- system constraints and trust boundaries
-- architecture and component responsibilities
-- request, event, and evidence flow
-- deterministic and semantic verification
-- measurement using task success, latency budget, memory footprint, batch behavior, and quality by route
-- latency, cost, and scale behavior
-- governance, revocation, and escalation
-- tradeoffs I would make
-- what remains unresolved
-*/}
+The largest model in the system should not be the default answer to every question.
 
-A practical note on using smaller models for focused jobs instead of sending every request to the largest model.
+That is not a cost rant. Cost matters, but it is the least interesting part. Smaller models change the shape of an AI system because they can live closer to the work. They can run with lower latency, tighter permissions, cheaper retries, smaller prompts, and sometimes less data leaving the machine. They also fail differently. A small classifier that says "I do not know" is much easier to reason about than a large general model trying to be helpful in a place where helpfulness is the problem.
 
-The hard part of distillation is not making a prototype move. Prototypes move. They call tools, retrieve documents, choose models, draw diagrams, and produce distillation output that looks close enough to keep going. The hard part is deciding what the distillation system is allowed to do after it produces something plausible.
+The trick is knowing when a small model is an architectural component and when it is wishful thinking.
 
-I think about distillation as a control problem more than a prompt problem. The prompt matters for distillation, but the prompt is only one component inside a larger machine: context construction, policy, routing, tool execution, verification, storage, approval, and replay. If those pieces are missing, the distillation system may still look impressive in a demo. It will just be unpleasant to operate.
+I like small models for jobs that have a narrow input shape, a bounded output shape, and a clear penalty for being wrong. Entity extraction, routing, command classification, language detection, toxicity screening, duplicate detection, intent bucketing, lightweight summarization, and local redaction all fit that pattern. The system does not need a model that can write a sonnet and debug Kubernetes. It needs a model that can decide whether this support ticket contains a billing dispute.
 
-## The problem
+That narrowness is the feature.
 
-The concrete surface here is a practical note on using smaller models for focused jobs instead of sending every request to the largest model. That distillation surface creates pressure because it crosses from language into work. Once a distillation system can affect files, route requests, inspect user state, call tools, spend money, or produce security-relevant conclusions, "the model answered" is no longer the end of the story.
+## start with the job boundary
 
-The distillation system needs to answer different questions:
-
-- What exactly was requested?
-- Which context was used?
-- Which policy boundary applied?
-- Which component made the decision?
-- What evidence supported the result?
-- What was verified deterministically?
-- What was judged semantically?
-- Who approved the action, if approval was needed?
-- How would we replay the case after a failure?
-
-Those questions sound administrative until something breaks. Then they become the only questions that matter.
-
-## Why the obvious solution is insufficient
-
-The obvious distillation solution is to add a better model and a thicker prompt. That helps distillation, but it does not solve the operating problem. A stronger model can still break distillation: call the wrong tool, use stale context, skip a permission boundary, or produce a technically valid answer that is useless to the person who has to act on it.
-
-The second obvious distillation solution is to put a human approval button at the dangerous step. That also helps distillation, but only if the approval has context. A distillation button that says "approve" without showing the diff, tool arguments, policy boundary, expected side effect, and rollback path is not governance. It is a liability with a nicer label.
-
-For distillation, I would treat approvals as part of the data flow. The approval is not a modal. It is a signed distillation decision attached to the run record.
-
-## Constraints
-
-A production distillation version has to live with several constraints at once.
-
-The first is latency. Verification cannot be so slow that everyone disables it. The second is cost. Running a frontier model as judge for every small distillation step may be correct and still unaffordable. The third is privacy. For distillation, context windows are tempting places to dump everything, but credential material, user state, and internal documents need boundaries. The fourth is replay. If a distillation failure cannot be replayed, it will be explained with folklore.
-
-The trust boundary is where the model stops and the serving system starts. I would make that boundary explicit in the request envelope rather than burying it in code comments.
-
-~~~json
-{
-  "runId": "run_2026_07_13_001",
-  "actor": "agent-or-human-id",
-  "input": "requested work",
-  "contextRefs": ["doc:policy", "file:target", "trace:previous-step"],
-  "scope": {
-    "filesystem": ["read:src", "write:docs"],
-    "network": ["deny"],
-    "credentials": ["none"],
-    "expiresAt": "2026-07-13T18:00:00Z"
-  },
-  "decision": null,
-  "evidence": [],
-  "approval": null
-}
-~~~
-
-That envelope is not meant to be universal. It is meant to force the design conversation. What scope exists? Who grants it? When does it expire? What evidence must be present before the next state transition?
-
-## Architecture
-
-The architecture I would start with has six components:
-
-- context builder
-- policy engine
-- router
-- executor
-- verifier
-- run ledger
-
-The context builder gathers only the state needed for the next decision. The policy engine decides whether the requested action is allowed. The router chooses the model, tool, or human path. The executor does the work. The verifier checks the result. The run ledger stores the envelope, transitions, evidence, approvals, and outputs.
-
-The important part is separation. The component that proposes an action should not be the only component that decides whether the action is acceptable. That does not mean every verifier needs to be another model. Some of the best verifiers are boring: schema validation, type checks, path checks, diff checks, policy checks, budget checks, and deterministic tests.
-
-A rough state machine looks like this:
+Before choosing a model, I would write down the job in the most boring form possible:
 
 ~~~text
-created
-  -> context_ready
-  -> policy_checked
-  -> routed
-  -> executed
-  -> verified
-  -> approved | rejected | escalated
-  -> recorded
+input: one customer message, under 4,000 characters
+output: { intent: billing | login | cancellation | bug | unknown }
+allowed abstention: yes
+latency budget: 50 ms p95 after tokenization
+failure cost: bad routing creates one extra handoff
+escalation: unknown routes to the larger model or human queue
 ~~~
 
-Each transition should be cheap to inspect. If the system jumps from created to recorded, the architecture is lying to you.
+That little contract does more for the design than a leaderboard. It tells you whether a small model can plausibly own the step. It also tells you what the model is not allowed to do.
 
-## Operating loop
+Small models get into trouble when the job boundary is fuzzy. "Understand the user" is too wide. "Extract invoice numbers from this message and return null when absent" is a job. "Decide whether this prompt is trying to exfiltrate secrets from a codebase" might be a job if the labels are precise enough. "Handle safety" is not a job. It is a governance wish with no interface.
 
-The operating loop is where distillation can become reliable or collapse into a pile of impressive transcripts. I would make every run produce a record that can be inspected by a human, replayed by a test harness, and summarized by an eval dashboard. Those are three different consumers, so the record cannot be only prose.
+The smaller the model, the more honest the boundary has to be.
 
-The loop I would want is:
+## distillation is a data process
+
+Distillation sounds like model magic, but most of the work is data work. A teacher model, or a larger existing system, produces labels, rationales, rankings, or rewritten examples. A student learns the behavior from that generated or annotated set. If the teacher is good and the task is narrow, the student can become fast and cheap enough to use in places where the teacher would be too slow or expensive.
+
+The dangerous version is simple:
 
 ~~~text
-capture -> propose -> check -> approve -> execute -> verify -> record -> learn
+ask big model for labels
+train small model on labels
+ship small model
 ~~~
 
-Capture stores the request and context references. Propose creates the candidate action. Check runs policy and deterministic validation. Approve attaches a human decision when the action needs one. Execute performs the work. Verify compares the result with the contract. Record stores the transition. Learn turns accepted and rejected runs into future eval cases.
+That pipeline copies the teacher's mistakes, hides uncertainty, and gives the student no reason to know where the edge of the task is. It can look good on a friendly test set because the teacher wrote both the training data and the style of the examples.
 
-That last step is easy to skip and expensive to recover later. If the system only stores successes, it trains the team to forget the edge cases. The rejected runs are often more useful because they show where the boundary was unclear, where the model overreached, or where the tool contract was underspecified.
+The better version treats the teacher as one noisy source:
 
-## Information flow
+~~~text
+raw examples
+  -> teacher labels
+  -> confidence and disagreement checks
+  -> human review for thin slices
+  -> train, validation, and adversarial holdout sets
+  -> student training
+  -> per-slice evaluation against baseline
+  -> shadow rollout
+~~~
 
-Information should move forward as evidence, not as vibes. The executor should not hand the verifier a blob of text and hope for the best. It should hand over the tool call, arguments, output, affected resources, timing, cost, and any claimed reasoning that the verifier is expected to check.
+The teacher helps produce coverage. It does not get to grade itself.
 
-For distillation, I would separate three kinds of evidence:
+For a classifier, I want real examples mixed with synthetic ones. Synthetic data is useful for rare classes, adversarial phrasings, and boundary cases, but it can become too clean. Real user text has typos, pasted logs, half sentences, sarcasm, boilerplate, and old context. A student trained only on teacher-shaped prose may perform well in the lab and then fall apart when it sees a message that starts with "ok so this is weird but..."
 
-- deterministic evidence, such as tests, schemas, diffs, permissions, and checksums
-- semantic evidence, such as a judge model comparing output to intent
-- operational evidence, such as latency, cost, retries, and approval history
+That is where most small model projects become less glamorous and more useful. You spend time on class definitions, label disagreement, deduplication, leakage checks, and slices. The model is the easy part to talk about. The dataset is where the system learns its manners.
 
-These evidence types age differently. Deterministic evidence is easier to replay. Semantic evidence may drift when the judge model changes. Operational evidence explains whether the system was usable under the actual constraints.
+## the student should learn less than the teacher knows
 
-## Failure modes
+A student model is not a compressed copy of the teacher's entire mind. It is a learned shortcut for one behavior. That distinction matters.
 
-The obvious failure is a model choice is treated as isolated even though the surrounding system made the decision. The less obvious failures are more interesting.
+If the teacher can read a long support thread, infer customer sentiment, decide a refund policy, and write a reply, the student should probably do one piece of that work. It might classify the intent. It might extract the order number. It might flag whether the reply needs policy retrieval. If you ask the student to inherit the entire workflow, you will get a weaker assistant with higher confidence than it deserves.
 
-A confused deputy failure happens when one component has authority another component should not inherit. An agent reads a private file, summarizes it into a shared context, and a later tool call leaks the summary. The filesystem permission looked correct, but the information boundary was already broken.
+I would rather have five small models with boring jobs than one small model pretending to be general:
 
-A stale-context failure happens when the model acts on a snapshot that is no longer true. This is common in coding agents, dashboards, and approval workflows. The user approves an action based on one diff, but the underlying file changed before execution.
+- a router that sends messages to billing, account, bug, or unknown
+- an extractor that finds IDs and timestamps
+- a redactor that removes secrets before logs are stored
+- a similarity model that finds nearby historical cases
+- a guard model that blocks a narrow set of risky requests
 
-A verifier collapse happens when the verifier shares too much context, too much prompt structure, or too much failure mode with the generator. It agrees because it is making the same mistake. This is where deterministic checks earn their keep.
+Each model has a different eval. Each has a different fallback. Each can be replaced without redesigning the whole product.
 
-A governance failure happens when approvals exist but revocation does not. Temporary access that cannot expire is not temporary. Tool scopes that cannot be audited are not scopes. A run ledger that cannot answer who approved what is not a ledger.
+That is the architectural win. The small model becomes an interface with a budget and a rollback path.
 
-## Measurement
+## baselines keep the project honest
 
-The measurement surface for distillation is task success, latency budget, memory footprint, batch behavior, and quality by route. I would not roll that into one success score. One number will hide the shape of the system.
+The first baseline should often be embarrassingly simple. Regexes, keyword rules, linear models, vector similarity, and prompted large models are all useful comparisons. If a distilled student cannot beat a cheap rule set on the slices that matter, it has not earned a place in the system.
 
-I would track:
+For routing, I would compare:
 
-- task acceptance rate by route
-- verifier disagreement by case type
-- deterministic failure rate
-- semantic judge variance
-- approval latency
-- retry count
-- p50 and p95 end-to-end latency
-- cost per accepted run
-- escalation rate
-- replay success rate
+- a keyword baseline
+- an embedding nearest-neighbor baseline
+- a prompted large model
+- the small trained model
+- the small model with abstention enabled
 
-Replay success rate is underrated. If the team cannot replay a failed run with the same inputs, context references, policy version, and model versions, the incident review becomes storytelling.
+The abstention case matters because small models are often valuable when they know when to step aside. A model that gets 92 percent accuracy by guessing every example may be worse than a model that gets 86 percent coverage with 98 percent precision on the cases it accepts. The second model can sit in front of a larger route and save time without silently poisoning the workflow.
 
-## Scaling behavior
+The eval should report slices, not only an aggregate score. Rare classes, ambiguous inputs, long inputs, short inputs, multilingual examples, adversarial examples, and out-of-distribution examples all deserve their own lines. A small model can look strong overall while failing the exact slice that made the project worth doing.
 
-At small scale, the system can be strict and noisy. A human can read every rejection. At medium scale, the noise becomes expensive. The system needs triage, clustering, and better defaults. At large scale, the risk moves again: the bottleneck is no longer whether one run was correct, but whether teams can change models, prompts, tools, and policies without creating invisible regressions.
+## latency changes product behavior
 
-That is where versioning matters. The model version, prompt version, tool schema version, policy version, and verifier version all belong in the run record. Otherwise a future failure will be impossible to attribute.
+Small models are not only cheaper. They can make different interfaces possible.
 
-I would also expect routing to become more conservative over time. Early prototypes overuse the strongest model because it is convenient. Production systems usually end up with a portfolio: cheap classifiers, small local models, retrieval paths, frontier models, deterministic tools, and human escalation. The router becomes an economic and governance component, not only a quality component.
+If an intent classifier runs in tens of milliseconds, the UI can update suggestions as the user types. If a redaction model runs locally, the app can protect logs before they leave the device. If a small embedding model runs near the data, search can stay responsive without shipping every query to a remote service. If a router is cheap, the system can retry or ask for a second opinion without turning every request into a budget conversation.
 
-## Tradeoffs I would make
+Latency changes what feels natural. A 3-second model call belongs behind a button or a visible wait state. A 30-millisecond model call can become part of the interface fabric. That is a different product surface.
 
-I would spend complexity on the run ledger before spending it on fancy orchestration. If the system cannot explain what happened, better orchestration just fails faster.
+But low latency also tempts teams to call the model everywhere. That creates a new maintenance problem. Now the small model is in hot paths, background jobs, search ranking, moderation, and analytics. If the model changes behavior, the whole system changes behavior.
 
-I would prefer narrow tool scopes that are annoying but inspectable over broad scopes that feel magical. The annoyance is real. So is the cost of a broad permission that nobody can audit.
+Small models need versioning for the same reason large models do. The release note should say which checkpoint is running, which dataset trained it, which eval it passed, and what fallback catches failures.
 
-I would use model judges carefully. They are useful for semantic comparison, ranking, and clustering. They are weak as the only gate on irreversible actions. When the action matters, pair the judge with deterministic checks and human escalation.
+## where small models fail
 
-I would keep approvals contextual. Show the proposed action, affected resources, evidence, expected side effect, rollback story, and expiration. If that makes the approval UI crowded, the operation may be too vague.
+Small models fail at fuzzy boundaries. They overfit label language. They learn formatting clues from synthetic data. They collapse rare classes into common ones. They become stale when user behavior changes. They can be harder to debug than rules because the failure is distributed across weights, data, tokenizer behavior, and threshold choices.
 
-## What remains unresolved
+The worst failure is silent confidence. A large model may ramble when it is uncertain. A small classifier may return a clean enum with no visible doubt. That is tidy and dangerous.
 
-I do not think there is one clean answer for distillation. The shape depends on the cost of failure, the sensitivity of the data, the reversibility of the action, and the review capacity of the team.
+I usually want one of these escape hatches:
 
-The unresolved question is how much friction belongs in the default path. Too much friction and people avoid the system. Too little and the system accumulates invisible risk. The answer probably changes by task class, not by company slogan.
+- an `unknown` class
+- calibrated confidence thresholds
+- a second model for disagreement on high-risk cases
+- random audit sampling
+- shadow comparison against a larger route
+- review queues for new clusters of inputs
 
-That is the part I find interesting. The future of distillation is not a chat box with more buttons. It is a work surface with memory, scope, evidence, review, revocation, and enough humility to stop when it cannot prove what it just did.
+None of that makes the small model less useful. It makes the system honest about what the model can own.
+
+## local models are a product choice
+
+On-device and local small models are especially interesting because they move the trust boundary. A local model can classify private notes, redact secrets, summarize a local folder, or pre-process images without a network call. That is valuable even when the model is weaker.
+
+The tradeoff is that deployment gets messier. You have to care about memory, startup time, quantization, device support, update cadence, model download size, and what happens when the user is offline with an old checkpoint. The model is now part of the application runtime, not a remote dependency hidden behind an API.
+
+That can be worth it. A private workflow with a slightly weaker local model may be better than a stronger remote one if the data should never leave the machine. A fast local classifier may be better than a large remote model if the task runs hundreds of times inside one user action.
+
+Small does not mean less serious. It means the constraints are different.
+
+## the architecture i want
+
+I do not want a system that asks, "Can we replace the frontier model?" That question is too broad.
+
+I want a system that asks:
+
+- Which steps are narrow enough to model directly?
+- Which steps need general reasoning?
+- Which steps need privacy more than raw capability?
+- Which steps can abstain safely?
+- Which steps are called often enough that latency dominates?
+- Which steps have labels good enough to train against?
+
+That gives small models a real place to live.
+
+Use the large model where the work is ambiguous, contextual, and worth the cost. Use the small model where the work is repeated, bounded, and measurable. Use distillation when the teacher can help create a better dataset, but keep the eval independent enough to catch copied mistakes.
+
+The point is not to make the architecture look efficient. The point is to put the right amount of intelligence in the right part of the system.

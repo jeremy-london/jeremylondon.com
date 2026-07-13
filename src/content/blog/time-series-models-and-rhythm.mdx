@@ -8,24 +8,177 @@ author: "jeremy-london"
 tags: ["time series", "forecasting", "sequence models"]
 ---
 
-{/*
-Depth: quick-note
-Information map:
-- the concrete time series problem
-- the example surface: Security signals often come down to timing, baselines, drift, and knowing when a pattern changed
-- the failure mode: a model choice is treated as isolated even though the surrounding system made the decision
-- the small decision I would keep
-- what would make the note wrong
-*/}
+Threat analytics is time series work more often than teams admit.
 
-Security signals often come down to timing, baselines, drift, and knowing when a pattern changed.
+Security data is full of categories: user, host, process, IP, domain, rule, severity, tactic, technique. Those labels matter. But a lot of the signal lives in time: how often something happens, when it happens, how fast it changes, what usually happens before it, and whether the current rhythm belongs to the environment.
 
-I would keep time series small here. The useful part is Security signals often come down to timing, baselines, drift, and knowing when a pattern changed. That is enough material for a time series note, not a manifesto.
+A single login failure is boring. A burst of failures against dormant accounts at 2:13 AM is different. A PowerShell command is boring in some places and strange in others. A new cloud region may be normal during a deployment window and suspicious on a quiet weekend.
 
-The time series mistake is treating the observation as if it needs a complete theory around it. In practice, model systems work usually gets better when the first version names the boundary and then stops. For time series, that boundary is where the model stops and the serving system starts.
+The event is only half the sentence. The timestamp finishes it.
 
-The time series check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the time series post has done its job. If the answer is no, adding three more time series paragraphs will not fix it.
+## baselines are local
 
-The thing I would not add to time series is a fake architecture section. A short time series note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for time series. The rest of time series can wait until there is a real example to inspect.
+The first mistake in time-based security analytics is treating the whole environment as one population.
 
-I am leaving time series as a short note because the idea is useful at this size. A longer time series version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.
+Different users have different rhythms. So do service accounts, build agents, laptops, domain controllers, Kubernetes nodes, and cloud workloads. A backup job that moves gigabytes every night is normal. The same transfer pattern from an executive laptop is not.
+
+I would rather start with local baselines:
+
+~~~text
+entity: user:jlondon
+feature: failed_login_count
+window: 15 minutes
+baseline: median by hour-of-week over 30 days
+current: 18
+expected: 0-2
+~~~
+
+The hour-of-week part matters. Monday morning is not Saturday night. End-of-month finance activity may be weird in the general population and normal for one team. A good baseline respects those rhythms instead of flattening them.
+
+Global baselines still help, especially for new entities without history. But once an entity has enough data, its own past is often the most useful comparison.
+
+## windows change the story
+
+Time windows are product decisions disguised as math.
+
+Count failed logins over one minute and you catch bursts. Count them over one day and you catch slow guessing. Count distinct countries over seven days and you may find travel or credential sharing. Count process launches over five seconds and you may find script behavior that disappears in hourly aggregation.
+
+The same event stream can tell different stories:
+
+~~~text
+window=1m   failed_logins=4    likely noise
+window=15m  failed_logins=39   spray pattern
+window=24h  failed_logins=41   one burst, not sustained
+~~~
+
+That is why I dislike analytics that hide the window. An alert should say what time shape it saw. "Unusual login failures" is weaker than "39 failed logins for this user in 15 minutes, compared with a 30-day hour-matched baseline of 0 to 2."
+
+The second sentence gives an analyst something to test.
+
+## seasonality is everywhere
+
+Security systems inherit business rhythms.
+
+People log in during work hours. CI systems run on merge patterns. Finance systems spike near close. Retail systems move differently during holidays. Developers do strange things late at night before a launch. Those rhythms can make naive anomaly detection noisy.
+
+Seasonality does not mean an event is safe. It means the model needs context before it calls the event weird.
+
+I like features that make seasonality explicit:
+
+~~~text
+hour_of_day
+day_of_week
+is_business_day
+is_change_window
+days_until_month_end
+deployment_active
+user_timezone
+~~~
+
+Some of those are security features. Some are business features. In practice the boundary is blurry because attackers often hide inside normal business noise.
+
+## drift can be benign or hostile
+
+Patterns change.
+
+A team adopts a new VPN. A company migrates to a new identity provider. A deployment pipeline starts pulling from a new region. A help desk script changes process names. The model sees drift, but the drift is not necessarily an attack.
+
+Attackers also create drift. They spread activity slowly enough that the new baseline absorbs it. They move from bursty behavior to low-and-slow behavior. They use legitimate tools so the category looks familiar while the timing changes.
+
+That makes drift review important.
+
+~~~text
+feature: outbound_bytes_to_new_domains
+entity_group: engineering_laptops
+baseline_period: previous_30_days
+candidate_period: last_7_days
+change: +340%
+annotation: new telemetry exporter rollout began 2025-05-01
+~~~
+
+The annotation is doing real work. Without it, the system may keep alerting on a known change or quietly retrain on a hostile one.
+
+## sequences beat isolated events
+
+Some security stories are sequences.
+
+A suspicious login followed by a password reset followed by mailbox rule creation is different from any one of those events alone. A container image pull followed by a new outbound connection followed by a secret read deserves a different score than the same events spread across unrelated hosts over several weeks.
+
+This is where time series work starts to look like event grammar.
+
+~~~text
+login_success(new_device)
+  -> privilege_check
+  -> mailbox_rule_created
+  within 20 minutes
+~~~
+
+That is not forecasting. It is temporal pattern matching. It still depends on time windows, ordering, and decay.
+
+The hard cases are partial sequences. Maybe the login and privilege check happened, but the mailbox rule did not. Maybe the events happened in reverse order because telemetry arrived late. Maybe one source dropped data. The analytic should expose enough of the sequence to let a human decide whether the missing piece matters.
+
+## alert scores need memory
+
+Security alerts often behave like stateless facts. They should behave more like accumulated evidence.
+
+If a user has one mildly suspicious event, maybe the system records it. If the same user has five weak signals in two hours, the story changes. If those signals hit unrelated tactics, the story changes again.
+
+~~~text
+entity_risk_score =
+  recent_login_anomaly * 0.30 +
+  new_device_weight * 0.20 +
+  unusual_process_weight * 0.25 +
+  impossible_travel_weight * 0.25
+~~~
+
+That toy score is intentionally simple. In a real system, I would care about decay, feature correlation, and calibration. Two signals may be redundant because they come from the same underlying event. Other signals may be stronger together than alone.
+
+The important point is that time changes confidence. Evidence should fade, combine, and sometimes reset.
+
+## late data is normal
+
+Threat analytics systems live with late data.
+
+Logs arrive out of order. Endpoint agents buffer events. Cloud APIs lag. Network sensors drop packets. A batch job lands five minutes after the alert already fired.
+
+If the system assumes perfect ordering, the analytic will be brittle. A better design records event time and ingest time separately.
+
+~~~json
+{
+  "event_time": "2025-05-07T03:14:22Z",
+  "ingest_time": "2025-05-07T03:18:41Z",
+  "source": "endpoint",
+  "entity": "host:build-17",
+  "event": "process_start"
+}
+~~~
+
+That distinction matters for investigation. It also matters for training data. If labels are generated using data that would not have been available at alert time, the eval is cheating.
+
+## measuring detection means measuring delay
+
+Accuracy is not enough for security analytics.
+
+A detection that finds credential abuse six hours late may be technically correct and operationally weak. A detection that fires in one minute with no context may be fast and useless. Time to detect, time to triage, and time to confidence all matter.
+
+I would track:
+
+- detection latency from event time
+- ingest latency by source
+- alert volume by hour
+- analyst reopen rate
+- false positives by entity group
+- missed incidents promoted into regression tests
+- drift annotations added per week
+
+Those metrics are not glamorous. They tell you whether the analytic fits the way the security team works.
+
+## rhythm is context
+
+Threat analytics is time series work because attackers and normal systems both have rhythm.
+
+The useful question is rarely "did this event happen?" The useful question is closer to "does this event belong here, at this time, after these other events, for this entity, given what normally happens?"
+
+That question is messier. It needs baselines, windows, seasonality, drift review, sequence logic, and late-data handling. It also needs humility, because the system will confuse change with danger and danger with change.
+
+That is the job. Security signals are temporal before they are persuasive.

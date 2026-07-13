@@ -8,138 +8,147 @@ author: "jeremy-london"
 tags: ["claude", "reasoning", "latency"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete claude problem
-- the example surface: Claude 3.7 Sonnet made hybrid reasoning visible enough that teams had to decide when thinking should cost time
-- the failure mode: a model choice is treated as isolated even though the surrounding system made the decision
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using task success, latency budget, memory footprint, batch behavior, and quality by route
-- security or ownership boundary: where the model stops and the serving system starts
-- latency, cost, and scaling implications
-*/}
+Claude 3.7 Sonnet made reasoning feel less like a hidden model trait and more like a product control.
 
-Claude 3.7 Sonnet made hybrid reasoning visible enough that teams had to decide when thinking should cost time.
+That is the interesting part to me. The release was not only "a smarter model." Anthropic described Claude 3.7 Sonnet as a hybrid reasoning model: it could answer quickly, or it could spend more time working through a problem with visible extended thinking. API users could also control how much thinking budget the model was allowed to spend.
 
-The interesting part of claude is not the name. It is the system pressure around Claude 3.7 Sonnet made hybrid reasoning visible enough that teams had to decide when thinking should cost time. Once that pressure shows up for claude, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+That changes the product question.
 
-## The unit of work
+Before reasoning models became a normal part of the menu, latency was mostly treated as a cost of model choice. Use the faster model for quick work. Use the stronger model for harder work. Claude 3.7 made the tradeoff more explicit inside the same model path: should this request get the fast answer, or should the product spend time on deeper reasoning?
 
-I would start by naming the unit of work for claude. In model systems, the claude unit is usually smaller than the product surface and larger than a function call. For claude, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+That is not a cosmetic setting. It is a decision about user experience, cost, reliability, and trust.
 
-A useful claude unit has four properties:
+## thinking time needs a reason
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+The product should not ask a model to think longer because thinking sounds impressive.
 
-For claude, the boundary is where the model stops and the serving system starts. That boundary should be visible in the claude data, not only in a policy document. If a claude request crosses the boundary, the trace should show it.
+Longer reasoning is useful when the request has enough ambiguity or consequence to justify the time. A tricky code change may deserve it. A multi-step data analysis may deserve it. A legal or policy comparison may deserve it. A hard debugging problem may deserve it. A casual rewrite of a sentence probably does not.
 
-## Data flow
+The interface should have an opinion.
 
-The simple claude flow looks like this:
+If every request uses extended thinking, the product becomes slow and expensive. If no request uses it, the product leaves quality on the table for the tasks where careful reasoning would help. The useful system is selective.
 
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
-~~~
+I would start with task shape:
 
-The context builder gathers the minimum useful state for claude. The claude decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+```text
+fast path:
+  short answers, formatting, extraction, simple rewrites, low-risk summaries
 
-That receipt is the difference between a claude demo and an operable system. A demo can rely on a person watching closely. A claude system needs to explain itself after the person has moved on.
+thinking path:
+  debugging, planning, multi-file code changes, policy comparison, math, tricky tradeoffs
 
-A claude request envelope might look like this:
+ask first:
+  user-visible latency above threshold, expensive batch work, high-cost agent runs
+```
 
-~~~json
+That is crude, but it is better than treating thinking as a magic boost.
+
+## visible reasoning changes user expectations
+
+Visible thinking creates a different relationship with the user.
+
+When the model answers instantly, the user judges the answer. When the model visibly spends time, the user also judges the process. Did it consider the right cases? Did it get distracted? Did it overcomplicate the problem? Did it spend ten seconds to say something obvious?
+
+That makes the product responsible for when reasoning appears.
+
+If a product shows extended thinking for every medium-sized request, users may start to treat delay as proof of quality. That is dangerous. Time spent is not the same as correctness. A model can think longer and still be wrong. It can also overthink a simple task into a brittle answer.
+
+The UI should avoid turning reasoning into theater.
+
+I like products that use thinking visibility as a tool, not a performance. Show enough process to explain why a difficult answer took longer. Do not make the user watch a model narrate obvious steps just because the feature exists.
+
+## budgets belong in the route
+
+Thinking budget should be part of routing.
+
+A request should carry enough information for the system to decide how much reasoning it can afford:
+
+```json
 {
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
+  "task": "debug failing integration test",
+  "risk": "medium",
+  "latencyBudgetMs": 20000,
+  "costBudget": "normal",
+  "requiresPlan": true,
+  "userRequestedSpeed": false
 }
-~~~
+```
 
-The schema is deliberately plain. Fancy schemas do not save unclear claude systems. The useful claude work is deciding which fields are required, which are advisory, and which block the run when missing.
+The exact fields do not matter. The habit does.
 
-## Implementation sketch
+If the product routes reasoning only from prompt text, the decision is hard to inspect. If the product stores reasoning budget as a structured choice, it can measure whether the choice helped.
 
-I would implement the first claude pass as a narrow pipeline rather than a general platform. Start claude with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+Did extended thinking improve acceptance rate for debugging tasks? Did it reduce user follow-up questions? Did it increase cost without improving outcomes for summaries? Did users cancel slow requests? Did the model produce better plans but slower final execution?
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+Those are product metrics, not model vibes.
 
-For claude, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The claude system still has to decide whether the proposal is usable under the current boundary.
+## the fast path still needs quality
 
-## Failure modes
+Hybrid reasoning creates a temptation to let the fast path become the sloppy path.
 
-The main claude failure mode is a model choice is treated as isolated even though the surrounding system made the decision. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The claude failure is that the next component cannot tell whether the result should be trusted.
+That would be a mistake.
 
-I would test at least five claude cases:
+The fast path still needs clear instructions, good context, schema checks where appropriate, and honest refusal when the request is outside scope. It should be fast because the task is simple, not because the product skipped every guardrail.
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+The distinction I care about is between shallow work and low-latency work. Those are not the same.
 
-That last claude case matters. A confident claude answer is not the same thing as a verified result. If claude touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+A user asking for a field extraction from a known document may deserve a quick answer with strict schema validation. A user asking for a risky architecture decision may deserve slower reasoning with a reviewable plan. The product should not confuse speed with casualness.
 
-## Deployment shape
+Fast answers can still be serious. Slow answers can still be junk.
 
-I would not deploy claude as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For claude, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+## agent workflows make the control sharper
 
-That gives the router real work to do. For claude, it should not only choose small model or big model. It should choose a risk path:
+Claude 3.7 also arrived alongside Claude Code, which made the reasoning control feel more concrete for software work.
 
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
+Coding agents need to decide when to pause and plan. If the task is "fix typo in README," extended reasoning is probably wasted. If the task is "trace this regression across three packages," spending time on a plan may save far more time later.
 
-Each claude path has a different budget, verifier, and approval requirement. This is the part that makes claude feel less magical and more like infrastructure. The model is still important, but the claude route determines what kind of trust the system is asking for.
+The control should also change during the run.
 
-## Measurement
+An agent might start on the fast path to inspect files and gather facts. It might switch to a thinking path when it finds conflicting evidence. It might return to a fast path for mechanical edits. It might require explicit approval before spending a large reasoning budget on a long batch of repairs.
 
-The measurement surface for claude is task success, latency budget, memory footprint, batch behavior, and quality by route. I would track claude per route or case type, not only as a global average. Global averages hide the exact class of claude problems that make these systems feel unpredictable.
+That kind of adaptive behavior is much more interesting than a global "think harder" toggle.
 
-A simple eval table can carry a lot of weight:
+The run should record the choice:
 
-~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
-~~~
+```text
+step 1: inspect failing test, fast
+step 2: compare failure with recent diff, fast
+step 3: plan fix across parser and fixture, extended thinking
+step 4: apply focused edit, fast
+step 5: verify failure case, fast
+```
 
-The point is not to build an eval cathedral for claude. The point is to preserve enough claude structure that regressions can be clustered. If failures cluster around one route, fix the route. If claude failures cluster around one policy boundary, fix the boundary. If claude failures cluster around one model, stop pretending the prompt is the whole system.
+That record helps debug cost and quality. It also helps the user see that the agent spent time where the problem deserved time.
 
-## Operational concerns
+## overthinking is a real failure mode
 
-The operational question for claude is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap claude route becomes unreliable but the expensive route would blow the budget?
+Reasoning controls need failure modes of their own.
 
-For claude, I would put those answers in configuration, not in a heroic prompt. A small claude policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+A model can spend too long on a simple request. It can produce a plan that is more elaborate than the task. It can talk itself out of the straightforward answer. It can use extra reasoning to rationalize a wrong assumption. It can make the user wait for something that should have been immediate.
 
-## Scaling behavior
+That means "use extended thinking" should not be treated as a universal quality upgrade.
 
-At small scale, a human can inspect weird claude cases by hand. At medium scale, the claude system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+I would evaluate it by slice:
 
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the claude system without being surprised by the downstream behavior?
+- simple tasks where extended thinking should be disabled
+- hard tasks where extended thinking should help
+- ambiguous tasks where the product should ask or choose based on user mode
+- high-risk tasks where slower reasoning still needs external verification
 
-For claude, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the claude system a spine.
+The last point matters. Longer thinking is not a substitute for tests, policy checks, retrieval quality, or human approval. It is one input into the system.
 
-## Where I land
+## the product owns the tradeoff
 
-Claude deserves depth when it changes architecture, not when it merely sounds current. The claude implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+Claude 3.7 made the tradeoff visible enough that product teams could not hide from it.
 
-If the claude post answers those questions, it teaches something. If the claude post only says the topic matters, it is just a longer version of the headline.
+Thinking costs time. It may cost money. It may improve quality. It may annoy users. It may make the system feel more careful. It may make a simple tool feel heavy. The right answer depends on the task, the user, and the product promise.
+
+That is why I like reasoning as a product control. It forces the team to decide where latency belongs.
+
+Some work should be instant.
+
+Some work should be slow because the answer matters.
+
+Some work should be slow only after the user agrees.
+
+The model gave teams a knob. The engineering work is deciding when turning that knob makes the product better.

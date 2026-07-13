@@ -8,138 +8,166 @@ author: "jeremy-london"
 tags: ["embeddings", "semantic search", "vectors"]
 ---
 
-{/*
-Depth: technical-deep-dive
-Information map:
-- the concrete embeddings problem
-- the example surface: a retrieval system that has to prove it found the right neighborhood, not just a nearby vector
-- the failure mode: the system succeeds once but gives the next maintainer no way to explain it
-- input shape and request data
-- component responsibilities
-- control flow and state transitions
-- failure modes and recovery
-- measurement using reproduction time, failing example coverage, queue age, and rollback confidence
-- security or ownership boundary: what must be proven before the change is trusted
-- latency, cost, and scaling implications
-*/}
+Embeddings are easy to oversell because the demo feels like a trick.
 
-Embeddings are useful because they make search, memory, deduping, and retrieval feel less brittle.
+You type a messy question. The system finds the right paragraph even though the words do not match. Search stops feeling like a brittle keyword box and starts feeling like it understands the thought. That is the part everyone remembers.
 
-The interesting part of embeddings is not the name. It is the system pressure around a retrieval system that has to prove it found the right neighborhood, not just a nearby vector. Once that pressure shows up for embeddings, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
+The part that matters in a real product is much less mystical. An embedding system is plumbing for similarity. It decides what becomes a vector, which distance function counts as "near," how chunks are stored, how updates move through the index, what metadata filters apply before or after search, and how the product reacts when the nearest thing is still wrong.
 
-## The unit of work
+That is not as cinematic as "map of meaning." It is more useful.
 
-I would start by naming the unit of work for embeddings. In engineering quality, the embeddings unit is usually smaller than the product surface and larger than a function call. For embeddings, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
+## the vector is not the document
 
-A useful embeddings unit has four properties:
+An embedding is a lossy representation. That loss is the whole point. The model turns text, an image, an audio window, or another input into a vector that preserves some kinds of similarity and discards plenty of detail.
 
-- an input the system can store
-- a decision the system can explain
-- evidence the next component can inspect
-- a boundary that says who or what is allowed to act
+This is why embeddings are useful and dangerous. They are useful because exact wording stops being the only path to a result. They are dangerous because the vector can make two things look close for reasons the product did not intend.
 
-For embeddings, the boundary is what must be proven before the change is trusted. That boundary should be visible in the embeddings data, not only in a policy document. If a embeddings request crosses the boundary, the trace should show it.
+A refund policy and a cancellation policy might sit near each other because they both discuss account actions. That may be good for broad search and bad for support automation. A security incident review and a routine deploy note might share vocabulary around systems, logs, and owners. That may be bad if the user asked for incidents only. A code comment and a README section might both mention "cache invalidation" while answering very different questions.
 
-## Data flow
+The product cannot treat vector distance as truth. It is a candidate generator.
 
-The simple embeddings flow looks like this:
+That small distinction saves a lot of bad architecture. The embedding search retrieves possibilities. The rest of the system still has to filter, rank, cite, verify, or ask for clarification.
 
-~~~text
-request -> context builder -> decision point -> action or answer -> verifier -> receipt
+## chunking is a product decision
+
+The most common embedding mistake is pretending chunking is a preprocessing detail.
+
+Chunking decides what unit can be found. If the chunk is too small, the search result may contain the right phrase without enough surrounding context to answer the question. If the chunk is too large, the vector becomes a smoothie of several ideas and retrieval gets vague. If chunks split tables, code blocks, or policy sections in the wrong place, the index can retrieve something technically related and practically useless.
+
+For documentation search, I usually want chunks that respect headings. A section with its heading carries more meaning than a naked paragraph. For code search, I might chunk by function, class, route handler, or test case. For support tickets, I might separate customer message, agent response, resolution, and product area because each field answers a different kind of query.
+
+A rough record should preserve the source shape:
+
+~~~ts
+type EmbeddedChunk = {
+  id: string
+  sourceId: string
+  sourceType: "doc" | "ticket" | "code" | "trace"
+  title?: string
+  sectionPath?: string[]
+  text: string
+  embeddingModel: string
+  embeddingVersion: string
+  metadata: {
+    product?: string
+    createdAt?: string
+    owner?: string
+    language?: string
+  }
+}
 ~~~
 
-The context builder gathers the minimum useful state for embeddings. The embeddings decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+The metadata is not decoration. It is how the product keeps retrieval from becoming a semantic junk drawer. If the user is searching current billing docs, an old migration note might be semantically close and still wrong. Metadata gives the system a way to say, "close, but not eligible."
 
-That receipt is the difference between a embeddings demo and an operable system. A demo can rely on a person watching closely. A embeddings system needs to explain itself after the person has moved on.
+## similarity needs a second pass
 
-A embeddings request envelope might look like this:
+Vector search is usually the first pass. It should return candidates quickly. It should not be forced to make every product decision by itself.
+
+A practical retrieval path often looks like this:
+
+~~~text
+query
+  -> normalize and embed
+  -> metadata filter
+  -> nearest-neighbor search
+  -> rerank candidates
+  -> apply freshness and permission checks
+  -> return cited results
+~~~
+
+The reranker may be another model, a cross-encoder, a keyword score mixed with vector distance, a domain rule, or a simple scoring function. The shape depends on the product. The important thing is that nearest vector distance does not become the final word.
+
+This matters most when the query is underspecified. "How do I cancel?" might mean cancel a subscription, cancel a job, cancel a deployment, cancel a meeting, or cancel a queued invoice. The embedding model may retrieve all of those because the language overlaps. The product has to know which context narrows the answer.
+
+For an agent, retrieval needs even more care. If retrieved text can shape a tool call, then stale, unauthorized, or merely similar chunks become operational risk. A chunk about the old deploy process should not be allowed to steer a current production action because it happened to be close in vector space.
+
+Embeddings widen the search surface. The system still needs brakes.
+
+## deduping is different from search
+
+Embeddings are also useful for deduplication, but the similarity threshold has to match the job.
+
+Near-duplicate support tickets can be clustered with a fairly forgiving threshold. The goal is to help humans see patterns. False positives are annoying but recoverable. Deduplicating legal clauses, product requirements, or incident root causes needs a stricter approach because two texts can be semantically close while carrying different obligations.
+
+I like separating exploratory clustering from automatic merging. A cluster can say, "These items may be related." A merge says, "These items are the same enough to collapse state." Those are different actions.
+
+For clustering, I care about review ergonomics:
+
+- show representative examples
+- show outliers inside the cluster
+- show why the cluster was formed
+- let a reviewer split or rename it
+- keep the original items intact
+
+For automatic deduping, I want a much smaller scope. Same source type, same owner, same time window, high vector similarity, and ideally a lexical or structured match too. Embeddings are a good signal. They are not a signature.
+
+## memory needs expiration
+
+Embedding-backed memory is where products get weird.
+
+It is tempting to save everything, embed it, and call it memory. That creates a system that remembers too much and understands too little. Old preferences, resolved bugs, stale plans, abandoned drafts, temporary instructions, and one-off exceptions all become retrievable later.
+
+A useful memory system needs write rules. What is worth embedding? Who can read it? When should it expire? Does the user know it exists? Can they delete it? Does the system distinguish a durable preference from a temporary instruction?
+
+For personal tools, I would rather start with narrow memory classes:
+
+~~~text
+preference: durable user choice, user editable
+project note: scoped to one project, expires when archived
+recent context: short-lived, decays quickly
+blocked fact: explicitly excluded from future use
+~~~
+
+The embedding index should carry those classes as metadata. Search then becomes a permissioned lookup, not a global rummage through every sentence the user ever wrote.
+
+This is especially important for agent systems. An agent with memory can become helpful. It can also become haunted by stale context. The fix is not a bigger vector database. The fix is lifecycle design.
+
+## evaluation starts with bad searches
+
+Embedding systems are hard to evaluate from happy paths. A few good queries can make the system feel smarter than it is. The real work is collecting misses.
+
+I want a small test set with query, expected result, acceptable alternatives, and known bad matches:
 
 ~~~json
 {
-  "input": "user or system request",
-  "context": ["retrieved document", "current state", "policy hint"],
-  "decision": "selected route or action",
-  "evidence": ["why this route was allowed"],
-  "limits": { "costCents": 12, "timeoutMs": 8000 },
-  "requiresApproval": false
+  "query": "how do I rotate the webhook secret?",
+  "expected": ["docs/security/webhooks.md#secret-rotation"],
+  "acceptable": ["runbooks/incident-response.md#webhook-leak"],
+  "bad": ["docs/api/webhooks.md#create-webhook"]
 }
 ~~~
 
-The schema is deliberately plain. Fancy schemas do not save unclear embeddings systems. The useful embeddings work is deciding which fields are required, which are advisory, and which block the run when missing.
+The `bad` list is useful because semantic search often finds the wrong neighbor with confidence. An API reference for creating a webhook may be close to secret rotation. The product needs the rotation runbook.
 
-## Implementation sketch
+Metrics like Recall@K and nDCG help, but I still want qualitative review. Open the misses. Read the retrieved chunks. Ask whether the failure came from chunking, metadata, embedding model choice, stale docs, query ambiguity, or ranking. The fix is different for each one.
 
-I would implement the first embeddings pass as a narrow pipeline rather than a general platform. Start embeddings with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+If the right document never appears in the top 50, the embedding model or chunking may be wrong. If it appears at rank 12, reranking might help. If it appears at rank 2 but the product chooses rank 1, the final scoring logic needs work. If the document is outdated, retrieval did its job and the content system failed.
 
-~~~ts
-type StepResult = {
-  route: string
-  output: unknown
-  evidence: string[]
-  deterministicChecks: string[]
-  semanticReview?: string
-  accepted: boolean
-}
-~~~
+Good evaluation separates those failures instead of turning them into one disappointing search score.
 
-For embeddings, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The embeddings system still has to decide whether the proposal is usable under the current boundary.
+## version the index like a system
 
-## Failure modes
+An embedding index has more moving parts than it first appears to have. The embedding model has a version. The chunker has a version. The source content has a version. The metadata rules have a version. The distance metric and index parameters matter too.
 
-The main embeddings failure mode is the system succeeds once but gives the next maintainer no way to explain it. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The embeddings failure is that the next component cannot tell whether the result should be trusted.
+If any of those change, retrieval can change.
 
-I would test at least five embeddings cases:
+That does not mean every small update needs ceremony. It does mean production retrieval should be able to answer basic questions:
 
-- missing context
-- stale context
-- valid output with insufficient evidence
-- correct output under the wrong permission boundary
-- high-confidence output that fails a deterministic check
+- Which model embedded this chunk?
+- When was this chunk created?
+- Which source revision did it come from?
+- Which chunking rule produced it?
+- Can we rebuild the index?
+- Can we compare the new index against the old one?
 
-That last embeddings case matters. A confident embeddings answer is not the same thing as a verified result. If embeddings touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+Embeddings feel fluid at the product layer, but the infrastructure should be boring. Rebuilds should be repeatable. Backfills should be observable. Old chunks should not linger forever after source content is deleted or permission changes.
 
-## Deployment shape
+## the map metaphor is useful until it is not
 
-I would not deploy embeddings as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For embeddings, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+I still like saying embeddings make a map of meaning. It is a decent intuition. Nearby points tend to be related. Directions can encode patterns. Clusters can reveal themes. The map lets a product find things that keyword search would miss.
 
-That gives the router real work to do. For embeddings, it should not only choose small model or big model. It should choose a risk path:
+But a map is not the territory, and this map is drawn by a model with its own training history and blind spots. Distance does not equal relevance. Similarity does not equal permission. A retrieved chunk does not equal an answer.
 
-- read-only answer
-- draft-only action
-- reversible write
-- privileged action
-- escalation
+Embeddings are product plumbing because they are useful when the rest of the system respects what they are: a fast way to propose neighbors. The product value comes from the parts around them: chunking, metadata, reranking, citations, review, deletion, and evals built from real misses.
 
-Each embeddings path has a different budget, verifier, and approval requirement. This is the part that makes embeddings feel less magical and more like infrastructure. The model is still important, but the embeddings route determines what kind of trust the system is asking for.
-
-## Measurement
-
-The measurement surface for embeddings is reproduction time, failing example coverage, queue age, and rollback confidence. I would track embeddings per route or case type, not only as a global average. Global averages hide the exact class of embeddings problems that make these systems feel unpredictable.
-
-A simple eval table can carry a lot of weight:
-
-~~~text
-case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
-~~~
-
-The point is not to build an eval cathedral for embeddings. The point is to preserve enough embeddings structure that regressions can be clustered. If failures cluster around one route, fix the route. If embeddings failures cluster around one policy boundary, fix the boundary. If embeddings failures cluster around one model, stop pretending the prompt is the whole system.
-
-## Operational concerns
-
-The operational question for embeddings is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap embeddings route becomes unreliable but the expensive route would blow the budget?
-
-For embeddings, I would put those answers in configuration, not in a heroic prompt. A small embeddings policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
-
-## Scaling behavior
-
-At small scale, a human can inspect weird embeddings cases by hand. At medium scale, the embeddings system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
-
-Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the embeddings system without being surprised by the downstream behavior?
-
-For embeddings, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the embeddings system a spine.
-
-## Where I land
-
-Embeddings deserves depth when it changes architecture, not when it merely sounds current. The embeddings implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
-
-If the embeddings post answers those questions, it teaches something. If the embeddings post only says the topic matters, it is just a longer version of the headline.
+That is less magical than semantic search demos make it feel. Good. Magic is hard to operate.

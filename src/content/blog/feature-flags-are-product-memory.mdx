@@ -1,6 +1,6 @@
 ---
 title: "Feature flags are product memory"
-excerpt: "Flags are not just rollout switches. They record uncertainty, ownership, and the path back."
+excerpt: "Flags are rollout switches, but they also record uncertainty, ownership, and the path back."
 publishDate: "2024-01-17T12:00:00Z"
 category: "product-engineering"
 draft: false
@@ -8,24 +8,146 @@ author: "jeremy-london"
 tags: ["feature flags", "release", "product"]
 ---
 
-{/*
-Depth: quick-note
-Information map:
-- the concrete feature flags problem
-- the example surface: Flags are not just rollout switches. They record uncertainty, ownership, and the path back
-- the failure mode: the feature works in the happy path but leaves the user guessing at the boundary
-- the small decision I would keep
-- what would make the note wrong
-*/}
+Feature flags are usually introduced as release controls. That is the simple version: turn something on for a few users, watch it, roll it forward, roll it back if it breaks.
 
-Flags are not just rollout switches. They record uncertainty, ownership, and the path back.
+That is useful, but it is not the whole job. A flag also records a product decision that is still unsettled. It says this behavior exists in more than one state. It says somebody wanted a path back. It says the default is not obvious yet, or the migration is incomplete, or the risk is high enough that a normal deploy is too blunt.
 
-I would keep feature flags small here. The useful part is Flags are not just rollout switches. They record uncertainty, ownership, and the path back. That is enough material for a feature flags note, not a manifesto.
+That makes feature flags a kind of product memory.
 
-The feature flags mistake is treating the observation as if it needs a complete theory around it. In practice, product engineering work usually gets better when the first version names the boundary and then stops. For feature flags, that boundary is what the interface must make visible before the user can act.
+The danger is that memory rots. A flag added for a careful rollout becomes a permanent branch. A temporary beta becomes a pricing exception. A safety valve becomes a hidden policy layer. Six months later, nobody remembers whether turning the flag off is rollback, deletion, or customer breakage.
 
-The feature flags check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the feature flags post has done its job. If the answer is no, adding three more feature flags paragraphs will not fix it.
+## name the uncertainty
 
-The thing I would not add to feature flags is a fake architecture section. A short feature flags note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for feature flags. The rest of feature flags can wait until there is a real example to inspect.
+A good flag name should tell me what uncertainty it protects.
 
-I am leaving feature flags as a short note because the idea is useful at this size. A longer feature flags version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.
+`new_dashboard` is almost useless. New compared to what? For whom? Is it a visual redesign, a data contract change, a navigation change, or a different permission model? `dashboard_v2_enabled` is only slightly better. It names the artifact but not the risk.
+
+I would rather see names that point at the decision:
+
+~~~text
+dashboard_query_cache_rollout
+billing_proration_policy_2024
+agent_file_write_approval_required
+search_reranker_experiment
+~~~
+
+Those names are longer, but they give the next engineer a fighting chance. The flag is not merely an on-off switch. It is a marker in the product's history.
+
+The flag record should carry the rest:
+
+~~~ts
+type FeatureFlagRecord = {
+  key: string
+  owner: string
+  createdAt: string
+  reason: string
+  expectedRemoval?: string
+  defaultState: boolean
+  rollbackMeaning: string
+  affectedSurfaces: string[]
+}
+~~~
+
+Most teams do not need a ceremony-heavy process for every flag. They do need enough metadata to avoid archaeology.
+
+## rollback has to mean something
+
+Turning a flag off is only rollback if the old path still works.
+
+That sounds obvious, but flags often outlive the assumptions that made rollback safe. The database migrated. The old component stopped receiving test coverage. The API response changed shape. The user settings were written in the new format. A background job already processed half the records. Now the flag still exists, but it no longer protects the team.
+
+Every flag should answer one question: what happens if we flip this right now?
+
+Sometimes the answer is clean. Users return to the old UI. New writes stop using the experimental path. Traffic routes back to the old model. Fine.
+
+Sometimes the answer is partial. Existing records remain in the new format. Users who entered the beta keep a setting. A new permission grants access that the old screen cannot display. Then the flag is not rollback. It is a forward-only migration with a visibility control.
+
+Those are different beasts. They should not share the same mental model.
+
+## flags need owners after launch
+
+The owner matters more after the rollout than before it.
+
+Before launch, everyone remembers the flag. It appears in PRs. It gets mentioned in standup. Product asks about the rollout. Engineers check metrics. The flag is alive.
+
+After launch, attention moves. The flag stays.
+
+That is when ownership becomes real. Someone has to remove the old branch, update docs, delete dead tests, clean up analytics filters, and close the experiment. If the flag remains because a customer still depends on it, someone has to know that too.
+
+I like flag reviews with boring questions:
+
+- Is this flag still needed?
+- Who owns it?
+- What would break if it changed state?
+- Is it protecting rollout, experiment, permission, pricing, or migration?
+- Does the code still test both paths?
+- What is the removal plan?
+
+If nobody can answer, the flag is product debt with a Boolean interface.
+
+## experiments are not the same as releases
+
+Release flags and experiment flags should behave differently.
+
+A release flag is about controlling exposure while a known behavior ships. The team already wants the feature to become the default if it works. The flag should be temporary.
+
+An experiment flag is about learning. The behavior may lose. The flag needs assignment, measurement, and a decision rule. If the experiment ends and the flag remains, the product has learned nothing except how to carry more branches.
+
+Permission flags are different again. They may be long-lived because they represent entitlement. That is fine, but then they should be treated like product configuration, not release scaffolding.
+
+Migration flags are their own category. They often protect data shape changes and may require backfills, dual writes, or compatibility reads. A casual toggle name hides too much risk there.
+
+One word, "flag," covers all of these. The system should not.
+
+## ai systems make flags stranger
+
+Feature flags around AI behavior need extra care because the changed behavior may be probabilistic.
+
+Turning on a new summarizer, retriever, router, prompt, model, or verifier is not like changing a button color. The output may vary by input slice. The failure may show up as a confident but wrong answer. Rollback may be complicated if the new path wrote generated content, stored embeddings, changed memory, or triggered tool actions.
+
+I would flag AI changes with more context:
+
+~~~json
+{
+  "key": "support_answer_gpt56_route",
+  "owner": "ai-platform",
+  "kind": "model-route",
+  "baseline": "support_answer_sonnet5_route",
+  "evalSuite": "support-policy-regression",
+  "rollbackMeaning": "new requests route to baseline; existing generated drafts remain visible",
+  "watch": ["refund_policy_slice", "citation_missing_rate", "p95_latency"]
+}
+~~~
+
+That record says what the flag can and cannot undo. It also tells the reviewer which metrics matter. Without that, a model-route flag looks deceptively simple.
+
+## cleanup is part of shipping
+
+The flag is not done when the rollout reaches 100 percent.
+
+Done means the decision has been absorbed into the product. The default path is clear. The old path is removed or documented as an intentional long-lived option. Tests no longer pretend a dead branch is alive. Dashboards stop splitting traffic by a flag that no longer varies. Runbooks stop telling people to toggle a switch that should never move.
+
+I like putting cleanup work in the original rollout ticket. Not as a nice-to-have. As part of the release.
+
+~~~text
+ship:
+  - add flag
+  - enable for internal users
+  - ramp to 10 percent
+  - ramp to 100 percent
+  - remove old path
+  - delete flag
+  - close rollout note
+~~~
+
+If the team decides to keep the flag, that should be an explicit product decision. "We forgot" is not a product decision.
+
+## the memory should be readable
+
+Feature flags tell the story of how a product changed. They show what the team was nervous about, which migrations were risky, which customers needed exceptions, which experiments won, and which defaults became permanent.
+
+That memory is useful only if it is readable. A pile of stale flags does not help. It makes every release feel haunted by choices nobody wants to touch.
+
+The best flags leave a trail and then disappear. The ones that remain should earn their place as configuration, entitlement, safety controls, or operational switches.
+
+Everything else is a branch asking to be deleted.

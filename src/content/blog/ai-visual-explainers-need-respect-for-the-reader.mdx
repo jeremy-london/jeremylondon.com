@@ -8,24 +8,136 @@ author: "jeremy-london"
 tags: ["ai visuals", "explainers", "creative coding"]
 ---
 
-{/*
-Depth: quick-note
-Information map:
-- the concrete AI visuals problem
-- the example surface: AI-generated visuals can help technical writing, but only when the visual teaches something the text cannot
-- the failure mode: the visual is interesting but does not teach the system underneath
-- the small decision I would keep
-- what would make the note wrong
-*/}
+AI-generated visuals are good enough now that they create a new editorial problem: they can make an article look explained before anything has actually been explained.
 
-AI-generated visuals can help technical writing, but only when the visual teaches something the text cannot.
+That is dangerous for technical writing.
 
-I would keep AI visuals small here. The useful part is AI-generated visuals can help technical writing, but only when the visual teaches something the text cannot. That is enough material for a AI visuals note, not a manifesto.
+A generated diagram can add polish, rhythm, and a little visual relief. It can also smuggle in nonsense. Arrows point nowhere. Layer names sound plausible but do not match the architecture. Screenshots invent UI states that the product never has. A "neural network" image turns into blue glowing spaghetti. A security diagram draws locks around the least important part of the system because locks look like security.
 
-The AI visuals mistake is treating the observation as if it needs a complete theory around it. In practice, creative coding work usually gets better when the first version names the boundary and then stops. For AI visuals, that boundary is what the user can manipulate versus what the system hides.
+The reader pays for that. They stop to parse the image. They try to connect it to the text. If the visual is wrong, vague, or decorative, the article has asked them to spend attention for nothing.
 
-The AI visuals check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the AI visuals post has done its job. If the answer is no, adding three more AI visuals paragraphs will not fix it.
+I like visuals in technical posts. I like interactive explainers even more. But the bar has to be higher than "this looks nice next to the heading."
 
-The thing I would not add to AI visuals is a fake architecture section. A short AI visuals note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for AI visuals. The rest of AI visuals can wait until there is a real example to inspect.
+## a visual should answer a question
 
-I am leaving AI visuals as a short note because the idea is useful at this size. A longer AI visuals version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.
+Before adding a visual, I want to know the question it answers.
+
+Can the reader see the order of operations more easily? Can they compare two states? Can they notice where data crosses a boundary? Can they understand a shape that would take too many words to describe? Can they manipulate a value and watch the system respond?
+
+If the answer is no, the visual is probably decoration.
+
+Decoration is not always evil. A personal site can have style. A post can have mood. But an explainer image has a job. If it sits inside a technical article, it should carry technical weight.
+
+For example, a post about tool calling might need a sequence diagram if the reader is likely to confuse the model turn, tool execution, and final response. A post about embeddings might need a small scatterplot if the article is discussing distance and clusters. A post about backpropagation might need a table of intermediate values before it needs a glowing brain.
+
+The test is simple: remove the image and ask what got harder to understand.
+
+If nothing got harder, the image was borrowing credibility from the article.
+
+## generated images need technical editing
+
+AI image generation is seductive because it makes the blank space disappear. That is also the trap.
+
+The model does not know whether the architecture makes sense unless the prompt and review force it to. It may draw a database on both sides of the same boundary. It may label a browser as a server. It may put arrows in both directions because bidirectional arrows look complex. It may create interface text that almost says something.
+
+Generated visuals need the same editorial treatment as generated prose. Maybe more.
+
+When I review one, I check boring things first:
+
+- are the labels real nouns from the article?
+- does every arrow have a direction that means something?
+- does the image imply a component that the text never explains?
+- are there invented metrics, product names, or claims?
+- could a reader reproduce the idea from the visual alone?
+- is the visual accurate at small size?
+- does it still work without color?
+
+The last two matter more than people want to admit. A diagram that only works as a full-width hero is often a poster, not an explainer. If the text is tiny, the contrast is weak, or the meaning depends on three shades of blue, the reader gets a pretty blur.
+
+I would rather use a plain table than a beautiful diagram that lies.
+
+## screenshots are evidence, not wallpaper
+
+Screenshots have a different failure mode.
+
+They feel concrete because they show a real or plausible interface. But a screenshot can still dodge the point. It can show the happy path while the article is about error recovery. It can crop away the part where the decision happens. It can show fake data that makes every layout problem disappear.
+
+If a screenshot appears in a technical post, it should prove something.
+
+Show the awkward state. Show the empty result. Show the approval prompt with the actual resource name. Show the trace view after a tool call fails. Show the long label wrapping. Show the diff. Show the queue with a poisoned job sitting in the dead-letter list.
+
+The screenshot should make the claim more accountable.
+
+This is where AI-generated UI images are especially risky. They tend to invent a better product than the one being discussed. The chart is clean. The dashboard is full. The data is conveniently shaped. The dangerous state is absent. The visual says, "Imagine this is solved," while the article is supposed to explain the unsolved part.
+
+That is not respect for the reader. It is set dressing.
+
+## diagrams should preserve uncertainty
+
+A lot of system diagrams are too confident.
+
+They draw crisp boxes around things that are actually fuzzy. They make feedback loops look linear. They make retries look like ordinary arrows. They hide the queue, the cache, the human approval step, the timeout, the rate limit, or the piece of state nobody owns.
+
+AI makes this worse because generated diagrams often prefer symmetry. Symmetry looks finished. Real systems are usually lumpier.
+
+If the article is about an early idea, the diagram should look like an early idea. If a boundary is uncertain, mark it as uncertain. If a component might disappear in the simpler version, say that. If the hardest part is the handoff between two boxes, do not hide it behind a thick arrow.
+
+Technical visuals do not have to pretend the author knows more than they know.
+
+Some of my favorite diagrams are ugly because they make the problem honest. A rough state chart with one suspicious transition is more useful than a polished architecture render that makes every failure path vanish.
+
+## interactive beats ornamental
+
+When a topic involves motion, state, or parameter changes, a static generated image is often the weakest option.
+
+For neural networks, let the reader change a weight. For ranking, let them move a score and watch the order change. For caching, let them invalidate a key. For a queue, let a worker fail and watch the retry count move. For a shader, let the slider change the function.
+
+The point is not to make the post fancy. The point is to let the reader test their mental model.
+
+An interactive explainer has to be disciplined too. It needs a small number of controls, stable labels, and a visible relationship between input and output. If the reader can change five knobs and nothing obvious happens, the interactivity is theater.
+
+I like the version where the interaction is almost embarrassingly direct:
+
+```text
+chunk size: 200 tokens
+overlap: 40 tokens
+result: 18 chunks
+retrieval risk: section boundary split across chunks 7 and 8
+```
+
+That teaches more than a generated illustration of documents flying into a vector database.
+
+## the visual should match the article's level of precision
+
+A quick note can use a rough sketch. A deep technical post needs more exactness.
+
+If the text is making a careful claim about evaluation, the visual should not collapse every metric into a cheerful green checkmark. If the article is about multimodal retrieval, the diagram should distinguish image encoding, text encoding, indexing, and query behavior. If the post is about governance, the visual should show who acts, who approves, and what gets recorded.
+
+The visual does not need to include everything. It does need to avoid contradicting the article.
+
+This is where I think AI visuals need the most adult supervision. The model will happily fill gaps with visual convention. Cloud icons, glowing nodes, dashboards, abstract gradients, lock symbols, arrows, charts with no axes. Those conventions are familiar, so they feel acceptable. Familiar is not the same as useful.
+
+The better prompt is usually more constrained:
+
+```text
+Draw a simple black-and-white sequence diagram.
+Use only these labels: user, app, model, tool, audit log.
+Show the approval step before tool execution.
+Do not add extra services, metrics, icons, or decorative background.
+```
+
+Then the author still has to inspect the result and fix it.
+
+## respect means making the reader's job easier
+
+The reader is already doing work. They are holding the argument in their head, mapping terms to concepts, and deciding whether the article is worth trusting.
+
+A good visual reduces that load. It lets them see a relationship faster than prose alone would allow. It gives them a handle on the system. It makes a hidden step visible.
+
+A bad visual increases the load while pretending to help.
+
+That is why I keep coming back to respect. AI makes visuals cheaper, but the reader's attention did not get cheaper. If anything, it got more expensive because every article now has the option to decorate itself into a fog machine.
+
+Use the visual when it teaches. Cut it when it only flatters the page.
+
+The best technical visual is the one the reader remembers because it changed how they understood the system, not because it looked like every other AI article on the internet.
