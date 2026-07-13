@@ -11,6 +11,8 @@ import icon from "astro-icon";
 import robotsTxt from "astro-robots-txt";
 import { remarkReadingTime } from "./remark-reading-time.mjs";
 
+const siteLastmod = new Date().toISOString().slice(0, 10);
+
 export default defineConfig({
   site: "https://jeremylondon.com/",
 
@@ -19,7 +21,20 @@ export default defineConfig({
     remarkPlugins: [remarkReadingTime],
   }),
 
-  integrations: [icon(), react(), mdx(), sitemap(), robotsTxt(), partytown()],
+  integrations: [
+    icon(),
+    react(),
+    mdx(),
+    sitemap({
+      serialize(item) {
+        item.changefreq = "always";
+        item.lastmod = siteLastmod;
+        return item;
+      },
+    }),
+    robotsTxt(),
+    partytown(),
+  ],
 
   vite: {
     plugins: [tailwindcss()],
