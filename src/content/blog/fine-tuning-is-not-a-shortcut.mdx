@@ -8,18 +8,193 @@ author: "jeremy-london"
 tags: ["fine-tuning", "training", "datasets"]
 ---
 
-Fine-tuning can help, but it works best after the task, data, evals, and product behavior are already clear. The point is not to make fine-tuning sound bigger than it is. It is to name the decision it changes.
+{/*
+Depth: systems-essay
+Information map:
+- the concrete fine tuning problem
+- the example surface: a team arguing about whether the model improved or merely changed
+- the failure mode: the system succeeds once but gives the next maintainer no way to explain it
+- why the obvious solution is insufficient
+- system constraints and trust boundaries
+- architecture and component responsibilities
+- request, event, and evidence flow
+- deterministic and semantic verification
+- measurement using reproduction time, failing example coverage, queue age, and rollback confidence
+- latency, cost, and scale behavior
+- governance, revocation, and escalation
+- tradeoffs I would make
+- what remains unresolved
+*/}
 
-## The Practical Part
+Fine-tuning can help, but it works best after the task, data, evals, and product behavior are already clear.
 
-Fine-tuning gets interesting when it changes a real workflow. The example I would use is Fine-tuning can help, but it works best after the task, data, evals, and product behavior are already clear, because it gives the reader something to inspect instead of a broad claim to accept.
+The hard part of fine tuning is not making a prototype move. Prototypes move. They call tools, retrieve documents, choose models, draw diagrams, and produce fine tuning output that looks close enough to keep going. The hard part is deciding what the fine tuning system is allowed to do after it produces something plausible.
 
-## The Edge Case
+I think about fine tuning as a control problem more than a prompt problem. The prompt matters for fine tuning, but the prompt is only one component inside a larger machine: context construction, policy, routing, tool execution, verification, storage, approval, and replay. If those pieces are missing, the fine tuning system may still look impressive in a demo. It will just be unpleasant to operate.
 
-The failure mode for fine-tuning is the explanation sounds plausible while the actual decision stays vague. For fine-tuning, that can look fine from a distance, so the page ships, the demo runs, or the team agrees with itself while the next person still cannot tell what actually happened.
+## The problem
 
-## What I Want To See
+The concrete surface here is a team arguing about whether the model improved or merely changed. That fine tuning surface creates pressure because it crosses from language into work. Once a fine tuning system can affect files, route requests, inspect user state, call tools, spend money, or produce security-relevant conclusions, "the model answered" is no longer the end of the story.
 
-The check for fine-tuning is the example or constraint that makes the point inspectable. For fine-tuning, that is enough to separate a useful note from a long one.
+The fine tuning system needs to answer different questions:
 
-I do not want fine-tuning to sound more certain than the evidence allows. Make the decision visible, then stop.
+- What exactly was requested?
+- Which context was used?
+- Which policy boundary applied?
+- Which component made the decision?
+- What evidence supported the result?
+- What was verified deterministically?
+- What was judged semantically?
+- Who approved the action, if approval was needed?
+- How would we replay the case after a failure?
+
+Those questions sound administrative until something breaks. Then they become the only questions that matter.
+
+## Why the obvious solution is insufficient
+
+The obvious fine tuning solution is to add a better model and a thicker prompt. That helps fine tuning, but it does not solve the operating problem. A stronger model can still break fine tuning: call the wrong tool, use stale context, skip a permission boundary, or produce a technically valid answer that is useless to the person who has to act on it.
+
+The second obvious fine tuning solution is to put a human approval button at the dangerous step. That also helps fine tuning, but only if the approval has context. A fine tuning button that says "approve" without showing the diff, tool arguments, policy boundary, expected side effect, and rollback path is not governance. It is a liability with a nicer label.
+
+For fine tuning, I would treat approvals as part of the data flow. The approval is not a modal. It is a signed fine tuning decision attached to the run record.
+
+## Constraints
+
+A production fine tuning version has to live with several constraints at once.
+
+The first is latency. Verification cannot be so slow that everyone disables it. The second is cost. Running a frontier model as judge for every small fine tuning step may be correct and still unaffordable. The third is privacy. For fine tuning, context windows are tempting places to dump everything, but credential material, user state, and internal documents need boundaries. The fourth is replay. If a fine tuning failure cannot be replayed, it will be explained with folklore.
+
+The trust boundary is what must be proven before the change is trusted. I would make that boundary explicit in the request envelope rather than burying it in code comments.
+
+~~~json
+{
+  "runId": "run_2026_07_13_001",
+  "actor": "agent-or-human-id",
+  "input": "requested work",
+  "contextRefs": ["doc:policy", "file:target", "trace:previous-step"],
+  "scope": {
+    "filesystem": ["read:src", "write:docs"],
+    "network": ["deny"],
+    "credentials": ["none"],
+    "expiresAt": "2026-07-13T18:00:00Z"
+  },
+  "decision": null,
+  "evidence": [],
+  "approval": null
+}
+~~~
+
+That envelope is not meant to be universal. It is meant to force the design conversation. What scope exists? Who grants it? When does it expire? What evidence must be present before the next state transition?
+
+## Architecture
+
+The architecture I would start with has six components:
+
+- context builder
+- policy engine
+- router
+- executor
+- verifier
+- run ledger
+
+The context builder gathers only the state needed for the next decision. The policy engine decides whether the requested action is allowed. The router chooses the model, tool, or human path. The executor does the work. The verifier checks the result. The run ledger stores the envelope, transitions, evidence, approvals, and outputs.
+
+The important part is separation. The component that proposes an action should not be the only component that decides whether the action is acceptable. That does not mean every verifier needs to be another model. Some of the best verifiers are boring: schema validation, type checks, path checks, diff checks, policy checks, budget checks, and deterministic tests.
+
+A rough state machine looks like this:
+
+~~~text
+created
+  -> context_ready
+  -> policy_checked
+  -> routed
+  -> executed
+  -> verified
+  -> approved | rejected | escalated
+  -> recorded
+~~~
+
+Each transition should be cheap to inspect. If the system jumps from created to recorded, the architecture is lying to you.
+
+## Operating loop
+
+The operating loop is where fine tuning can become reliable or collapse into a pile of impressive transcripts. I would make every run produce a record that can be inspected by a human, replayed by a test harness, and summarized by an eval dashboard. Those are three different consumers, so the record cannot be only prose.
+
+The loop I would want is:
+
+~~~text
+capture -> propose -> check -> approve -> execute -> verify -> record -> learn
+~~~
+
+Capture stores the request and context references. Propose creates the candidate action. Check runs policy and deterministic validation. Approve attaches a human decision when the action needs one. Execute performs the work. Verify compares the result with the contract. Record stores the transition. Learn turns accepted and rejected runs into future eval cases.
+
+That last step is easy to skip and expensive to recover later. If the system only stores successes, it trains the team to forget the edge cases. The rejected runs are often more useful because they show where the boundary was unclear, where the model overreached, or where the tool contract was underspecified.
+
+## Information flow
+
+Information should move forward as evidence, not as vibes. The executor should not hand the verifier a blob of text and hope for the best. It should hand over the tool call, arguments, output, affected resources, timing, cost, and any claimed reasoning that the verifier is expected to check.
+
+For fine tuning, I would separate three kinds of evidence:
+
+- deterministic evidence, such as tests, schemas, diffs, permissions, and checksums
+- semantic evidence, such as a judge model comparing output to intent
+- operational evidence, such as latency, cost, retries, and approval history
+
+These evidence types age differently. Deterministic evidence is easier to replay. Semantic evidence may drift when the judge model changes. Operational evidence explains whether the system was usable under the actual constraints.
+
+## Failure modes
+
+The obvious failure is the system succeeds once but gives the next maintainer no way to explain it. The less obvious failures are more interesting.
+
+A confused deputy failure happens when one component has authority another component should not inherit. An agent reads a private file, summarizes it into a shared context, and a later tool call leaks the summary. The filesystem permission looked correct, but the information boundary was already broken.
+
+A stale-context failure happens when the model acts on a snapshot that is no longer true. This is common in coding agents, dashboards, and approval workflows. The user approves an action based on one diff, but the underlying file changed before execution.
+
+A verifier collapse happens when the verifier shares too much context, too much prompt structure, or too much failure mode with the generator. It agrees because it is making the same mistake. This is where deterministic checks earn their keep.
+
+A governance failure happens when approvals exist but revocation does not. Temporary access that cannot expire is not temporary. Tool scopes that cannot be audited are not scopes. A run ledger that cannot answer who approved what is not a ledger.
+
+## Measurement
+
+The measurement surface for fine tuning is reproduction time, failing example coverage, queue age, and rollback confidence. I would not roll that into one success score. One number will hide the shape of the system.
+
+I would track:
+
+- task acceptance rate by route
+- verifier disagreement by case type
+- deterministic failure rate
+- semantic judge variance
+- approval latency
+- retry count
+- p50 and p95 end-to-end latency
+- cost per accepted run
+- escalation rate
+- replay success rate
+
+Replay success rate is underrated. If the team cannot replay a failed run with the same inputs, context references, policy version, and model versions, the incident review becomes storytelling.
+
+## Scaling behavior
+
+At small scale, the system can be strict and noisy. A human can read every rejection. At medium scale, the noise becomes expensive. The system needs triage, clustering, and better defaults. At large scale, the risk moves again: the bottleneck is no longer whether one run was correct, but whether teams can change models, prompts, tools, and policies without creating invisible regressions.
+
+That is where versioning matters. The model version, prompt version, tool schema version, policy version, and verifier version all belong in the run record. Otherwise a future failure will be impossible to attribute.
+
+I would also expect routing to become more conservative over time. Early prototypes overuse the strongest model because it is convenient. Production systems usually end up with a portfolio: cheap classifiers, small local models, retrieval paths, frontier models, deterministic tools, and human escalation. The router becomes an economic and governance component, not only a quality component.
+
+## Tradeoffs I would make
+
+I would spend complexity on the run ledger before spending it on fancy orchestration. If the system cannot explain what happened, better orchestration just fails faster.
+
+I would prefer narrow tool scopes that are annoying but inspectable over broad scopes that feel magical. The annoyance is real. So is the cost of a broad permission that nobody can audit.
+
+I would use model judges carefully. They are useful for semantic comparison, ranking, and clustering. They are weak as the only gate on irreversible actions. When the action matters, pair the judge with deterministic checks and human escalation.
+
+I would keep approvals contextual. Show the proposed action, affected resources, evidence, expected side effect, rollback story, and expiration. If that makes the approval UI crowded, the operation may be too vague.
+
+## What remains unresolved
+
+I do not think there is one clean answer for fine tuning. The shape depends on the cost of failure, the sensitivity of the data, the reversibility of the action, and the review capacity of the team.
+
+The unresolved question is how much friction belongs in the default path. Too much friction and people avoid the system. Too little and the system accumulates invisible risk. The answer probably changes by task class, not by company slogan.
+
+That is the part I find interesting. The future of fine tuning is not a chat box with more buttons. It is a work surface with memory, scope, evidence, review, revocation, and enough humility to stop when it cannot prove what it just did.

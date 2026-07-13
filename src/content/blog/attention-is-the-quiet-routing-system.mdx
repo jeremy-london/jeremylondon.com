@@ -8,18 +8,24 @@ author: "jeremy-london"
 tags: ["attention", "transformers", "neural networks"]
 ---
 
-This post is about model routing, context routing, and why production AI systems need more than one path. I would keep the argument close to the workflow instead of treating attention like a slogan.
+{/*
+Depth: quick-note
+Information map:
+- the concrete attention problem
+- the example surface: a request with more than one plausible path through the system
+- the failure mode: a model choice is treated as isolated even though the surrounding system made the decision
+- the small decision I would keep
+- what would make the note wrong
+*/}
 
-## Why It Matters
+A short note on model routing, context routing, and why production AI systems need more than one path.
 
-For attention, the important part is a request that has more than one plausible path through the system. That gives the idea a place to stand. Without that concrete surface, the post turns into category talk: routing, inference, latency, and local constraints.
+I would keep attention small here. The useful part is a request with more than one plausible path through the system. That is enough material for a attention note, not a manifesto.
 
-## The Risk
+The attention mistake is treating the observation as if it needs a complete theory around it. In practice, model systems work usually gets better when the first version names the boundary and then stops. For attention, that boundary is where the model stops and the serving system starts.
 
-The bad version of attention is familiar: the model choice looks isolated even though the surrounding system made the decision. For attention, sometimes that means a decision with no trail, a boundary with no owner, or an example that does not prove the point.
+The attention check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the attention post has done its job. If the answer is no, adding three more attention paragraphs will not fix it.
 
-## My Bar
+The thing I would not add to attention is a fake architecture section. A short attention note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for attention. The rest of attention can wait until there is a real example to inspect.
 
-For attention, I would ask for the operational reason for choosing one path over another. The attention post can be brief and still be useful if that evidence is present.
-
-The smaller version is stronger. It gives the reader the attention claim, the failure mode, and the check without pretending there is a larger theory hiding underneath.
+I am leaving attention as a short note because the idea is useful at this size. A longer attention version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.

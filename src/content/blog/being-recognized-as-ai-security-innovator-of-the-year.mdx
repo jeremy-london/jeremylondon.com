@@ -8,18 +8,24 @@ author: "jeremy-london"
 tags: ["ai security", "keeper", "awards"]
 ---
 
-The Hacker News Cybersecurity Stars Awards recognized me for the AI security work I have been building at Keeper. The point is not to make AI security sound bigger than it is. It is to name the decision it changes.
+{/*
+Depth: quick-note
+Information map:
+- the concrete AI security problem
+- the example surface: The Hacker News Cybersecurity Stars Awards recognized me for the AI security work I have been building at Keeper
+- the failure mode: the happy path works while the unsafe path stays unnamed
+- the small decision I would keep
+- what would make the note wrong
+*/}
 
-## The Practical Part
+The Hacker News Cybersecurity Stars Awards recognized me for the AI security work I have been building at Keeper.
 
-AI security gets interesting when it changes a real workflow. The example I would use is the Hacker News Cybersecurity Stars Awards recognized me for the AI security work I have been building at Keeper, because it gives the reader something to inspect instead of a broad claim to accept.
+I would keep AI security small here. The useful part is The Hacker News Cybersecurity Stars Awards recognized me for the AI security work I have been building at Keeper. That is enough material for a AI security note, not a manifesto.
 
-## The Edge Case
+The AI security mistake is treating the observation as if it needs a complete theory around it. In practice, security systems work usually gets better when the first version names the boundary and then stops. For AI security, that boundary is who is allowed to act on which resource, with which evidence.
 
-The failure mode for AI security is the happy path works while the unsafe path stays unnamed. For AI security, that can look fine from a distance, so the page ships, the demo runs, or the team agrees with itself while the next person still cannot tell what actually happened.
+The AI security check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the AI security post has done its job. If the answer is no, adding three more AI security paragraphs will not fix it.
 
-## What I Want To See
+The thing I would not add to AI security is a fake architecture section. A short AI security note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for AI security. The rest of AI security can wait until there is a real example to inspect.
 
-The check for AI security is the place where permission, evidence, or ownership is checked. For AI security, that is enough to separate a useful note from a long one.
-
-I do not want AI security to sound more certain than the evidence allows. Make the decision visible, then stop.
+I am leaving AI security as a short note because the idea is useful at this size. A longer AI security version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.

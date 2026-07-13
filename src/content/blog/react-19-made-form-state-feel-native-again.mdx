@@ -8,18 +8,55 @@ author: "jeremy-london"
 tags: ["react", "forms", "frontend"]
 ---
 
-React 19 stabilized a set of APIs that made async UI feel less like plumbing and more like application code. The useful version is practical: a user trying to recover from a mistake in a form.
+{/*
+Depth: engineering-note
+Information map:
+- the concrete react problem
+- the example surface: React 19 stabilized a set of APIs that made async UI feel less like plumbing and more like application code
+- the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract
+- the responsibilities around the rendered page
+- the tradeoff between convenience and what the browser, content system, and deployment pipeline each own
+- the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time
+*/}
 
-## What Changes
+React 19 stabilized a set of APIs that made async UI feel less like plumbing and more like application code.
 
-For react, I would start from the constraint, not the announcement. The constraint is a user trying to recover from a mistake in a form, and the surrounding question is how content, forms, feeds, frontend behavior, and small-site maintenance changes in practice.
+The practical version starts with React 19 stabilized a set of APIs that made async UI feel less like plumbing and more like application code. That gives react a shape you can reason about. It also keeps the react post out of slogan territory, which is where a lot of technical writing goes to die politely.
 
-## Where It Fails
+## What has to be true
 
-The thing I would watch for with react is quieter than a crash: the page renders but the reader, crawler, or maintainer gets the wrong contract. That is the kind of break that makes a react post feel padded even when the topic is legitimate.
+For react to be useful, the frontend engineer needs a clear rendered page. That artifact does not have to be fancy. For react, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for react is that it explains what happened without asking the next person to reconstruct intent from vibes.
 
-## The Check
+The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In web engineering, the annoying react bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for react, but the caller cannot tell whether it is safe. A script exits zero for react, but the output hides the one fact the maintainer needed.
 
-My bar for react is the browser-visible behavior that proves the page still works. If the react post cannot show that, it should stay short and honest.
+## Implementation shape
 
-That is where I would leave it. Keep the react claim narrow, make the tradeoff visible, and let the example do the work.
+I would make the first react version deliberately plain. The react system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make react enterprise software. It makes the work inspectable.
+
+A useful react implementation question is where the record is created. If the react record is created only after success, it will miss the interesting failures. I would create the react record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+
+## Tradeoffs
+
+The react tradeoff is convenience versus what the browser, content system, and deployment pipeline each own. If the react system is too strict, people route around it. If the react system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For react, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+
+That contract can be boring. A useful react shape is:
+
+~~~ts
+type WorkRecord = {
+  input: string
+  decision: string
+  evidence: string[]
+  actor: string
+  accepted: boolean
+}
+~~~
+
+The exact fields change by system. The react pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+
+## What I would measure
+
+The react metric is route coverage, feed validity, content validation, accessibility checks, and build time. That is more useful than asking whether react "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+
+For react, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those react numbers usually tell the truth before the happy-path dashboard does.
+
+If the react system cannot answer those questions, I would keep the design smaller. Small react systems with honest receipts are easier to improve than large systems that only report success.

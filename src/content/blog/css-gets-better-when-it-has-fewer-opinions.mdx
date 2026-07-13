@@ -8,18 +8,55 @@ author: "jeremy-london"
 tags: ["css", "design systems", "frontend"]
 ---
 
-Most site styling improves when the design system has fewer special cases and more predictable defaults. The point is not to make design systems sound bigger than it is. It is to name the decision it changes.
+{/*
+Depth: engineering-note
+Information map:
+- the concrete design systems problem
+- the example surface: Most site styling improves when the design system has fewer special cases and more predictable defaults
+- the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract
+- the responsibilities around the rendered page
+- the tradeoff between convenience and what the browser, content system, and deployment pipeline each own
+- the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time
+*/}
 
-## The Practical Part
+Most site styling improves when the design system has fewer special cases and more predictable defaults.
 
-Design systems gets interesting when it changes a real workflow. The example I would use is Most site styling improves when the design system has fewer special cases and more predictable defaults, because it gives the reader something to inspect instead of a broad claim to accept.
+The practical version starts with Most site styling improves when the design system has fewer special cases and more predictable defaults. That gives design systems a shape you can reason about. It also keeps the design systems post out of slogan territory, which is where a lot of technical writing goes to die politely.
 
-## The Edge Case
+## What has to be true
 
-The failure mode for design systems is the page renders but the reader, crawler, or maintainer gets the wrong contract. For design systems, that can look fine from a distance, so the page ships, the demo runs, or the team agrees with itself while the next person still cannot tell what actually happened.
+For design systems to be useful, the frontend engineer needs a clear rendered page. That artifact does not have to be fancy. For design systems, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for design systems is that it explains what happened without asking the next person to reconstruct intent from vibes.
 
-## What I Want To See
+The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In web engineering, the annoying design systems bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for design systems, but the caller cannot tell whether it is safe. A script exits zero for design systems, but the output hides the one fact the maintainer needed.
 
-The check for design systems is the browser-visible behavior that proves the page still works. For design systems, that is enough to separate a useful note from a long one.
+## Implementation shape
 
-I do not want design systems to sound more certain than the evidence allows. Make the decision visible, then stop.
+I would make the first design systems version deliberately plain. The design systems system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make design systems enterprise software. It makes the work inspectable.
+
+A useful design systems implementation question is where the record is created. If the design systems record is created only after success, it will miss the interesting failures. I would create the design systems record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+
+## Tradeoffs
+
+The design systems tradeoff is convenience versus what the browser, content system, and deployment pipeline each own. If the design systems system is too strict, people route around it. If the design systems system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For design systems, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+
+That contract can be boring. A useful design systems shape is:
+
+~~~ts
+type WorkRecord = {
+  input: string
+  decision: string
+  evidence: string[]
+  actor: string
+  accepted: boolean
+}
+~~~
+
+The exact fields change by system. The design systems pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+
+## What I would measure
+
+The design systems metric is route coverage, feed validity, content validation, accessibility checks, and build time. That is more useful than asking whether design systems "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+
+For design systems, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those design systems numbers usually tell the truth before the happy-path dashboard does.
+
+If the design systems system cannot answer those questions, I would keep the design smaller. Small design systems systems with honest receipts are easier to improve than large systems that only report success.

@@ -8,18 +8,24 @@ author: "jeremy-london"
 tags: ["offline first", "sync", "product"]
 ---
 
-Offline capability is not a storage trick. It is a promise about what the user can trust when the network disappears. The useful version is practical: software that keeps working when the network stops helping.
+{/*
+Depth: quick-note
+Information map:
+- the concrete offline first problem
+- the example surface: software that keeps working when the network stops helping
+- the failure mode: the app works online but loses the user when the network or device state changes
+- the small decision I would keep
+- what would make the note wrong
+*/}
 
-## What Changes
+Offline capability is not a storage trick. It is a promise about what the user can trust when the network disappears.
 
-For offline first, I would start from the constraint, not the announcement. The constraint is software that keeps working when the network stops helping, and the surrounding question is how offline behavior, sync, local state, and private work changes in practice.
+I would keep offline first small here. The useful part is software that keeps working when the network stops helping. That is enough material for a offline first note, not a manifesto.
 
-## Where It Fails
+The offline first mistake is treating the observation as if it needs a complete theory around it. In practice, local-first software work usually gets better when the first version names the boundary and then stops. For offline first, that boundary is what must be true before the server is reachable.
 
-The thing I would watch for with offline first is quieter than a crash: the app works online but loses the user once the network or device state changes. That is the kind of break that makes a offline first post feel padded even when the topic is legitimate.
+The offline first check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the offline first post has done its job. If the answer is no, adding three more offline first paragraphs will not fix it.
 
-## The Check
+The thing I would not add to offline first is a fake architecture section. A short offline first note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for offline first. The rest of offline first can wait until there is a real example to inspect.
 
-My bar for offline first is the rule for what happens before the server is reachable. If the offline first post cannot show that, it should stay short and honest.
-
-That is where I would leave it. Keep the offline first claim narrow, make the tradeoff visible, and let the example do the work.
+I am leaving offline first as a short note because the idea is useful at this size. A longer offline first version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.

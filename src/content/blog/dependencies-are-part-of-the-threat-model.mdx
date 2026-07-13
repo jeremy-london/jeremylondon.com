@@ -8,18 +8,24 @@ author: "jeremy-london"
 tags: ["dependencies", "security", "maintenance"]
 ---
 
-Package choices affect security, maintenance, performance, and how quickly a team can patch. I would keep the argument close to the workflow instead of treating dependencies like a slogan.
+{/*
+Depth: quick-note
+Information map:
+- the concrete dependencies problem
+- the example surface: Package choices affect security, maintenance, performance, and how quickly a team can patch
+- the failure mode: the happy path works while the unsafe path stays unnamed
+- the small decision I would keep
+- what would make the note wrong
+*/}
 
-## Why It Matters
+Package choices affect security, maintenance, performance, and how quickly a team can patch.
 
-For dependencies, the important part is a model choice that changes the surrounding workflow. That gives the idea a place to stand. Without that concrete surface, the post turns into category talk: authorization, validation, dependencies, audit trails, and risk.
+I would keep dependencies small here. The useful part is Package choices affect security, maintenance, performance, and how quickly a team can patch. That is enough material for a dependencies note, not a manifesto.
 
-## The Risk
+The dependencies mistake is treating the observation as if it needs a complete theory around it. In practice, security systems work usually gets better when the first version names the boundary and then stops. For dependencies, that boundary is who is allowed to act on which resource, with which evidence.
 
-The bad version of dependencies is familiar: the happy path works while the unsafe path stays unnamed. For dependencies, sometimes that means a decision with no trail, a boundary with no owner, or an example that does not prove the point.
+The dependencies check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the dependencies post has done its job. If the answer is no, adding three more dependencies paragraphs will not fix it.
 
-## My Bar
+The thing I would not add to dependencies is a fake architecture section. A short dependencies note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for dependencies. The rest of dependencies can wait until there is a real example to inspect.
 
-For dependencies, I would ask for the place where permission, evidence, or ownership is checked. The dependencies post can be brief and still be useful if that evidence is present.
-
-The smaller version is stronger. It gives the reader the dependencies claim, the failure mode, and the check without pretending there is a larger theory hiding underneath.
+I am leaving dependencies as a short note because the idea is useful at this size. A longer dependencies version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.

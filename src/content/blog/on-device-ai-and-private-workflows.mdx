@@ -8,18 +8,24 @@ author: "jeremy-london"
 tags: ["on-device ai", "privacy", "local models"]
 ---
 
-On-device AI brings models closer to the user, which matters for privacy, latency, offline use, and personal tooling. I care about on-device AI only when it changes the work someone has to do.
+{/*
+Depth: quick-note
+Information map:
+- the concrete on device AI problem
+- the example surface: software that keeps working when the network stops helping
+- the failure mode: a model choice is treated as isolated even though the surrounding system made the decision
+- the small decision I would keep
+- what would make the note wrong
+*/}
 
-## The Useful Version
+On-device AI brings models closer to the user, which matters for privacy, latency, offline use, and personal tooling.
 
-The move that matters for on-device AI is small: connect the idea to On-device AI brings models closer to the user, which matters for privacy, latency, offline use, and personal tooling. Once on-device AI is visible, the reader can tell whether this claim is operational or just commentary.
+I would keep on device AI small here. The useful part is software that keeps working when the network stops helping. That is enough material for a on device AI note, not a manifesto.
 
-## The Failure Mode
+The on device AI mistake is treating the observation as if it needs a complete theory around it. In practice, model systems work usually gets better when the first version names the boundary and then stops. For on device AI, that boundary is where the model stops and the serving system starts.
 
-On-device AI breaks when the model choice looks isolated even though the surrounding system made the decision. Once on-device AI reaches that point, the language may still sound confident, but the system has stopped giving the reader evidence.
+The on device AI check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the on device AI post has done its job. If the answer is no, adding three more on device AI paragraphs will not fix it.
 
-## The Test
+The thing I would not add to on device AI is a fake architecture section. A short on device AI note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for on device AI. The rest of on device AI can wait until there is a real example to inspect.
 
-The version I would publish needs the operational reason for choosing one path over another. Without that evidence for on-device AI, I would rather cut the paragraph than decorate the uncertainty.
-
-This works best as a concise note. The on-device AI claim does not need more volume; it needs one clear boundary and one concrete reason to care.
+I am leaving on device AI as a short note because the idea is useful at this size. A longer on device AI version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.

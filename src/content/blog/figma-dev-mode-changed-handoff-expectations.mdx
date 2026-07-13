@@ -8,18 +8,24 @@ author: "jeremy-london"
 tags: ["figma", "handoff", "product engineering"]
 ---
 
-Figma Dev Mode made handoff feel less like a screenshot exchange and more like an inspectable workflow. The point is not to make figma sound bigger than it is. It is to name the decision it changes.
+{/*
+Depth: quick-note
+Information map:
+- the concrete figma problem
+- the example surface: Figma Dev Mode made handoff feel less like a screenshot exchange and more like an inspectable workflow
+- the failure mode: the feature works in the happy path but leaves the user guessing at the boundary
+- the small decision I would keep
+- what would make the note wrong
+*/}
 
-## The Practical Part
+Figma Dev Mode made handoff feel less like a screenshot exchange and more like an inspectable workflow.
 
-Figma gets interesting when it changes a real workflow. The example I would use is Figma Dev Mode made handoff feel less like a screenshot exchange and more like an inspectable workflow, because it gives the reader something to inspect instead of a broad claim to accept.
+I would keep figma small here. The useful part is Figma Dev Mode made handoff feel less like a screenshot exchange and more like an inspectable workflow. That is enough material for a figma note, not a manifesto.
 
-## The Edge Case
+The figma mistake is treating the observation as if it needs a complete theory around it. In practice, product engineering work usually gets better when the first version names the boundary and then stops. For figma, that boundary is what the interface must make visible before the user can act.
 
-The failure mode for figma is the feature works in the happy path but leaves the user guessing at the boundary. For figma, that can look fine from a distance, so the page ships, the demo runs, or the team agrees with itself while the next person still cannot tell what actually happened.
+The figma check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the figma post has done its job. If the answer is no, adding three more figma paragraphs will not fix it.
 
-## What I Want To See
+The thing I would not add to figma is a fake architecture section. A short figma note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for figma. The rest of figma can wait until there is a real example to inspect.
 
-The check for figma is the state the interface needs to make visible. For figma, that is enough to separate a useful note from a long one.
-
-I do not want figma to sound more certain than the evidence allows. Make the decision visible, then stop.
+I am leaving figma as a short note because the idea is useful at this size. A longer figma version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.

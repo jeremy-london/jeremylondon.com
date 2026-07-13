@@ -8,18 +8,24 @@ author: "jeremy-london"
 tags: ["incident review", "ai ops", "models"]
 ---
 
-An AI incident review has to include prompt, model, retrieved context, tool calls, and approval state. I care about incident review only when it changes the work someone has to do.
+{/*
+Depth: quick-note
+Information map:
+- the concrete incident review problem
+- the example surface: a user deciding whether an agent should be allowed to continue
+- the failure mode: a model path changes and the team notices only after user behavior drifts
+- the small decision I would keep
+- what would make the note wrong
+*/}
 
-## The Useful Version
+An AI incident review has to include prompt, model, retrieved context, tool calls, and approval state.
 
-The move that matters for incident review is small: connect the idea to a model choice that changes the surrounding workflow. Once incident review is visible, the reader can tell whether this claim is operational or just commentary.
+I would keep incident review small here. The useful part is a user deciding whether an agent should be allowed to continue. That is enough material for a incident review note, not a manifesto.
 
-## The Failure Mode
+The incident review mistake is treating the observation as if it needs a complete theory around it. In practice, AI operations work usually gets better when the first version names the boundary and then stops. For incident review, that boundary is what the model can change without human review.
 
-Incident review breaks when the system returns an answer but no one can explain the path it took. Once incident review reaches that point, the language may still sound confident, but the system has stopped giving the reader evidence.
+The incident review check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the incident review post has done its job. If the answer is no, adding three more incident review paragraphs will not fix it.
 
-## The Test
+The thing I would not add to incident review is a fake architecture section. A short incident review note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for incident review. The rest of incident review can wait until there is a real example to inspect.
 
-The version I would publish needs the signal that tells a tired operator what happened. Without that evidence for incident review, I would rather cut the paragraph than decorate the uncertainty.
-
-This works best as a concise note. The incident review claim does not need more volume; it needs one clear boundary and one concrete reason to care.
+I am leaving incident review as a short note because the idea is useful at this size. A longer incident review version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.

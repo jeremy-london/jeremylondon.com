@@ -8,18 +8,55 @@ author: "jeremy-london"
 tags: ["openai", "anthropic", "google", "reasoning-models"]
 ---
 
-Claude 3.7 Sonnet, Gemini 2.5 Pro, GPT-4.1, o3, and o4-mini made reasoning less like one capability and more like a set of product choices. I would keep the argument close to the workflow instead of treating openai like a slogan.
+{/*
+Depth: engineering-note
+Information map:
+- the concrete openai problem
+- the example surface: Claude 3.7 Sonnet, Gemini 2.5 Pro, GPT-4.1, o3, and o4-mini made reasoning less like one capability and more like a set of product choices
+- the failure mode: the release sounds important without changing any concrete decision
+- the responsibilities around the model decision note
+- the tradeoff between convenience and what changed in the model versus what changed in the product surface
+- the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work
+*/}
 
-## Why It Matters
+Claude 3.7 Sonnet, Gemini 2.5 Pro, GPT-4.1, o3, and o4-mini made reasoning less like one capability and more like a set of product choices.
 
-For openai, the important part is Claude 3.7 Sonnet, Gemini 2.5 Pro, GPT-4.1, o3, and o4-mini made reasoning less like one capability and more like a set of product choices. That gives the idea a place to stand. Without that concrete surface, the post turns into category talk: model launches, routing changes, safety posture, and builder impact.
+The practical version starts with Claude 3.7 Sonnet, Gemini 2.5 Pro, GPT-4.1, o3, and o4-mini made reasoning less like one capability and more like a set of product choices. That gives openai a shape you can reason about. It also keeps the openai post out of slogan territory, which is where a lot of technical writing goes to die politely.
 
-## The Risk
+## What has to be true
 
-The bad version of openai is familiar: the release sounds important without changing any concrete decision. For openai, sometimes that means a decision with no trail, a boundary with no owner, or an example that does not prove the point.
+For openai to be useful, the AI systems builder needs a clear model decision note. That artifact does not have to be fancy. For openai, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for openai is that it explains what happened without asking the next person to reconstruct intent from vibes.
 
-## My Bar
+The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In model watch, the annoying openai bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for openai, but the caller cannot tell whether it is safe. A script exits zero for openai, but the output hides the one fact the maintainer needed.
 
-For openai, I would ask for the new constraint a builder has to account for. The openai post can be brief and still be useful if that evidence is present.
+## Implementation shape
 
-The smaller version is stronger. It gives the reader the openai claim, the failure mode, and the check without pretending there is a larger theory hiding underneath.
+I would make the first openai version deliberately plain. The openai system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make openai enterprise software. It makes the work inspectable.
+
+A useful openai implementation question is where the record is created. If the openai record is created only after success, it will miss the interesting failures. I would create the openai record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+
+## Tradeoffs
+
+The openai tradeoff is convenience versus what changed in the model versus what changed in the product surface. If the openai system is too strict, people route around it. If the openai system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For openai, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+
+That contract can be boring. A useful openai shape is:
+
+~~~ts
+type WorkRecord = {
+  input: string
+  decision: string
+  evidence: string[]
+  actor: string
+  accepted: boolean
+}
+~~~
+
+The exact fields change by system. The openai pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+
+## What I would measure
+
+The openai metric is route changes, eval deltas, latency movement, cost movement, and migration work. That is more useful than asking whether openai "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+
+For openai, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those openai numbers usually tell the truth before the happy-path dashboard does.
+
+If the openai system cannot answer those questions, I would keep the design smaller. Small openai systems with honest receipts are easier to improve than large systems that only report success.

@@ -8,18 +8,55 @@ author: "jeremy-london"
 tags: ["nextjs", "react", "frameworks"]
 ---
 
-Next.js 15 was a reminder that framework upgrades are user-facing when routing and request APIs change. I would keep the argument close to the workflow instead of treating nextjs like a slogan.
+{/*
+Depth: engineering-note
+Information map:
+- the concrete nextjs problem
+- the example surface: a request with more than one plausible path through the system
+- the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract
+- the responsibilities around the rendered page
+- the tradeoff between convenience and what the browser, content system, and deployment pipeline each own
+- the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time
+*/}
 
-## Why It Matters
+Next.js 15 was a reminder that framework upgrades are user-facing when routing and request APIs change.
 
-For nextjs, the important part is Next.js 15 was a reminder that framework upgrades are user-facing when routing and request APIs change. That gives the idea a place to stand. Without that concrete surface, the post turns into category talk: content, forms, feeds, frontend behavior, and small-site maintenance.
+The practical version starts with a request with more than one plausible path through the system. That gives nextjs a shape you can reason about. It also keeps the nextjs post out of slogan territory, which is where a lot of technical writing goes to die politely.
 
-## The Risk
+## What has to be true
 
-The bad version of nextjs is familiar: the page renders but the reader, crawler, or maintainer gets the wrong contract. For nextjs, sometimes that means a decision with no trail, a boundary with no owner, or an example that does not prove the point.
+For nextjs to be useful, the frontend engineer needs a clear rendered page. That artifact does not have to be fancy. For nextjs, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for nextjs is that it explains what happened without asking the next person to reconstruct intent from vibes.
 
-## My Bar
+The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In web engineering, the annoying nextjs bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for nextjs, but the caller cannot tell whether it is safe. A script exits zero for nextjs, but the output hides the one fact the maintainer needed.
 
-For nextjs, I would ask for the browser-visible behavior that proves the page still works. The nextjs post can be brief and still be useful if that evidence is present.
+## Implementation shape
 
-The smaller version is stronger. It gives the reader the nextjs claim, the failure mode, and the check without pretending there is a larger theory hiding underneath.
+I would make the first nextjs version deliberately plain. The nextjs system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make nextjs enterprise software. It makes the work inspectable.
+
+A useful nextjs implementation question is where the record is created. If the nextjs record is created only after success, it will miss the interesting failures. I would create the nextjs record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+
+## Tradeoffs
+
+The nextjs tradeoff is convenience versus what the browser, content system, and deployment pipeline each own. If the nextjs system is too strict, people route around it. If the nextjs system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For nextjs, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+
+That contract can be boring. A useful nextjs shape is:
+
+~~~ts
+type WorkRecord = {
+  input: string
+  decision: string
+  evidence: string[]
+  actor: string
+  accepted: boolean
+}
+~~~
+
+The exact fields change by system. The nextjs pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+
+## What I would measure
+
+The nextjs metric is route coverage, feed validity, content validation, accessibility checks, and build time. That is more useful than asking whether nextjs "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+
+For nextjs, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those nextjs numbers usually tell the truth before the happy-path dashboard does.
+
+If the nextjs system cannot answer those questions, I would keep the design smaller. Small nextjs systems with honest receipts are easier to improve than large systems that only report success.

@@ -8,18 +8,55 @@ author: "jeremy-london"
 tags: ["deepseek", "kimi", "minimax", "reasoning models"]
 ---
 
-The 2025 Chinese open-weight wave changed the cost story around reasoning, coding, and agentic model work. The point is not to make deepseek sound bigger than it is. It is to name the decision it changes.
+{/*
+Depth: engineering-note
+Information map:
+- the concrete deepseek problem
+- the example surface: The 2025 Chinese open-weight wave changed the cost story around reasoning, coding, and agentic model work
+- the failure mode: the release sounds important without changing any concrete decision
+- the responsibilities around the model decision note
+- the tradeoff between convenience and what changed in the model versus what changed in the product surface
+- the check or metric: route changes, eval deltas, latency movement, cost movement, and migration work
+*/}
 
-## The Practical Part
+The 2025 Chinese open-weight wave changed the cost story around reasoning, coding, and agentic model work.
 
-Deepseek gets interesting when it changes a real workflow. The example I would use is the 2025 Chinese open-weight wave changed the cost story around reasoning, coding, and agentic model work, because it gives the reader something to inspect instead of a broad claim to accept.
+The practical version starts with The 2025 Chinese open-weight wave changed the cost story around reasoning, coding, and agentic model work. That gives deepseek a shape you can reason about. It also keeps the deepseek post out of slogan territory, which is where a lot of technical writing goes to die politely.
 
-## The Edge Case
+## What has to be true
 
-The failure mode for deepseek is the release sounds important without changing any concrete decision. For deepseek, that can look fine from a distance, so the page ships, the demo runs, or the team agrees with itself while the next person still cannot tell what actually happened.
+For deepseek to be useful, the AI systems builder needs a clear model decision note. That artifact does not have to be fancy. For deepseek, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for deepseek is that it explains what happened without asking the next person to reconstruct intent from vibes.
 
-## What I Want To See
+The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In model watch, the annoying deepseek bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for deepseek, but the caller cannot tell whether it is safe. A script exits zero for deepseek, but the output hides the one fact the maintainer needed.
 
-The check for deepseek is the new constraint a builder has to account for. For deepseek, that is enough to separate a useful note from a long one.
+## Implementation shape
 
-I do not want deepseek to sound more certain than the evidence allows. Make the decision visible, then stop.
+I would make the first deepseek version deliberately plain. The deepseek system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make deepseek enterprise software. It makes the work inspectable.
+
+A useful deepseek implementation question is where the record is created. If the deepseek record is created only after success, it will miss the interesting failures. I would create the deepseek record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+
+## Tradeoffs
+
+The deepseek tradeoff is convenience versus what changed in the model versus what changed in the product surface. If the deepseek system is too strict, people route around it. If the deepseek system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For deepseek, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+
+That contract can be boring. A useful deepseek shape is:
+
+~~~ts
+type WorkRecord = {
+  input: string
+  decision: string
+  evidence: string[]
+  actor: string
+  accepted: boolean
+}
+~~~
+
+The exact fields change by system. The deepseek pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+
+## What I would measure
+
+The deepseek metric is route changes, eval deltas, latency movement, cost movement, and migration work. That is more useful than asking whether deepseek "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+
+For deepseek, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those deepseek numbers usually tell the truth before the happy-path dashboard does.
+
+If the deepseek system cannot answer those questions, I would keep the design smaller. Small deepseek systems with honest receipts are easier to improve than large systems that only report success.

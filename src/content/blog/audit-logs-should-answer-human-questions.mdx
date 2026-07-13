@@ -8,18 +8,24 @@ author: "jeremy-london"
 tags: ["audit logs", "security", "operations"]
 ---
 
-Logs should tell a person what happened, who did it, and what changed without a forensic treasure hunt. I care about audit logs only when it changes the work someone has to do.
+{/*
+Depth: quick-note
+Information map:
+- the concrete audit logs problem
+- the example surface: Logs should tell a person what happened, who did it, and what changed without a forensic treasure hunt
+- the failure mode: the happy path works while the unsafe path stays unnamed
+- the small decision I would keep
+- what would make the note wrong
+*/}
 
-## The Useful Version
+Logs should tell a person what happened, who did it, and what changed without a forensic treasure hunt.
 
-The move that matters for audit logs is small: connect the idea to Logs should tell a person what happened, who did it, and what changed without a forensic treasure hunt. Once audit logs is visible, the reader can tell whether this claim is operational or just commentary.
+I would keep audit logs small here. The useful part is Logs should tell a person what happened, who did it, and what changed without a forensic treasure hunt. That is enough material for a audit logs note, not a manifesto.
 
-## The Failure Mode
+The audit logs mistake is treating the observation as if it needs a complete theory around it. In practice, security systems work usually gets better when the first version names the boundary and then stops. For audit logs, that boundary is who is allowed to act on which resource, with which evidence.
 
-Audit logs breaks when the happy path works while the unsafe path stays unnamed. Once audit logs reaches that point, the language may still sound confident, but the system has stopped giving the reader evidence.
+The audit logs check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the audit logs post has done its job. If the answer is no, adding three more audit logs paragraphs will not fix it.
 
-## The Test
+The thing I would not add to audit logs is a fake architecture section. A short audit logs note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for audit logs. The rest of audit logs can wait until there is a real example to inspect.
 
-The version I would publish needs the place where permission, evidence, or ownership is checked. Without that evidence for audit logs, I would rather cut the paragraph than decorate the uncertainty.
-
-This works best as a concise note. The audit logs claim does not need more volume; it needs one clear boundary and one concrete reason to care.
+I am leaving audit logs as a short note because the idea is useful at this size. A longer audit logs version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.

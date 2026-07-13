@@ -8,18 +8,24 @@ author: "jeremy-london"
 tags: ["time series", "forecasting", "sequence models"]
 ---
 
-Security signals often come down to timing, baselines, drift, and knowing when a pattern changed. The useful version is practical: a signal that only makes sense when the order of events is preserved.
+{/*
+Depth: quick-note
+Information map:
+- the concrete time series problem
+- the example surface: Security signals often come down to timing, baselines, drift, and knowing when a pattern changed
+- the failure mode: a model choice is treated as isolated even though the surrounding system made the decision
+- the small decision I would keep
+- what would make the note wrong
+*/}
 
-## What Changes
+Security signals often come down to timing, baselines, drift, and knowing when a pattern changed.
 
-For time-series threat analytics, I would start from the constraint, not the announcement. The constraint is a signal that only makes sense when the order of events is preserved, and the surrounding question is how routing, inference, latency, and local constraints changes in practice.
+I would keep time series small here. The useful part is Security signals often come down to timing, baselines, drift, and knowing when a pattern changed. That is enough material for a time series note, not a manifesto.
 
-## Where It Fails
+The time series mistake is treating the observation as if it needs a complete theory around it. In practice, model systems work usually gets better when the first version names the boundary and then stops. For time series, that boundary is where the model stops and the serving system starts.
 
-The thing I would watch for with time-series threat analytics is quieter than a crash: the model choice looks isolated even though the surrounding system made the decision. That is the kind of break that makes a time-series threat analytics post feel padded even when the topic is legitimate.
+The time series check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the time series post has done its job. If the answer is no, adding three more time series paragraphs will not fix it.
 
-## The Check
+The thing I would not add to time series is a fake architecture section. A short time series note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for time series. The rest of time series can wait until there is a real example to inspect.
 
-My bar for time-series threat analytics is the operational reason for choosing one path over another. If the time-series threat analytics post cannot show that, it should stay short and honest.
-
-That is where I would leave it. Keep the time-series threat analytics claim narrow, make the tradeoff visible, and let the example do the work.
+I am leaving time series as a short note because the idea is useful at this size. A longer time series version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.

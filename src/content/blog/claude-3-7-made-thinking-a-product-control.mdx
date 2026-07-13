@@ -8,18 +8,138 @@ author: "jeremy-london"
 tags: ["claude", "reasoning", "latency"]
 ---
 
-Claude 3.7 Sonnet made hybrid reasoning visible enough that teams had to decide when thinking should cost time. I would keep the argument close to the workflow instead of treating claude like a slogan.
+{/*
+Depth: technical-deep-dive
+Information map:
+- the concrete claude problem
+- the example surface: Claude 3.7 Sonnet made hybrid reasoning visible enough that teams had to decide when thinking should cost time
+- the failure mode: a model choice is treated as isolated even though the surrounding system made the decision
+- input shape and request data
+- component responsibilities
+- control flow and state transitions
+- failure modes and recovery
+- measurement using task success, latency budget, memory footprint, batch behavior, and quality by route
+- security or ownership boundary: where the model stops and the serving system starts
+- latency, cost, and scaling implications
+*/}
 
-## Why It Matters
+Claude 3.7 Sonnet made hybrid reasoning visible enough that teams had to decide when thinking should cost time.
 
-For claude, the important part is a model choice that changes the surrounding workflow. That gives the idea a place to stand. Without that concrete surface, the post turns into category talk: routing, inference, latency, and local constraints.
+The interesting part of claude is not the name. It is the system pressure around Claude 3.7 Sonnet made hybrid reasoning visible enough that teams had to decide when thinking should cost time. Once that pressure shows up for claude, the topic stops being a feature and starts being an interface between people, models, code, and evidence.
 
-## The Risk
+## The unit of work
 
-The bad version of claude is familiar: the model choice looks isolated even though the surrounding system made the decision. For claude, sometimes that means a decision with no trail, a boundary with no owner, or an example that does not prove the point.
+I would start by naming the unit of work for claude. In model systems, the claude unit is usually smaller than the product surface and larger than a function call. For claude, it might be one agent step, one retrieval request, one classification decision, one model route, one sync attempt, or one evaluation case.
 
-## My Bar
+A useful claude unit has four properties:
 
-For claude, I would ask for the operational reason for choosing one path over another. The claude post can be brief and still be useful if that evidence is present.
+- an input the system can store
+- a decision the system can explain
+- evidence the next component can inspect
+- a boundary that says who or what is allowed to act
 
-The smaller version is stronger. It gives the reader the claude claim, the failure mode, and the check without pretending there is a larger theory hiding underneath.
+For claude, the boundary is where the model stops and the serving system starts. That boundary should be visible in the claude data, not only in a policy document. If a claude request crosses the boundary, the trace should show it.
+
+## Data flow
+
+The simple claude flow looks like this:
+
+~~~text
+request -> context builder -> decision point -> action or answer -> verifier -> receipt
+~~~
+
+The context builder gathers the minimum useful state for claude. The claude decision point chooses a route, tool, model, policy, or user-facing behavior. The verifier checks the output against the contract. The receipt records enough evidence for review.
+
+That receipt is the difference between a claude demo and an operable system. A demo can rely on a person watching closely. A claude system needs to explain itself after the person has moved on.
+
+A claude request envelope might look like this:
+
+~~~json
+{
+  "input": "user or system request",
+  "context": ["retrieved document", "current state", "policy hint"],
+  "decision": "selected route or action",
+  "evidence": ["why this route was allowed"],
+  "limits": { "costCents": 12, "timeoutMs": 8000 },
+  "requiresApproval": false
+}
+~~~
+
+The schema is deliberately plain. Fancy schemas do not save unclear claude systems. The useful claude work is deciding which fields are required, which are advisory, and which block the run when missing.
+
+## Implementation sketch
+
+I would implement the first claude pass as a narrow pipeline rather than a general platform. Start claude with a request envelope, make the route explicit, attach evidence, run the cheapest deterministic checks first, then escalate to semantic judgment only when the deterministic checks cannot answer the question.
+
+~~~ts
+type StepResult = {
+  route: string
+  output: unknown
+  evidence: string[]
+  deterministicChecks: string[]
+  semanticReview?: string
+  accepted: boolean
+}
+~~~
+
+For claude, this shape matters because it keeps "the model said so" out of the acceptance path. The model can propose. The claude system still has to decide whether the proposal is usable under the current boundary.
+
+## Failure modes
+
+The main claude failure mode is a model choice is treated as isolated even though the surrounding system made the decision. It rarely announces itself cleanly. The model may return a good-looking answer. The UI may render. The job may exit zero. The claude failure is that the next component cannot tell whether the result should be trusted.
+
+I would test at least five claude cases:
+
+- missing context
+- stale context
+- valid output with insufficient evidence
+- correct output under the wrong permission boundary
+- high-confidence output that fails a deterministic check
+
+That last claude case matters. A confident claude answer is not the same thing as a verified result. If claude touches state, policy, spend, or user trust, confidence should never be the only acceptance criterion.
+
+## Deployment shape
+
+I would not deploy claude as one giant agent with every tool and every permission. I would split the system by risk class. Low-risk read-only work can move quickly. State-changing work needs stronger checks. Credentialed work needs explicit scope, expiration, and audit. For claude, anything irreversible should have a human stop unless the surrounding domain has already proven a safer automatic path.
+
+That gives the router real work to do. For claude, it should not only choose small model or big model. It should choose a risk path:
+
+- read-only answer
+- draft-only action
+- reversible write
+- privileged action
+- escalation
+
+Each claude path has a different budget, verifier, and approval requirement. This is the part that makes claude feel less magical and more like infrastructure. The model is still important, but the claude route determines what kind of trust the system is asking for.
+
+## Measurement
+
+The measurement surface for claude is task success, latency budget, memory footprint, batch behavior, and quality by route. I would track claude per route or case type, not only as a global average. Global averages hide the exact class of claude problems that make these systems feel unpredictable.
+
+A simple eval table can carry a lot of weight:
+
+~~~text
+case_id | route | expected | actual | verifier | latency_ms | cost_cents | accepted
+~~~
+
+The point is not to build an eval cathedral for claude. The point is to preserve enough claude structure that regressions can be clustered. If failures cluster around one route, fix the route. If claude failures cluster around one policy boundary, fix the boundary. If claude failures cluster around one model, stop pretending the prompt is the whole system.
+
+## Operational concerns
+
+The operational question for claude is how this behaves when the happy path stops being representative. What happens when context is missing? What happens when the verifier times out? What happens when the cheap claude route becomes unreliable but the expensive route would blow the budget?
+
+For claude, I would put those answers in configuration, not in a heroic prompt. A small claude policy file that names timeouts, budgets, fallback routes, and escalation behavior will beat a clever paragraph in the system prompt every time.
+
+## Scaling behavior
+
+At small scale, a human can inspect weird claude cases by hand. At medium scale, the claude system needs sampling, dashboards, and escalation. At larger scale, it needs budgets and revocation. The design changes because the bottleneck changes.
+
+Early on, the bottleneck is usually correctness. Later it becomes review capacity. After that it becomes trust: can teams change the claude system without being surprised by the downstream behavior?
+
+For claude, I would keep the first architecture boring. Store the request envelope. Store the decision. Store the evidence. Run deterministic checks where possible. Use semantic checks where necessary. Escalate when the verifier cannot decide. That is not glamorous, but it gives the claude system a spine.
+
+## Where I land
+
+Claude deserves depth when it changes architecture, not when it merely sounds current. The claude implementation questions are concrete: what is the unit of work, what evidence moves with it, who can approve it, how does it fail, and what metric catches the failure before users do?
+
+If the claude post answers those questions, it teaches something. If the claude post only says the topic matters, it is just a longer version of the headline.

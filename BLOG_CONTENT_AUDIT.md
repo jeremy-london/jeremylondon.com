@@ -1,44 +1,45 @@
-# Blog Content Audit
+# Blog content audit
 
 Date: 2026-07-13
 
-Scope: all 138 files in `src/content/blog`.
+Scope: all 137 non-template posts in `src/content/blog`.
 
-## What Was Wrong
+## What changed
 
-The published archive had a repeat-generation failure, first noticed in
-`chatgpt-work-made-desktop-agents-feel-inevitable.mdx`.
+The previous pass removed repetition but compressed too aggressively. This pass rewrote the archive around editorial depth instead of uniform brevity.
 
-The pattern was widespread:
+Each post now has a manifest entry in `BLOG_DEPTH_MANIFEST.json` with:
 
-- Repeated generic headings such as `The part I would not skip`, `More of what I kept thinking about`, `The part that stayed with me`, and `What the first draft left out`.
-- Repeated title phrases 15-50 times inside a single post.
-- Repeated long phrases 40+ times, often topic-slot phrases such as `tool use, verifier loops, approvals, and the boundaries around agents`.
-- Filler such as `longer pass`, `expanded version`, `first draft`, `second or third angle`, and `what usually gets skipped`.
-- Duplicate or near-duplicate sentences that rotated the same claim without adding new facts.
+* depth classification
+* title
+* category
+* subject
+* information map
 
-## Remediation
+Depth distribution:
 
-- Rewrote 137 MDX posts, preserving frontmatter.
-- Preserved the interactive React/Pyodide islands in the deep-learning basics posts.
-- Left `template.md` as a template file.
-- Added `scripts/audit-blog-content.mjs`.
-- Added `pnpm blog:audit`.
+* quick notes: 35
+* engineering notes: 36
+* technical deep dives: 53
+* systems essays: 13
 
-The rewrites are intentionally concise cleanup drafts. They remove the broken expansion-loop bodies and restore a direct argument, but they should still be treated as editorial drafts worth revisiting over time.
+## Editorial checks
 
-## Prevention Gate
+`pnpm blog:audit` now checks:
 
-`pnpm blog:audit` now fails on:
+* manifest coverage for every non-template post
+* depth distribution
+* minimum and maximum word ranges by depth
+* minimum information-map size by depth
+* required technical markers by depth
+* systems-essay headings for architecture, constraints, measurement, scaling, tradeoffs, and unresolved questions
+* technical examples in deep dives
+* repeated headings, filler phrases, title loops, repeated n-grams, and broad corpus-level repeated sentences
 
-- Known generic expansion headings.
-- Known filler phrases.
-- A title repeated more than 6 times in one post body.
-- Any 8-word phrase repeated more than 6 times in one post.
-- Any 5-word phrase repeated more than 12 times in one post.
-- Long outline-style posts with too many sections.
-- Any normalized sentence repeated across more than 8 files.
+## Caveat
 
-## Final Status
+This is a deterministic editorial rewrite pass, not hand-authored final prose for every essay. It restores depth and technical structure across the archive and prevents the earlier compression failure, but the flagship systems essays are still good candidates for later manual polish.
 
-`pnpm blog:audit` passes across all 138 files.
+## Final status
+
+`pnpm blog:audit` passes across all 137 non-template posts.

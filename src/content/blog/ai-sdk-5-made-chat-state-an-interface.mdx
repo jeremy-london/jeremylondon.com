@@ -8,18 +8,55 @@ author: "jeremy-london"
 tags: ["ai sdk", "chat ui", "typescript"]
 ---
 
-Vercel AI SDK 5 treated chat as a typed, customizable application surface instead of a streaming demo. The point is not to make AI SDK sound bigger than it is. It is to name the decision it changes.
+{/*
+Depth: engineering-note
+Information map:
+- the concrete AI SDK chat state problem
+- the example surface: Vercel AI SDK 5 treated chat as a typed, customizable application surface instead of a streaming demo
+- the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract
+- the responsibilities around the rendered page
+- the tradeoff between convenience and what the browser, content system, and deployment pipeline each own
+- the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time
+*/}
 
-## The Practical Part
+Vercel AI SDK 5 treated chat as a typed, customizable application surface instead of a streaming demo.
 
-AI SDK gets interesting when it changes a real workflow. The example I would use is Vercel AI SDK 5 treated chat as a typed, customizable application surface instead of a streaming demo, because it gives the reader something to inspect instead of a broad claim to accept.
+The practical version starts with Vercel AI SDK 5 treated chat as a typed, customizable application surface instead of a streaming demo. That gives AI SDK chat state a shape you can reason about. It also keeps the AI SDK chat state post out of slogan territory, which is where a lot of technical writing goes to die politely.
 
-## The Edge Case
+## What has to be true
 
-The failure mode for AI SDK is the page renders but the reader, crawler, or maintainer gets the wrong contract. For AI SDK, that can look fine from a distance, so the page ships, the demo runs, or the team agrees with itself while the next person still cannot tell what actually happened.
+For AI SDK chat state to be useful, the frontend engineer needs a clear rendered page. That artifact does not have to be fancy. For AI SDK chat state, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for AI SDK chat state is that it explains what happened without asking the next person to reconstruct intent from vibes.
 
-## What I Want To See
+The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In web engineering, the annoying AI SDK chat state bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for AI SDK chat state, but the caller cannot tell whether it is safe. A script exits zero for AI SDK chat state, but the output hides the one fact the maintainer needed.
 
-The check for AI SDK is the browser-visible behavior that proves the page still works. For AI SDK, that is enough to separate a useful note from a long one.
+## Implementation shape
 
-I do not want AI SDK to sound more certain than the evidence allows. Make the decision visible, then stop.
+I would make the first AI SDK chat state version deliberately plain. The AI SDK chat state system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make AI SDK chat state enterprise software. It makes the work inspectable.
+
+A useful AI SDK chat state implementation question is where the record is created. If the AI SDK chat state record is created only after success, it will miss the interesting failures. I would create the AI SDK chat state record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+
+## Tradeoffs
+
+The AI SDK chat state tradeoff is convenience versus what the browser, content system, and deployment pipeline each own. If the AI SDK chat state system is too strict, people route around it. If the AI SDK chat state system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For AI SDK chat state, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+
+That contract can be boring. A useful AI SDK chat state shape is:
+
+~~~ts
+type WorkRecord = {
+  input: string
+  decision: string
+  evidence: string[]
+  actor: string
+  accepted: boolean
+}
+~~~
+
+The exact fields change by system. The AI SDK chat state pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+
+## What I would measure
+
+The AI SDK chat state metric is route coverage, feed validity, content validation, accessibility checks, and build time. That is more useful than asking whether AI SDK chat state "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+
+For AI SDK chat state, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those AI SDK chat state numbers usually tell the truth before the happy-path dashboard does.
+
+If the AI SDK chat state system cannot answer those questions, I would keep the design smaller. Small AI SDK chat state systems with honest receipts are easier to improve than large systems that only report success.

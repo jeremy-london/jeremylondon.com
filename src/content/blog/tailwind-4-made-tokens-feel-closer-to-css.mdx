@@ -8,18 +8,55 @@ author: "jeremy-london"
 tags: ["tailwind", "tokens", "css"]
 ---
 
-Tailwind 4 made the styling system feel more native to CSS, which is a good excuse to clean up theme decisions. The point is not to make tailwind sound bigger than it is. It is to name the decision it changes.
+{/*
+Depth: engineering-note
+Information map:
+- the concrete tailwind problem
+- the example surface: a design decision that needs a name before it spreads
+- the failure mode: the UI looks consistent while the underlying decisions drift apart
+- the responsibilities around the component contract
+- the tradeoff between convenience and which decisions belong in tokens, components, product copy, or one-off layout
+- the check or metric: token reuse, unsupported variants, visual regression count, and handoff ambiguity
+*/}
 
-## The Practical Part
+Tailwind 4 made the styling system feel more native to CSS, which is a good excuse to clean up theme decisions.
 
-Tailwind gets interesting when it changes a real workflow. The example I would use is a design decision that needs a name before it spreads, because it gives the reader something to inspect instead of a broad claim to accept.
+The practical version starts with a design decision that needs a name before it spreads. That gives tailwind a shape you can reason about. It also keeps the tailwind post out of slogan territory, which is where a lot of technical writing goes to die politely.
 
-## The Edge Case
+## What has to be true
 
-The failure mode for tailwind is the UI looks consistent while the underlying decisions drift apart. For tailwind, that can look fine from a distance, so the page ships, the demo runs, or the team agrees with itself while the next person still cannot tell what actually happened.
+For tailwind to be useful, the designer or engineer needs a clear component contract. That artifact does not have to be fancy. For tailwind, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for tailwind is that it explains what happened without asking the next person to reconstruct intent from vibes.
 
-## What I Want To See
+The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In design systems, the annoying tailwind bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for tailwind, but the caller cannot tell whether it is safe. A script exits zero for tailwind, but the output hides the one fact the maintainer needed.
 
-The check for tailwind is the named decision a designer and engineer can both point to. For tailwind, that is enough to separate a useful note from a long one.
+## Implementation shape
 
-I do not want tailwind to sound more certain than the evidence allows. Make the decision visible, then stop.
+I would make the first tailwind version deliberately plain. The tailwind system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make tailwind enterprise software. It makes the work inspectable.
+
+A useful tailwind implementation question is where the record is created. If the tailwind record is created only after success, it will miss the interesting failures. I would create the tailwind record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+
+## Tradeoffs
+
+The tailwind tradeoff is convenience versus which decisions belong in tokens, components, product copy, or one-off layout. If the tailwind system is too strict, people route around it. If the tailwind system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For tailwind, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+
+That contract can be boring. A useful tailwind shape is:
+
+~~~ts
+type WorkRecord = {
+  input: string
+  decision: string
+  evidence: string[]
+  actor: string
+  accepted: boolean
+}
+~~~
+
+The exact fields change by system. The tailwind pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+
+## What I would measure
+
+The tailwind metric is token reuse, unsupported variants, visual regression count, and handoff ambiguity. That is more useful than asking whether tailwind "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+
+For tailwind, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those tailwind numbers usually tell the truth before the happy-path dashboard does.
+
+If the tailwind system cannot answer those questions, I would keep the design smaller. Small tailwind systems with honest receipts are easier to improve than large systems that only report success.

@@ -12,13 +12,26 @@ load_pyodide: true
 import PythonModule from "@components/blog/shared/PythonModule.jsx";
 import BatchProcessing from "@components/blog/BatchProcessing.jsx";
 
-Why running several inputs at once gives a more honest picture of what a model is doing. For batching, the useful move is to slow down and keep the numbers visible. A neural network becomes less mysterious when each multiplication, bias, and activation has somewhere to live on the page.
+{/*
+Depth: engineering-note
+Information map:
+- the concrete batching problem
+- the example surface: Why running several inputs at once gives a more honest picture of what a model is doing
+- the failure mode: the explanation sounds right but the reader cannot reproduce the calculation
+- the responsibilities around the runnable example
+- the tradeoff between convenience and the exact step where a scalar, vector, matrix, or activation changes shape
+- the check or metric: whether the hand calculation, code output, and visual state agree
+*/}
 
-## Start with the shape
+Why running several inputs at once gives a more honest picture of what a model is doing.
 
-I would start with Why running several inputs at once gives a more honest picture of what a model is doing. Name the inputs. Name the weights. Write the bias down instead of waving at it. The point is not to make the math look impressive; it is to make the next step hard to hide.
+The practical version starts with Why running several inputs at once gives a more honest picture of what a model is doing. That gives batching a shape you can reason about. It also keeps the batching post out of slogan territory, which is where a lot of technical writing goes to die politely.
 
-Batching works better as a learning object when the reader can change one value and see what moves. If every value changes at once, the lesson turns into fog. If one value changes and the output follows, the model starts to feel inspectable.
+## What has to be true
+
+For batching to be useful, the learner needs a clear runnable example. That artifact does not have to be fancy. For batching, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for batching is that it explains what happened without asking the next person to reconstruct intent from vibes.
+
+The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In deep learning basics, the annoying batching bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for batching, but the caller cannot tell whether it is safe. A script exits zero for batching, but the output hides the one fact the maintainer needed.
 
 ## Run the example
 
@@ -29,12 +42,34 @@ Batching works better as a learning object when the reader can change one value 
   outputRows={32}
 />
 
-## What to watch
+## Implementation shape
 
-The mistake to watch for in batching is treating the output as magic because the notation got dense. For these small examples, the check is plain: compute the dot product, add the bias, apply the activation, and compare the result with the rendered demo.
+I would make the first batching version deliberately plain. The batching system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make batching enterprise software. It makes the work inspectable.
 
-That is also why the runnable version matters here. A static explanation can be correct and still leave the reader with no grip. A small interactive example gives them a place to poke the system and find the edge.
+A useful batching implementation question is where the record is created. If the batching record is created only after success, it will miss the interesting failures. I would create the batching record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
 
-## Where I land
+## Tradeoffs
 
-I do not need batching to feel profound. I need it to be traceable. If the reader can explain which input mattered, which weight amplified it, and where the activation changed the result, the post has done its job.
+The batching tradeoff is convenience versus the exact step where a scalar, vector, matrix, or activation changes shape. If the batching system is too strict, people route around it. If the batching system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For batching, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+
+That contract can be boring. A useful batching shape is:
+
+~~~ts
+type WorkRecord = {
+  input: string
+  decision: string
+  evidence: string[]
+  actor: string
+  accepted: boolean
+}
+~~~
+
+The exact fields change by system. The batching pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+
+## What I would measure
+
+The batching metric is whether the hand calculation, code output, and visual state agree. That is more useful than asking whether batching "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+
+For batching, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those batching numbers usually tell the truth before the happy-path dashboard does.
+
+If the batching system cannot answer those questions, I would keep the design smaller. Small batching systems with honest receipts are easier to improve than large systems that only report success.

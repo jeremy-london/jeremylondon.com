@@ -8,18 +8,24 @@ author: "jeremy-london"
 tags: ["caching", "ai apps", "performance"]
 ---
 
-Caching can make AI apps faster and cheaper, but production systems need careful keys, freshness rules, and safety checks. The point is not to make caching sound bigger than it is. It is to name the decision it changes.
+{/*
+Depth: quick-note
+Information map:
+- the concrete caching problem
+- the example surface: Caching can make AI apps faster and cheaper, but production systems need careful keys, freshness rules, and safety checks
+- the failure mode: the system succeeds once but gives the next maintainer no way to explain it
+- the small decision I would keep
+- what would make the note wrong
+*/}
 
-## The Practical Part
+Caching can make AI apps faster and cheaper, but production systems need careful keys, freshness rules, and safety checks.
 
-Caching gets interesting when it changes a real workflow. The example I would use is Caching can make AI apps faster and cheaper, but production systems need careful keys, freshness rules, and safety checks, because it gives the reader something to inspect instead of a broad claim to accept.
+I would keep caching small here. The useful part is Caching can make AI apps faster and cheaper, but production systems need careful keys, freshness rules, and safety checks. That is enough material for a caching note, not a manifesto.
 
-## The Edge Case
+The caching mistake is treating the observation as if it needs a complete theory around it. In practice, engineering quality work usually gets better when the first version names the boundary and then stops. For caching, that boundary is what must be proven before the change is trusted.
 
-The failure mode for caching is the explanation sounds plausible while the actual decision stays vague. For caching, that can look fine from a distance, so the page ships, the demo runs, or the team agrees with itself while the next person still cannot tell what actually happened.
+The caching check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the caching post has done its job. If the answer is no, adding three more caching paragraphs will not fix it.
 
-## What I Want To See
+The thing I would not add to caching is a fake architecture section. A short caching note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for caching. The rest of caching can wait until there is a real example to inspect.
 
-The check for caching is the example or constraint that makes the point inspectable. For caching, that is enough to separate a useful note from a long one.
-
-I do not want caching to sound more certain than the evidence allows. Make the decision visible, then stop.
+I am leaving caching as a short note because the idea is useful at this size. A longer caching version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.

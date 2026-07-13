@@ -8,18 +8,24 @@ author: "jeremy-london"
 tags: ["feature flags", "release", "product"]
 ---
 
-Flags are not just rollout switches. They record uncertainty, ownership, and the path back. The useful version is practical: Flags are not just rollout switches. They record uncertainty, ownership, and the path back.
+{/*
+Depth: quick-note
+Information map:
+- the concrete feature flags problem
+- the example surface: Flags are not just rollout switches. They record uncertainty, ownership, and the path back
+- the failure mode: the feature works in the happy path but leaves the user guessing at the boundary
+- the small decision I would keep
+- what would make the note wrong
+*/}
 
-## What Changes
+Flags are not just rollout switches. They record uncertainty, ownership, and the path back.
 
-For feature flags, I would start from the constraint, not the announcement. The constraint is Flags are not just rollout switches. They record uncertainty, ownership, and the path back, and the surrounding question is how state, handoff, forms, product quality, and boring edge cases changes in practice.
+I would keep feature flags small here. The useful part is Flags are not just rollout switches. They record uncertainty, ownership, and the path back. That is enough material for a feature flags note, not a manifesto.
 
-## Where It Fails
+The feature flags mistake is treating the observation as if it needs a complete theory around it. In practice, product engineering work usually gets better when the first version names the boundary and then stops. For feature flags, that boundary is what the interface must make visible before the user can act.
 
-The thing I would watch for with feature flags is quieter than a crash: the feature works in the happy path but leaves the user guessing at the boundary. That is the kind of break that makes a feature flags post feel padded even when the topic is legitimate.
+The feature flags check I would use is simple: can the next person see what changed and why it matters? If the answer is yes, the feature flags post has done its job. If the answer is no, adding three more feature flags paragraphs will not fix it.
 
-## The Check
+The thing I would not add to feature flags is a fake architecture section. A short feature flags note can still be technical if it names the pressure clearly: who is acting, what state is being touched, and what evidence would make the claim falsifiable. That is enough for feature flags. The rest of feature flags can wait until there is a real example to inspect.
 
-My bar for feature flags is the state the interface needs to make visible. If the feature flags post cannot show that, it should stay short and honest.
-
-That is where I would leave it. Keep the feature flags claim narrow, make the tradeoff visible, and let the example do the work.
+I am leaving feature flags as a short note because the idea is useful at this size. A longer feature flags version would need a real system diagram, a failure example, and evidence. Without those, more length would just be decoration.

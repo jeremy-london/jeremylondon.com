@@ -8,18 +8,55 @@ author: "jeremy-london"
 tags: ["astro", "static sites", "content"]
 ---
 
-Astro 4 landed near the end of 2023, and it made static content work feel more like a serious application surface. I care about astro only when it changes the work someone has to do.
+{/*
+Depth: engineering-note
+Information map:
+- the concrete astro problem
+- the example surface: Astro 4 landed near the end of 2023, and it made static content work feel more like a serious application surface
+- the failure mode: the page renders while the reader, crawler, or maintainer gets the wrong contract
+- the responsibilities around the rendered page
+- the tradeoff between convenience and what the browser, content system, and deployment pipeline each own
+- the check or metric: route coverage, feed validity, content validation, accessibility checks, and build time
+*/}
 
-## The Useful Version
+Astro 4 landed near the end of 2023, and it made static content work feel more like a serious application surface.
 
-The move that matters for astro is small: connect the idea to Astro 4 landed near the end of 2023, and it made static content work feel more like a serious application surface. Once astro is visible, the reader can tell whether this claim is operational or just commentary.
+The practical version starts with Astro 4 landed near the end of 2023, and it made static content work feel more like a serious application surface. That gives astro a shape you can reason about. It also keeps the astro post out of slogan territory, which is where a lot of technical writing goes to die politely.
 
-## The Failure Mode
+## What has to be true
 
-Astro breaks when the page renders but the reader, crawler, or maintainer gets the wrong contract. Once astro reaches that point, the language may still sound confident, but the system has stopped giving the reader evidence.
+For astro to be useful, the frontend engineer needs a clear rendered page. That artifact does not have to be fancy. For astro, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for astro is that it explains what happened without asking the next person to reconstruct intent from vibes.
 
-## The Test
+The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In web engineering, the annoying astro bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for astro, but the caller cannot tell whether it is safe. A script exits zero for astro, but the output hides the one fact the maintainer needed.
 
-The version I would publish needs the browser-visible behavior that proves the page still works. Without that evidence for astro, I would rather cut the paragraph than decorate the uncertainty.
+## Implementation shape
 
-This works best as a concise note. The astro claim does not need more volume; it needs one clear boundary and one concrete reason to care.
+I would make the first astro version deliberately plain. The astro system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make astro enterprise software. It makes the work inspectable.
+
+A useful astro implementation question is where the record is created. If the astro record is created only after success, it will miss the interesting failures. I would create the astro record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+
+## Tradeoffs
+
+The astro tradeoff is convenience versus what the browser, content system, and deployment pipeline each own. If the astro system is too strict, people route around it. If the astro system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For astro, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+
+That contract can be boring. A useful astro shape is:
+
+~~~ts
+type WorkRecord = {
+  input: string
+  decision: string
+  evidence: string[]
+  actor: string
+  accepted: boolean
+}
+~~~
+
+The exact fields change by system. The astro pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+
+## What I would measure
+
+The astro metric is route coverage, feed validity, content validation, accessibility checks, and build time. That is more useful than asking whether astro "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+
+For astro, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those astro numbers usually tell the truth before the happy-path dashboard does.
+
+If the astro system cannot answer those questions, I would keep the design smaller. Small astro systems with honest receipts are easier to improve than large systems that only report success.

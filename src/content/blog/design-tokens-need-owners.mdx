@@ -8,18 +8,55 @@ author: "jeremy-london"
 tags: ["design tokens", "design systems", "frontend"]
 ---
 
-Tokens are useful only when somebody owns the meaning, migration path, and exceptions. I would keep the argument close to the workflow instead of treating design tokens like a slogan.
+{/*
+Depth: engineering-note
+Information map:
+- the concrete design tokens problem
+- the example surface: a design decision that needs a name before it spreads
+- the failure mode: the UI looks consistent while the underlying decisions drift apart
+- the responsibilities around the component contract
+- the tradeoff between convenience and which decisions belong in tokens, components, product copy, or one-off layout
+- the check or metric: token reuse, unsupported variants, visual regression count, and handoff ambiguity
+*/}
 
-## Why It Matters
+Tokens are useful only when somebody owns the meaning, migration path, and exceptions.
 
-For design tokens, the important part is a design decision that needs a name before it spreads. That gives the idea a place to stand. Without that concrete surface, the post turns into category talk: tokens, component contracts, naming, and handoff.
+The practical version starts with a design decision that needs a name before it spreads. That gives design tokens a shape you can reason about. It also keeps the design tokens post out of slogan territory, which is where a lot of technical writing goes to die politely.
 
-## The Risk
+## What has to be true
 
-The bad version of design tokens is familiar: the UI looks consistent while the underlying decisions drift apart. For design tokens, sometimes that means a decision with no trail, a boundary with no owner, or an example that does not prove the point.
+For design tokens to be useful, the designer or engineer needs a clear component contract. That artifact does not have to be fancy. For design tokens, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for design tokens is that it explains what happened without asking the next person to reconstruct intent from vibes.
 
-## My Bar
+The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In design systems, the annoying design tokens bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for design tokens, but the caller cannot tell whether it is safe. A script exits zero for design tokens, but the output hides the one fact the maintainer needed.
 
-For design tokens, I would ask for the named decision a designer and engineer can both point to. The design tokens post can be brief and still be useful if that evidence is present.
+## Implementation shape
 
-The smaller version is stronger. It gives the reader the design tokens claim, the failure mode, and the check without pretending there is a larger theory hiding underneath.
+I would make the first design tokens version deliberately plain. The design tokens system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make design tokens enterprise software. It makes the work inspectable.
+
+A useful design tokens implementation question is where the record is created. If the design tokens record is created only after success, it will miss the interesting failures. I would create the design tokens record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+
+## Tradeoffs
+
+The design tokens tradeoff is convenience versus which decisions belong in tokens, components, product copy, or one-off layout. If the design tokens system is too strict, people route around it. If the design tokens system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For design tokens, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+
+That contract can be boring. A useful design tokens shape is:
+
+~~~ts
+type WorkRecord = {
+  input: string
+  decision: string
+  evidence: string[]
+  actor: string
+  accepted: boolean
+}
+~~~
+
+The exact fields change by system. The design tokens pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+
+## What I would measure
+
+The design tokens metric is token reuse, unsupported variants, visual regression count, and handoff ambiguity. That is more useful than asking whether design tokens "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+
+For design tokens, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those design tokens numbers usually tell the truth before the happy-path dashboard does.
+
+If the design tokens system cannot answer those questions, I would keep the design smaller. Small design tokens systems with honest receipts are easier to improve than large systems that only report success.

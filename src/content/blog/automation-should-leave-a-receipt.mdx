@@ -8,18 +8,55 @@ author: "jeremy-london"
 tags: ["automation", "personal systems", "logging"]
 ---
 
-Personal automation is easier to trust when it leaves a plain record of what it did and why. The point is not to make automation sound bigger than it is. It is to name the decision it changes.
+{/*
+Depth: engineering-note
+Information map:
+- the concrete automation problem
+- the example surface: Personal automation is easier to trust when it leaves a plain record of what it did and why
+- the failure mode: the system depends on future energy it has no right to assume
+- the responsibilities around the small habit or note
+- the tradeoff between convenience and how much friction belongs at capture time versus review time
+- the check or metric: review frequency, abandoned draft count, and time to recover context
+*/}
 
-## The Practical Part
+Personal automation is easier to trust when it leaves a plain record of what it did and why.
 
-Automation gets interesting when it changes a real workflow. The example I would use is Personal automation is easier to trust when it leaves a plain record of what it did and why, because it gives the reader something to inspect instead of a broad claim to accept.
+The practical version starts with Personal automation is easier to trust when it leaves a plain record of what it did and why. That gives automation a shape you can reason about. It also keeps the automation post out of slogan territory, which is where a lot of technical writing goes to die politely.
 
-## The Edge Case
+## What has to be true
 
-The failure mode for automation is the system depends on future energy it has no right to assume. For automation, that can look fine from a distance, so the page ships, the demo runs, or the team agrees with itself while the next person still cannot tell what actually happened.
+For automation to be useful, the future self needs a clear small habit or note. That artifact does not have to be fancy. For automation, it can be a log line, a JSON envelope, a rendered state, a small script output, or a runnable example. What matters for automation is that it explains what happened without asking the next person to reconstruct intent from vibes.
 
-## What I Want To See
+The implementation detail I care about is ownership. Who creates the artifact? Who reads it? Who is allowed to change it? In personal systems, the annoying automation bugs usually live between those answers. A feature works, but the trace is missing. A model returns something valid for automation, but the caller cannot tell whether it is safe. A script exits zero for automation, but the output hides the one fact the maintainer needed.
 
-The check for automation is the small habit that still works when the week is crowded. For automation, that is enough to separate a useful note from a long one.
+## Implementation shape
 
-I do not want automation to sound more certain than the evidence allows. Make the decision visible, then stop.
+I would make the first automation version deliberately plain. The automation system should capture the request, the decision, the evidence, and the actor before it tries to be clever. That does not make automation enterprise software. It makes the work inspectable.
+
+A useful automation implementation question is where the record is created. If the automation record is created only after success, it will miss the interesting failures. I would create the automation record before the risky step, update it as the work moves, and leave enough state behind that a failed run can be replayed without asking someone to remember what was on their screen.
+
+## Tradeoffs
+
+The automation tradeoff is convenience versus how much friction belongs at capture time versus review time. If the automation system is too strict, people route around it. If the automation system is too loose, it becomes impossible to tell whether a successful run was actually acceptable. For automation, I would bias toward a small explicit contract first, then widen it only when the examples prove the narrower version is too painful.
+
+That contract can be boring. A useful automation shape is:
+
+~~~ts
+type WorkRecord = {
+  input: string
+  decision: string
+  evidence: string[]
+  actor: string
+  accepted: boolean
+}
+~~~
+
+The exact fields change by system. The automation pattern matters more than the names: capture the input, the decision, the evidence, the actor, and whether the result was accepted.
+
+## What I would measure
+
+The automation metric is review frequency, abandoned draft count, and time to recover context. That is more useful than asking whether automation "worked." Worked for whom? At what cost? Under which boundary? With what recovery path?
+
+For automation, I would also watch the boring negative space: how many runs have missing evidence, how many require manual reconstruction, and how often the system reports success while the human rejects the result. Those automation numbers usually tell the truth before the happy-path dashboard does.
+
+If the automation system cannot answer those questions, I would keep the design smaller. Small automation systems with honest receipts are easier to improve than large systems that only report success.
