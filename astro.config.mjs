@@ -2,6 +2,7 @@
 
 import mdx from "@astrojs/mdx";
 import { unified } from "@astrojs/markdown-remark";
+import partytown from "@astrojs/partytown";
 import react from "@astrojs/react";
 import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
@@ -18,7 +19,7 @@ export default defineConfig({
     remarkPlugins: [remarkReadingTime],
   }),
 
-  integrations: [icon(), react(), mdx(), sitemap(), robotsTxt()],
+  integrations: [icon(), react(), mdx(), sitemap(), robotsTxt(), partytown()],
 
   vite: {
     plugins: [tailwindcss()],

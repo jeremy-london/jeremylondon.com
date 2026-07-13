@@ -42,9 +42,9 @@ const {
 
 const resolvedOGImage = checkImageUrl(ogimage, Astro.site)
 
-const makeTitle = title
-  ? `${title} | Jeremy London`
-  : `Jeremy London | AI Systems, Security & Engineering Leadership`
+const makeTitle = title?.trim()
+  ? title.trim()
+  : `Jeremy London`
 
 const defaultDescription =
   'Engineering leader and builder working across AI platforms, distributed systems, security, and reliability.'
@@ -127,14 +127,15 @@ const siteName = 'Jeremy London'
       })();
     </script>
     <script
-      is:inline
-      defer
+      type="text/partytown"
       src="https://cloud.umami.is/script.js"
       data-domains="jeremylondon.com"
       data-website-id="76b886eb-f3ac-40ff-8dff-f9c46bb085b6"></script>
     {
       load_pyodide && (
-        <script src="https://cdn.jsdelivr.net/pyodide/v314.0.2/full/pyodide.js" />
+        <script
+          type="text/partytown"
+          src="https://cdn.jsdelivr.net/pyodide/v314.0.2/full/pyodide.js" />
       )
     }
     {
