@@ -112,11 +112,11 @@ components:
     padding: "0px"
 ---
 
-# Design System: Jeremy London
+Design System: Jeremy London
 
 ## 1. Overview
 
-**Creative North Star: "The Field Notebook"**
+Creative North Star: "The Field Notebook"
 
 The redesign should feel like a technical field notebook that has been cleaned up for publication: more spacious, more legible, and a little more modern without losing the directness. It is still a writing-first site, but the layout now uses the available width more confidently, so pages feel like a deliberate system instead of a narrow stack floating in the middle of the screen.
 
@@ -255,7 +255,7 @@ Buttons, filters, and content surfaces are compact and direct. The redesign favo
 
 ## 6. Do's and Don'ts
 
-### Do:
+### Do
 
 - **Do** keep pages wide where it helps reading: use the full container width rather than pretending everything belongs in a narrow center column.
 - **Do** use Inter for the main reading experience and mono for datelines, tags, separators, and other code-shaped metadata.
@@ -264,7 +264,7 @@ Buttons, filters, and content surfaces are compact and direct. The redesign favo
 - **Do** preserve the brighter profile orbit colors as a signature-only treatment.
 - **Do** keep motion short, purposeful, and easy to ignore.
 
-### Don't:
+### Don't
 
 - **Don't** turn the site into a promotional thought-leader page.
 - **Don't** use generic SaaS landing-page patterns: hero metrics, repeated icon-card grids, or decorative floating cards.

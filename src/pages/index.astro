@@ -164,7 +164,7 @@ const readingPaths = [
               <div
                 class="motion-rise border-t border-gray-200 pt-4 dark:border-gray-800"
                 style={`--i: ${index}`}>
-                <p class="type-label text-gray-400 dark:text-gray-500">
+                <p class="type-label text-gray-600 dark:text-gray-400">
                   {item.label}
                 </p>
                 <p class="mt-2 text-sm leading-6 text-gray-700 dark:text-gray-200">
@@ -184,9 +184,7 @@ const readingPaths = [
               alt="Jeremy London's profile picture"
               class="cool-profile__image border border-gray-200 dark:border-gray-800"
               format="avif"
-              decoding={"async"}
-              loading={"eager"}
-              fetchpriority={"high"}
+              priority
               width={384}
               height={384}
             />
@@ -195,7 +193,7 @@ const readingPaths = [
       </div>
     </header>
 
-    <main class="max-w-full w-full">
+    <div class="max-w-full w-full">
       <section class="border-t border-gray-200 py-14 dark:border-gray-800 lg:py-16">
         <div class="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
           <div class="max-w-full w-full">
@@ -247,7 +245,7 @@ const readingPaths = [
           </p>
           <div class="mt-6 divide-y divide-gray-200 border-t border-gray-200 dark:divide-gray-800 dark:border-gray-800">
             <div class="grid gap-2 py-4 sm:grid-cols-[10rem_1fr] sm:gap-6">
-              <p class="type-label text-gray-400 dark:text-gray-500">
+              <p class="type-label text-gray-600 dark:text-gray-400">
                 boundary
               </p>
               <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">
@@ -257,7 +255,7 @@ const readingPaths = [
               </p>
             </div>
             <div class="grid gap-2 py-4 sm:grid-cols-[10rem_1fr] sm:gap-6">
-              <p class="type-label text-gray-400 dark:text-gray-500">
+              <p class="type-label text-gray-600 dark:text-gray-400">
                 practice
               </p>
               <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">
@@ -376,7 +374,7 @@ const readingPaths = [
           </div>
         </div>
       </section>
-    </main>
+    </div>
   </Container>
 </Layout>
 

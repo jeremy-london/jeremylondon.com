@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebMCP Declarative Form Example</title>
+</head>
+<body>
+  <!--
+    Declarative WebMCP: annotate HTML forms so agents can submit them
+    without imperative registerTool() code.
+
+    NOTE: W3C spec §4.3 (declarative synthesis) is still incomplete.
+    Prefer imperative registerTool() for production SPAs until declarative
+    support is stable in your target browsers.
+
+    See Chrome docs for current declarative attribute names:
+    https://developer.chrome.com/docs/ai/webmcp
+  -->
+
+  <h1>Contact Us</h1>
+
+  <form
+    id="contact-form"
+    action="/api/contact"
+    method="post"
+    data-webmcp-tool="submit_contact_form"
+    data-webmcp-description="Submits a contact form with name, email, and message. Sends email to support team."
+  >
+    <label>
+      Name
+      <input
+        type="text"
+        name="name"
+        required
+        data-webmcp-description="Full name of the person contacting support"
+      >
+    </label>
+
+    <label>
+      Email
+      <input
+        type="email"
+        name="email"
+        required
+        data-webmcp-description="Reply-to email address"
+      >
+    </label>
+
+    <label>
+      Message
+      <textarea
+        name="message"
+        required
+        data-webmcp-description="Support request message body"
+      ></textarea>
+    </label>
+
+    <button type="submit">Send</button>
+  </form>
+
+  <script>
+    // Detect agent vs human form submission (when supported)
+    document.getElementById('contact-form').addEventListener('submit', (event) => {
+      if (event.agentInvoked) {
+        console.log('Form submitted by agent')
+        // Optional: apply stricter validation or audit logging
+      }
+    })
+  </script>
+</body>
+</html>

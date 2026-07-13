@@ -1,7 +1,11 @@
 ---
 import Footer from '@components/footer.astro'
 import Navbar from '@components/navbar.astro'
+import { categories } from '@data/category'
 import { checkImageUrl } from '@utils/all'
+import { cleanMDXContent, latestPosts } from '@utils/content'
+import { getReadingTimeDetails } from '@utils/reading-time'
+import { slugifyTag } from '@utils/tags'
 import { SEO } from 'astro-seo'
 import Themes from 'astro-themes'
 import '@fontsource/inter/400.css'
@@ -50,6 +54,31 @@ const defaultDescription =
   'Engineering leader and builder working across AI platforms, distributed systems, security, and reliability.'
 const metaDescription = desc || defaultDescription
 const siteName = 'Jeremy London'
+
+const webmcpBlogIndex = latestPosts.map((post) => ({
+  id: post.id,
+  title: post.data.title,
+  excerpt: post.data.excerpt,
+  category: post.data.category,
+  categoryLabel:
+    categories.find((category) => category.slug === post.data.category)?.title ?? post.data.category,
+  tags: (post.data.tags ?? []).map((tag: string) => ({
+    label: tag,
+    slug: slugifyTag(tag),
+  })),
+  date: post.data.publishDate.toISOString(),
+  year: String(post.data.publishDate.getFullYear()),
+  month: post.data.publishDate.toISOString().slice(0, 7),
+  readingTimeMinutes: getReadingTimeDetails(cleanMDXContent(post.body)).readingTimeMinutes,
+}))
+
+const webmcpPageTargets = {
+  home: '/',
+  blog: '/blog',
+  about: '/about',
+  contact: '/contact',
+  rss: '/rss.xml',
+}
 ---
 
 <!doctype html>
@@ -58,6 +87,7 @@ const siteName = 'Jeremy London'
     <Themes defaultTheme="dark" />
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
@@ -108,6 +138,9 @@ const siteName = 'Jeremy London'
             : undefined,
       }}
     />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:logo" content={new URL('/apple-touch-icon.png', Astro.site).toString()} />
     <script is:inline>
       (() => {
@@ -132,10 +165,276 @@ const siteName = 'Jeremy London'
       src="https://cloud.umami.is/script.js"
       data-domains="jeremylondon.com"
       data-website-id="76b886eb-f3ac-40ff-8dff-f9c46bb085b6"></script>
+    <script
+      is:inline
+      define:vars={{ webmcpBlogIndex, webmcpPageTargets }}>
+      (() => {
+        const modelContext = document.modelContext || navigator.modelContext;
+        if (!window.isSecureContext || !modelContext?.registerTool) return;
+
+        const pageTargets = webmcpPageTargets;
+        const blogIndex = webmcpBlogIndex;
+        const siteOrigin = window.location.origin;
+        const contactTargets = {
+          email: "mailto:jeremy.c.london@gmail.com",
+          form: pageTargets.contact,
+          github: "https://github.com/jeremy-london",
+          linkedin: "https://www.linkedin.com/in/jeremyclondon/",
+        };
+
+        const escapeRegExp = (value) =>
+          value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+        const normalizeList = (value) => {
+          if (!value) return [];
+          return String(value)
+            .split(",")
+            .map((item) => item.trim())
+            .filter(Boolean);
+        };
+
+        const wildcardMatch = (haystack, term) => {
+          if (!term) return true;
+          if (!term.includes("*")) return haystack.includes(term);
+          const pattern = term
+            .split("*")
+            .map((part) => escapeRegExp(part))
+            .join(".*");
+          return new RegExp(`^${pattern}$`, "i").test(haystack);
+        };
+
+        const matchesQuery = (text, query) => {
+          const terms = String(query || "")
+            .trim()
+            .toLowerCase()
+            .split(/\s+/)
+            .filter(Boolean);
+
+          if (terms.length === 0) return true;
+          return terms.every((term) => wildcardMatch(text, term));
+        };
+
+        const filterPosts = ({
+          query = "",
+          category = "",
+          tag = "",
+          year = "",
+          month = "",
+          sort = "newest",
+        } = {}) => {
+          const q = String(query).trim().toLowerCase();
+          const categoryValues = normalizeList(category).map((value) => value.toLowerCase());
+          const tagValues = normalizeList(tag).map((value) => value.toLowerCase());
+          const yearValues = normalizeList(year).map((value) => value.toLowerCase());
+          const monthValue = String(month || "").trim();
+
+          const matching = blogIndex.filter((post) => {
+            const searchText = [
+              post.title,
+              post.excerpt,
+              post.categoryLabel,
+              post.tags.map((entry) => entry.label).join(" "),
+              post.tags.map((entry) => entry.slug).join(" "),
+            ]
+              .filter(Boolean)
+              .join(" ")
+              .toLowerCase();
+
+            if (!matchesQuery(searchText, q)) return false;
+            if (categoryValues.length && !categoryValues.includes(post.category.toLowerCase())) return false;
+            if (tagValues.length && !tagValues.some((value) => post.tags.some((tagEntry) => tagEntry.slug === value))) return false;
+            if (yearValues.length && !yearValues.includes(post.year.toLowerCase())) return false;
+            if (monthValue && post.month !== monthValue) return false;
+            return true;
+          });
+
+          const sorted = [...matching].sort((a, b) => {
+            if (sort === "oldest") return Date.parse(a.date) - Date.parse(b.date);
+            if (sort === "short") return a.readingTimeMinutes - b.readingTimeMinutes;
+            if (sort === "long") return b.readingTimeMinutes - a.readingTimeMinutes;
+            return Date.parse(b.date) - Date.parse(a.date);
+          });
+
+          return sorted;
+        };
+
+        const buildArchiveUrl = (params) => {
+          const url = new URL(pageTargets.blog, siteOrigin);
+          if (params.query) url.searchParams.set("q", params.query);
+          if (params.category) url.searchParams.set("category", params.category);
+          if (params.tag) url.searchParams.set("tag", params.tag);
+          if (params.year) url.searchParams.set("year", params.year);
+          if (params.month) url.searchParams.set("month", params.month);
+          if (params.sort && params.sort !== "newest") url.searchParams.set("sort", params.sort);
+          return url.toString();
+        };
+
+        const registerWebMcp = async () => {
+          if (window.__jeremyWebMcpAbortController) {
+            window.__jeremyWebMcpAbortController.abort();
+          }
+
+          const controller = new AbortController();
+          window.__jeremyWebMcpAbortController = controller;
+
+          const tools = [
+            {
+              name: "search_blog_posts",
+              title: "Search blog posts",
+              description: "Searches Jeremy London's blog posts by text, category, tag, year, or month and returns matching post metadata. Does not navigate or change the page.",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  query: { type: "string", description: "Free-text search across titles, excerpts, categories, and tags." },
+                  category: { type: "string", description: "One or more category slugs, comma-separated." },
+                  tag: { type: "string", description: "One or more tag slugs, comma-separated." },
+                  year: { type: "string", description: "One or more years, comma-separated." },
+                  month: { type: "string", description: "A month in YYYY-MM format." },
+                  sort: { type: "string", enum: ["newest", "oldest", "short", "long"], default: "newest", description: "Sort order for the returned posts." },
+                  limit: { type: "integer", minimum: 1, maximum: 20, default: 10, description: "Maximum number of posts to return." },
+                },
+              },
+              annotations: { readOnlyHint: true, untrustedContentHint: true },
+              execute: async (input = {}) => {
+                const limit = Number.isFinite(Number(input.limit)) ? Math.max(1, Math.min(20, Number(input.limit))) : 10;
+                const results = filterPosts(input).slice(0, limit).map((post) => ({
+                  title: post.title,
+                  url: `${pageTargets.blog}/${post.id}/`,
+                  date: post.date,
+                  category: post.categoryLabel,
+                  tags: post.tags.map((tag) => tag.label),
+                }));
+                return { total: filterPosts(input).length, returned: results.length, posts: results };
+              },
+            },
+            {
+              name: "open_blog_archive",
+              title: "Open blog archive",
+              description: "Opens the blog archive with the requested search, category, tag, year, month, or sort filters applied. Changes the current page.",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  query: { type: "string", description: "Free-text search query." },
+                  category: { type: "string", description: "Category slug or comma-separated category slugs." },
+                  tag: { type: "string", description: "Tag slug or comma-separated tag slugs." },
+                  year: { type: "string", description: "Year or comma-separated years." },
+                  month: { type: "string", description: "A month in YYYY-MM format." },
+                  sort: { type: "string", enum: ["newest", "oldest", "short", "long"], default: "newest", description: "Sort order." },
+                },
+              },
+              annotations: { readOnlyHint: false },
+              execute: async (input = {}) => {
+                window.location.assign(buildArchiveUrl(input));
+                return { success: true, url: buildArchiveUrl(input) };
+              },
+            },
+            {
+              name: "open_site_page",
+              title: "Open site page",
+              description: "Opens one of the main site pages. Changes the current page.",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  page: {
+                    type: "string",
+                    enum: Object.keys(pageTargets),
+                    description: "The page to open.",
+                  },
+                },
+                required: ["page"],
+              },
+              annotations: { readOnlyHint: false },
+              execute: async ({ page } = {}) => {
+                const target = pageTargets[page];
+                if (!target) return { error: "page is required" };
+                window.location.assign(target);
+                return { success: true, url: target };
+              },
+            },
+            {
+              name: "set_site_theme",
+              title: "Set site theme",
+              description: "Changes the site theme to system, light, or dark by dispatching the existing theme switch event.",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  theme: { type: "string", enum: ["system", "light", "dark"], description: "Theme preference to apply." },
+                },
+                required: ["theme"],
+              },
+              annotations: { readOnlyHint: false },
+              execute: async ({ theme } = {}) => {
+                if (!theme) return { error: "theme is required" };
+                document.dispatchEvent(new CustomEvent("set-theme", { detail: theme === "system" ? null : theme }));
+                return { success: true, theme };
+              },
+            },
+            {
+              name: "open_rss_feed",
+              title: "Open RSS feed",
+              description: "Opens Jeremy London's RSS feed. Changes the current page.",
+              inputSchema: {
+                type: "object",
+                properties: {},
+              },
+              annotations: { readOnlyHint: false },
+              execute: async () => {
+                window.location.assign(pageTargets.rss);
+                return { success: true, url: pageTargets.rss };
+              },
+            },
+            {
+              name: "open_contact_channel",
+              title: "Open contact channel",
+              description: "Opens Jeremy London's email, contact form, GitHub profile, or LinkedIn profile. Changes the current page or opens a mail client.",
+              inputSchema: {
+                type: "object",
+                properties: {
+                  channel: {
+                    type: "string",
+                    enum: ["email", "form", "github", "linkedin"],
+                    description: "The contact channel to open.",
+                  },
+                },
+                required: ["channel"],
+              },
+              annotations: { readOnlyHint: false },
+              execute: async ({ channel } = {}) => {
+                const target = contactTargets[channel];
+                if (!target) return { error: "channel is required" };
+                window.location.assign(target);
+                return { success: true, url: target };
+              },
+            },
+          ];
+
+          for (const tool of tools) {
+            await modelContext.registerTool(tool, { signal: controller.signal });
+          }
+        };
+
+        const start = () => {
+          void registerWebMcp().catch((error) => {
+            console.warn("WebMCP registration failed", error);
+          });
+        };
+
+        if (document.readyState === "loading") {
+          document.addEventListener("DOMContentLoaded", start, { once: true });
+        } else {
+          start();
+        }
+
+        window.addEventListener("pagehide", () => {
+          window.__jeremyWebMcpAbortController?.abort();
+          window.__jeremyWebMcpAbortController = undefined;
+        });
+      })();
+    </script>
     {
       load_pyodide && (
         <script
-          type="text/partytown"
+          defer
           src="https://cdn.jsdelivr.net/pyodide/v314.0.2/full/pyodide.js" />
       )
     }

@@ -42,7 +42,7 @@ const {
 } = Astro.props
 
 const controlClass =
-  "motion-lift w-full rounded-md border-2 border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none ring-gray-100 transition-colors placeholder-gray-500 focus:border-gray-600 focus:ring-4 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:ring-gray-800 dark:focus:border-gray-400 dark:placeholder-gray-500"
+  "motion-lift w-full rounded-md border-2 border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none ring-gray-100 transition-colors placeholder-gray-500 focus:border-gray-600 focus:ring-4 user-invalid:border-red-600 user-invalid:bg-red-50 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:ring-gray-800 dark:focus:border-gray-400 dark:placeholder-gray-500 dark:user-invalid:border-red-400 dark:user-invalid:bg-red-950/30"
 const describedBy = invalidMessage
   ? `${id}_empty ${id}_invalid`
   : `${id}_empty`
@@ -51,7 +51,14 @@ const describedBy = invalidMessage
 <div class={multiline ? "mb-4" : "mb-5"} data-field-shell>
   <label for={id} class="mb-2 block text-sm font-medium text-gray-800 dark:text-gray-200">
     {label}
-    {required && <span class="text-red-600 dark:text-red-400" aria-hidden="true">*</span>}
+    {
+      required && (
+        <>
+          <span class="text-red-600 dark:text-red-400" aria-hidden="true">*</span>
+          <span class="sr-only"> required</span>
+        </>
+      )
+    }
   </label>
   {
     multiline ? (
@@ -63,7 +70,7 @@ const describedBy = invalidMessage
         placeholder={placeholder}
         class:list={[
           controlClass,
-          "h-auto min-h-36 max-h-96 overflow-y-scroll field-sizing-content simple-scrollbar no-resizer",
+          "h-auto min-h-36 max-h-96 overflow-y-auto field-sizing-content simple-scrollbar",
           className,
         ]}
         {...rest}

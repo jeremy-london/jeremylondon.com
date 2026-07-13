@@ -21,7 +21,7 @@ const { posts } = Astro.props as { posts: typeof latestPosts }
   title="Blog notes on AI systems, security, and engineering"
   desc="Read Jeremy London's writing on AI systems, agent workflows, distributed systems, security, reliability, and engineering leadership.">
   <Container class="py-3 lg:py-4">
-    <main class="max-w-full w-full">
+    <div class="max-w-full w-full">
       <Pagetitle>
         <Fragment slot="title">Blog Posts</Fragment>
         <Fragment slot="desc">
@@ -30,6 +30,6 @@ const { posts } = Astro.props as { posts: typeof latestPosts }
         </Fragment>
       </Pagetitle>
       <BlogExplorer posts={posts} />
-    </main>
+    </div>
   </Container>
 </Layout>

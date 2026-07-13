@@ -41,7 +41,7 @@ const { category, posts } = Astro.props
   title={`${category.title} posts in AI systems and engineering`}
   desc={`Read Jeremy London's posts filed under ${category.title}.`}>
   <Container>
-    <main class="max-w-full w-full">
+    <div class="max-w-full w-full">
       <PageTitle>
         <Fragment slot="title">
           {category.title}
@@ -53,6 +53,6 @@ const { category, posts } = Astro.props
       <div class="grid gap-x-10 gap-y-12 mt-10 md:grid-cols-2">
         {posts.map((post) => <PostList post={post} />)}
       </div>
-    </main>
+    </div>
   </Container>
 </Layout>

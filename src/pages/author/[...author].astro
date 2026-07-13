@@ -41,7 +41,7 @@ const { author, posts } = Astro.props
   title={`Posts by ${author.name} in AI systems and engineering`}
   desc={`Read posts by ${author.name} on Jeremy London's blog.`}>
   <Container>
-    <main class="max-w-full w-full">
+    <div class="max-w-full w-full">
       <PageTitle>
         <Fragment slot="title">
           {author.name}
@@ -53,6 +53,6 @@ const { author, posts } = Astro.props
       <div class="grid gap-x-10 gap-y-12 mt-10 md:grid-cols-2">
         {posts.map((post) => <PostList post={post} aspect="square" />)}
       </div>
-    </main>
+    </div>
   </Container>
 </Layout>

@@ -1,0 +1,56 @@
+# Jeremy London
+
+> Jeremy London's personal website and technical blog. The site is an Astro static app with MDX writing, RSS, filtered archive navigation, and browser-side WebMCP tools for agents that support `document.modelContext`. It is for direct notes on AI platforms, agent workflows, security, reliability, web engineering, local-first software, model releases, and engineering quality.
+
+This is an editorial site, not product marketing. Prefer direct technical summaries over promotional language. Blog content lives under `src/content/blog` in the source repository and is exposed through public post URLs, category pages, tag pages, RSS, and the searchable archive.
+
+Source repository: `git@github.com:jeremy-london/jeremylondon.com.git`; default branch `main`.
+
+## Start Here
+
+- [Home](https://jeremylondon.com/): Current focus areas, featured writing, and primary navigation.
+- [Blog archive](https://jeremylondon.com/blog): Searchable archive of 137 posts with query, category, tag, year, month, and sort filters.
+- [About](https://jeremylondon.com/about): Jeremy's background, work context, and engineering perspective.
+- [Contact](https://jeremylondon.com/contact): Contact form plus email, GitHub, and LinkedIn paths.
+- [RSS feed](https://jeremylondon.com/rss.xml): Machine-readable feed for new posts.
+
+## Blog Navigation
+
+- [Search all writing](https://jeremylondon.com/blog): `q` searches titles, excerpts, categories, and tags.
+- [Filter by category](https://jeremylondon.com/blog): `category` accepts one or more comma-separated category slugs.
+- [Filter by tag](https://jeremylondon.com/blog): `tag` accepts one or more comma-separated tag slugs.
+- [Filter by date](https://jeremylondon.com/blog): `year` accepts years; `month` uses `YYYY-MM`.
+- [Sort the archive](https://jeremylondon.com/blog): `sort` accepts `newest`, `oldest`, `short`, or `long`.
+
+## Main Topics
+
+- [Agent Workflows](https://jeremylondon.com/category/agent-workflows): Agents, verifier loops, tool boundaries, approvals, and handoffs.
+- [AI Platforms](https://jeremylondon.com/category/advance-deep-learning): RAG, MCP, evals, multimodal systems, guardrails, and governance.
+- [AI Systems](https://jeremylondon.com/category/deep-learning-networks): Model serving, routing, local inference, and constrained systems.
+- [Security Trust](https://jeremylondon.com/category/security-trust): Authorization, validation, secret scanning, dependencies, audit trails, and operational controls.
+- [Engineering Quality](https://jeremylondon.com/category/deep-learning-principals): Testing, observability, queues, caching, and data quality.
+- [Web Engineering](https://jeremylondon.com/category/web-engineering): Astro, content systems, frontend quality, feeds, forms, and small-site maintenance.
+- [Model Watch](https://jeremylondon.com/category/model-watch): Dated notes on frontier model launches and what changed for builders.
+- [Deep Learning Basics](https://jeremylondon.com/category/deep-learning-basics): Neural network fundamentals and interactive examples.
+
+## WebMCP
+
+WebMCP tools are registered site-wide from the shared Astro layout when the browser is a secure context and supports `document.modelContext.registerTool`.
+
+- `search_blog_posts`: Search posts by text, category, tag, year, month, sort, and limit.
+- `open_blog_archive`: Open the blog archive with requested filters applied.
+- `open_site_page`: Navigate to `home`, `blog`, `about`, `contact`, or `rss`.
+- `set_site_theme`: Switch between `system`, `light`, and `dark`.
+- `open_rss_feed`: Open `/rss.xml`.
+- `open_contact_channel`: Open email, contact form, GitHub, or LinkedIn.
+
+## Optional
+
+- [Privacy policy](https://jeremylondon.com/privacy-policy): Site privacy terms.
+- [Terms of service](https://jeremylondon.com/terms-of-service): Basic site terms.
+
+## Generated Resources
+
+- [Sitemap](https://jeremylondon.com/sitemap-index.xml): Master XML Sitemap
+- [Main Sitemap](https://jeremylondon.com/sitemap-0.xml): Main Pages XML Sitemap
+- [robots.txt](https://jeremylondon.com/robots.txt): Robots TXT File

@@ -11,7 +11,7 @@
         <title>
           <xsl:value-of select="/rss/channel/title" /> Web Feed</title>
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script src="rss/toggle-theme.js" type="text/javascript"></script>
         <link rel="stylesheet" type="text/css" href="rss/rss-style.css" />
         
@@ -36,7 +36,7 @@
             <xsl:value-of select="/rss/channel/title" /> RSS Feed Preview </h1>
           <p class="description">
             <xsl:value-of select="/rss/channel/description" />
-            <a target="_blank">
+            <a target="_blank" rel="noopener noreferrer">
               <xsl:attribute name="href">
                 <xsl:value-of select="/rss/channel/link" />
               </xsl:attribute>Visit
@@ -50,7 +50,7 @@
             <xsl:for-each select="/rss/channel/item">
               <li class="posts__post post">
                 <h3 class="post__title">
-                  <a target="_blank" class="post__link">
+                  <a target="_blank" rel="noopener noreferrer" class="post__link">
                     <xsl:attribute name="href">
                       <xsl:value-of select="link" />
                     </xsl:attribute>
@@ -64,7 +64,7 @@
                 <p class="post__preview">
                   <strong>Description: </strong>
                   <xsl:value-of select="description"/>
-                  <a target="_blank" class="post__more">
+                  <a target="_blank" rel="noopener noreferrer" class="post__more">
                     <xsl:attribute name="href">
                       <xsl:value-of select="link" />
                     </xsl:attribute>
@@ -77,7 +77,7 @@
           </ul>
 
           <p class="cta">
-            <a target="_blank">
+            <a target="_blank" rel="noopener noreferrer">
               <xsl:attribute name="href">
                 <xsl:value-of select="/rss/channel/link" />
               </xsl:attribute> View all posts on <strong><xsl:value-of select="/rss/channel/title" /></strong>

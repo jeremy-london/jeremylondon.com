@@ -59,7 +59,7 @@ const readingTimes = new Map<
 ---
 
 <section class:list={["mt-4", className]} data-blog-explorer>
-  <div class="rounded-md border border-gray-200 bg-gray-50 p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+  <search class="block rounded-md border border-gray-200 bg-gray-50 p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
     <div>
         <label for="blog-search" class="mb-2 block text-sm font-medium text-gray-800 dark:text-gray-200">
           Search writing
@@ -67,7 +67,10 @@ const readingTimes = new Map<
         <input
           id="blog-search"
           type="search"
+          name="q"
           data-blog-search
+          autocomplete="off"
+          enterkeyhint="search"
           placeholder="Try agents, evals, security, Pyodide..."
           class="w-full rounded-md border-2 border-gray-300 bg-white px-4 py-4 text-base text-gray-900 outline-none ring-gray-100 placeholder-gray-500 focus:border-gray-600 focus:ring-4 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:focus:ring-gray-800"
         />
@@ -370,7 +373,7 @@ const readingTimes = new Map<
       </button>
     </div>
     <div class="mt-3 hidden flex-wrap gap-2" data-blog-active-filters></div>
-  </div>
+  </search>
 
   <div class="mt-8 grid gap-x-10 gap-y-12 md:grid-cols-2" data-blog-results>
     {
@@ -642,7 +645,7 @@ const readingTimes = new Map<
         });
       }
 
-      activeFilters.innerHTML = "";
+      activeFilters.replaceChildren();
       activeFilters.classList.toggle("hidden", chips.length === 0);
 
       if (chips.length === 0) return;

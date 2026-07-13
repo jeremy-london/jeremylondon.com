@@ -3,14 +3,20 @@ import Button from '@components/ui/button.astro'
 import Field from '@components/ui/field.astro'
 
 const ACCESS_KEY = '34f91303-a354-4767-a3b8-617380503ddb'
+const webmcpFormAttrs: Record<string, string> = {
+  'data-webmcp-tool': 'contact_jeremy_london',
+  'data-webmcp-description':
+    'Send Jeremy London a message about engineering work, writing, speaking, collaboration, or a question about the site.',
+}
 ---
 
 <form
   action="https://api.web3forms.com/submit"
   method="POST"
   id="form"
+  data-contact-form
   class="needs-validation"
-  novalidate>
+  {...webmcpFormAttrs}>
   <input type="hidden" name="access_key" value={ACCESS_KEY} />
 
   <input
@@ -19,13 +25,18 @@ const ACCESS_KEY = '34f91303-a354-4767-a3b8-617380503ddb'
     value="New Submission from jeremylondon.com web3form"
   />
   <input type="hidden" name="from_name" value="jeremylondon | contact" />
-  <input type="checkbox" class="hidden" style="display:none" name="botcheck" />
+  <input type="checkbox" class="sr-only" name="botcheck" tabindex="-1" autocomplete="off" aria-hidden="true" />
   <Field
     id="contact_name"
     label="Full name"
     name="name"
+    data-webmcp-description="The sender's full name."
     placeholder="Jane Smith"
     required
+    autocomplete="name"
+    minlength="2"
+    maxlength="120"
+    enterkeyhint="next"
     emptyMessage="Please provide your full name."
   />
   <Field
@@ -33,8 +44,13 @@ const ACCESS_KEY = '34f91303-a354-4767-a3b8-617380503ddb'
     label="Email address"
     name="email"
     type="email"
+    data-webmcp-description="The sender's email address."
     placeholder="name@example.com"
     required
+    autocomplete="email"
+    inputmode="email"
+    maxlength="254"
+    enterkeyhint="next"
     emptyMessage="Please provide your email address."
     invalidMessage="Email addresses need an @ symbol. Try name@example.com."
   />
@@ -43,9 +59,14 @@ const ACCESS_KEY = '34f91303-a354-4767-a3b8-617380503ddb'
     label="Message"
     name="message"
     multiline
+    data-webmcp-description="What you want to discuss, ask, or build together."
     required
     placeholder="What should I know before replying?"
+    minlength="10"
+    maxlength="4000"
+    enterkeyhint="send"
     emptyMessage="Please enter your message."
+    invalidMessage="Messages need at least 10 characters."
   />
   <div class="mt-5 space-y-3">
     <Button type="submit" size="lg" block>Send message</Button>
@@ -66,9 +87,6 @@ const ACCESS_KEY = '34f91303-a354-4767-a3b8-617380503ddb'
     display: block;
   }
 
-  .is-invalid {
-    border-color: #ef4444;
-  }
 </style>
 
 <script is:inline>
@@ -76,11 +94,7 @@ const ACCESS_KEY = '34f91303-a354-4767-a3b8-617380503ddb'
   const result = document.getElementById("result");
   const submitButton = form.querySelector('button[type="submit"]');
   const submitLabel = submitButton ? submitButton.textContent : "";
-  const fields = Array.from(form.querySelectorAll("[data-field-shell]"));
-  const controls = fields
-    .map((field) => field.querySelector("input, textarea"))
-    .filter(Boolean);
-  let hasSubmitted = false;
+  const controls = Array.from(form.querySelectorAll("input:not([type='hidden']):not([name='botcheck']), textarea"));
 
   function setResult(message, tone = "neutral") {
     result.textContent = message;
@@ -95,23 +109,16 @@ const ACCESS_KEY = '34f91303-a354-4767-a3b8-617380503ddb'
     }
   }
 
-  function syncControlValidity(control) {
-    const value = control.value.trim();
-    const isEmpty = control.required && value.length === 0;
-
-    control.setCustomValidity(isEmpty ? " " : "");
-
-    return { isEmpty, isInvalid: !control.validity.valid };
-  }
-
-  function validateControl(control, shouldShowErrors) {
+  function validateControl(control) {
     const field = control.closest("[data-field-shell]");
     const emptyFeedback = field.querySelector(".empty-feedback");
     const invalidFeedback = field.querySelector(".invalid-feedback");
-    const { isEmpty, isInvalid } = syncControlValidity(control);
+    const isEmpty = control.validity.valueMissing;
+    const isInvalid = !control.validity.valid;
+    const showError = control.matches(":user-invalid") || control.getAttribute("aria-invalid") === "true";
 
-    const showEmpty = shouldShowErrors && isEmpty;
-    const showInvalid = shouldShowErrors && isInvalid && !isEmpty;
+    const showEmpty = showError && isEmpty;
+    const showInvalid = showError && isInvalid && !isEmpty;
 
     emptyFeedback.classList.toggle("field-error-visible", showEmpty);
     emptyFeedback.hidden = !showEmpty;
@@ -120,30 +127,23 @@ const ACCESS_KEY = '34f91303-a354-4767-a3b8-617380503ddb'
       invalidFeedback.hidden = !showInvalid;
     }
 
-    control.classList.toggle("is-invalid", shouldShowErrors && isInvalid);
-    control.setAttribute("aria-invalid", shouldShowErrors && isInvalid ? "true" : "false");
+    control.setAttribute("aria-invalid", showError && isInvalid ? "true" : "false");
+    if (showEmpty) {
+      control.setAttribute("aria-errormessage", emptyFeedback.id);
+    } else if (showInvalid && invalidFeedback) {
+      control.setAttribute("aria-errormessage", invalidFeedback.id);
+    } else {
+      control.removeAttribute("aria-errormessage");
+    }
 
     return !isInvalid;
   }
 
-  function isFormValid() {
-    return controls
-      .map((control) => !syncControlValidity(control).isInvalid)
-      .every(Boolean);
-  }
-
-  function validateForm(shouldShowErrors) {
-    return controls
-      .map((control) => validateControl(control, shouldShowErrors))
-      .every(Boolean);
-  }
-
   function clearValidationState() {
-    hasSubmitted = false;
     controls.forEach((control) => {
       control.setCustomValidity("");
-      control.classList.remove("is-invalid");
       control.setAttribute("aria-invalid", "false");
+      control.removeAttribute("aria-errormessage");
     });
     form.querySelectorAll(".field-error-visible").forEach((node) => {
       node.classList.remove("field-error-visible");
@@ -155,27 +155,38 @@ const ACCESS_KEY = '34f91303-a354-4767-a3b8-617380503ddb'
 
   controls.forEach((control) => {
     control.setAttribute("aria-invalid", "false");
-    validateControl(control, false);
+    control.removeAttribute("aria-errormessage");
 
     control.addEventListener("input", () => {
-      if (!hasSubmitted) return;
-      validateControl(control, true);
-      if (isFormValid()) {
+      validateControl(control);
+      if (form.checkValidity()) {
         setResult("");
       }
     });
 
     control.addEventListener("blur", () => {
-      if (!hasSubmitted) return;
-      validateControl(control, true);
+      validateControl(control);
     });
   });
 
+  form.addEventListener("invalid", (event) => {
+    if (!controls.includes(event.target)) return;
+    event.target.setAttribute("aria-invalid", "true");
+    validateControl(event.target);
+    if (!result.textContent) {
+      setResult("Check the highlighted fields and try again.", "error");
+    }
+  }, true);
+
   form.addEventListener("submit", function (e) {
     e.preventDefault();
-    hasSubmitted = true;
 
-    if (!validateForm(true)) {
+    controls.forEach((control) => {
+      control.setAttribute("aria-invalid", control.checkValidity() ? "false" : "true");
+      validateControl(control);
+    });
+
+    if (!form.checkValidity()) {
       const firstInvalid = form.querySelector('[aria-invalid="true"]');
       setResult("Check the highlighted fields and try again.", "error");
       firstInvalid?.focus();

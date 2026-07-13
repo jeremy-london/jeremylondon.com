@@ -3,7 +3,12 @@
   "mcpServers": {
     "chrome-devtools": {
       "command": "npx",
-      "args": ["-y", "chrome-devtools-mcp@latest"]
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest",
+        "--categoryExperimentalWebmcp",
+        "--chrome-arg=--enable-features=WebMCP,WebMCPTesting,DevToolsWebMCPSupport"
+      ]
     },
     "context7": {
       "type": "stdio",
