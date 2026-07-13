@@ -21,7 +21,6 @@ jobs:
         with:
           path: .
           node-version: 24
-          package-manager: pnpm@11.12.0
 
   deploy:
     needs: build
@@ -32,4 +31,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@v4
