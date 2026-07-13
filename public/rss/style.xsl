@@ -44,13 +44,16 @@
           </p>
         </section>
         <main>
-          <h2>Recent Items</h2>
+          <h2>All Posts</h2>
           
           <ul class="posts">
-            <xsl:for-each select="/rss/channel/item[position() &lt; 10]">
+            <xsl:for-each select="/rss/channel/item">
               <li class="posts__post post">
                 <h3 class="post__title">
-                  <a target="_blank" href="{ link }" class="post__link">
+                  <a target="_blank" class="post__link">
+                    <xsl:attribute name="href">
+                      <xsl:value-of select="link" />
+                    </xsl:attribute>
                     <xsl:value-of select="title"/>
                   </a>
                 </h3>
@@ -61,7 +64,12 @@
                 <p class="post__preview">
                   <strong>Description: </strong>
                   <xsl:value-of select="description"/>
-                  <a href="{ link }" class="post__more">Read more</a>
+                  <a target="_blank" class="post__more">
+                    <xsl:attribute name="href">
+                      <xsl:value-of select="link" />
+                    </xsl:attribute>
+                    Read more
+                  </a>
                 </p>
 
               </li>

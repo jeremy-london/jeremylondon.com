@@ -14,9 +14,17 @@
       "**/*.json",
       "**/*.md",
       "!**/*.astro",
+      "!**/.agents",
+      "!**/.claude",
+      "!**/.codex",
+      "!**/.mcp.json",
       "!**/dist",
       "!**/node_modules",
-      "!**/*.github"
+      "!**/*.github",
+      "!**/.github",
+      "!**/.rulesync",
+      "!**/.rumdl_cache",
+      "!MEMORY.md"
     ]
   },
   "formatter": {
@@ -35,7 +43,7 @@
   "linter": {
     "enabled": true,
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
       "correctness": {
         "useExhaustiveDependencies": "off"
       },

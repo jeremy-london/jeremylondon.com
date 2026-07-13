@@ -7,8 +7,15 @@ import { categories } from '@data/category'
 import Layout from '@layouts/Layout.astro'
 import { latestPosts } from '@utils/content'
 
+type BlogPost = (typeof latestPosts)[number]
+
+interface Props {
+  category: Category
+  posts: BlogPost[]
+}
+
 export function getStaticPaths() {
-  const map = {}
+  const map: Record<string, BlogPost[]> = {}
 
   categories.forEach((category: Category) => {
     map[category.slug] = latestPosts?.filter(
@@ -30,19 +37,21 @@ export function getStaticPaths() {
 const { category, posts } = Astro.props
 ---
 
-<Layout title="Category">
+<Layout
+  title={`${category.title} Posts`}
+  desc={`Read Jeremy London's posts filed under ${category.title}.`}>
   <Container>
-    <PageTitle>
-      <Fragment slot="title">
-        All posts for {category.title}
-      </Fragment>
-      <Fragment slot="desc">
-        See all posts we have ever written for {category.title}
-      </Fragment>
-    </PageTitle>
-    <main>
-      <div class="grid gap-10 mt-10 lg:gap-10 md:grid-cols-2 xl:grid-cols-2">
-        {posts.map((post) => <PostList post={post} aspect="square" />)}
+    <main class="max-w-full w-full">
+      <PageTitle>
+        <Fragment slot="title">
+          {category.title}
+        </Fragment>
+        <Fragment slot="desc">
+          Writing filed under {category.title}.
+        </Fragment>
+      </PageTitle>
+      <div class="grid gap-x-10 gap-y-12 mt-10 md:grid-cols-2">
+        {posts.map((post) => <PostList post={post} />)}
       </div>
     </main>
   </Container>

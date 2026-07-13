@@ -140,7 +140,7 @@ const FourNeuron = () => {
   return (
     <div
       id="interactiveInputs"
-      className="mb-4 grid hidden grid-cols-[2fr_1fr_1fr] grid-rows-[1fr_1fr] place-items-center gap-2 rounded-md bg-[#e9e9e9] p-1 text-[#d0d0d0] sm:gap-4 sm:p-2 md:gap-6 lg:gap-8 dark:bg-[#292929] dark:text-[#f5f2f0]"
+      className="mb-4 grid grid-cols-[2fr_1fr_1fr] grid-rows-[1fr_1fr] place-items-center gap-2 rounded-md bg-[#e9e9e9] p-1 text-[#d0d0d0] sm:gap-4 sm:p-2 md:gap-6 lg:gap-8 dark:bg-[#292929] dark:text-[#f5f2f0]"
     >
       <div className="bg-transparent"></div>
 

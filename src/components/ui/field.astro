@@ -1,0 +1,100 @@
+---
+type FieldInputType =
+  | 'text'
+  | 'email'
+  | 'password'
+  | 'search'
+  | 'tel'
+  | 'url'
+  | 'number'
+  | 'date'
+  | 'datetime-local'
+  | 'month'
+  | 'time'
+  | 'week'
+
+interface Props {
+  id: string
+  label: string
+  name: string
+  type?: FieldInputType
+  placeholder?: string
+  required?: boolean
+  multiline?: boolean
+  emptyMessage: string
+  invalidMessage?: string
+  class?: string
+  [x: string]: any
+}
+
+const {
+  id,
+  label,
+  name,
+  type = 'text',
+  placeholder,
+  required = false,
+  multiline = false,
+  emptyMessage,
+  invalidMessage,
+  class: className,
+  ...rest
+} = Astro.props
+
+const controlClass =
+  "motion-lift w-full rounded-md border-2 border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none ring-gray-100 transition-colors placeholder-gray-500 focus:border-gray-600 focus:ring-4 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-100 dark:ring-gray-800 dark:focus:border-gray-400 dark:placeholder-gray-500"
+const describedBy = invalidMessage
+  ? `${id}_empty ${id}_invalid`
+  : `${id}_empty`
+---
+
+<div class={multiline ? "mb-4" : "mb-5"} data-field-shell>
+  <label for={id} class="mb-2 block text-sm font-medium text-gray-800 dark:text-gray-200">
+    {label}
+    {required && <span class="text-red-600 dark:text-red-400" aria-hidden="true">*</span>}
+  </label>
+  {
+    multiline ? (
+      <textarea
+        id={id}
+        name={name}
+        required={required}
+        aria-describedby={describedBy}
+        placeholder={placeholder}
+        class:list={[
+          controlClass,
+          "h-auto min-h-36 max-h-96 overflow-y-scroll field-sizing-content simple-scrollbar no-resizer",
+          className,
+        ]}
+        {...rest}
+      />
+    ) : (
+      <input
+        id={id}
+        type={type}
+        name={name}
+        required={required}
+        aria-describedby={describedBy}
+        placeholder={placeholder}
+        class:list={[controlClass, className]}
+        {...rest}
+      />
+    )
+  }
+  <div
+    id={`${id}_empty`}
+    class="empty-feedback mt-1 text-sm text-red-600 dark:text-red-400"
+    hidden>
+    {emptyMessage}
+  </div>
+  {
+    invalidMessage && (
+      <div
+        id={`${id}_invalid`}
+        class="invalid-feedback mt-1 text-sm text-red-600 dark:text-red-400"
+        hidden>
+        {invalidMessage}
+      </div>
+    )
+  }
+</div>

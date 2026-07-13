@@ -4,15 +4,15 @@ import ThemeController from '@components/theme-control.astro'
 import { Icon } from 'astro-icon/components'
 ---
 
-<Container class="mt-10 border-t border-gray-100 dark:border-gray-800">
+<Container class="mt-4 border-t border-gray-100 dark:border-gray-800">
   <footer class="flex flex-col items-center">
     <div
-      class="flex flex-row divide-x divide-gray-300 dark:divide-gray-600 text-sm text-center w-full items-center justify-center mb-2">
+      class="flex w-full flex-row items-center justify-center divide-x divide-gray-300 text-center text-sm dark:divide-gray-600 mb-2 pt-4">
       <span class="px-2"
         >All rights reserved. Copyright © {new Date().getFullYear()}</span
       >
       <a
-        class="px-2 font-medium text-gray-800 dark:text-gray-400 hover:text-blue-500 dark:hover:text-orange-500 pb-0.5"
+        class="motion-lift px-2 font-medium text-gray-800 dark:text-gray-400 hover:text-blue-500 dark:hover:text-orange-500 pb-0.5"
         href="https://github.com/jeremy-london">
         Jeremy London
       </a>
@@ -21,23 +21,23 @@ import { Icon } from 'astro-icon/components'
     <div
       class="flex flex-col sm:flex-row sm:divide-x sm:divide-gray-300 dark:sm:divide-gray-600 w-full text-sm items-center justify-center text-center mt-2">
       <div
-        class="flex items-center justify-center w-full py-2 sm:w-auto sm:px-4">
+        class="flex min-h-11 w-full items-center justify-center py-2 sm:w-auto sm:px-4">
         <ThemeController variant="dropdown" />
       </div>
 
       <a
-        class="group w-full py-2 sm:w-auto sm:px-4 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-500"
+        class="motion-lift group flex min-h-11 w-full items-center justify-center py-2 text-sm font-medium text-gray-600 hover:text-red-500 sm:w-auto sm:px-4 dark:text-gray-400 dark:hover:text-red-500"
         href="https://youtu.be/Bz2-49q6DOI?t=2&mode=theatre"
         target="_blank"
         rel="noopener noreferrer"
         data-umami-event="made-with-love">
-        Made with Love from Denver
+        Built in Denver
         <span class="inline group-hover:hidden">♥️</span>
         <span class="hidden group-hover:inline">❤️</span>
       </a>
 
       <a
-        class="w-full py-2 sm:w-auto sm:px-4 flex flex-row items-center justify-center gap-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-blue-500 hover:dark:text-orange-500"
+        class="motion-lift flex min-h-11 w-full flex-row items-center justify-center gap-1 py-2 text-sm font-medium text-gray-600 hover:text-blue-500 sm:w-auto sm:px-4 dark:text-gray-400 hover:dark:text-orange-500"
         href="/rss.xml"
         data-umami-event="subscribe-to-rss-footer">
         Subscribe to RSS

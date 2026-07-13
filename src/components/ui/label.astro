@@ -1,6 +1,4 @@
 ---
-import cx from 'classnames'
-
 interface Props {
   theme: 'green' | 'blue' | 'orange' | 'purple' | 'pink' | 'yellow'
 }
@@ -14,12 +12,9 @@ const color = {
 }
 
 const { theme } = Astro.props
+const className = `inline-blockTHE text-sm font-medium ${color[theme] || color.pink}`
 ---
 
-<span
-  class={cx(
-    "inline-block mt-5 text-xs font-medium tracking-wider uppercase",
-    color[theme] || color["pink"],
-  )}>
+<span class={className}>
   <slot />
 </span>

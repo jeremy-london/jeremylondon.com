@@ -1,107 +1,253 @@
 ---
 import Container from '@components/container.astro'
-import PageTitle from '@components/page-title.astro'
-import Link from '@components/ui/link.astro'
 import Layout from '@layouts/Layout.astro'
-import { Image } from 'astro:assets'
-import jeremyImg from '@assets/jeremy.webp'
+
+const chapters = [
+  {
+    company: 'Keeper Security',
+    role: 'Director of Engineering, AI & Threat Analytics',
+    body: 'I built and lead a 15-person AI and threat analytics engineering team. The work spans AI platforms, LLM and API gateways, MCP, governance, threat analytics, privacy-preserving inference, quality, planning, and regression testing across products used by 30M people.',
+  },
+  {
+    company: 'Vody',
+    role: 'Head of Engineering / founding team',
+    body: 'I joined pre-seed and owned engineering end to end. We took the product from concept into production, worked directly with customers and investors, and built multimodal, embedding, and classification systems around real product constraints.',
+  },
+  {
+    company: 'Lockheed Martin',
+    role: 'AI/ML, edge, data, manufacturing, and platform engineering',
+    body: 'My Lockheed work moved through AI/ML platforms, secure 5G and edge systems, distributed model serving, data infrastructure, CI/CD at large scale, engineering mentorship, and manufacturing systems.',
+  },
+  {
+    company: 'U.S. Army / White House Communications Agency',
+    role: 'Critical communications and high-stakes operations',
+    body: 'That part of my career is one reason I care about reliability. Some systems have to work under pressure, with clear ownership and fewer excuses.',
+  },
+]
+
+const stack = [
+  ['Languages', 'Rust, Python, TypeScript / JavaScript, Go, Java, SQL'],
+  ['Platforms', 'AWS, Azure, GCP, Docker, Kubernetes, Terraform'],
+  [
+    'AI and data',
+    'LLM gateways, model serving, MCP, agent systems, evaluation, MLOps, PostgreSQL, Redis / Valkey, Kafka',
+  ],
+  [
+    'Engineering systems',
+    'GitHub Actions, GitLab CI/CD, OpenTelemetry, Prometheus, REST, gRPC, GraphQL',
+  ],
+]
+
+const workingStyle = [
+  {
+    title: 'Make the boundary visible',
+    body: 'Good systems name ownership, failure modes, permissions, and the places where people need to make a decision.',
+    note: 'Ownership // failure modes // permissions',
+  },
+  {
+    title: 'Measure before arguing',
+    body: 'Evals, traces, regression baselines, and product feedback beat long debates about what probably works.',
+    note: 'Evidence // baselines // product feedback',
+  },
+  {
+    title: 'Keep the operator in the loop',
+    body: 'AI and platform work fails when the demo hides what production users will have to debug later.',
+    note: 'Recovery paths // real users // later debugging',
+  },
+]
+
+const profileTopics = [
+  {
+    label: 'Denver, Colorado',
+    href: '/blog?q=Denver',
+  },
+  {
+    label: 'AI platforms',
+    href: '/blog?category=advance-deep-learning',
+  },
+  {
+    label: 'security',
+    href: '/blog?category=security-trust',
+  },
+  {
+    label: 'distributed systems',
+    href: '/blog?category=ai-operations',
+  },
+]
 ---
 
-<Layout title="About">
+<Layout
+  title="About"
+  desc="About Jeremy London, an engineering leader and builder working across AI platforms, distributed systems, security, and reliability.">
   <Container>
-    <PageTitle>
-      <Fragment slot="title">About</Fragment>
-      <Fragment slot="desc">A quick introduction</Fragment>
-    </PageTitle>
+    <main class="max-w-full w-full">
+      <section class="grid gap-12">
+        <div class="w-full">
+          <p class="type-meta flex flex-wrap items-center gap-y-1 text-gray-500 dark:text-gray-400">
+            {profileTopics.map((item, index) => (
+              <>
+                {index > 0 && (
+                  <span
+                    aria-hidden="true"
+                    class="px-1 text-gray-300 dark:text-gray-600">
+                    /
+                  </span>
+                )}
+                <a
+                  href={item.href}
+                  class="rounded-sm text-inherit no-underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-orange-500 dark:focus-visible:ring-offset-gray-950">
+                  {item.label}
+                </a>
+              </>
+            ))}
+          </p>
+          <h1
+            class="mt-4 text-4xl font-bold tracking-tight text-brand-primary sm:text-5xl dark:text-white">
+            About
+          </h1>
+          <p class="mt-5 text-xl font-medium leading-snug text-gray-800 dark:text-gray-100">
+            Engineering leadership, hands-on systems work, and a few projects
+            that got out of hand.
+          </p>
+          <p class="mt-5 max-w-none text-lg leading-8 text-gray-600 dark:text-gray-300">
+            I'm an engineering leader and builder based in Denver, Colorado. My
+            career has moved through military communications, aerospace,
+            startups, AI platforms, and security.
+          </p>
+          <p class="mt-4 max-w-none text-lg leading-8 text-gray-600 dark:text-gray-300">
+            Most of my work sits at the point where a difficult technical idea
+            has to become a real product. That usually means building the team,
+            defining the architecture, creating a way to measure quality, and
+            figuring out how to operate the system once customers depend on it.
+          </p>
+        </div>
+      </section>
 
-    <div
-      class="mx-auto mt-12 max-w-4xl flex flex-col lg:flex-row items-center justify-between gap-10">
-      <div class="aspect-square">
-        <figure class="cool-profile">
-          <Image
-            src={jeremyImg}
-            alt="Jeremy's profile picture"
-            class="shadow-md"
-            format='avif'
-            decoding={"sync"}
-            loading={"eager"}
-            fetchpriority={"high"}
-            width={384}
-            height={384}
-          />
-        </figure>
-      </div>
+      <section class="mt-16 border-t border-gray-200 pt-12 dark:border-gray-800">
+        <div class="grid gap-8 lg:grid-cols-[16rem_1fr]">
+          <div>
+            <h2
+              class="text-2xl font-semibold text-brand-primary dark:text-white">
+              Working style
+            </h2>
+            <p class="mt-3 max-w-full leading-7 text-gray-600 dark:text-gray-300">
+              The same habits show up in leadership, platform work, and the
+              writing here.
+            </p>
+          </div>
+          <div class="grid gap-6 md:grid-cols-3">
+            {workingStyle.map((item, index) => (
+              <article
+                class="motion-rise motion-lift motion-glow group relative flex h-full flex-col overflow-hidden border border-gray-200 bg-white/90 p-5 shadow-[0_1px_0_rgba(15,23,42,0.02),0_16px_40px_rgba(15,23,42,0.04)] transition dark:border-gray-800 dark:bg-gray-950/85 dark:shadow-[0_1px_0_rgba(255,255,255,0.02),0_16px_40px_rgba(2,6,23,0.24)]"
+                style={`--i: ${index}`}>
+                <div class="absolute inset-x-0 top-0 h-px bg-gray-200/80 dark:bg-gray-800/80"></div>
+                <div class="flex items-start justify-between gap-4">
+                  <span class="type-meta text-gray-400 dark:text-gray-500">
+                    0{index + 1}
+                  </span>
+                  <span class="type-meta text-gray-500 dark:text-gray-400">
+                    {item.note}
+                  </span>
+                </div>
+                <h3 class="mt-4 text-xl font-semibold leading-tight text-gray-950 dark:text-white">
+                  {item.title}
+                </h3>
+                <p class="mt-3 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                  {item.body}
+                </p>
+                <p class="mt-5 type-meta text-gray-500 dark:text-gray-400">
+                  Definition: {item.note}
+                </p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
 
-      <div class="max-w-xl">
-        <p
-          class="mb-5 text-lg text-gray-600 dark:text-gray-400 md:px-10 lg:px-0">
-          I'm Jeremy London, based in Denver, Colorado. I build practical AI
-          systems with a focus on multimodal models and LLMs and ship them into
-          secure, real-world products. My background spans large programs at
-          <strong
-            ><a
-              href="https://lockheedmartin.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="hover:text-blue-500
-            dark:hover:text-orange-500"
-              >Lockheed Martin</a
-            ></strong
-          >
-          and fast-moving startups like
-          <strong
-            ><a
-              href="https://vody.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="hover:text-blue-500
-            dark:hover:text-orange-500"
-              >Vody</a
-            ></strong
-          >. When I'm not coding, I'm usually cooking, playing guitar, or on a
-          snowboard.
-        </p>
+      <section id="experience" class="mt-20">
+        <h2
+          class="text-2xl font-semibold text-brand-primary dark:text-white">
+          Experience
+        </h2>
+        <div class="mt-8 divide-y divide-gray-200 dark:divide-gray-800">
+          {
+            chapters.map((chapter, index) => (
+              <article class="motion-rise motion-lift grid gap-4 py-6 md:grid-cols-[15rem_1fr]" style={`--i: ${index}`}>
+                <div>
+                  <h3 class="font-semibold text-gray-950 dark:text-white">
+                    {chapter.company}
+                  </h3>
+                  <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    {chapter.role}
+                  </p>
+                </div>
+                <p class="max-w-full w-full leading-7 text-gray-600 dark:text-gray-300">
+                  {chapter.body}
+                </p>
+              </article>
+            ))
+          }
+        </div>
+      </section>
 
-        <p
-          class="mb-5 text-lg text-gray-600 dark:text-gray-400 md:px-10 lg:px-0">
-          I'm currently Director of Engineering, AI &amp; Threat Analytics at
-          <strong
-            ><a
-              href="https://keepersecurity.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="hover:text-blue-500
-            dark:hover:text-orange-500"
-              >Keeper Security</a
-            ></strong
-          >. My team delivers ML-driven security features and developer tooling
-          with an emphasis on reliability, ethics, and measurable impact.
-        </p>
+      <section class="mt-14">
+        <div class="grid gap-8 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
+          <div class="max-w-xl">
+            <h2
+              class="text-2xl font-semibold text-brand-primary dark:text-white">
+              Professional work and personal exploration
+            </h2>
+            <p class="mt-3 max-w-full leading-7 text-gray-600 dark:text-gray-300">
+              The two sides stay separate, but the pattern is the same: make the
+              system legible, keep the operator close, and leave room for the
+              thing to become useful.
+            </p>
+          </div>
+          <div class="divide-y divide-gray-200 dark:divide-gray-800">
+            <div class="motion-lift grid gap-2 py-5 sm:grid-cols-[10rem_1fr] sm:gap-6">
+              <p class="type-label text-gray-400 dark:text-gray-500">
+                professional focus
+              </p>
+              <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">
+                AI platforms, API gateways, model routing, threat analytics,
+                governance, access control, reliability, and engineering
+                systems that teams can operate.
+              </p>
+            </div>
+            <div class="motion-lift grid gap-2 py-5 sm:grid-cols-[10rem_1fr] sm:gap-6">
+              <p class="type-label text-gray-400 dark:text-gray-500">
+                personal exploration
+              </p>
+              <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">
+                Agents, MCP tools, local model inference, browser AI, WebGPU,
+                small software products, Kubernetes, home automation, and
+                whatever the homelab needs next.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
-        <p
-          class="mb-5 text-lg text-gray-600 dark:text-gray-400 md:px-10 lg:px-0">
-          At Keeper, I lead initiatives in threat analytics, including UBA/UEBA,
-          proactive detection, and secure ML in DevSecOps environments. We
-          combine strong engineering practices with modern AI to reduce risk and
-          strengthen our customers' security posture.
-        </p>
-
-        <p class="text-lg text-gray-600 dark:text-gray-400 md:px-10 lg:px-0">
-          This blog is where I share what works: patterns, code, architectures,
-          and lessons learned across ML, security, and full-stack development.
-          If you're building in this space and want to collaborate, I'd love to
-          connect.
-        </p>
-      </div>
-    </div>
-
-    <div class="mx-auto mt-14 max-w-xl text-center">
-      <p class="text-lg leading-relaxed text-gray-700 dark:text-gray-300">
-        Have a project or idea worth exploring? Let’s talk.
-      </p>
-      <div class="mt-8">
-        <Link href="/contact" style="primary">Get in touch</Link>
-      </div>
-    </div>
+      <section class="mt-20 border-t border-gray-200 pt-12 dark:border-gray-800">
+        <h2
+          class="text-2xl font-semibold text-brand-primary dark:text-white">
+          Technical stack
+        </h2>
+        <dl class="mt-6 divide-y divide-gray-200 dark:divide-gray-800">
+          {
+            stack.map(([title, body], index) => (
+              <div class="motion-rise motion-lift grid gap-2 py-5 md:grid-cols-[12rem_1fr]" style={`--i: ${index}`}>
+                <dt class="font-semibold text-gray-950 dark:text-white">
+                  {title}
+                </dt>
+                <dd class="max-w-full w-full leading-7 text-gray-600 dark:text-gray-300">
+                  {body}
+                </dd>
+              </div>
+            ))
+          }
+        </dl>
+      </section>
+    </main>
   </Container>
 </Layout>

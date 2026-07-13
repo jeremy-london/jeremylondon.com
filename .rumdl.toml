@@ -1,0 +1,22 @@
+[global]
+flavor = "mdx"
+exclude = [
+  ".astro/**",
+  ".claude/**",
+  ".agents/**",
+  ".codex/**",
+  ".rumdl_cache/**",
+  "dist/**",
+  "MEMORY.md",
+  "node_modules/**",
+]
+disable = [
+  "MD001",
+  "MD013",
+  "MD033",
+  "MD028",
+  "MD036",
+  "MD041",
+  "MD075",
+  "MD076",
+]

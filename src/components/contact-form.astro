@@ -1,5 +1,6 @@
 ---
 import Button from '@components/ui/button.astro'
+import Field from '@components/ui/field.astro'
 
 const ACCESS_KEY = '34f91303-a354-4767-a3b8-617380503ddb'
 ---
@@ -19,52 +20,40 @@ const ACCESS_KEY = '34f91303-a354-4767-a3b8-617380503ddb'
   />
   <input type="hidden" name="from_name" value="jeremylondon | contact" />
   <input type="checkbox" class="hidden" style="display:none" name="botcheck" />
-  <div class="mb-5">
-    <input
-      type="text"
-      placeholder="Full Name"
-      required
-      class="w-full px-4 py-3 border-2 rounded-md outline-none text-gray-900 bg-white border-gray-300 focus:ring-4 focus:border-gray-600 ring-gray-100
-           placeholder-gray-500 dark:text-gray-100 dark:bg-gray-900 dark:border-gray-700 dark:focus:ring-gray-800 dark:placeholder-gray-500"
-      name="name"
-    />
-    <div class="empty-feedback invalid-feedback text-red-400 text-sm mt-1">
-      Please provide your full name.
-    </div>
+  <Field
+    id="contact_name"
+    label="Full name"
+    name="name"
+    placeholder="Jane Smith"
+    required
+    emptyMessage="Please provide your full name."
+  />
+  <Field
+    id="email_address"
+    label="Email address"
+    name="email"
+    type="email"
+    placeholder="name@example.com"
+    required
+    emptyMessage="Please provide your email address."
+    invalidMessage="Email addresses need an @ symbol. Try name@example.com."
+  />
+  <Field
+    id="contact_message"
+    label="Message"
+    name="message"
+    multiline
+    required
+    placeholder="What should I know before replying?"
+    emptyMessage="Please enter your message."
+  />
+  <div class="mt-5 space-y-3">
+    <Button type="submit" size="lg" block>Send message</Button>
+    <p class="text-sm leading-6 text-gray-500 dark:text-gray-400">
+      Prefer email? Use the address on this page.
+    </p>
   </div>
-  <div class="mb-5">
-    <label for="email_address" class="sr-only">Email Address</label>
-    <input
-      id="email_address"
-      type="email"
-      placeholder="Email Address"
-      name="email"
-      required
-      class="w-full px-4 py-3 border-2 rounded-md outline-none text-gray-900 bg-white border-gray-300 focus:ring-4 focus:border-gray-600 ring-gray-100
-           placeholder-gray-500 dark:text-gray-100 dark:bg-gray-900 dark:border-gray-700 dark:focus:ring-gray-800 dark:placeholder-gray-500"
-    />
-    <div class="empty-feedback text-red-400 text-sm mt-1">
-      Please provide your email address.
-    </div>
-    <div class="invalid-feedback text-red-400 text-sm mt-1">
-      Please provide a valid email address.
-    </div>
-  </div>
-  <div class="mb-3">
-    <textarea
-      name="message"
-      required
-      placeholder="Your Message"
-      class="w-full px-4 py-3 border-2 rounded-md outline-none h-auto text-gray-900 bg-white border-gray-300 focus:ring-4 focus:border-gray-600 ring-gray-100
-           placeholder-gray-500 dark:text-gray-100 dark:bg-gray-900 dark:border-gray-700 dark:focus:ring-gray-800 dark:placeholder-gray-500
-           min-h-36 max-h-96 overflow-y-scroll field-sizing-content simple-scrollbar no-resizer"
-    ></textarea>
-    <div class="empty-feedback invalid-feedback text-red-400 text-sm mt-1">
-      Please enter your message.
-    </div>
-  </div>
-  <Button type="submit" size="lg" block>Send Message</Button>
-  <div id="result" class="mt-3 text-center"></div>
+  <div id="result" class="mt-4 text-sm leading-6" role="status" aria-live="polite"></div>
 </form>
 
 <style>
@@ -73,30 +62,123 @@ const ACCESS_KEY = '34f91303-a354-4767-a3b8-617380503ddb'
     display: none;
   }
 
-  .was-validated :placeholder-shown:invalid ~ .empty-feedback {
+  .field-error-visible {
     display: block;
   }
 
-  .was-validated :not(:placeholder-shown):invalid ~ .invalid-feedback {
-    display: block;
-  }
-
-  .is-invalid,
-  .was-validated :invalid {
-    border-color: #dc3545;
+  .is-invalid {
+    border-color: #ef4444;
   }
 </style>
 
 <script is:inline>
   const form = document.getElementById("form");
   const result = document.getElementById("result");
+  const submitButton = form.querySelector('button[type="submit"]');
+  const submitLabel = submitButton ? submitButton.textContent : "";
+  const fields = Array.from(form.querySelectorAll("[data-field-shell]"));
+  const controls = fields
+    .map((field) => field.querySelector("input, textarea"))
+    .filter(Boolean);
+  let hasSubmitted = false;
+
+  function setResult(message, tone = "neutral") {
+    result.textContent = message;
+    result.className = "mt-4 text-sm leading-6";
+
+    if (tone === "success") {
+      result.classList.add("text-green-600", "dark:text-green-400");
+    }
+
+    if (tone === "error") {
+      result.classList.add("text-red-600", "dark:text-red-400");
+    }
+  }
+
+  function syncControlValidity(control) {
+    const value = control.value.trim();
+    const isEmpty = control.required && value.length === 0;
+
+    control.setCustomValidity(isEmpty ? " " : "");
+
+    return { isEmpty, isInvalid: !control.validity.valid };
+  }
+
+  function validateControl(control, shouldShowErrors) {
+    const field = control.closest("[data-field-shell]");
+    const emptyFeedback = field.querySelector(".empty-feedback");
+    const invalidFeedback = field.querySelector(".invalid-feedback");
+    const { isEmpty, isInvalid } = syncControlValidity(control);
+
+    const showEmpty = shouldShowErrors && isEmpty;
+    const showInvalid = shouldShowErrors && isInvalid && !isEmpty;
+
+    emptyFeedback.classList.toggle("field-error-visible", showEmpty);
+    emptyFeedback.hidden = !showEmpty;
+    if (invalidFeedback) {
+      invalidFeedback.classList.toggle("field-error-visible", showInvalid);
+      invalidFeedback.hidden = !showInvalid;
+    }
+
+    control.classList.toggle("is-invalid", shouldShowErrors && isInvalid);
+    control.setAttribute("aria-invalid", shouldShowErrors && isInvalid ? "true" : "false");
+
+    return !isInvalid;
+  }
+
+  function isFormValid() {
+    return controls
+      .map((control) => !syncControlValidity(control).isInvalid)
+      .every(Boolean);
+  }
+
+  function validateForm(shouldShowErrors) {
+    return controls
+      .map((control) => validateControl(control, shouldShowErrors))
+      .every(Boolean);
+  }
+
+  function clearValidationState() {
+    hasSubmitted = false;
+    controls.forEach((control) => {
+      control.setCustomValidity("");
+      control.classList.remove("is-invalid");
+      control.setAttribute("aria-invalid", "false");
+    });
+    form.querySelectorAll(".field-error-visible").forEach((node) => {
+      node.classList.remove("field-error-visible");
+    });
+    form.querySelectorAll(".empty-feedback, .invalid-feedback").forEach((node) => {
+      node.hidden = true;
+    });
+  }
+
+  controls.forEach((control) => {
+    control.setAttribute("aria-invalid", "false");
+    validateControl(control, false);
+
+    control.addEventListener("input", () => {
+      if (!hasSubmitted) return;
+      validateControl(control, true);
+      if (isFormValid()) {
+        setResult("");
+      }
+    });
+
+    control.addEventListener("blur", () => {
+      if (!hasSubmitted) return;
+      validateControl(control, true);
+    });
+  });
 
   form.addEventListener("submit", function (e) {
     e.preventDefault();
-    form.classList.add("was-validated");
+    hasSubmitted = true;
 
-    if (!form.checkValidity()) {
-      form.querySelectorAll(":invalid")[0].focus();
+    if (!validateForm(true)) {
+      const firstInvalid = form.querySelector('[aria-invalid="true"]');
+      setResult("Check the highlighted fields and try again.", "error");
+      firstInvalid?.focus();
       return;
     }
 
@@ -104,7 +186,11 @@ const ACCESS_KEY = '34f91303-a354-4767-a3b8-617380503ddb'
     const object = Object.fromEntries(formData);
     const json = JSON.stringify(object);
 
-    result.innerHTML = "Sending...";
+    setResult("Sending message...");
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = "Sending...";
+    }
 
     fetch("https://api.web3forms.com/submit", {
       method: "POST",
@@ -115,26 +201,38 @@ const ACCESS_KEY = '34f91303-a354-4767-a3b8-617380503ddb'
       body: json,
     })
       .then(async (response) => {
-        let json = await response.json();
+        let json = {};
+        try {
+          json = await response.json();
+        } catch {
+          json = {};
+        }
+
         if (response.status == 200) {
-          result.classList.add("text-green-500");
-          result.innerHTML = json.message;
+          setResult(json.message || "Message sent. I'll reply as soon as I can.", "success");
+          form.reset();
+          clearValidationState();
+          setTimeout(() => {
+            setResult("");
+          }, 5000);
         } else {
-          console.log(response);
-          result.classList.add("text-red-500");
-          result.innerHTML = json.message;
+          setResult(
+            json.message || "The message did not send. Please email me directly instead.",
+            "error",
+          );
         }
       })
-      .catch((error) => {
-        console.log(error);
-        result.innerHTML = "Something went wrong!";
+      .catch(() => {
+        setResult(
+          "We could not reach the form service. Please email me directly instead.",
+          "error",
+        );
       })
-      .then(function () {
-        form.reset();
-        form.classList.remove("was-validated");
-        setTimeout(() => {
-          result.style.display = "none";
-        }, 5000);
+      .finally(() => {
+        if (submitButton) {
+          submitButton.disabled = false;
+          submitButton.textContent = submitLabel;
+        }
       });
   });
 </script>

@@ -1,0 +1,1236 @@
+---
+import PostList from '@components/post-list.astro'
+import { categories } from '@data/category'
+import { cleanMDXContent } from '@utils/content'
+import { slugifyTag } from '@utils/tags'
+import { getReadingTimeDetails } from '@utils/reading-time'
+
+const { posts, class: className } = Astro.props
+
+const categoryCounts = new Map<string, number>()
+const tagCounts = new Map<string, { label: string; count: number }>()
+const years = new Set<string>()
+
+posts.forEach((post: any) => {
+  categoryCounts.set(
+    post.data.category,
+    (categoryCounts.get(post.data.category) ?? 0) + 1,
+  )
+  years.add(String(post.data.publishDate.getFullYear()))
+  post.data.tags?.forEach((tag: string) => {
+    const slug = slugifyTag(tag)
+    const entry = tagCounts.get(slug) ?? { label: tag, count: 0 }
+    entry.count += 1
+    tagCounts.set(slug, entry)
+  })
+})
+
+const activeCategories = categories
+  .map((category) => ({
+    ...category,
+    count: categoryCounts.get(category.slug) ?? 0,
+  }))
+  .filter((category) => category.count > 0)
+
+const sortedYears = [...years].sort((a, b) => Number(b) - Number(a))
+const activeTags = [...tagCounts.entries()]
+  .map(([slug, entry]) => ({ slug, ...entry }))
+  .sort((a, b) => a.label.localeCompare(b.label))
+
+const sortOptions = [
+  ['newest', 'Newest first'],
+  ['oldest', 'Oldest first'],
+  ['short', 'Shortest first'],
+  ['long', 'Longest first'],
+]
+
+const categoryTitle = (slug: string) =>
+  categories.find((category) => category.slug === slug)?.title ?? slug
+
+const readingTimes = new Map<
+  string,
+  { minutesRead: string; readingTimeMinutes: number }
+>(
+  posts.map((post: any) => [
+    post.id,
+    getReadingTimeDetails(cleanMDXContent(post.body)),
+  ]),
+)
+---
+
+<section class:list={["mt-4", className]} data-blog-explorer>
+  <div class="rounded-md border border-gray-200 bg-gray-50 p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900/80">
+    <div>
+        <label for="blog-search" class="mb-2 block text-sm font-medium text-gray-800 dark:text-gray-200">
+          Search writing
+        </label>
+        <input
+          id="blog-search"
+          type="search"
+          data-blog-search
+          placeholder="Try agents, evals, security, Pyodide..."
+          class="w-full rounded-md border-2 border-gray-300 bg-white px-4 py-4 text-base text-gray-900 outline-none ring-gray-100 placeholder-gray-500 focus:border-gray-600 focus:ring-4 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:focus:ring-gray-800"
+        />
+      </div>
+    <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1.7fr)_minmax(10rem,0.95fr)_minmax(10rem,0.95fr)]">
+      <div data-combobox data-filter="category" data-multi data-searchable>
+        <label id="blog-category-label" for="blog-category" class="mb-2 block text-sm font-medium text-gray-800 dark:text-gray-200">
+          Category
+        </label>
+        <div class="relative">
+          <button
+            id="blog-category"
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded="false"
+            aria-controls="blog-category-list"
+            aria-labelledby="blog-category-label blog-category-value"
+            data-combobox-input
+            data-blog-category
+            data-value=""
+            data-default-value=""
+            data-default-label="All categories"
+            value="All categories"
+            class="motion-lift flex h-13 w-full items-center rounded-md border-2 border-gray-300 bg-white px-3 pr-11 text-left text-gray-900 outline-none ring-gray-100 focus:border-gray-600 focus:ring-4 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+          >
+            <span data-combobox-value id="blog-category-value" class="min-w-0 flex-1 truncate text-left">All categories</span>
+          </button>
+          <button
+            type="button"
+            aria-label="Toggle category options"
+            data-combobox-toggle
+            class="motion-lift absolute right-1.5 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded text-gray-500 transition hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-gray-300 dark:hover:text-orange-400 dark:focus-visible:ring-orange-500">
+            <svg class="h-4 w-4 transition-transform" data-combobox-arrow viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div
+            id="blog-category-list"
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="blog-category-label blog-category-value"
+            data-combobox-list
+            class="fixed z-50 hidden max-h-0 -translate-y-2 overflow-hidden opacity-0 pointer-events-none rounded-md border border-gray-200 bg-white p-2 shadow-xl shadow-gray-950/10 transition-[opacity,transform,max-height] duration-200 ease-out dark:border-gray-800 dark:bg-gray-950 dark:shadow-none motion-reduce:transition-none">
+            <div class="bg-white pb-2 dark:bg-gray-950" data-combobox-header>
+              <input
+                type="search"
+                aria-label="Search category options"
+                data-combobox-search
+                placeholder="Search categories"
+                class="h-10 w-full rounded border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none placeholder-gray-500 focus:border-gray-600 focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:focus:ring-orange-500"
+              />
+              <div class="mt-2 flex gap-2">
+                <button type="button" data-combobox-all data-value="" data-option-label="All categories" class="motion-lift inline-flex min-h-10 flex-1 items-center justify-center rounded border border-gray-200 px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-900 dark:focus-visible:ring-orange-500">
+                  All
+                </button>
+                <button type="button" data-combobox-clear class="motion-lift hidden min-h-10 flex-1 items-center justify-center rounded border border-gray-200 px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-900 dark:focus-visible:ring-orange-500">
+                  Clear
+                </button>
+              </div>
+            </div>
+            <div class="overflow-y-auto pr-1" role="listbox" aria-multiselectable="true" data-combobox-options>
+              <button type="button" role="option" data-combobox-option data-value="" data-option-label="All categories" class="motion-lift mt-1 flex min-h-11 w-full items-center rounded px-3 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 dark:hover:bg-gray-900 dark:focus:bg-gray-900">
+                All categories
+              </button>
+              {
+                activeCategories.map((category) => (
+                  <button
+                    type="button"
+                    role="option"
+                    data-combobox-option
+                    data-value={category.slug}
+                    data-option-label={category.title}
+                    class="motion-lift flex min-h-11 w-full items-center justify-between rounded px-3 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 dark:hover:bg-gray-900 dark:focus:bg-gray-900">
+                    <span data-option-label>{category.title}</span>
+                    <span
+                      data-option-count
+                      class="ml-3 shrink-0 text-xs text-gray-400 dark:text-gray-500">
+                      ({category.count})
+                    </span>
+                  </button>
+                ))
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-combobox data-filter="tag" data-multi data-searchable>
+        <label id="blog-tag-label" for="blog-tag" class="mb-2 block text-sm font-medium text-gray-800 dark:text-gray-200">
+          Tags
+        </label>
+        <div class="relative">
+          <button
+            id="blog-tag"
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded="false"
+            aria-controls="blog-tag-list"
+            aria-labelledby="blog-tag-label blog-tag-value"
+            data-combobox-input
+            data-blog-tag
+            data-value=""
+            data-default-value=""
+            data-default-label="All tags"
+            value="All tags"
+            class="flex h-13 w-full items-center rounded-md border-2 border-gray-300 bg-white px-3 pr-11 text-left text-gray-900 outline-none ring-gray-100 focus:border-gray-600 focus:ring-4 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+          >
+            <span data-combobox-value id="blog-tag-value" class="min-w-0 flex-1 truncate text-left">All tags</span>
+          </button>
+          <button
+            type="button"
+            aria-label="Toggle tag options"
+            data-combobox-toggle
+            class="absolute right-1.5 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded text-gray-500 transition hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-gray-300 dark:hover:text-orange-400 dark:focus-visible:ring-orange-500">
+            <svg class="h-4 w-4 transition-transform" data-combobox-arrow viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div
+            id="blog-tag-list"
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="blog-tag-label blog-tag-value"
+            data-combobox-list
+            class="fixed z-50 hidden max-h-0 -translate-y-2 overflow-hidden opacity-0 pointer-events-none rounded-md border border-gray-200 bg-white p-2 shadow-xl shadow-gray-950/10 transition-[opacity,transform,max-height] duration-200 ease-out dark:border-gray-800 dark:bg-gray-950 dark:shadow-none motion-reduce:transition-none">
+            <div class="bg-white pb-2 dark:bg-gray-950" data-combobox-header>
+              <input
+                type="search"
+                aria-label="Search tag options"
+                data-combobox-search
+                placeholder="Search tags"
+                class="h-10 w-full rounded border border-gray-300 bg-white px-3 text-sm text-gray-900 outline-none placeholder-gray-500 focus:border-gray-600 focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:focus:ring-orange-500"
+              />
+              <div class="mt-2 flex gap-2">
+                <button type="button" data-combobox-all data-value="" data-option-label="All tags" class="motion-lift inline-flex min-h-10 flex-1 items-center justify-center rounded border border-gray-200 px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-900 dark:focus-visible:ring-orange-500">
+                  All
+                </button>
+                <button type="button" data-combobox-clear class="motion-lift hidden min-h-10 flex-1 items-center justify-center rounded border border-gray-200 px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-900 dark:focus-visible:ring-orange-500">
+                  Clear
+                </button>
+              </div>
+            </div>
+            <div class="overflow-y-auto pr-1" role="listbox" aria-multiselectable="true" data-combobox-options>
+              <button type="button" role="option" data-combobox-option data-value="" data-option-label="All tags" class="motion-lift mt-1 flex min-h-11 w-full items-center rounded px-3 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 dark:hover:bg-gray-900 dark:focus:bg-gray-900">
+                All tags
+              </button>
+              {
+                activeTags.map((tag) => (
+                  <button
+                    type="button"
+                    role="option"
+                    data-combobox-option
+                    data-value={tag.slug}
+                    data-option-label={tag.label}
+                    class="motion-lift flex min-h-11 w-full items-center justify-between rounded px-3 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 dark:hover:bg-gray-900 dark:focus:bg-gray-900">
+                    <span data-option-label>{tag.label}</span>
+                    <span
+                      data-option-count
+                      class="ml-3 shrink-0 text-xs text-gray-400 dark:text-gray-500">
+                      ({tag.count})
+                    </span>
+                  </button>
+                ))
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-combobox data-filter="year" data-multi>
+        <label id="blog-year-label" for="blog-year" class="mb-2 block text-sm font-medium text-gray-800 dark:text-gray-200">
+          Year
+        </label>
+        <div class="relative">
+          <button
+            id="blog-year"
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded="false"
+            aria-controls="blog-year-list"
+            aria-labelledby="blog-year-label blog-year-value"
+            data-combobox-input
+            data-blog-year
+            data-value=""
+            data-default-value=""
+            data-default-label="All years"
+            value="All years"
+            class="flex h-13 w-full items-center rounded-md border-2 border-gray-300 bg-white px-3 pr-11 text-left text-gray-900 outline-none ring-gray-100 focus:border-gray-600 focus:ring-4 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+          >
+            <span data-combobox-value id="blog-year-value" class="min-w-0 flex-1 truncate text-left">All years</span>
+          </button>
+          <button
+            type="button"
+            aria-label="Toggle year options"
+            data-combobox-toggle
+            class="absolute right-1.5 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded text-gray-500 transition hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-gray-300 dark:hover:text-orange-400 dark:focus-visible:ring-orange-500">
+            <svg class="h-4 w-4 transition-transform" data-combobox-arrow viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div
+            id="blog-year-list"
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="blog-year-label blog-year-value"
+            data-combobox-list
+            class="fixed z-50 hidden max-h-0 -translate-y-2 overflow-hidden opacity-0 pointer-events-none rounded-md border border-gray-200 bg-white p-2 shadow-xl shadow-gray-950/10 transition-[opacity,transform,max-height] duration-200 ease-out dark:border-gray-800 dark:bg-gray-950 dark:shadow-none motion-reduce:transition-none">
+              <div class="flex gap-2 pb-2" data-combobox-header>
+                <button type="button" data-combobox-all data-value="" data-option-label="All years" class="motion-lift inline-flex min-h-10 flex-1 items-center justify-center rounded border border-gray-200 px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-900 dark:focus-visible:ring-orange-500">
+                All
+              </button>
+              <button type="button" data-combobox-clear class="motion-lift hidden min-h-10 flex-1 items-center justify-center rounded border border-gray-200 px-3 text-sm font-medium text-gray-700 hover:bg-gray-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-gray-800 dark:text-gray-200 dark:hover:bg-gray-900 dark:focus-visible:ring-orange-500">
+                Clear
+              </button>
+            </div>
+            <div class="overflow-y-auto pr-1" role="listbox" aria-multiselectable="true" data-combobox-options>
+              <button type="button" role="option" data-combobox-option data-value="" data-option-label="All years" class="motion-lift mt-1 flex min-h-11 w-full items-center rounded px-3 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 dark:hover:bg-gray-900 dark:focus:bg-gray-900">
+                All years
+              </button>
+              {
+                sortedYears.map((year) => (
+                  <button
+                    type="button"
+                    role="option"
+                    data-combobox-option
+                    data-value={year}
+                    data-option-label={year}
+                    class="motion-lift flex min-h-11 w-full items-center rounded px-3 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 dark:hover:bg-gray-900 dark:focus:bg-gray-900">
+                    {year}
+                  </button>
+                ))
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+      <div data-combobox data-filter="sort">
+        <label id="blog-sort-label" for="blog-sort" class="mb-2 block text-sm font-medium text-gray-800 dark:text-gray-200">
+          Sort
+        </label>
+        <div class="relative">
+          <button
+            id="blog-sort"
+            type="button"
+            aria-haspopup="dialog"
+            aria-expanded="false"
+            aria-controls="blog-sort-list"
+            aria-labelledby="blog-sort-label blog-sort-value"
+            data-combobox-input
+            data-blog-sort
+            data-value="newest"
+            data-default-value="newest"
+            data-default-label="Newest first"
+            value="Newest first"
+            class="motion-lift flex h-13 w-full items-center rounded-md border-2 border-gray-300 bg-white px-3 pr-11 text-left text-gray-900 outline-none ring-gray-100 focus:border-gray-600 focus:ring-4 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:focus:border-gray-600 dark:focus:ring-gray-800"
+          >
+            <span data-combobox-value id="blog-sort-value" class="min-w-0 flex-1 truncate text-left">Newest first</span>
+          </button>
+          <button
+            type="button"
+            aria-label="Toggle sort options"
+            data-combobox-toggle
+            class="motion-lift absolute right-1.5 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded text-gray-500 transition hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:text-gray-300 dark:hover:text-orange-400 dark:focus-visible:ring-orange-500">
+            <svg class="h-4 w-4 transition-transform" data-combobox-arrow viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path d="M5 7.5 10 12.5 15 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
+          <div
+            id="blog-sort-list"
+            role="dialog"
+            aria-modal="false"
+            aria-labelledby="blog-sort-label blog-sort-value"
+            data-combobox-list
+            class="fixed z-50 hidden rounded-md border border-gray-200 bg-white p-2 shadow-xl shadow-gray-950/10 dark:border-gray-800 dark:bg-gray-950 dark:shadow-none">
+            <div class="overflow-y-auto pr-1" role="listbox" data-combobox-options>
+              {
+                sortOptions.map(([value, label]) => (
+                  <button
+                    type="button"
+                    role="option"
+                    data-combobox-option
+                    data-value={value}
+                    class="flex min-h-11 w-full items-center rounded px-3 text-left text-sm text-gray-700 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none dark:text-gray-200 dark:hover:bg-gray-900 dark:focus:bg-gray-900">
+                    {label}
+                  </button>
+                ))
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 pt-4 text-sm text-gray-600 dark:border-gray-800 dark:text-gray-300">
+      <p data-blog-status role="status" aria-live="polite">
+        {posts.length} posts
+      </p>
+      <button
+        type="button"
+        data-blog-reset
+        class="hidden items-center rounded text-sm font-medium text-gray-600 hover:text-blue-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:text-gray-300 dark:hover:text-orange-400 dark:focus-visible:ring-orange-500 dark:focus-visible:ring-offset-gray-950">
+        Clear filters
+      </button>
+    </div>
+    <div class="mt-3 hidden flex-wrap gap-2" data-blog-active-filters></div>
+  </div>
+
+  <div class="mt-8 grid gap-x-10 gap-y-12 md:grid-cols-2" data-blog-results>
+    {
+      posts.map((post: any) => {
+        const category = categoryTitle(post.data.category)
+        const readingTime = readingTimes.get(post.id) ?? {
+          minutesRead: '5 min read',
+          readingTimeMinutes: 5,
+        }
+        const searchText = [
+          post.data.title,
+          post.data.excerpt,
+          category,
+          post.data.tags?.join(' '),
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase()
+        const tagSlugs = post.data.tags?.map((tag: string) => slugifyTag(tag))
+
+        return (
+          <div
+            data-blog-card
+            data-category={post.data.category}
+            data-year={post.data.publishDate.getFullYear()}
+            data-month={post.data.publishDate.toISOString().slice(0, 7)}
+            data-tags={tagSlugs?.join(' ') ?? ''}
+            data-date={post.data.publishDate.toISOString()}
+            data-minutes={readingTime.readingTimeMinutes}
+            data-search={searchText}>
+            <PostList
+              post={post}
+              minutesRead={readingTime.minutesRead}
+              readingTimeMinutes={readingTime.readingTimeMinutes}
+            />
+          </div>
+        )
+      })
+    }
+  </div>
+
+  <p
+    class="hidden rounded-md border border-gray-200 p-6 text-center text-gray-600 dark:border-gray-800 dark:text-gray-300"
+    data-blog-empty>
+    No posts match those filters.
+  </p>
+
+</section>
+
+<script is:inline>
+  const explorer = document.querySelector("[data-blog-explorer]");
+
+  if (explorer) {
+    const search = explorer.querySelector("[data-blog-search]");
+    const category = explorer.querySelector("[data-blog-category]");
+    const year = explorer.querySelector("[data-blog-year]");
+    const tag = explorer.querySelector("[data-blog-tag]");
+    const sort = explorer.querySelector("[data-blog-sort]");
+    const reset = explorer.querySelector("[data-blog-reset]");
+    const results = explorer.querySelector("[data-blog-results]");
+    const status = explorer.querySelector("[data-blog-status]");
+    const empty = explorer.querySelector("[data-blog-empty]");
+    const activeFilters = explorer.querySelector("[data-blog-active-filters]");
+    const cards = [...explorer.querySelectorAll("[data-blog-card]")];
+    const cardModels = cards.map((card) => {
+      const tags = (card.dataset.tags || "").split(" ").filter(Boolean);
+
+      return {
+        card,
+        search: card.dataset.search || "",
+        category: card.dataset.category || "",
+        year: card.dataset.year || "",
+        month: card.dataset.month || "",
+        tags,
+        tagSet: new Set(tags),
+        date: Date.parse(card.dataset.date),
+        minutes: Number(card.dataset.minutes),
+      };
+    });
+    const cardsBySort = {
+      newest: [...cardModels].sort(
+        (a, b) => b.date - a.date,
+      ),
+      oldest: [...cardModels].sort(
+        (a, b) => a.date - b.date,
+      ),
+      short: [...cardModels].sort(
+        (a, b) => a.minutes - b.minutes,
+      ),
+      long: [...cardModels].sort(
+        (a, b) => b.minutes - a.minutes,
+      ),
+    };
+    const categoryCombo = category.closest("[data-combobox]");
+    const yearCombo = year.closest("[data-combobox]");
+    const tagCombo = tag.closest("[data-combobox]");
+    const comboRoots = [...explorer.querySelectorAll("[data-combobox]")];
+    const comboRefsByRoot = new WeakMap();
+    const comboCloseTimers = new WeakMap();
+    const comboRefs = comboRoots.map((combo) => {
+      const input = combo.querySelector("[data-combobox-input]");
+      const list = document.getElementById(input.getAttribute("aria-controls"));
+      const refs = {
+        root: combo,
+        input,
+        display: combo.querySelector("[data-combobox-value]"),
+        list,
+        toggle: combo.querySelector("[data-combobox-toggle]"),
+        arrow: combo.querySelector("[data-combobox-arrow]"),
+        search: list.querySelector("[data-combobox-search]"),
+        header: list.querySelector("[data-combobox-header]"),
+        options: list.querySelector("[data-combobox-options]"),
+        all: list.querySelector("[data-combobox-all]"),
+        clear: list.querySelector("[data-combobox-clear]"),
+        optionList: [...list.querySelectorAll("[data-combobox-option]")],
+      };
+
+      comboRefsByRoot.set(combo, refs);
+      return refs;
+    });
+    const openCombos = new Set();
+    let viewportListenersBound = false;
+    let monthValue = "";
+
+    const getComboValue = (input) => input.dataset.value || "";
+    const getComboValues = (input) =>
+      (input.dataset.value || "").split(",").filter(Boolean);
+
+    const getDefaultValue = (input) => input.dataset.defaultValue || "";
+    const getOptionLabel = (option) =>
+      option.dataset.optionLabel || option.textContent.trim();
+    const getMonthLabel = (monthValue) =>
+      monthValue
+        ? new Date(`${monthValue}-01T00:00:00Z`).toLocaleDateString("en-us", {
+            month: "long",
+            year: "numeric",
+          })
+        : "";
+
+    const setComboDisplay = (refs, label) => {
+      if (refs.display) refs.display.textContent = label;
+      refs.input.value = label;
+    };
+
+    const getFilterLabel = (combo) => {
+      const filter = combo.dataset.filter || "option";
+      if (filter === "category") return "categories";
+      if (filter === "year") return "years";
+      if (filter === "tag") return "tags";
+      return "options";
+    };
+
+    const escapeRegExp = (value) =>
+      value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    const matchesWildcardTerm = (haystack, term) => {
+      if (!term) return true;
+      if (!term.includes("*")) return haystack.includes(term);
+
+      const pattern = term
+        .split("*")
+        .map((part) => escapeRegExp(part))
+        .join(".*");
+
+      return new RegExp(`^${pattern}$`, "i").test(haystack);
+    };
+
+    const matchesSearch = (text, query) => {
+      const haystack = text;
+      const terms = query
+        .trim()
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean);
+
+      if (terms.length === 0) return true;
+
+      return terms.every((term) => matchesWildcardTerm(haystack, term));
+    };
+
+    let applyFrame = 0;
+    let repositionFrame = 0;
+    let lastAppliedSortValue = "";
+
+    const scheduleApply = () => {
+      if (applyFrame) return;
+      applyFrame = window.requestAnimationFrame(() => {
+        applyFrame = 0;
+        apply();
+      });
+    };
+
+    const scheduleRepositionOpenCombos = () => {
+      if (openCombos.size === 0) return;
+      if (repositionFrame) return;
+      repositionFrame = window.requestAnimationFrame(() => {
+        repositionFrame = 0;
+        repositionOpenCombos();
+      });
+    };
+
+    const updateClearState = (combo) => {
+      const refs = comboRefsByRoot.get(combo);
+      if (!refs) return;
+      const { input, clear } = refs;
+      const hasValue = getComboValue(input) !== getDefaultValue(input);
+
+      if (!clear) return;
+      clear.classList.toggle("hidden", !hasValue);
+      clear.classList.toggle("inline-flex", hasValue);
+    };
+
+    const updateAllState = (combo) => {
+      const refs = comboRefsByRoot.get(combo);
+      if (!refs) return;
+      const { input, all } = refs;
+      const hasValue = getComboValue(input) !== getDefaultValue(input);
+
+      if (!all) return;
+      all.classList.toggle("hidden", !hasValue);
+      all.classList.toggle("inline-flex", hasValue);
+    };
+
+    const renderActiveFilters = (state) => {
+      const chips = [];
+
+      state.categoryValues.forEach((value) => {
+        chips.push({
+          key: `category-${value}`,
+          label: `Category: ${categoryTitle(value)}`,
+          value,
+          filter: "category",
+        });
+      });
+
+      state.tagValues.forEach((value) => {
+        chips.push({
+          key: `tag-${value}`,
+          label: `Tag: ${activeTags.find((tag) => tag.slug === value)?.label ?? value}`,
+          value,
+          filter: "tag",
+        });
+      });
+
+      state.yearValues.forEach((value) => {
+        chips.push({
+          key: `year-${value}`,
+          label: `Year: ${value}`,
+          value,
+          filter: "year",
+        });
+      });
+
+      if (state.monthValue) {
+        chips.push({
+          key: `month-${state.monthValue}`,
+          label: `Month: ${getMonthLabel(state.monthValue)}`,
+          value: state.monthValue,
+          filter: "month",
+        });
+      }
+
+      if (state.sortValue !== "newest") {
+        chips.push({
+          key: `sort-${state.sortValue}`,
+          label: `Sort: ${sortOptions.find(([value]) => value === state.sortValue)?.[1] ?? state.sortValue}`,
+          value: state.sortValue,
+          filter: "sort",
+        });
+      }
+
+      activeFilters.innerHTML = "";
+      activeFilters.classList.toggle("hidden", chips.length === 0);
+
+      if (chips.length === 0) return;
+
+      chips.forEach((chip) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.dataset.activeFilter = chip.key;
+        button.dataset.filter = chip.filter;
+        button.dataset.value = chip.value;
+        button.className =
+          "motion-lift inline-flex min-h-9 items-center gap-2 rounded-full border border-gray-200 bg-white px-3 text-sm text-gray-700 transition hover:bg-gray-100 hover:text-gray-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:border-gray-800 dark:bg-gray-950 dark:text-gray-300 dark:hover:bg-gray-900 dark:hover:text-white dark:focus-visible:ring-orange-500";
+
+        const label = document.createElement("span");
+        label.textContent = chip.label;
+
+        const icon = document.createElement("span");
+        icon.setAttribute("aria-hidden", "true");
+        icon.textContent = "×";
+        icon.className = "ml-1 text-base leading-none text-gray-400";
+
+        button.append(label, icon);
+        activeFilters.appendChild(button);
+      });
+    };
+
+    const setOptionState = (combo, selectedValues) => {
+      const refs = comboRefsByRoot.get(combo);
+      if (!refs) return;
+      const selectedSet = new Set(selectedValues);
+      refs.optionList.forEach((option) => {
+        const selected =
+          option.dataset.value !== "" && selectedSet.has(option.dataset.value);
+        option.setAttribute("aria-selected", String(selected));
+        option.classList.toggle("bg-blue-50", selected);
+        option.classList.toggle("text-blue-700", selected);
+        option.classList.toggle("dark:bg-orange-950/30", selected);
+        option.classList.toggle("dark:text-orange-300", selected);
+      });
+    };
+
+    const setComboValues = (input, values) => {
+      const combo = input.closest("[data-combobox]");
+      const refs = comboRefsByRoot.get(combo);
+      if (!refs) return;
+      const isMulti = combo.hasAttribute("data-multi");
+      const { optionList: options } = refs;
+      const fallback = options[0];
+
+      if (isMulti) {
+        const validValues = values.filter((value) =>
+          options.some((option) => option.dataset.value === value && value),
+        );
+        const defaultLabel = input.dataset.defaultLabel || fallback.textContent.trim();
+
+        input.dataset.value = validValues.join(",");
+        if (validValues.length === 0) {
+          setComboDisplay(refs, defaultLabel);
+        } else if (validValues.length === 1) {
+          const selectedOption = options.find(
+            (option) => option.dataset.value === validValues[0],
+          );
+          setComboDisplay(
+            refs,
+            selectedOption ? getOptionLabel(selectedOption) : defaultLabel,
+          );
+        } else {
+          setComboDisplay(refs, `${validValues.length} ${getFilterLabel(combo)} selected`);
+        }
+        setOptionState(combo, validValues);
+        updateClearState(combo);
+        updateAllState(combo);
+        return;
+      }
+
+      const value = values[0] ?? getDefaultValue(input);
+      const option =
+        options.find((candidate) => candidate.dataset.value === value) ||
+        fallback;
+      const defaultLabel = input.dataset.defaultLabel || fallback.textContent.trim();
+
+      input.dataset.value = option.dataset.value || "";
+      setComboDisplay(refs, option.dataset.value ? getOptionLabel(option) : defaultLabel);
+      setOptionState(combo, [input.dataset.value]);
+      updateClearState(combo);
+      updateAllState(combo);
+    };
+
+    const setComboValue = (input, value) => {
+      setComboValues(input, value ? [value] : []);
+    };
+
+    const selectComboOption = (combo, value) => {
+      const refs = comboRefsByRoot.get(combo);
+      if (!refs) return;
+      const { input } = refs;
+      const isMulti = combo.hasAttribute("data-multi");
+
+      if (isMulti) {
+        const current = getComboValues(input);
+        const next =
+          value === ""
+            ? []
+            : current.includes(value)
+              ? current.filter((item) => item !== value)
+              : [...current, value];
+
+        setComboValues(input, next);
+        scheduleApply();
+        const nextFocus = comboRefsByRoot.get(combo)?.search;
+        if (nextFocus) {
+          nextFocus.focus();
+        } else {
+          input.focus();
+        }
+        return;
+      }
+
+      setComboValue(input, value);
+      closeCombo(combo);
+      scheduleApply();
+      input.focus();
+    };
+
+    const closeCombo = (combo) => {
+      const refs = comboRefsByRoot.get(combo);
+      if (!refs) return;
+      const { input, list, arrow } = refs;
+
+      input.setAttribute("aria-expanded", "false");
+      list.classList.remove("opacity-100", "translate-y-0", "pointer-events-auto");
+      list.classList.add("opacity-0", "-translate-y-2", "pointer-events-none");
+      list.dataset.open = "false";
+      if (refs.options) refs.options.style.maxHeight = "";
+      arrow.classList.remove("rotate-180");
+      openCombos.delete(combo);
+      window.clearTimeout(comboCloseTimers.get(combo));
+      comboCloseTimers.set(
+        combo,
+        window.setTimeout(() => {
+          if (input.getAttribute("aria-expanded") === "false") {
+            list.classList.add("hidden");
+          }
+        }, 220),
+      );
+      if (openCombos.size === 0) {
+        window.removeEventListener("resize", scheduleRepositionOpenCombos);
+        window.removeEventListener("scroll", scheduleRepositionOpenCombos, true);
+        viewportListenersBound = false;
+      }
+    };
+
+    const positionComboList = (combo) => {
+      const refs = comboRefsByRoot.get(combo);
+      if (!refs) return;
+      const { input, list, header, options } = refs;
+      const rect = input.getBoundingClientRect();
+      const margin = 8;
+      const viewportPadding = 12;
+      const availableBelow = window.innerHeight - rect.bottom - viewportPadding;
+      const availableAbove = rect.top - viewportPadding;
+      const naturalHeight = list.scrollHeight || 320;
+      const desiredHeight = Math.min(naturalHeight, window.innerHeight - viewportPadding * 2);
+      const placeAbove = availableBelow < desiredHeight && rect.top > availableBelow;
+      const availableHeight = placeAbove ? availableAbove - margin : availableBelow - margin;
+      const panelHeight = Math.max(96, Math.min(naturalHeight, availableHeight));
+      const top = placeAbove
+        ? Math.max(viewportPadding, rect.top - panelHeight - margin)
+        : Math.min(rect.bottom + margin, window.innerHeight - viewportPadding - panelHeight);
+
+      const width = Math.min(rect.width, window.innerWidth - viewportPadding * 2);
+      const left = Math.min(
+        Math.max(viewportPadding, rect.left),
+        window.innerWidth - viewportPadding - width,
+      );
+
+      list.style.left = `${left}px`;
+      list.style.top = `${top}px`;
+      list.style.width = `${width}px`;
+      list.style.maxHeight = `${panelHeight}px`;
+      list.style.overflow = "hidden";
+
+      const headerHeight = header?.offsetHeight ?? 0;
+      const optionsHeight = Math.max(64, panelHeight - headerHeight - 8);
+      if (options) options.style.maxHeight = `${optionsHeight}px`;
+    };
+
+    const openCombo = (combo) => {
+      const refs = comboRefsByRoot.get(combo);
+      if (!refs) return;
+      const { input, list, arrow, search } = refs;
+
+      window.clearTimeout(comboCloseTimers.get(combo));
+      comboRefs.forEach(({ root: otherCombo }) => {
+        if (otherCombo !== combo) closeCombo(otherCombo);
+      });
+
+      if (list.parentElement !== document.body) {
+        document.body.appendChild(list);
+      }
+
+      input.setAttribute("aria-expanded", "true");
+      list.classList.remove("hidden");
+      list.dataset.open = "false";
+      arrow.classList.add("rotate-180");
+      openCombos.add(combo);
+      if (!viewportListenersBound) {
+        window.addEventListener("resize", scheduleRepositionOpenCombos);
+        window.addEventListener("scroll", scheduleRepositionOpenCombos, true);
+        viewportListenersBound = true;
+      }
+      positionComboList(combo);
+      requestAnimationFrame(() => {
+        list.dataset.open = "true";
+        list.classList.remove("opacity-0", "-translate-y-2", "pointer-events-none");
+        list.classList.add("opacity-100", "translate-y-0", "pointer-events-auto");
+      });
+      if (search) search.value = "";
+      filterComboOptions(combo);
+      updateClearState(combo);
+      updateAllState(combo);
+    };
+
+    const filterComboOptions = (combo) => {
+      const refs = comboRefsByRoot.get(combo);
+      if (!refs) return 0;
+      const { search, optionList: options } = refs;
+      const query = search?.value.trim().toLowerCase() ?? "";
+      let shown = 0;
+
+      options.forEach((option) => {
+        const label = getOptionLabel(option).toLowerCase();
+        const matches = label.includes(query);
+        option.hidden = !matches;
+        if (matches) shown += 1;
+      });
+
+      return shown;
+    };
+
+    const resetComboSearch = (combo) => {
+      const refs = comboRefsByRoot.get(combo);
+      if (refs?.search) {
+        refs.search.value = "";
+      }
+      filterComboOptions(combo);
+      if (comboRefsByRoot.get(combo)?.input.getAttribute("aria-expanded") === "true") {
+        scheduleRepositionOpenCombos();
+      }
+    };
+
+    const readState = () => ({
+      query: search.value.trim(),
+      categoryValues: getComboValues(category),
+      yearValues: getComboValues(year),
+      tagValues: getComboValues(tag),
+      monthValue,
+      sortValue: getComboValue(sort) || "newest",
+    });
+
+    const matchesCard = (card, state, omitted = {}) => {
+      if (!matchesSearch(card.search, state.query)) {
+        return false;
+      }
+
+      if (!omitted.category) {
+        const categoryMatch =
+          state.categoryValues.length === 0 || state.categoryValues.includes(card.category);
+        if (!categoryMatch) return false;
+      }
+
+      if (!omitted.year) {
+        const yearMatch = state.yearValues.length === 0 || state.yearValues.includes(card.year);
+        if (!yearMatch) return false;
+      }
+
+      if (!omitted.month && state.monthValue) {
+        if (card.month !== state.monthValue) return false;
+      }
+
+      if (!omitted.tag) {
+        const tagMatch =
+          state.tagValues.length === 0 ||
+          state.tagValues.some((tagValue) => card.tagSet.has(tagValue));
+        if (!tagMatch) return false;
+      }
+
+      return true;
+    };
+
+    const updateOptionVisibility = (combo, counts, selectedValues) => {
+      const refs = comboRefsByRoot.get(combo);
+      if (!refs) return;
+      const selectedSet = new Set(selectedValues);
+      refs.optionList.forEach((option) => {
+        const value = option.dataset.value || "";
+        const count = counts.get(value) ?? 0;
+        const selected = selectedSet.has(value);
+        const countNode = option.querySelector("[data-option-count]");
+
+        if (countNode) {
+          countNode.textContent = `(${count})`;
+        }
+
+        option.hidden = value !== "" && count === 0 && !selected;
+      });
+    };
+
+    const refreshFilterOptions = (state) => {
+      const categoryCounts = new Map();
+      const tagCounts = new Map();
+      const yearCounts = new Map();
+
+      cardModels.forEach((card) => {
+        if (matchesCard(card, state, { category: true })) {
+          categoryCounts.set(card.category, (categoryCounts.get(card.category) ?? 0) + 1);
+        }
+
+        if (matchesCard(card, state, { tag: true })) {
+          card.tags.forEach((value) => {
+            tagCounts.set(value, (tagCounts.get(value) ?? 0) + 1);
+          });
+        }
+
+        if (matchesCard(card, state, { year: true })) {
+          yearCounts.set(card.year, (yearCounts.get(card.year) ?? 0) + 1);
+        }
+      });
+
+      updateOptionVisibility(categoryCombo, categoryCounts, state.categoryValues);
+      updateOptionVisibility(tagCombo, tagCounts, state.tagValues);
+      updateOptionVisibility(yearCombo, yearCounts, state.yearValues);
+    };
+
+    comboRefs.forEach((refs) => {
+      const { root: combo, input, toggle, all, clear, optionList: options } = refs;
+
+      input.addEventListener("click", () => {
+        const expanded = input.getAttribute("aria-expanded") === "true";
+        expanded ? closeCombo(combo) : openCombo(combo);
+        if (!expanded) {
+          (refs.search ?? refs.optionList[0])?.focus();
+        }
+      });
+
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeCombo(combo);
+          setComboValue(input, input.dataset.value || "");
+        }
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          openCombo(combo);
+          (refs.search ?? refs.optionList[0])?.focus();
+        }
+      });
+
+      toggle.addEventListener("click", () => {
+        const expanded = input.getAttribute("aria-expanded") === "true";
+        expanded ? closeCombo(combo) : openCombo(combo);
+        if (!expanded) {
+          (refs.search ?? refs.optionList[0])?.focus();
+        }
+      });
+
+      refs.search?.addEventListener("input", () => {
+        filterComboOptions(combo);
+        scheduleRepositionOpenCombos();
+      });
+
+      refs.search?.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeCombo(combo);
+          input.focus();
+        }
+        if (event.key === "ArrowDown") {
+          event.preventDefault();
+          refs.list.querySelector("[data-combobox-option]:not([hidden])")?.focus();
+        }
+      });
+
+      all?.addEventListener("click", () => {
+        setComboValue(input, all.dataset.value || "");
+        resetComboSearch(combo);
+        scheduleApply();
+        if (!combo.hasAttribute("data-multi")) closeCombo(combo);
+        if (refs.search) {
+          refs.search.focus();
+        } else {
+          input.focus();
+        }
+      });
+
+      clear?.addEventListener("click", () => {
+        setComboValue(input, getDefaultValue(input));
+        resetComboSearch(combo);
+        scheduleApply();
+        if (refs.search) {
+          refs.search.focus();
+        } else {
+          input.focus();
+        }
+      });
+
+      options.forEach((option) => {
+        option.addEventListener("click", () => {
+          selectComboOption(combo, option.dataset.value || "");
+        });
+
+        option.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") {
+            closeCombo(combo);
+            input.focus();
+          }
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            option.click();
+          }
+        });
+      });
+    });
+
+    document.addEventListener("click", (event) => {
+      comboRefs.forEach(({ root: combo, list }) => {
+        if (!combo.contains(event.target) && !list.contains(event.target)) {
+          closeCombo(combo);
+        }
+      });
+    });
+
+    const repositionOpenCombos = () => {
+      openCombos.forEach((combo) => {
+        const refs = comboRefsByRoot.get(combo);
+        if (!refs || !document.contains(combo)) {
+          openCombos.delete(combo);
+          return;
+        }
+        if (refs.input.getAttribute("aria-expanded") === "true") {
+          positionComboList(combo);
+        } else {
+          openCombos.delete(combo);
+        }
+      });
+    };
+
+    const updateUrl = ({
+      query,
+      categoryValue,
+      yearValue,
+      tagValue,
+      monthValue,
+      sortValue,
+    }) => {
+      const params = new URLSearchParams();
+      if (query) params.set("q", query);
+      if (categoryValue) params.set("category", categoryValue);
+      if (yearValue) params.set("year", yearValue);
+      if (tagValue) params.set("tag", tagValue);
+      if (monthValue) params.set("month", monthValue);
+      if (sortValue !== "newest") params.set("sort", sortValue);
+      const next = params.toString()
+        ? `${window.location.pathname}?${params.toString()}`
+        : window.location.pathname;
+      window.history.replaceState({}, "", next);
+    };
+
+    let lastAppliedKey = "";
+    const getStateKey = (state) =>
+      [
+        state.query,
+        state.categoryValues.join(","),
+        state.yearValues.join(","),
+        state.tagValues.join(","),
+        state.monthValue,
+        state.sortValue,
+      ].join("|");
+
+    const apply = () => {
+      const state = readState();
+      const stateKey = getStateKey(state);
+      if (stateKey === lastAppliedKey) {
+        scheduleRepositionOpenCombos();
+        return;
+      }
+      lastAppliedKey = stateKey;
+
+      const sorted = cardsBySort[state.sortValue] ?? cardsBySort.newest;
+      const matching = sorted.filter((card) => matchesCard(card, state));
+
+      const matchingSet = new Set(matching.map((model) => model.card));
+      const sortChanged = state.sortValue !== lastAppliedSortValue;
+
+      if (sortChanged) {
+        const fragment = document.createDocumentFragment();
+        sorted.forEach((model) => {
+          model.card.hidden = !matchingSet.has(model.card);
+          fragment.appendChild(model.card);
+        });
+        results.appendChild(fragment);
+        lastAppliedSortValue = state.sortValue;
+      } else {
+        cards.forEach((card) => {
+          card.hidden = !matchingSet.has(card);
+        });
+      }
+
+      const totalLabel = `${matching.length} ${
+        matching.length === 1 ? "post" : "posts"
+      }`;
+      status.textContent = totalLabel;
+      empty.classList.toggle("hidden", matching.length !== 0);
+      const hasActiveFilters =
+        state.query ||
+        state.categoryValues.length > 0 ||
+        state.yearValues.length > 0 ||
+        state.tagValues.length > 0 ||
+        state.monthValue ||
+        state.sortValue !== "newest";
+      reset.classList.toggle("hidden", !hasActiveFilters);
+      reset.classList.toggle("inline-flex", Boolean(hasActiveFilters));
+
+      refreshFilterOptions(state);
+      renderActiveFilters(state);
+
+      updateUrl({
+        query: state.query,
+        categoryValue: state.categoryValues.join(","),
+        yearValue: state.yearValues.join(","),
+        tagValue: state.tagValues.join(","),
+        monthValue: state.monthValue,
+        sortValue: state.sortValue,
+      });
+
+      scheduleRepositionOpenCombos();
+    };
+
+    const hydrateFromUrl = () => {
+      const params = new URLSearchParams(window.location.search);
+      search.value = params.get("q") ?? "";
+      setComboValues(category, (params.get("category") ?? "").split(","));
+      setComboValues(year, (params.get("year") ?? "").split(","));
+      setComboValues(tag, (params.get("tag") ?? "").split(","));
+      setComboValue(sort, params.get("sort") ?? "newest");
+      monthValue = params.get("month") ?? "";
+      apply();
+    };
+
+    [search].forEach((control) => {
+      control.addEventListener("input", scheduleApply);
+      control.addEventListener("change", scheduleApply);
+    });
+
+    reset.addEventListener("click", () => {
+      search.value = "";
+      setComboValue(category, "");
+      setComboValue(year, "");
+      setComboValue(tag, "");
+      setComboValue(sort, "newest");
+      monthValue = "";
+      comboRefs.forEach(({ root }) => resetComboSearch(root));
+      scheduleApply();
+      search.focus();
+    });
+
+    activeFilters.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-active-filter]");
+      if (!button) return;
+
+      const filter = button.dataset.filter;
+      const value = button.dataset.value;
+
+      if (filter === "q") {
+        search.value = "";
+      } else if (filter === "category") {
+        setComboValues(category, getComboValues(category).filter((item) => item !== value));
+      } else if (filter === "tag") {
+        setComboValues(tag, getComboValues(tag).filter((item) => item !== value));
+      } else if (filter === "year") {
+        setComboValues(year, getComboValues(year).filter((item) => item !== value));
+      } else if (filter === "month") {
+        monthValue = "";
+      } else if (filter === "sort") {
+        setComboValue(sort, "newest");
+      }
+
+      scheduleApply();
+    });
+
+    hydrateFromUrl();
+  }
+</script>

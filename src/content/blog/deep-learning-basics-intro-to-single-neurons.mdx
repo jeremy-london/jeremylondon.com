@@ -1,65 +1,40 @@
 ---
-title: "Introduction to Single Neuron Networks and ReLU"
-excerpt: "Embark on a deep dive into the workings of a single neuron and the ReLU function, foundational concepts in neural network design."
+title: "A single neuron is less mysterious when you run the numbers"
+excerpt: "A slower, more practical walkthrough of weights, bias, ReLU, and the first little model worth drawing by hand."
 publishDate: "2024-03-07T12:00:00Z"
-image: "../../assets/single_neuron_cover.png"
 category: "deep-learning-basics"
 draft: false
 author: "jeremy-london"
-tags: [neural networks, ReLU, deep learning]
+tags: ["neural networks", "relu", "teaching"]
 load_pyodide: true
 ---
 
 import PythonModule from "@components/blog/shared/PythonModule.jsx";
 import SingleNeuron from "@components/blog/SingleNeuron.jsx";
 
-<h2>
-  <a
-    href="#interactive-code-environment"
-    class="m-0 bg-linear-to-r from-blue-200 to-blue-100 bg-size-[0px_10px] bg-bottom-left bg-no-repeat text-blue-100 no-underline transition-[background-size] duration-500 group-hover:bg-size-[100%_10px] hover:bg-size-[100%_3px] dark:from-orange-800 dark:to-orange-900 dark:text-orange-400">
-    <span>Scroll down for Interactive Code Environment 👇</span>
-  </a>
-</h2>
+A notebook page with three inputs, three weights, one bias, and a ReLU that refuses to be dramatic is a better starting point than a definition. Definitions behave well on a slide. Workflows do not.
 
-In the second part of my Deep Learning Foundations series, I'm peeling back the layers on one of the most fundamental units of neural networks: the single neuron. This dive is all about breaking down how a neuron takes inputs, works its magic through weights and biases, and pops out an output that's shaped by something called the ReLU function.
+## what should stay small
 
-## Single Neuron: Breaking It Down
+The note I would leave about single neuron math would be short and practical: here is the constraint, here is the failure I am worried about, and here is the check that gives me confidence. That is enough to help the next person without pretending to settle the topic forever.
 
-At its heart, a single neuron is a marvel of simplicity and power. It's where the rubber meets the road in neural networks. Let's talk about what happens inside this tiny powerhouse.
+For this topic, the position is that single neuron math needs evidence around it. The evidence might be a runnable example, a browser check, a log line, a permission test, or a category count. Without evidence, the post is only a polished claim.
 
-### Walking Through the Code
+## the next edit
 
-I've cooked up a Python script that mirrors the essential function of a single neuron, enhanced with the ReLU activation. Let's dive into a step-by-step walkthrough of the code that simulates a single neuron's functionality, focusing on the ReLU activation function. This practical example illuminates the foundational concepts previously discussed.
+The second pass on single neuron math is where I would cut the generic parts. If a paragraph could appear in ten other posts, it has not earned the space yet. The rewrite should move closer to the actual scene, the real constraint, or the uncomfortable tradeoff.
 
-1. **Kicking Off with NumPy:**
-   - I start by importing `numpy` as `np`, leveraging its robust numerical computation tools, crucial for handling arrays with ease. NumPy is indispensable for mathematical operations in Python, especially within the deep learning realm.
+## the maintenance memo
 
-2. **Bringing the ReLU Function to Life:**
-   - The `relu(x)` function embodies the ReLU (Rectified Linear Unit) activation function. It's straightforward yet powerful: it returns `x` if `x` is positive, and zero otherwise. This function is key for introducing non-linearity, enabling neural networks to tackle complex problems.
+The reason single neuron math keeps showing up is not that the idea is hard to name. It is that the idea sits in the gap between the clean version people describe and the version they have to operate. That gap is where most of the useful writing lives.
 
-3. **Simulating the Neuron:**
-   - The heart of our discussion, the `single_neuron_network` function, simulates a neuron at work. It takes `weights`, `bias`, and `inputs` as inputs.
-     - **Weights and Inputs:** Here, each input is multiplied by its corresponding weight. The weights are the knobs and dials of the neural network, adjusted during training to hone the network's accuracy.
-     - **Bias:** Adding the bias to the sum of weighted inputs provides an extra layer of flexibility, allowing the neuron to fine-tune its output.
+I would start with a notebook page with three inputs, three weights, one bias, and a ReLU that refuses to be dramatic. It gives the reader something to hold. A concrete scene also makes the tradeoff less slippery because the reader can ask what would happen next, who would notice, and what evidence would be left behind.
 
-4. **Output Calculation Before Activation:**
-   - This step involves calculating the neuron's output before any activation is applied, by summing the products of inputs with their respective weights and adding the bias. This represents the linear aspect of the neuron's operation.
+## what still has to be true
 
-5. **Applying ReLU Activation:**
-   - The output from the linear calculation is then fed through the ReLU function. This is where non-linearity comes into play, empowering the network with the ability to learn and model intricate patterns.
+The first rough version of single neuron math usually looks better than it behaves. It has the right nouns, a reasonable diagram, and a few confident sentences. Then one ordinary detail changes and the explanation has to admit what it left out.
 
-6. **Detailing the Calculation Steps:**
-   - For clarity and educational value, I construct a string outlining each step: multiplying inputs by weights, adding the bias, and the outcome of applying ReLU. This transparency is invaluable for understanding and debugging.
-
-7. **Revealing the Results:**
-   - The culmination of this process is printing out the calculation steps, displaying the output before and after the ReLU function's application.
-
-8. **Executing the Simulation:**
-   - With `inputs`, `weights`, and `bias` all set, I execute the `single_neuron_network` function. This run simulates the neuron in action, applying the discussed steps to output the results of a single neuron after ReLU activation.
-
-This code walkthrough demystifies the basic operations underlying neural network functionality. Breaking down the neuron's process into digestible steps enhances the grasp of how neural networks process inputs to produce outputs, paving the way towards understanding more complex architectures.
-
-### Interactive Code Environment
+## run the small version of single neuron math
 
 <SingleNeuron client:only="react" />
 <PythonModule
@@ -68,15 +43,40 @@ This code walkthrough demystifies the basic operations underlying neural network
   outputRows={32}
 />
 
-### Original Inspiration
+## who owns single neuron math
 
-This journey was sparked by the insightful exercises created by [Dr. Tom Yeh](http://tomyeh.info) for his graduate courses at the University of Colorado Boulder. He's a big advocate for hands-on learning, and so am I. After realizing the scarcity of practical exercises in deep learning, he took it upon himself to develop a set that covers everything from basic concepts like the one discussed today to more advanced topics. His dedication to hands-on learning has been a huge inspiration to me.
+The diagram for single neuron math probably hides the work around the edges. Diagrams are good at boxes and arrows. They are bad at time, ownership, retries, permissions, naming, and the odd little checks that keep a workflow from surprising people.
 
-### Conclusion
+## the stale version
 
-Understanding how a single neuron works lays the foundation for everything else in neural networks. Today, we've covered the ReLU function's role in transforming a neuron's output. In my next post, I'll be taking this foundation and building on it, moving from single neurons to how they connect and interact in larger networks. Plus, I've include a link to a LinkedIn post where we can dive into discussions and share thoughts.
+Single neuron math fails quietly when the failure still produces something that looks acceptable. The answer returns. The page renders. The script exits zero. The problem is that the output is now missing context, using the wrong assumption, or teaching the reader the wrong lesson.
 
-- Last Post: [Intro to Matrix Multiplication Basics](/blog/deep-learning-basics-intro-to-matrix-multiplication)
-- Next Post: [Unraveling Four-Neuron Networks](/blog/deep-learning-basics-exploring-four-neurons)
+When I read a post about single neuron math, I want at least one paragraph about the quiet failure. If the article cannot name the boring way the idea breaks, it probably has not earned the confident parts yet.
 
-LinkedIn Post: [Coding by Hand: Single Neuron Networks in Python](https://lnkd.in/gD2SvQsu)
+## the command I would rerun
+
+The example I trust for single neuron math is small enough to run and specific enough to be wrong. That second part matters. If the example cannot fail in an instructive way, it is not an example. It is decoration with syntax highlighting.
+
+That is why a notebook page with three inputs, three weights, one bias, and a ReLU that refuses to be dramatic works better than a generic setup. It gives the example a little dirt under its fingernails. The reader can imagine the next step instead of only admiring the shape of the explanation.
+
+## the check before publishing
+
+Instrumentation around single neuron math should answer human questions. What happened? What input did we use? Who had access? Which version ran? What changed since the last successful run? If the logs cannot answer those questions, the team will invent a story under pressure.
+
+## what changed since last time
+
+Review changes single neuron math because it forces the idea to leave the author's head. The author knows which corner was cut. The reviewer only sees the artifact. That mismatch is irritating, but it is useful.
+
+For single neuron math, I would ask the reviewer to point at one sentence that feels too broad and one sentence that feels genuinely useful. Then I would edit toward the useful one.
+
+## the boring dependency
+
+The maintenance version of single neuron math is less exciting than the first version. It asks who updates the example, who owns the dependency, what breaks when the surrounding code moves, and whether the post still tells the truth six months later.
+
+## the thing future me forgets
+
+The interface around single neuron math should reduce guessing. If the reader or user needs to know state, show state. If they need to understand a boundary, name the boundary. If the next step is risky, make the risk concrete before asking for approval.
+
+## what I would keep about single neuron math
+
+The part I would keep is the constraint. Single neuron math gets easier to reason about when the team can see the boundary, run the example, and inspect the evidence. That is not a grand conclusion. It is just the difference between a note that feels useful once and a system that keeps helping after the first read.

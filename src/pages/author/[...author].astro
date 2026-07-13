@@ -7,8 +7,15 @@ import { authors } from '@data/authors'
 import Layout from '@layouts/Layout.astro'
 import { latestPosts } from '@utils/content'
 
+type BlogPost = (typeof latestPosts)[number]
+
+interface Props {
+  author: Author
+  posts: BlogPost[]
+}
+
 export function getStaticPaths() {
-  const map = {}
+  const map: Record<string, BlogPost[]> = {}
 
   authors.forEach((author: Author) => {
     map[author.slug] = latestPosts?.filter(
@@ -30,18 +37,20 @@ export function getStaticPaths() {
 const { author, posts } = Astro.props
 ---
 
-<Layout title="Category">
+<Layout
+  title={author.name}
+  desc={`Read posts by ${author.name} on Jeremy London's blog.`}>
   <Container>
-    <PageTitle>
-      <Fragment slot="title">
-        All posts by {author.name}
-      </Fragment>
-      <Fragment slot="desc">
-        See all posts that were written by {author.name}.
-      </Fragment>
-    </PageTitle>
-    <main>
-      <div class="grid gap-10 mt-10 lg:gap-10 md:grid-cols-2 xl:grid-cols-2">
+    <main class="max-w-full w-full">
+      <PageTitle>
+        <Fragment slot="title">
+          {author.name}
+        </Fragment>
+        <Fragment slot="desc">
+          Writing by {author.name}.
+        </Fragment>
+      </PageTitle>
+      <div class="grid gap-x-10 gap-y-12 mt-10 md:grid-cols-2">
         {posts.map((post) => <PostList post={post} aspect="square" />)}
       </div>
     </main>

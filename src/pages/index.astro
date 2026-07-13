@@ -1,113 +1,381 @@
 ---
 import { Image } from 'astro:assets'
-import CategoryPosts from '@components/category-posts.astro'
 import Container from '@components/container.astro'
 import PostList from '@components/post-list.astro'
 import Link from '@components/ui/link.astro'
-import { categories } from '@data/category'
 import Layout from '@layouts/Layout.astro'
 import { latestPosts } from '@utils/content'
 import jeremyImg from '@assets/jeremy.webp'
+
+const workPrinciples = [
+  {
+    title: 'Define the boundary',
+    body: 'Name the owner, the interface, the failure mode, and the decision the system is allowed to make.',
+  },
+  {
+    title: 'Make quality visible',
+    body: 'Use evals, traces, tests, review, and operational signals so trust is measured instead of argued.',
+  },
+  {
+    title: 'Keep it operable',
+    body: 'Build the path for the person debugging, extending, or owning it after the demo is over.',
+  },
+]
+
+const heroSignals = [
+  {
+    label: 'Current role',
+    value: 'Director of Engineering, AI & Threat Analytics',
+  },
+  {
+    label: 'Working in',
+    value: 'AI platforms, security, distributed systems',
+  },
+  {
+    label: 'Usually building',
+    value: 'Operator tooling, eval loops, private inference',
+  },
+]
+
+const profileTopics = [
+  {
+    label: 'Denver, Colorado',
+    href: '/blog?q=Denver',
+  },
+  {
+    label: 'AI platforms',
+    href: '/blog?q=ai+platforms',
+  },
+  {
+    label: 'security',
+    href: '/blog?q=security',
+  },
+  {
+    label: 'distributed systems',
+    href: '/blog?q=systems',
+  },
+]
+
+const outsideWork = [
+  {
+    emoji: '🎸',
+    title: 'Playing guitar',
+    note: 'Usually loud enough to reset the room.',
+  },
+  {
+    emoji: '🍳',
+    title: 'Cooking complicated food',
+    note: 'Best when the recipe has one more step than expected or emulates a michelin star technique.',
+  },
+  {
+    emoji: '⛷️',
+    title: 'Snowboarding',
+    note: 'Useful for getting out of debugging mode.',
+  },
+  {
+    emoji: '📷',
+    title: 'Taking photos',
+    note: 'Mostly light, framing, and patience on my Ricoh GR III. The rest is luck.',
+  },
+]
+
+const featuredPostIds = [
+  'model-routing-is-a-systems-problem',
+  'agents-need-boring-boundaries',
+  'forms-deserve-the-boring-states',
+]
+
+const featuredPosts = featuredPostIds
+  .map((id) => latestPosts.find((post) => post.id === id))
+  .filter(Boolean)
+
+const readingPaths = [
+  {
+    title: 'AI platforms in production',
+    body: 'Routing, observability, evals, cost controls, and the parts of AI systems that have to survive real users.',
+    href: '/blog?category=advance-deep-learning',
+  },
+  {
+    title: 'Agent workflow notes',
+    body: 'Tool boundaries, approvals, handoffs, verifier loops, and the habits that keep long-running agent work legible.',
+    href: '/blog?category=agent-workflows',
+  },
+  {
+    title: 'Engineering quality',
+    body: 'Testing, forms, state, scripts, review, and the small operational choices that make software easier to trust.',
+    href: '/blog?category=deep-learning-principals',
+  },
+  {
+    title: 'Security and trust',
+    body: 'Authorization, validation, dependencies, audit trails, and product decisions that reduce risk without theater.',
+    href: '/blog?category=security-trust',
+  },
+]
 ---
 
-<Layout title="">
+<Layout
+  title=""
+  desc="Engineering leader and builder working across AI platforms, distributed systems, security, and reliability.">
   <Container>
-    <header class="mx-0 lg:mx-20">
+    <header class="relative max-w-full w-full overflow-hidden">
       <div
-        class="mb-14 flex flex-col items-center justify-between gap-10 md:flex-row">
-        <div
-          class="flex flex-col items-start w-full lg:w-1/2 max-lg:items-center">
+        class="grid items-center gap-12 pb-8 lg:grid-cols-[minmax(0,1fr)_24rem]">
+        <div class="max-w-full w-full">
+          <p class="type-meta flex flex-wrap items-center gap-y-1 text-gray-500 dark:text-gray-400">
+            {profileTopics.map((item, index) => (
+              <>
+                {index > 0 && (
+                  <span
+                    aria-hidden="true"
+                    class="px-1 text-gray-300 dark:text-gray-600">
+                    /
+                  </span>
+                )}
+                <a
+                  href={item.href}
+                  class="rounded-sm text-inherit no-underline transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-orange-500 dark:focus-visible:ring-offset-gray-950">
+                  {item.label}
+                </a>
+              </>
+            ))}
+          </p>
           <h1
-            class="mt-2 mb-3 text-3xl font-semibold tracking-tight text-center lg:leading-snug text-brand-primary lg:text-4xl dark:text-white">
-            Hi, I'm Jeremy. <span class="wave">👋</span>
+            class="mt-4 text-5xl font-bold leading-tight tracking-tight text-brand-primary sm:text-6xl dark:text-white">
+            Jeremy London
           </h1>
           <p
-            class="text-lg text-gray-600 dark:text-gray-400 text-center px-4 md:text-left md:px-0">
-            Director of AI & Threat Analytics at <a
-              href="https://keepersecurity.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="hover:text-blue-500
-            dark:hover:text-orange-500"
-              >Keeper Security</a
-            >. I build ML systems, secure products, and developer tools. I write
-            about machine learning, security, and full-stack engineering.
+            class="mt-5 max-w-2xl text-xl font-medium leading-snug text-gray-800 dark:text-gray-100">
+            Engineering leader. Systems builder.
+          </p>
+          <p
+            class="mt-5 max-w-2xl text-lg leading-8 text-gray-600 dark:text-gray-300">
+            I build teams and production systems around AI, security, and
+            distributed infrastructure. My work sits between engineering
+            leadership and hands-on platform development.
           </p>
 
-          <ul
-            class="mt-4 grid grid-cols-1 gap-4 text-md text-gray-500 dark:text-gray-400 md:grid-cols-2">
-            <li class="text-yellow-800 dark:text-yellow-200">
-              +10 Years of Experience
-            </li>
-            <li class="text-red-800 dark:text-red-200">📍 Denver, Colorado</li>
-            <li class="text-sky-800 dark:text-sky-200">
-              🔐 Exploring & building SOTA ML, LLM, and VLM models
-            </li>
-            <li class="text-gray-600 dark:text-gray-100">
-              🤏 Small models, edge deployments
-            </li>
-          </ul>
+          <div class="mt-8 flex flex-wrap items-center gap-3">
+            <Link href="/contact">Contact</Link>
+            <Link href="/blog" style="outline">Read my blog</Link>
+          </div>
 
-          <div class="flex flex-wrap mt-8 space-x-3">
-            <Link href="/blog">Blog Posts</Link>
-            <Link href="/about" style="outline">About me</Link>
+          <div class="mt-8 grid gap-3 sm:grid-cols-3">
+            {heroSignals.map((item, index) => (
+              <div
+                class="motion-rise border-t border-gray-200 pt-4 dark:border-gray-800"
+                style={`--i: ${index}`}>
+                <p class="type-label text-gray-400 dark:text-gray-500">
+                  {item.label}
+                </p>
+                <p class="mt-2 text-sm leading-6 text-gray-700 dark:text-gray-200">
+                  {item.value}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
 
-        <figure class="cool-profile">
-          <Image
-            src={jeremyImg}
-            alt="Jeremy's profile picture"
-            class="shadow-md"
-            format='avif'
-            decoding={"sync"}
-            loading={"eager"}
-            fetchpriority={"high"}
-            width={384}
-            height={384}
-          />
-        </figure>
+        <div class="mx-auto w-full max-w-md justify-items-center">
+          <figure class="cool-profile" data-profile-motion>
+            <span class="cool-profile__orbit cool-profile__orbit--back" aria-hidden="true"></span>
+            <span class="cool-profile__orbit cool-profile__orbit--front" aria-hidden="true"></span>
+            <Image
+              src={jeremyImg}
+              alt="Jeremy London's profile picture"
+              class="cool-profile__image border border-gray-200 dark:border-gray-800"
+              format="avif"
+              decoding={"async"}
+              loading={"eager"}
+              fetchpriority={"high"}
+              width={384}
+              height={384}
+            />
+          </figure>
+        </div>
       </div>
     </header>
 
-    <main>
-      <h2
-        class="text-2xl pt-7 font-semibold tracking-tight text-center lg:leading-snug text-brand-primary lg:text-3xl dark:text-white">
-        Latest posts
-      </h2>
-      <div class="grid gap-10 pt-7 lg:gap-10 md:grid-cols-2">
-        {
-          latestPosts
-            .slice(0, 2)
-            .map((post) => (
-              <PostList post={post} aspect="landscape" preloadImage={true} />
-            ))
-        }
-      </div>
-      <div class="grid gap-10 mt-10 lg:gap-10 md:grid-cols-2 xl:grid-cols-2">
-        {
-          latestPosts
-            .slice(2, 5)
-            .map((post) => <PostList post={post} aspect="square" />)
-        }
-      </div>
+    <main class="max-w-full w-full">
+      <section class="border-t border-gray-200 py-14 dark:border-gray-800 lg:py-16">
+        <div class="grid gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
+          <div class="max-w-full w-full">
+            <p class="type-label text-blue-700 dark:text-orange-300">
+              The repeatable part
+            </p>
+            <h2
+              class="mt-3 text-3xl font-semibold leading-tight text-brand-primary dark:text-white">
+              Different systems, same operating pattern.
+            </h2>
+            <p class="mt-4 leading-7 text-gray-600 dark:text-gray-300">
+              The domain changes: AI platforms, agents, security, distributed
+              systems, engineering teams. The useful work usually starts by
+              making the blurry parts explicit.
+            </p>
+          </div>
+          <div class="divide-y divide-gray-200 border-t border-gray-200 dark:divide-gray-800 dark:border-gray-800">
+            {workPrinciples.map((item, index) => (
+              <div
+                class="motion-rise grid gap-4 py-5 sm:grid-cols-[3rem_1fr]"
+                style={`--i: ${index}`}>
+                <span class="type-mono flex h-12 w-12 items-center justify-center border border-gray-200 text-sm font-semibold text-blue-700 dark:border-gray-800 dark:text-orange-300">
+                  0{index + 1}
+                </span>
+                <div>
+                  <h3 class="text-lg font-semibold text-gray-950 dark:text-white">
+                    {item.title}
+                  </h3>
+                  <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                    {item.body}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-      <div class="flex justify-center mt-7 mb-7">
-        <a
-          href="/blog"
-          class="px-5 py-3 text-sm font-medium rounded-md transition
-        text-white bg-blue-600 hover:bg-blue-700
-        dark:bg-orange-700 dark:hover:bg-orange-900 dark:text-white">
-          ← View all posts
-        </a>
-      </div>
+      <section class="grid gap-10 py-16 lg:grid-cols-2 lg:items-start">
+        <div>
+          <h2 class="text-2xl font-semibold text-brand-primary dark:text-white">
+            Current interests
+          </h2>
+          <p class="mt-3 text-lg leading-8 text-gray-700 dark:text-gray-200">
+            The thread running through most of my work right now is controlled
+            autonomy: AI agents with real permissions, LLM gateways that route
+            work intentionally, local inference that keeps private workflows
+            close, and developer tools that make quality easier to see.
+          </p>
+          <div class="mt-6 divide-y divide-gray-200 border-t border-gray-200 dark:divide-gray-800 dark:border-gray-800">
+            <div class="grid gap-2 py-4 sm:grid-cols-[10rem_1fr] sm:gap-6">
+              <p class="type-label text-gray-400 dark:text-gray-500">
+                boundary
+              </p>
+              <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">
+                I keep coming back to the same questions: where should the
+                boundary live, what does the system know about itself, and how
+                does somebody recover when the clever path fails?
+              </p>
+            </div>
+            <div class="grid gap-2 py-4 sm:grid-cols-[10rem_1fr] sm:gap-6">
+              <p class="type-label text-gray-400 dark:text-gray-500">
+                practice
+              </p>
+              <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">
+                That shows up in MCP tools, eval loops, WebGPU experiments,
+                Kubernetes infrastructure, home automation, and the
+                unglamorous parts of making AI systems maintainable.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h2 class="text-2xl font-semibold text-brand-primary dark:text-white">
+            Away from the keyboard
+          </h2>
+          <p class="mt-3 text-lg leading-8 text-gray-700 dark:text-gray-200">
+            The non-technical side stays separate from the lab. It gives the rest of the work something real to bounce against.
+          </p>
+          <div class="mt-6 grid gap-4 sm:grid-cols-2">
+            {outsideWork.map((item, index) => (
+              <div
+                class="group motion-rise rounded-2xl border border-gray-200 bg-white/70 p-4 shadow-sm shadow-gray-950/5 backdrop-blur dark:border-gray-800 dark:bg-gray-950/30"
+                style={`--i: ${index}`}>
+                <div class="flex items-start gap-3">
+                  <span
+                    aria-hidden="true"
+                    class="emoji-wiggle inline-block shrink-0 text-2xl leading-none">
+                    {item.emoji}
+                  </span>
+                  <div class="min-w-0">
+                    <h3 class="text-base font-semibold text-gray-950 dark:text-white">
+                      {item.title}
+                    </h3>
+                    <p class="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-300">
+                      {item.note}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
 
-      <h2
-        class="text-2xl pt-14 font-semibold tracking-tight text-center lg:leading-snug text-brand-primary lg:text-3xl dark:text-white">
-        Posts by category
-      </h2>
+      <section class="border-t border-gray-200 py-16 dark:border-gray-800">
+        <div class="grid gap-10 lg:grid-cols-[0.95fr_1.05fr]">
+          <div class="max-w-full w-full">
+            <h2
+              class="text-2xl font-semibold text-brand-primary dark:text-white">
+              Start with the writing that explains the work
+            </h2>
+            <p class="mt-3 leading-7 text-gray-600 dark:text-gray-300">
+              The blog is a working notebook for AI platforms, engineering
+              quality, agent systems, and the small operational details that
+              usually decide whether software is usable after the demo.
+            </p>
+          </div>
+          <div class="divide-y divide-gray-200 dark:divide-gray-800">
+            {
+              readingPaths.map((path, index) => (
+                <a
+                  href={path.href}
+                  class="motion-rise motion-lift group grid gap-2 py-5 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:focus-visible:ring-orange-500 dark:focus-visible:ring-offset-gray-950 md:grid-cols-[14rem_1fr]"
+                  style={`--i: ${index}`}>
+                  <h3 class="font-semibold text-blue-700 transition-colors group-hover:text-blue-900 dark:text-orange-300 dark:group-hover:text-orange-200">
+                    {path.title}
+                  </h3>
+                  <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">
+                    {path.body}
+                  </p>
+                </a>
+              ))
+            }
+          </div>
+        </div>
 
-      {categories?.map((category) => <CategoryPosts category={category} />)}
+        <div class="mt-10 pt-5">
+          <div class="flex flex-wrap items-end justify-between gap-4">
+            <div class="max-w-full w-full">
+              <h2
+                class="text-2xl font-semibold text-brand-primary dark:text-white">
+                Worth reading first
+              </h2>
+              <p class="mt-2 text-gray-600 dark:text-gray-400">
+                A few useful entry points before you open the full archive.
+              </p>
+            </div>
+            <Link href="/blog" style="underline" size="unset">
+              Browse all posts
+            </Link>
+          </div>
+          <div class="mt-8 grid gap-x-10 gap-y-10 md:grid-cols-3">
+            {featuredPosts.map((post, index) => (
+              <div class="motion-rise" style={`--i: ${index}`}>
+                <PostList post={post} />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section class="border-t border-gray-200 pt-8 dark:border-gray-800">
+        <div class="py-4 md:flex md:items-center md:justify-between md:gap-2">
+          <div class="max-w-full w-full">
+            <h2 class="text-xl font-semibold text-brand-primary dark:text-white">
+              Looking for something specific?
+            </h2>
+            <p class="mt-2 leading-7 text-gray-600 dark:text-gray-300">
+              The blog now has search, category filters, year filters, and sort
+              controls for the full archive.
+            </p>
+          </div>
+          <div class="mt-5 md:mt-0">
+            <Link href="/blog" class="w-full whitespace-nowrap sm:min-w-48 sm:w-auto">
+              View Blog
+            </Link>
+          </div>
+        </div>
+      </section>
     </main>
   </Container>
 </Layout>
@@ -115,66 +383,35 @@ import jeremyImg from '@assets/jeremy.webp'
 <script is:inline>
   document.addEventListener("DOMContentLoaded", () => {
     const reduce = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
+      "(prefers-reduced-motion: reduce)",
     ).matches;
 
-    // Profile intro animation (runs once)
-    const profile = document.querySelector(".cool-profile");
+    const profile = document.querySelector("[data-profile-motion]");
     if (!profile || reduce) return;
 
-    // Phase 1: run the intro animation once
-    profile.classList.add("intro-anim");
+    let exitTimer = 0;
+    let introTimer = 0;
 
-    const introMs = 3400; // 0.4s hoverPop + 3.0s slick-hover*
-    const exitMs = 550; // fade/settle duration
-
-    let exitTimer, clearAll;
-
-    const startExit = () => {
-      // Phase 2: fade/settle to rest instead of "jumping"
-      profile.classList.add("intro-exit");
-      exitTimer = setTimeout(() => {
-        profile.classList.remove("intro-anim", "intro-exit");
-      }, exitMs);
-    };
-
-    const introTimer = setTimeout(startExit, introMs);
-
-    // If the user hovers during the intro/exit, hand control to :hover immediately
-    clearAll = () => {
+    const clearTimers = () => {
       clearTimeout(introTimer);
       clearTimeout(exitTimer);
       profile.classList.remove("intro-anim", "intro-exit");
-      profile.removeEventListener("mouseenter", clearAll);
     };
-    profile.addEventListener("mouseenter", clearAll);
 
-    const wave = document.querySelector("h1 .wave");
-    if (wave && !reduce) {
-      wave.classList.add("intro-wave");
+    profile.classList.add("intro-anim");
+    introTimer = window.setTimeout(() => {
+      profile.classList.add("intro-exit");
+      exitTimer = window.setTimeout(() => {
+        profile.classList.remove("intro-anim", "intro-exit");
+      }, 380);
+    }, 3200);
 
-      const waveIntroMs = 3000; // matches animation duration
-      const waveExitMs = 450; // fade/settle duration
-
-      let waveExitTimer;
-
-      const startWaveExit = () => {
-        wave.classList.add("intro-exit");
-        waveExitTimer = setTimeout(() => {
-          wave.classList.remove("intro-wave", "intro-exit");
-        }, waveExitMs);
-      };
-
-      const waveIntroTimer = setTimeout(startWaveExit, waveIntroMs);
-
-      // If user hovers during intro/exit, hand over to :hover immediately
-      const cancelWaveIntro = () => {
-        clearTimeout(waveIntroTimer);
-        clearTimeout(waveExitTimer);
-        wave.classList.remove("intro-wave", "intro-exit");
-        wave.removeEventListener("mouseenter", cancelWaveIntro);
-      };
-      wave.addEventListener("mouseenter", cancelWaveIntro);
-    }
+    profile.addEventListener("pointerenter", clearTimers);
+    profile.addEventListener("pointerenter", () => {
+      profile.classList.add("is-active");
+    });
+    profile.addEventListener("pointerleave", () => {
+      profile.classList.remove("is-active");
+    });
   });
 </script>

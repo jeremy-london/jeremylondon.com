@@ -1,0 +1,59 @@
+---
+import Container from '@components/container.astro'
+import PageTitle from '@components/page-title.astro'
+import PostList from '@components/post-list.astro'
+import Layout from '@layouts/Layout.astro'
+import { latestPosts } from '@utils/content'
+import { slugifyTag, titleizeTag } from '@utils/tags'
+
+type BlogPost = (typeof latestPosts)[number]
+
+interface Props {
+  tag: string
+  posts: BlogPost[]
+}
+
+export function getStaticPaths() {
+  const map = new Map<string, { label: string; posts: BlogPost[] }>()
+
+  latestPosts.forEach((post) => {
+    post.data.tags.forEach((tag: string) => {
+      const slug = slugifyTag(tag)
+      const entry = map.get(slug) ?? { label: tag, posts: [] }
+      entry.posts.push(post)
+      map.set(slug, entry)
+    })
+  })
+
+  return [...map.entries()].map(([slug, entry]) => ({
+    params: { tag: slug },
+    props: {
+      tag: entry.label,
+      posts: entry.posts,
+    },
+  }))
+}
+
+const { tag, posts } = Astro.props
+const label = tag || titleizeTag(Astro.params.tag ?? '')
+---
+
+<Layout
+  title={`Tag: ${label}`}
+  desc={`Read Jeremy London's posts tagged with ${label}.`}>
+  <Container>
+    <main class="max-w-full w-full">
+      <PageTitle>
+        <Fragment slot="title">
+          #{label}
+        </Fragment>
+        <Fragment slot="desc">
+          Posts tagged with {label}.
+        </Fragment>
+      </PageTitle>
+      <div class="grid gap-x-10 gap-y-12 mt-10 md:grid-cols-2">
+        {posts.map((post) => <PostList post={post} />)}
+      </div>
+    </main>
+  </Container>
+</Layout>

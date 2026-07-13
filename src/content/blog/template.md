@@ -2,7 +2,6 @@
 title: "Title Goes Here"
 excerpt: "Some description"
 publishDate: "2022-12-29T11:39:36.050Z"
-image: "https://images.unsplash.com/[IMAGE-URL]"
 # category slug: choose from "./src/data/category.js"
 category: "deep-learning-basics"
 # remove this line to publish
@@ -16,4 +15,4 @@ Your content here
 
 ## Write Headings
 
-Some content with [links](#) and more...
+Some content with [jeremylondon.com](https://jeremylondon.com) and more...

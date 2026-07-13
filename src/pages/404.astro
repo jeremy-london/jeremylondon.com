@@ -8,31 +8,30 @@ import NotFoundImg from '@assets/404.webp'
 
 <Layout title="404 - Page Not Found">
   <Container>
-    <header>
-      <div class="mb-14 flex flex-col items-center justify-between lg:flex-row">
-        <div
-          class="flex flex-col items-start w-full lg:w-1/2 max-lg:items-center">
-          <h1
-            class="mt-2 mb-3 text-3xl font-semibold tracking-tight text-center lg:leading-snug text-brand-primary lg:text-4xl dark:text-white">
-            404 - Page Not Found
+    <header class="max-w-full w-full">
+      <div class="flex flex-col items-center justify-center gap-10 h-[75vh]">
+        <div class="flex w-full max-w-2xl flex-col items-center text-center">
+          <h1 class="text-4xl font-bold leading-tight text-brand-primary sm:text-5xl dark:text-white">
+            Page not found
           </h1>
-          <p
-            class="text-lg text-gray-500 dark:text-gray-400 text-center md:px-10 lg:text-left lg:px-0">
-            Oops! It seems like you've ventured into uncharted territory. Let's
-            get you back on track.
+          <p class="mt-4 max-w-2xl text-lg leading-8 text-gray-600 dark:text-gray-300">
+            That URL does not map to anything here. The useful paths are still
+            close by: visit my blog or go back to the homepage.
           </p>
-          <div class="flex flex-wrap mt-8 space-x-3">
-            <Link href="/">Go to Homepage</Link>
-            <Link href="/blog">Explore Blog</Link>
+          <div class="mt-8 flex flex-wrap justify-center gap-3">
+            <Link href="/blog">Read my blog</Link>
+            <Link href="/" style="outline">Go home</Link>
           </div>
         </div>
 
-        <figure class="w-96 h-96 p-8">
+        <figure class="cool-profile mx-auto w-full max-w-80" aria-label="404 illustration">
+          <span class="cool-profile__orbit cool-profile__orbit--back" aria-hidden="true"></span>
+          <span class="cool-profile__orbit cool-profile__orbit--front" aria-hidden="true"></span>
           <Image
             src={NotFoundImg}
-            alt="404 Not Found"
-            format='avif'
-            class="rounded-full shadow-md"
+            alt="Abstract 404 illustration"
+            format="avif"
+            class="cool-profile__image border border-gray-200 dark:border-gray-800"
           />
         </figure>
       </div>

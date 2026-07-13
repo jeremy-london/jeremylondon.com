@@ -1,0 +1,275 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-13T08:46:43Z",
+  "title": "Design System: Jeremy London",
+  "extensions": {
+    "colorMeta": {
+      "ink": {
+        "role": "primary",
+        "displayName": "Field Ink",
+        "canonical": "#030712",
+        "tonalRamp": [
+          "oklch(15% 0.01 260)",
+          "oklch(25% 0.01 260)",
+          "oklch(35% 0.01 260)",
+          "oklch(45% 0.01 260)",
+          "oklch(58% 0.01 260)",
+          "oklch(72% 0.01 260)",
+          "oklch(86% 0.01 260)",
+          "oklch(96% 0.01 260)"
+        ]
+      },
+      "paper": {
+        "role": "primary",
+        "displayName": "Clear Paper",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(100% 0 0)",
+          "oklch(98% 0.005 260)",
+          "oklch(95% 0.005 260)",
+          "oklch(89% 0.005 260)",
+          "oklch(78% 0.005 260)",
+          "oklch(64% 0.005 260)",
+          "oklch(46% 0.005 260)",
+          "oklch(28% 0.005 260)"
+        ]
+      },
+      "accent-blue": {
+        "role": "secondary",
+        "displayName": "Signal Blue",
+        "canonical": "#3b82f6",
+        "tonalRamp": [
+          "oklch(20% 0.08 260)",
+          "oklch(32% 0.11 260)",
+          "oklch(44% 0.15 260)",
+          "oklch(56% 0.18 260)",
+          "oklch(66% 0.16 260)",
+          "oklch(76% 0.12 260)",
+          "oklch(86% 0.08 260)",
+          "oklch(95% 0.04 260)"
+        ]
+      },
+      "accent-orange": {
+        "role": "secondary",
+        "displayName": "Workbench Orange",
+        "canonical": "#f97316",
+        "tonalRamp": [
+          "oklch(20% 0.08 55)",
+          "oklch(32% 0.11 55)",
+          "oklch(44% 0.15 55)",
+          "oklch(56% 0.18 55)",
+          "oklch(66% 0.16 55)",
+          "oklch(76% 0.12 55)",
+          "oklch(86% 0.08 55)",
+          "oklch(95% 0.04 55)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Soft Surface",
+        "canonical": "#f9fafb",
+        "tonalRamp": [
+          "oklch(15% 0.005 260)",
+          "oklch(25% 0.005 260)",
+          "oklch(35% 0.005 260)",
+          "oklch(48% 0.005 260)",
+          "oklch(62% 0.005 260)",
+          "oklch(76% 0.005 260)",
+          "oklch(89% 0.005 260)",
+          "oklch(98% 0.005 260)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Homepage name, page titles, and major first-screen statements."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Section headings and page-level group titles."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Post titles, work-area titles, and short component headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Long-form prose and descriptions."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Category labels and short taxonomic labels."
+      },
+      "meta": {
+        "displayName": "Meta",
+        "purpose": "Datelines, reading time, separators, and code-shaped metadata."
+      }
+    },
+    "shadows": [
+      {
+        "name": "subtle-image-lift",
+        "value": "0 4px 6px rgba(0, 0, 0, 0.1)",
+        "purpose": "Low image elevation for assets that need separation."
+      },
+      {
+        "name": "action-hover-lift",
+        "value": "0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)",
+        "purpose": "Primary hover treatment for direct actions."
+      },
+      {
+        "name": "profile-orbit-glow",
+        "value": "0 0 30px rgba(10, 12, 15, 0.27)",
+        "purpose": "Signature-only treatment for the homepage portrait."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-standard",
+        "value": "150ms-300ms ease-out",
+        "purpose": "Default hover, focus, and state feedback."
+      },
+      {
+        "name": "panel-reveal",
+        "value": "short fade and slide with reduced-motion fallback",
+        "purpose": "Combobox popovers, mobile navigation, and other transient panels."
+      },
+      {
+        "name": "profile-orbit",
+        "value": "3s linear orbit with reduced-motion guard",
+        "purpose": "Homepage signature motion only."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "xs",
+        "value": "475px"
+      },
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      },
+      {
+        "name": "xl",
+        "value": "1280px"
+      },
+      {
+        "name": "2xl",
+        "value": "1536px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Link Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Primary CTA treatment for navigation to concrete next steps.",
+      "html": "<a class=\"ds-btn-primary\" href=\"#\">Contact</a>",
+      "css": ".ds-btn-primary { display: inline-flex; align-items: center; justify-content: center; border: 2px solid transparent; border-radius: 4px; background: #030712; color: #ffffff; padding: 10px 20px; font: 500 1rem/1.5 Inter, ui-sans-serif, system-ui, sans-serif; text-decoration: none; text-align: center; transition: background-color 200ms ease, box-shadow 200ms ease; } .ds-btn-primary:hover { background: #1f2937; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); } .ds-btn-primary:focus-visible { outline: none; box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #3b82f6; }"
+    },
+    {
+      "name": "Secondary Link Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Outline treatment for secondary actions such as RSS and external profiles.",
+      "html": "<a class=\"ds-btn-secondary\" href=\"#\">RSS</a>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; border: 2px solid #030712; border-radius: 4px; background: #ffffff; color: #030712; padding: 10px 20px; font: 500 1rem/1.5 Inter, ui-sans-serif, system-ui, sans-serif; text-decoration: none; text-align: center; transition: background-color 200ms ease, color 200ms ease, box-shadow 200ms ease; } .ds-btn-secondary:hover { background: #030712; color: #ffffff; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1); } .ds-btn-secondary:focus-visible { outline: none; box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #3b82f6; }"
+    },
+    {
+      "name": "Navigation Link",
+      "kind": "nav",
+      "refersTo": "nav-link",
+      "description": "Quiet top-nav link with a blue or orange underline interaction.",
+      "html": "<a class=\"ds-nav-link\" href=\"#\">Blog</a>",
+      "css": ".ds-nav-link { position: relative; display: inline-flex; align-items: center; min-height: 44px; color: #4b5563; font: 600 0.75rem/1.4 Inter, ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; text-decoration: none; transition: color 200ms ease; } .ds-nav-link::after { content: \"\"; position: absolute; left: 0; bottom: 0; width: 0; height: 3.5px; border-radius: 6px; background: #3b82f6; transition: width 300ms ease; } .ds-nav-link:hover { color: #1f2937; } .ds-nav-link:hover::after { width: 100%; } .ds-nav-link:focus-visible { outline: 2px solid #3b82f6; outline-offset: 4px; }"
+    },
+    {
+      "name": "Content Card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "Compact bordered grouping for work areas, stack items, and summaries.",
+      "html": "<article class=\"ds-card\"><h3>AI platforms</h3><p>LLM gateways, routing, fallbacks, model serving, evals, and production systems.</p></article>",
+      "css": ".ds-card { border: 1px solid #e5e7eb; border-radius: 6px; background: #ffffff; color: #030712; padding: 20px; box-shadow: none; } .ds-card h3 { margin: 0; font: 600 1.125rem/1.35 Inter, ui-sans-serif, system-ui, sans-serif; letter-spacing: 0; } .ds-card p { margin: 8px 0 0; color: #4b5563; font: 400 0.875rem/1.7 Inter, ui-sans-serif, system-ui, sans-serif; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Contact form field with strong border and visible focus ring.",
+      "html": "<label class=\"ds-field\"><span>Email</span><input type=\"email\" placeholder=\"Email Address\" /></label>",
+      "css": ".ds-field { display: grid; gap: 6px; color: #030712; font: 600 0.75rem/1.4 Inter, ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; } .ds-field input { width: 100%; border: 2px solid #d1d5db; border-radius: 6px; background: #ffffff; color: #111827; padding: 12px 16px; font: 400 1rem/1.5 Inter, ui-sans-serif, system-ui, sans-serif; outline: none; transition: border-color 160ms ease, box-shadow 160ms ease; } .ds-field input::placeholder { color: #6b7280; opacity: 1; } .ds-field input:focus { border-color: #4b5563; box-shadow: 0 0 0 4px #f3f4f6; }"
+    },
+    {
+      "name": "Category Label",
+      "kind": "chip",
+      "refersTo": "label",
+      "description": "Small category text used on article previews and archive filters.",
+      "html": "<span class=\"ds-category-label\">AI systems</span>",
+      "css": ".ds-category-label { display: inline-block; margin-top: 20px; color: #2563eb; font: 600 0.75rem/1.4 Inter, ui-sans-serif, system-ui, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Field Notebook",
+    "overview": "This visual system should feel like a technical field notebook cleaned up for publication: direct, legible, specific, and a little more modern than the older version of the site. The layout now uses the available width more confidently, so the pages feel intentional on wide screens instead of squeezed into a narrow center column.",
+    "keyCharacteristics": [
+      "Quiet technical credibility, not marketing spectacle.",
+      "Writing-first layouts with wider responsive containers.",
+      "Mono used intentionally for metadata and system-shaped details.",
+      "Flat surfaces with compact corners and restrained borders.",
+      "Light and dark modes treated as equal reading environments."
+    ],
+    "rules": [
+      {
+        "name": "The One Accent Rule",
+        "body": "A surface uses blue in light mode or orange in dark mode, never both as competing decoration. Category colors are allowed only as small labels.",
+        "section": "colors"
+      },
+      {
+        "name": "The Gray Has a Job Rule",
+        "body": "Gray is for hierarchy and structure: metadata, borders, muted text, and panels. Do not use gray to make important prose look elegant; if it harms readability, darken it.",
+        "section": "colors"
+      },
+      {
+        "name": "The Writing Leads Rule",
+        "body": "If a typographic flourish makes a post, bio, or technical explanation harder to read, remove the flourish.",
+        "section": "typography"
+      },
+      {
+        "name": "The Metadata Mono Rule",
+        "body": "Datelines, timestamps, separators, and code-shaped signature lines should look deliberate in mono, not accidental in sans.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-Until-Acted-On Rule",
+        "body": "Surfaces are flat at rest. Shadow appears as feedback or for true imagery, not as a default container style.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep prose readable first: strong contrast, sensible line length, and no decorative clutter in the reading path.",
+      "Do use blue for light-mode interactive emphasis and orange for dark-mode interactive emphasis.",
+      "Do keep cards compact and useful: border, 6px radius, no nested card shells.",
+      "Do preserve the code-shaped signature line and mono metadata as part of the voice.",
+      "Do make dark mode as readable as light mode; muted dark text should stay close enough to white to pass WCAG AA.",
+      "Do prefer concrete technical copy over broad claims about expertise."
+    ],
+    "donts": [
+      "Don't make the site feel like a promotional thought-leader site.",
+      "Don't use generic SaaS landing-page patterns: hero metrics, repeated icon-card grids, or decorative floating cards.",
+      "Don't use hype-heavy AI brand treatments: neon gradients, vague capability claims, decorative AI diagrams, or glassmorphism.",
+      "Don't turn the site into a decorative portfolio that makes the writing harder to read.",
+      "Don't over-polish the copy into corporate voice. Jeremy should sound like a capable engineer in a useful technical conversation.",
+      "Don't use colored side-stripe borders wider than 1px as a card or timeline accent.",
+      "Don't let one section drift back to narrow widths while the rest of the site uses the available screen responsibly."
+    ]
+  }
+}

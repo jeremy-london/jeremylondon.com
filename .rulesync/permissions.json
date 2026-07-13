@@ -1,0 +1,26 @@
+{
+  "$schema": "https://github.com/dyoshikawa/rulesync/releases/latest/download/permissions-schema.json",
+  "permission": {
+    "bash": {
+      "*": "allow"
+    },
+    "read": {
+      "./**": "allow"
+    },
+    "edit": {
+      "./**": "allow"
+    },
+    "webfetch": {
+      "*": "allow"
+    }
+  },
+  "claudecode": {
+    "permissions": {
+      "defaultMode": "bypassPermissions"
+    }
+  },
+  "codexcli": {
+    "approval_policy": "never",
+    "sandbox_mode": "danger-full-access"
+  }
+}

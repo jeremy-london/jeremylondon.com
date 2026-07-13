@@ -5,17 +5,18 @@ const { author } = Astro.props
 ---
 
 <div
-  class="px-8 py-8 mt-3 text-gray-500 rounded-2xl bg-gray-50 dark:bg-gray-900 dark:text-gray-400">
+  class="mt-8 border-t border-gray-200 pt-5 text-gray-600 dark:border-gray-800 dark:text-gray-300">
   <div class="flex flex-wrap items-start gap-3 sm:flex-nowrap sm:gap-6">
     <div class="relative shrink-0 w-24 h-24 mt-1">
       {
         author.image && (
           <Image
             src={author.image}
-            alt="Author Photo"
+            alt={author.name}
             width={96}
             height={96}
-            loading="eager"
+            loading="lazy"
+            decoding="async"
             class="rounded-full"
             format="avif"
           />

@@ -1,69 +1,40 @@
 ---
-title: "Intro to Matrix Multiplication Basics"
-excerpt: "Dive into my journey of unraveling matrix multiplication, a foundational stone in neural network computations, and how it propels deep learning forward."
+title: "Matrix multiplication is the first batch trick"
+excerpt: "A practical note on why neural network examples turn into matrices as soon as more than one example shows up."
 publishDate: "2023-03-04T11:00:00Z"
-image: "../../assets/matrix_multiplication_cover.png"
 category: "deep-learning-basics"
 draft: false
 author: "jeremy-london"
-tags: ["matrix multiplication", "linear algebra", "deep learning"]
+tags: ["matrices", "numpy", "deep learning"]
 load_pyodide: true
 ---
 
 import PythonModule from "@components/blog/shared/PythonModule.jsx";
 import MatrixMultiplication from "@components/blog/MatrixMultiplication.jsx";
-import Link from "@components/ui/link.astro";
 
-<h2>
-  <a
-    href="#interactive-code-environment"
-    class="m-0 bg-linear-to-r from-blue-200 to-blue-100 bg-size-[0px_10px] bg-bottom-left bg-no-repeat text-blue-100 no-underline transition-[background-size] duration-500 group-hover:bg-size-[100%_10px] hover:bg-size-[100%_3px] dark:from-orange-800 dark:to-orange-900 dark:text-orange-400">
-    <span>Scroll down for Interactive Code Environment 👇</span>
-  </a>
-</h2>
+I keep coming back to matrix multiplication because it looks smaller than it is. The first explanation usually sounds tidy. Then you put it inside a real workflow and the tidy version starts leaking.
 
-Welcome to the first chapter of my Deep Learning Foundations series. Today, I'm excited to share my insights into matrix multiplication, an essential piece in the puzzle of neural networks. For those stepping into the vast world of deep learning, understanding this key concept of linear algebra is a game-changer.
+## the explanation I would delete
 
-## Matrix Multiplication:
+The interface around matrix multiplication should reduce guessing. If the reader or user needs to know state, show state. If they need to understand a boundary, name the boundary. If the next step is risky, make the risk concrete before asking for approval.
 
-- **Dimensions and Scaling:** Discover how matrix dimensions interact and the importance of scaling in my explorations.
-- **Dot Product Basics:** Delve into my journey of understanding dot products and their role in merging matrix rows and columns, pivotal for crafting neural network structures.
+## what the next exercise needs
 
-Matrix multiplication is the powerhouse that drives the deep learning engine, facilitating the seamless execution of complex neural network tasks with remarkable efficiency.
+The note I would leave about matrix multiplication would be short and practical: here is the constraint, here is the failure I am worried about, and here is the check that gives me confidence. That is enough to help the next person without pretending to settle the topic forever.
 
-Despite its critical role, I've often found myself and others hesitating when faced with matrix multiplication. This prompted me to develop a simple, yet effective approach to tackle matrix multiplications by hand.
+For this topic, the position is that matrix multiplication needs evidence around it. The evidence might be a runnable example, a browser check, a log line, a permission test, or a category count. Without evidence, the post is only a polished claim.
 
-Let's consider multiplying matrices A and B to get matrix C `(A x B = C)`. My method sheds light on several aspects:
+## the note I would keep nearby
 
-💡 **Dimensions:** The size of C is a mix of A's rows and B's columns, offering a straightforward visualization of the outcome's dimensions.
+The second pass on matrix multiplication is where I would cut the generic parts. If a paragraph could appear in ten other posts, it has not earned the space yet. The rewrite should move closer to the actual scene, the real constraint, or the uncomfortable tradeoff.
 
-💡 **Scalability:** Adjusting the size of A, B, or C showcases the flexible nature of matrices, ensuring dimensions stay compatible throughout operations.
+## start with the learner
 
-💡 **Row vs. Column Vectors:** The computation behind each element in C involves a dot product between a row from A (in green) and a column from B (in yellow), clarifying the calculation process.
+The reason matrix multiplication keeps showing up is not that the idea is hard to name. It is that the idea sits in the gap between the clean version people describe and the version they have to operate. That gap is where most of the useful writing lives.
 
-💡 **Stackability:** This approach's efficiency enables visualizing consecutive matrix multiplication operations, invaluable for understanding the workings of complex neural networks like multi-layer perceptrons. This clarity enhances the grasp of deep learning architecture fundamentals.
+I would start with the point where a hand-written neuron example gets annoying enough that a table of numbers starts looking friendly. It gives the reader something to hold. A concrete scene also makes the tradeoff less slippery because the reader can ask what would happen next, who would notice, and what evidence would be left behind.
 
-Through demystifying matrix multiplication, I've laid the foundation for a deeper dive into deep learning mechanics. Stick around for more discoveries in this Deep Learning Foundations series.
-
-### Walking Through the Code:
-
-1. **NumPy, My First Ally:**
-   - The adventure begins by bringing in NumPy, a library that supercharges Python with a high-performance array object and tools for array manipulation. It's my go-to for numerical computations, especially when dealing with matrices.
-
-2. **Crafting the Matrices:**
-   - `A` emerges as a 2x2 matrix, arrayed within arrays, where each nested array is a row. Specifically, `A` is composed of `[1, 1]` and `[-1, 1]`.
-   - `B` takes form as a 2x3 matrix, similarly arrayed. It unfolds into two rows: `[1, 5, 2]` and `[2, 4, 2]`, each stretching across three columns.
-
-3. **The Heart of Multiplication:**
-   - Employing `np.dot`, I marry `A` and `B`. The offspring, matrix `C`, embodies the multiplication efforts. In this dance, `A`'s columns and `B`'s rows must mirror each other in number, enabling their union. Here, `A`'s two columns perfectly complement `B`'s two rows.
-   - `C` inherits dimensions from the outer realms of `A` and `B`. With `A` as a 2x2 and `B` as a 2x3, `C` proudly stands as a 2x3 matrix.
-
-4. **Revealing the Magic:**
-   - The finale involves unveiling `C`'s essence, showcasing the transformative power of matrix multiplication on the initial matrices.
-
-By dissecting this example, I aim to illuminate the path of matrix multiplication, highlighting its critical role in both linear algebra and the deeper realms of deep learning. With NumPy's elegant syntax and potent functionality, embarking on complex mathematical adventures becomes not just feasible, but exhilarating, paving the way for advancements in deep learning.
-
-### Interactive Code Environment
+## run the small version of matrix multiplication
 
 <MatrixMultiplication client:only="react" />
 <PythonModule
@@ -72,12 +43,40 @@ By dissecting this example, I aim to illuminate the path of matrix multiplicatio
   outputRows={32}
 />
 
-### Original Inspiration
+## the example before the explanation
 
-The spark for this series was ignited by the innovative exercises developed by [Dr. Tom Yeh](http://tomyeh.info) at the University of Colorado Boulder. His commitment to hands-on education resonates deeply with me, especially in a field as dynamic and critical as deep learning. Facing a lack of practical learning resources, Dr. Yeh crafted a comprehensive suite of exercises, beginning with fundamental concepts like matrix multiplication and extending to the intricacies of advanced neural architectures. His efforts have not only enriched the learning experience for his students but also inspired me to delve deeper into the foundational elements of AI and share these discoveries with you.
+The first rough version of matrix multiplication usually looks better than it behaves. It has the right nouns, a reasonable diagram, and a few confident sentences. Then one ordinary detail changes and the explanation has to admit what it left out.
 
-### Wrapping Up and Looking Ahead
+## why matrix multiplication gets fuzzy
 
-Diving into matrix multiplication has been about more than just numbers and operations; it's a gateway into the intricate world of deep learning. By breaking down this fundamental process, we've started building a solid base, one that's essential for anyone looking to navigate through the complexities of neural networks. The journey we embarked on today is just the beginning. In my upcoming posts, I'll expand on these basics, exploring how these core principles apply to more complex neural network structures. Keep an eye out for my next piece, where we'll transition from the theoretical groundwork to the practical application of these concepts in creating more sophisticated models. And, as always, I look forward to sharing insights, sparking discussions, and growing together in this fascinating exploration of AI. Check out my [LinkedIn posts](https://www.linkedin.com/in/jeremyclondon/) where we can continue the conversation and exchange ideas.
+The diagram for matrix multiplication probably hides the work around the edges. Diagrams are good at boxes and arrows. They are bad at time, ownership, retries, permissions, naming, and the odd little checks that keep a workflow from surprising people.
 
-- Next Post: [Understanding Single Neuron Networks](/blog/deep-learning-basics-intro-to-single-neurons)
+## the mistake worth showing
+
+Matrix multiplication fails quietly when the failure still produces something that looks acceptable. The answer returns. The page renders. The script exits zero. The problem is that the output is now missing context, using the wrong assumption, or teaching the reader the wrong lesson.
+
+When I read a post about matrix multiplication, I want at least one paragraph about the quiet failure. If the article cannot name the boring way the idea breaks, it probably has not earned the confident parts yet.
+
+## the runnable version
+
+The example I trust for matrix multiplication is small enough to run and specific enough to be wrong. That second part matters. If the example cannot fail in an instructive way, it is not an example. It is decoration with syntax highlighting.
+
+That is why the point where a hand-written neuron example gets annoying enough that a table of numbers starts looking friendly works better than a generic setup. It gives the example a little dirt under its fingernails. The reader can imagine the next step instead of only admiring the shape of the explanation.
+
+## what changes when the value changes
+
+Instrumentation around matrix multiplication should answer human questions. What happened? What input did we use? Who had access? Which version ran? What changed since the last successful run? If the logs cannot answer those questions, the team will invent a story under pressure.
+
+## the part I would slow down
+
+Review changes matrix multiplication because it forces the idea to leave the author's head. The author knows which corner was cut. The reviewer only sees the artifact. That mismatch is irritating, but it is useful.
+
+For matrix multiplication, I would ask the reviewer to point at one sentence that feels too broad and one sentence that feels genuinely useful. Then I would edit toward the useful one.
+
+## how to tell if it clicked
+
+The maintenance version of matrix multiplication is less exciting than the first version. It asks who updates the example, who owns the dependency, what breaks when the surrounding code moves, and whether the post still tells the truth six months later.
+
+## what I would keep about matrix multiplication
+
+The part I would keep is the constraint. Matrix multiplication gets easier to reason about when the team can see the boundary, run the example, and inspect the evidence. That is not a grand conclusion. It is just the difference between a note that feels useful once and a system that keeps helping after the first read.

@@ -4,7 +4,10 @@ import Navbar from '@components/navbar.astro'
 import { checkImageUrl } from '@utils/all'
 import { SEO } from 'astro-seo'
 import Themes from 'astro-themes'
-import '@fontsource/inter'
+import '@fontsource/inter/400.css'
+import '@fontsource/inter/500.css'
+import '@fontsource/inter/600.css'
+import '@fontsource/inter/700.css'
 import '@styles/global.css'
 
 export interface Props {
@@ -13,6 +16,12 @@ export interface Props {
   ogimage?: string
   load_pyodide?: boolean
   load_mathjax?: boolean
+  type?: 'website' | 'article'
+  publishedTime?: string
+  modifiedTime?: string
+  section?: string
+  tags?: string[]
+  noindex?: boolean
 }
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site).toString()
@@ -23,13 +32,24 @@ const {
   ogimage = '/opengraph.png',
   load_pyodide = false,
   load_mathjax = false,
+  type = 'website',
+  publishedTime,
+  modifiedTime,
+  section,
+  tags = [],
+  noindex = false,
 } = Astro.props
 
 const resolvedOGImage = checkImageUrl(ogimage, Astro.site)
 
 const makeTitle = title
-  ? `${title} | jeremylondon`
-  : `jeremylondon | Exploring AI, Tech, and Creativity`
+  ? `${title} | Jeremy London`
+  : `Jeremy London | AI Systems, Security & Engineering Leadership`
+
+const defaultDescription =
+  'Engineering leader and builder working across AI platforms, distributed systems, security, and reliability.'
+const metaDescription = desc || defaultDescription
+const siteName = 'Jeremy London'
 ---
 
 <!doctype html>
@@ -37,7 +57,7 @@ const makeTitle = title
   <head>
     <Themes defaultTheme="dark" />
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
@@ -51,41 +71,76 @@ const makeTitle = title
     <meta name="generator" content={Astro.generator} />
     <SEO
       title={makeTitle}
-      description={desc ||
-        "Exploring AI, tech trends, and engineering in a uniquely engaging blog for the curious mind."}
+      description={metaDescription}
       canonical={canonicalURL}
+      noindex={noindex}
       twitter={{
         card: "summary_large_image",
+        title: makeTitle,
+        description: metaDescription,
+        image: resolvedOGImage,
+        imageAlt: `${siteName} website preview`,
       }}
       openGraph={{
         basic: {
           url: canonicalURL,
-          type: "website",
-          title: `Exploring AI, tech trends, and engineering in a uniquely engaging blog for the curious mind.`,
+          type,
+          title: makeTitle,
           image: resolvedOGImage,
         },
-        image: {
-          alt: "jeremylondon screenshot",
+        optional: {
+          description: metaDescription,
+          locale: "en_US",
+          siteName,
         },
+        image: {
+          alt: `${siteName} website preview`,
+        },
+        article:
+          type === "article"
+            ? {
+                publishedTime,
+                modifiedTime,
+                authors: ["Jeremy London"],
+                section,
+                tags,
+              }
+            : undefined,
       }}
     />
+    <script is:inline>
+      (() => {
+        const html = document.documentElement;
+        let resetTimer = 0;
+
+        document.addEventListener(
+          "set-theme",
+          () => {
+            html.setAttribute("data-theme-switching", "true");
+            window.clearTimeout(resetTimer);
+            resetTimer = window.setTimeout(() => {
+              html.removeAttribute("data-theme-switching");
+            }, 180);
+          },
+          { capture: true },
+        );
+      })();
+    </script>
     <script
-      type="text/partytown"
+      is:inline
       defer
       src="https://cloud.umami.is/script.js"
       data-domains="jeremylondon.com"
       data-website-id="76b886eb-f3ac-40ff-8dff-f9c46bb085b6"></script>
     {
       load_pyodide && (
-        <>
-          <script src="https://cdn.jsdelivr.net/pyodide/v0.28.3/full/pyodide.js" />
-          <script src="https://cdn.jsdelivr.net/npm/marked@17.0.1/lib/marked.umd.min.js" />
-        </>
+        <script src="https://cdn.jsdelivr.net/pyodide/v314.0.2/full/pyodide.js" />
       )
     }
     {
       load_mathjax && (
         <script
+          is:inline
           id="MathJax-script"
           async
           src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"
@@ -93,15 +148,27 @@ const makeTitle = title
       )
     }
   </head>
-  <body class="bg-white dark:bg-gray-950 transition-colors duration-300">
+  <body class="flex min-h-screen flex-col bg-white transition-colors duration-150 motion-reduce:transition-none dark:bg-gray-950">
     <Navbar />
-    <slot />
+    <div class="h-1 bg-linear-to-r from-transparent via-blue-500/40 to-transparent dark:via-orange-400/40"></div>
+    <main class="flex-1">
+      <slot />
+    </main>
     <Footer />
     <style is:global>
       /* Improve Page speed */
       /* https://css-tricks.com/almanac/properties/c/content-visibility/ */
       img {
         content-visibility: auto;
+      }
+
+      html[data-theme-switching="true"] *,
+      html[data-theme-switching="true"] *::before,
+      html[data-theme-switching="true"] *::after {
+        transition-duration: 0ms !important;
+        transition-delay: 0ms !important;
+        animation-duration: 0ms !important;
+        animation-delay: 0ms !important;
       }
     </style>
   </body>

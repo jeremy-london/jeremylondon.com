@@ -22,7 +22,7 @@ const leftMenu: Menu[] = [
 
 const rightMenu: Menu[] = [
   { label: 'Contact', href: '/contact' },
-  { label: 'Github', href: 'https://github.com/jeremy-london', external: true },
+  { label: 'GitHub', href: 'https://github.com/jeremy-london', external: true },
   {
     label: 'LinkedIn',
     href: 'https://www.linkedin.com/in/jeremyclondon/',
@@ -39,45 +39,79 @@ const rightMenu: Menu[] = [
   },
 ]
 
-const mobileMenu: Menu[] = [...leftMenu, ...rightMenu]
+const mobileMenu: Menu[] = rightMenu
+const desktopMenu: Menu[] = [...leftMenu, ...rightMenu]
+const currentPath = Astro.url.pathname.replace(/\/+$/, '') || '/'
+
+const isActive = (href: string) => {
+  if (href === '/') return currentPath === '/'
+  if (href.startsWith('/blog')) return currentPath === '/blog' || currentPath.startsWith('/blog/')
+  if (href.startsWith('/about')) return currentPath === '/about'
+  if (href.startsWith('/contact')) return currentPath === '/contact'
+  if (href.startsWith('/rss')) return currentPath === '/rss.xml'
+
+  return currentPath === href || currentPath.startsWith(`${href}/`)
+}
 ---
 
-<Container>
-  <nav class="flex justify-center flex-col md:flex-row">
-    <div class="flex flex-wrap justify-between md:gap-5 md:flex-nowrap w-full">
-      <!-- Left menu -->
-      <div
-        class="flex-col items-center justify-center order-1 hidden w-full md:flex md:flex-row md:justify-end md:w-auto md:order-0 md:flex-1 gap-10">
+<Container class="sticky top-0 z-50 border-b border-gray-200 bg-white/95 py-3! dark:border-gray-800 dark:bg-gray-950/95">
+  <nav class="flex flex-col">
+    <div class="flex w-full items-center justify-end md:justify-center">
+      <!-- Desktop menu -->
+      <ul
+        class="hidden items-center justify-center gap-6 md:flex lg:gap-8">
         {
-          leftMenu.map((item) => (
-            <div class="flex items-center">
+          desktopMenu.map((item) => (
+            <li class="flex min-h-11 min-w-11 items-center justify-center">
               <Link
                 href={item.href}
                 style={item.hideLabel ? "icon" : "underline"}
                 size="unset"
-                umamiEvent={item.event ? item.event : undefined}>
+                class={item.hideLabel ? "inline-flex h-11 w-11 items-center justify-center rounded-none text-gray-600 transition hover:text-blue-500 dark:text-gray-400 dark:hover:text-orange-500" : isActive(item.href) ? "rounded-none border-b-2 border-blue-500 pb-0.5 text-blue-700 dark:border-orange-400 dark:text-orange-300" : "rounded-none"}
+                umamiEvent={item.event ? item.event : undefined}
+                aria-current={isActive(item.href) ? "page" : undefined}
+                aria-label={item.hideLabel ? item.label : undefined}
+                target={item.external ? "_blank" : ""}
+                rel={item.external ? "noopener noreferrer" : ""}>
                 {!item.hideLabel && item.label}
                 {item.badge && (
                   <Icon
                     title={item.label}
-                    class={`w-6 h-6 ${item.badgeColor}`}
+                    class="h-5 w-5"
                     name={item.badge}
                   />
                 )}
               </Link>
-            </div>
+            </li>
           ))
         }
-      </div>
+        <li class="flex min-h-11 min-w-11 items-center justify-center">
+          <ThemeController variant="icon" />
+        </li>
+      </ul>
 
       <!-- Mobile menu toggle -->
-      <div class="flex items-center justify-between w-full md:w-auto">
+      <div class="flex flex-wrap items-center gap-x-1 gap-y-1 md:hidden">
+        <a class:list={['inline-flex min-h-11 items-center px-2 text-sm font-medium transition', currentPath === '/' ? 'border-b-2 border-blue-500 text-blue-700 dark:border-orange-400 dark:text-orange-300' : 'text-gray-700 hover:text-blue-500 dark:text-gray-200 dark:hover:text-orange-400']} href="/" aria-current={currentPath === '/' ? 'page' : undefined}>
+          Home
+        </a>
+        <a class:list={['inline-flex min-h-11 items-center rounded-none px-2 text-sm font-medium transition', currentPath === '/blog' || currentPath.startsWith('/blog/') ? 'border-b-2 border-blue-500 text-blue-700 dark:border-orange-400 dark:text-orange-300' : 'text-gray-700 hover:text-blue-500 dark:text-gray-200 dark:hover:text-orange-400']} href="/blog" aria-current={currentPath === '/blog' || currentPath.startsWith('/blog/') ? 'page' : undefined}>
+          Blog
+        </a>
+        <a class:list={['inline-flex min-h-11 items-center rounded-none px-2 text-sm font-medium transition', currentPath === '/about' ? 'border-b-2 border-blue-500 text-blue-700 dark:border-orange-400 dark:text-orange-300' : 'text-gray-700 hover:text-blue-500 dark:text-gray-200 dark:hover:text-orange-400']} href="/about" aria-current={currentPath === '/about' ? 'page' : undefined}>
+          About
+        </a>
+        <a class:list={['hidden min-h-11 items-center rounded-none px-2 text-sm font-medium transition sm:inline-flex', currentPath === '/contact' ? 'border-b-2 border-blue-500 text-blue-700 dark:border-orange-400 dark:text-orange-300' : 'text-gray-700 hover:text-blue-500 dark:text-gray-200 dark:hover:text-orange-400']} href="/contact" aria-current={currentPath === '/contact' ? 'page' : undefined}>
+          Contact
+        </a>
+        <ThemeController variant="icon" />
         <button
           id="menu"
           aria-label="Toggle Menu"
-          class="px-2 py-1 ml-auto text-gray-500 rounded-md md:hidden focus:text-blue-500 dark:focus:text-orange-500 focus:outline-none dark:text-gray-300">
+          aria-expanded="false"
+          class="motion-glow inline-flex min-h-11 min-w-11 items-center justify-center rounded-md text-gray-500 transition hover:text-blue-500 focus:text-blue-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 dark:text-gray-300 dark:hover:text-orange-500 dark:focus:text-orange-500 dark:focus-visible:ring-orange-500 dark:focus-visible:ring-offset-gray-950">
           <svg
-            class="w-6 h-6 fill-current"
+            class="h-6 w-6 fill-current"
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24">
             <path
@@ -94,52 +128,32 @@ const mobileMenu: Menu[] = [...leftMenu, ...rightMenu]
           </svg>
         </button>
       </div>
-
-      <!-- Right menu -->
-      <div
-        class="flex-col gap-6 items-center justify-start order-2 hidden w-full md:flex md:flex-row md:w-auto md:flex-1 md:order-0">
-        {
-          rightMenu.map((item) => (
-            <div class="flex items-center">
-              <Link
-                href={item.href}
-                style={item.hideLabel ? "icon" : "underline"}
-                size="unset"
-                umamiEvent={item.event ? item.event : undefined}
-                target={item.external ? "_blank" : ""}
-                rel={item.external ? "noopener noreferrer" : ""}>
-                {!item.hideLabel && item.label}
-                {item.badge && (
-                  <Icon
-                    title={item.label}
-                    class={`w-6 h-6 ${item.badgeColor}`}
-                    name={item.badge}
-                  />
-                )}
-              </Link>
-            </div>
-          ))
-        }
-        <ThemeController variant="icon" />
-      </div>
     </div>
 
     <!-- Mobile menu expanded -->
-    <div class="navmenu-toggle hidden">
+    <div
+      class="navmenu-toggle hidden max-h-0 -translate-y-2 overflow-hidden opacity-0 pointer-events-none transition-[max-height,opacity,transform] duration-300 ease-out motion-reduce:transition-none"
+      data-mobile-menu-panel
+      aria-hidden="true">
       <div
-        class="flex flex-col items-center justify-start order-2 w-full md:hidden">
+        class="order-2 flex w-full flex-col items-center justify-start py-3 md:hidden">
         {
           mobileMenu.map((item) => (
             <a
               href={item.href}
-              class="px-5 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-blue-500 dark:hover:text-orange-500"
+              class:list={[
+                "flex min-h-11 items-center px-5 py-2 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 dark:focus-visible:ring-orange-500",
+                isActive(item.href)
+                  ? "border-b-2 border-blue-500 text-blue-700 dark:border-orange-400 dark:text-orange-300"
+                  : "text-gray-600 hover:text-blue-500 dark:text-gray-400 dark:hover:text-orange-500",
+              ]}
+              aria-current={isActive(item.href) ? "page" : undefined}
               target={item.external ? "_blank" : ""}
               rel={item.external ? "noopener noreferrer" : ""}>
               {item.label}
             </a>
           ))
         }
-        <ThemeController variant="icon" />
       </div>
     </div>
   </nav>
@@ -147,9 +161,45 @@ const mobileMenu: Menu[] = [...leftMenu, ...rightMenu]
 
 <script is:inline>
   const menuButton = document.getElementById("menu");
-  menuButton.addEventListener("click", () => {
-    [...document.querySelectorAll(".navmenu-toggle")].forEach((Element) => {
-      Element.classList.toggle("hidden");
+  const mobileMenu = document.querySelector("[data-mobile-menu-panel]");
+  const menuPaths = [...document.querySelectorAll(".navmenu-toggle")];
+  let menuCloseTimer = 0;
+
+  const openMenu = () => {
+    if (!mobileMenu) return;
+    window.clearTimeout(menuCloseTimer);
+    menuPaths[0]?.classList.add("hidden");
+    menuPaths[1]?.classList.remove("hidden");
+    mobileMenu.classList.remove("hidden");
+    mobileMenu.setAttribute("aria-hidden", "false");
+    requestAnimationFrame(() => {
+      mobileMenu.classList.remove("opacity-0", "-translate-y-2", "max-h-0", "pointer-events-none");
+      mobileMenu.classList.add("opacity-100", "translate-y-0", "max-h-[420px]", "pointer-events-auto");
     });
+  };
+
+  const closeMenu = () => {
+    if (!mobileMenu) return;
+    menuPaths[0]?.classList.remove("hidden");
+    menuPaths[1]?.classList.add("hidden");
+    mobileMenu.classList.remove("opacity-100", "translate-y-0", "max-h-[420px]", "pointer-events-auto");
+    mobileMenu.classList.add("opacity-0", "-translate-y-2", "max-h-0", "pointer-events-none");
+    mobileMenu.setAttribute("aria-hidden", "true");
+    window.clearTimeout(menuCloseTimer);
+    menuCloseTimer = window.setTimeout(() => {
+      if (mobileMenu.classList.contains("opacity-0")) {
+        mobileMenu.classList.add("hidden");
+      }
+    }, 300);
+  };
+
+  menuButton.addEventListener("click", () => {
+    const expanded = menuButton.getAttribute("aria-expanded") === "true";
+    menuButton.setAttribute("aria-expanded", String(!expanded));
+    if (expanded) {
+      closeMenu();
+    } else {
+      openMenu();
+    }
   });
 </script>

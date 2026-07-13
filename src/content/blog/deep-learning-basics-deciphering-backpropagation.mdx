@@ -1,152 +1,41 @@
 ---
-title: "Backpropagation and Gradient Descent: The Backbone of Neural Network Training"
-excerpt: "How do neural networks learn? Lets explore backpropagation and gradient descent and their critical roles in updating weights through the lens of loss minimization."
+title: "Backpropagation is bookkeeping with consequences"
+excerpt: "A slower explanation of gradients, loss, and weight updates for people who want the mechanism without the fog machine."
 publishDate: "2024-04-12T00:00:00Z"
-image: "../../assets/backpropagation_cover.png"
 category: "deep-learning-basics"
 draft: false
 author: "jeremy-london"
-tags: [backpropagation, neural networks, optimization]
+tags: ["backpropagation", "gradient descent", "training"]
 load_pyodide: true
 load_mathjax: true
 ---
 
 import PythonModule from "@components/blog/shared/PythonModule.jsx";
 import BackPropagation from "@components/blog/BackPropagation.jsx";
-import { Image } from 'astro:assets'
-import HocusPocus from "@assets/hocus-pocus-machine-learning.gif"
 
-<h2>
-  <a
-    href="#interactive-code-environment"
-    class="m-0 bg-linear-to-r from-blue-200 to-blue-100 bg-size-[0px_10px] bg-bottom-left bg-no-repeat text-blue-100 no-underline transition-[background-size] duration-500 group-hover:bg-size-[100%_10px] hover:bg-size-[100%_3px] dark:from-orange-800 dark:to-orange-900 dark:text-orange-400">
-    <span>Scroll down for Interactive Code Environment 👇</span>
-  </a>
-</h2>
+There is a version of backpropagation that sounds like a solved problem. I do not trust that version very much. The useful version is the one that survives contact with a tired engineer, a stale note, and a deadline.
 
-👋 Hi there! In this seventh installment of my Deep Learning Fundamentals Series, lets explore more and finally understand backpropagation and gradient descent. These two concepts are like the dynamic duo that makes neural networks learn and improve, kind of like a brain gaining superpowers! What makes them so mysterious... and how do they work together to make neural networks so powerful?
+## the review question I would ask
 
-Neural networks have captivated the world with their remarkable ability to learn and solve complex problems. From image recognition to natural language processing, these powerful models have revolutionized countless industries. But have you ever wondered how neural networks actually learn? What are the mechanisms that allow them to take in raw data, identify patterns, and make accurate predictions?
+Review changes backpropagation because it forces the idea to leave the author's head. The author knows which corner was cut. The reviewer only sees the artifact. That mismatch is irritating, but it is useful.
 
-The key to understanding the learning process of neural networks lies in two fundamental concepts: **backpropagation** and **gradient descent**. These two ideas form the backbone of how neural networks adapt and improve over time, continuously refining their internal parameters to minimize the difference between their predictions and the true desired outputs.
+For backpropagation, I would ask the reviewer to point at one sentence that feels too broad and one sentence that feels genuinely useful. Then I would edit toward the useful one.
 
-<div class="float-right ml-4 h-auto w-full overflow-hidden sm:w-1/2">
-  <Image
-    src={HocusPocus}
-    alt="Hocus Pocus Machine Learning"
-    class="-mt-2 block h-auto w-full"
-  />
-</div>
+## how the work ages
 
-In this in-depth blog post, I'll get under the hood and into the mechanics of backpropagation and gradient descent, exploring how they work together to enable neural networks to learn. I'll start by breaking down the core principles behind each concept, then see how they are applied in the context of a multi-layer neural network. Along the way, I'll unpack the mathematical intuitions and dive into real-world code examples to solidify your understanding.
+The maintenance version of backpropagation is less exciting than the first version. It asks who updates the example, who owns the dependency, what breaks when the surrounding code moves, and whether the post still tells the truth six months later.
 
-By the end, you'll have a crystal-clear grasp of the inner workings of neural network training, equipping you with the knowledge to build, train, and refine your own sophisticated models. So, let's get started and see how backpropagation and gradient descent work!
+## what belongs in the margin
 
-### What is Gradient Descent and Backpropagation?
+The interface around backpropagation should reduce guessing. If the reader or user needs to know state, show state. If they need to understand a boundary, name the boundary. If the next step is risky, make the risk concrete before asking for approval.
 
-Think of training a neural network like teaching a student. The network makes predictions, and then backpropagation and gradient descent work together to correct those predictions when they're off the mark. They do this by adjusting the network's internal settings, known as weights and biases.
+## a quieter default
 
-- Backpropagation is like a feedback loop. It calculates how much each weight and bias contributed to the mistake and sends this info back through the network. It's like saying, "Hey, this setting made us veer off course; let's adjust it next time."
+The note I would leave about backpropagation would be short and practical: here is the constraint, here is the failure I am worried about, and here is the check that gives me confidence. That is enough to help the next person without pretending to settle the topic forever.
 
-- Gradient descent, on the other hand, is the optimizer. It uses the info from backpropagation to adjust the weights and biases, nudging the network towards making better predictions. It's like a guide that helps the network find the path of least resistance to the right answer.
+For this topic, the position is that backpropagation needs evidence around it. The evidence might be a runnable example, a browser check, a log line, a permission test, or a category count. Without evidence, the post is only a polished claim.
 
-Together, they form a cycle of continuous improvement. Backpropagation identifies the mistakes, and gradient descent makes the necessary adjustments. It's a beautiful partnership that refines the neural network's skills.
-
-### Making the Neural Networks Learn
-
-At the heart of neural network training lies the challenge of optimization - how do we find the set of weights and biases that minimizes the difference between the model's predictions and the true target outputs? This is where gradient descent comes into play, serving as the workhorse algorithm that guides the network towards the global minimum of the loss function.
-
-Imagine you're standing atop a hilly landscape, and your goal is to find the lowest point as quickly as possible. This is analogous to the optimization problem faced by neural networks - the "landscape" is the loss function, and the "lowest point" represents the configuration of weights and biases that result in the smallest possible error.
-
-Gradient descent works by calculating the gradients, which show the direction of the steepest loss increase. Then, it does the opposite, moving the network towards the global minimum, the optimal solution. It's like a smart hiker knowing to avoid steep climbs and finding the easiest path down.
-
-The learning rate is like your hiking speed. Too fast, and we might overshoot the minimum and end up unstable. Too slow, and it will take forever to reach your destination. Finding the right balance is crucial for effective learning.
-
-### Backpropagation in Action
-
-While gradient descent does the updating, backpropagation provides the directions by calculating the gradients. It's like backpropagation is the navigator, figuring out the best route by considering past experiences (or, in this case, past predictions).
-
-Despite its name, backpropagation doesn't involve information flowing backwards. It's more like a clever use of math, specifically the chain rule in calculus, to efficiently calculate the gradients.
-
-The code starts backpropagation when it begins to calculate the gradient of the loss concerning the final layer's pre-activation values. This gradient shows how much the loss would change if we tweaked those values.
-
-Then, backpropagation works its way back through the network, layer by layer, using the chain rule to find the gradients for each layer's weights and biases. It's like the network is reflecting on how its settings influenced the outcome, and then making informed adjustments.
-
-The key to understanding backpropagation is recognizing that it's not a mysterious, magical process, but rather a systematic application of the chain rule of calculus. By breaking down the network into its individual layers and components, backpropagation allows us to efficiently compute the gradients required for effective optimization.
-
-### Choosing the Right Loss Function
-
-The loss function is the heart of the matter. It measures how well the neural network is doing, showing the difference between predictions and reality. Getting this right is crucial for stable and effective training.
-
-The mean squared error (MSE) loss function is a popular choice. It calculates the average squared difference between predicted and actual outputs, giving us a measure of accuracy. There are other loss functions too, each suited to different types of problems. Choosing the right one is like giving your network the right tools for the job!
-
-### What are these Math symbolds?
-
-#### ∂ (Partial Derivative)
-
-In the context of machine learning, specifically within neural networks, differential calculus plays a crucial role. Specifically, the computation of gradients of the loss function with respect to the network's weights and biases is fundamental. By using partial derivatives, we can compute the gradients needed for updating the weights and biases during optimization. These gradients guide the network to adjust its parameters and improve its predictions. It's like using calculus to navigate towards better performance!
-
-#### Z (Pre-activation Outputs):
-
-This represents the output of each neuron before applying an activation function, essentially the linear combination of input data with the neuron's current weights and biases.
-
-#### A (Activations):
-
-The activated output of neurons, obtained by applying an activation function to `Z`. These activations are the "decisions" made by each neuron, significantly impacting the network's overall output.
-
-### The Setup: A Multi-Layer Perceptron
-
-Now that we've explored the individual components of backpropagation and gradient descent, it's time to step back and appreciate the symbiotic relationship between these two powerful concepts. Together, they form the backbone of neural network training, enabling these models to learn and improve over time.
-
-Imagine we have a 3-layer neural network, or a multi-layer perceptron, that takes an input vector X and produces predictions. Our goal is to adjust the network's weights and biases through backpropagation when these predictions don't match the ground truth labels. So, let's get started!
-
-Step 1: Forward Pass
-
-- We start with a MLP network ready to process an input vector X. For simplicity, let's say the network makes the following predictions: `Y^pred = [0.5, 0.5, 0]`. We compare these predictions against the actual labels, or the ground truth, which are `Y^target = [0, 1, 0]`. Straight away, we notice discrepancies between what's predicted and what's expected.
-
-Step 2: Backpropagation Begins
-
-- Now, we prepare the network for the crucial task of learning from its mistakes. This preparation involves setting up variables to hold the calculations critical for adjusting the network's weights and biases.
-
-Step 3: Layer 3 - Softmax and Cross-Entropy Loss
-
-- At this layer, we directly compute the gradient of the loss with respect to `z3` using the equation: `Y^pred - Y^target = [0.5, -0.5, 0]`. This calculation is streamlined thanks to the combination of Softmax and Cross-Entropy Loss, showcasing their compatibility in simplifying backpropagation.
-
-Step 4: Layer 3 - Weights and Biases
-
-- Next, we determine how much each weight and bias at this layer contributed to the overall error. This is done by calculating `∂L / ∂W3` and `∂L / ∂b3`, involving a multiplication of `∂L / ∂z3` and the activations from the previous layer `[a2 | 1]`.
-
-Step 5: Layer 2 - Activations
-
-- To understand the impact of Layer 2's activations on the final output, we compute `∂L / ∂a2` by multiplying the gradient from Layer 3 `∂L / ∂z3` by the weights of Layer 3 `W3`.
-
-Step 6: Layer 2 - RELU
-
-- The RELU function introduces non-linearity, and here we calculate `∂L / ∂z2` by applying RELU's rule: multiply `∂L / ∂a2` by 1 for positive values and 0 for negatives.
-
-Step 7: Layer 2 - Weights and Biases
-
-- Similar to Layer 3, we find `∂L / ∂W2` and `∂L / ∂b2` by multiplying the gradient of z2 with the activations from Layer 1 `[a1 | 1]`, further dissecting the error's source.
-
-Step 8: Layer 1 - Activations
-
-- The influence of Layer 1's activations on subsequent layers is calculated by multiplying `∂L / ∂z2` by Layer 2's weights `W2`, resulting in `∂L / ∂a1`.
-
-Step 9: Layer 1 - RELU
-
-- Applying RELU again, we determine `∂L / ∂z1` by multiplying `∂L / ∂a1` with 1 for positive values and 0 for negatives, following RELU's activation principles.
-
-Step 10: Layer 1 - Weights and Biases
-
-- Finally, we calculate `∂L / ∂W1` and `∂L / ∂b1` by multiplying the gradient of `z1` by the original input vector `X`, pinpointing how each input feature influences the prediction error.
-
-Step 11: Gradient Descent
-
-- With all the gradients calculated, we can now update the weights and biases using gradient descent (typically with a learning rate applied). This adjusts the network's parameters, guiding it towards more accurate predictions.
-
-The synergy between backpropagation and gradient descent is what allows neural networks to learn and adapt. Backpropagation provides the crucial information needed to guide the optimization process, while gradient descent uses that information to efficiently update the network's parameters. It's a beautifully integrated system that enables neural networks to tackle increasingly complex problems with remarkable success.
-
-### Interactive Code Environment
+## run the small version of backpropagation
 
 <BackPropagation client:only="react" />
 <PythonModule
@@ -155,16 +44,40 @@ The synergy between backpropagation and gradient descent is what allows neural n
   outputRows={32}
 />
 
-### Original Inspiration
+## what I would change next
 
-The inspiration for this deep dive came from a series of hands-on exercises shared on LinkedIn by [Dr. Tom Yeh](http://tomyeh.info). He designed it to break down the complexities of deep learning into manageable, understandable parts, with a particular focus on a seven-layer MLP. By highlighting the power of interactive learning in a neural network, it starts to show how you can see beyond the 'black box' and grasp the nuanced mechanisms at play.
+The second pass on backpropagation is where I would cut the generic parts. If a paragraph could appear in ten other posts, it has not earned the space yet. The rewrite should move closer to the actual scene, the real constraint, or the uncomfortable tradeoff.
 
-### Conclusion: Embracing the Complexity, Mastering the Fundamentals
+## a field note on backpropagation
 
-As we've explored the intricacies of backpropagation and gradient descent, it's clear that the learning process of neural networks is a complex and multi-faceted endeavor. From the mathematical nuances of the chain rule to the intricate dance between forward and backward propagation, there is a wealth of depth and sophistication underlying these concepts.
+The reason backpropagation keeps showing up is not that the idea is hard to name. It is that the idea sits in the gap between the clean version people describe and the version they have to operate. That gap is where most of the useful writing lives.
 
-However, the true power of backpropagation and gradient descent lies in their elegant simplicity. At their core, these algorithms are built on the fundamental principles of optimization and calculus, using the gradients of a loss function to guide the network towards its most effective configuration. By understanding these core ideas, we can unlock a deeper appreciation for the inner workings of neural networks and harness their transformative potential.
+I would start with a model making a bad guess, measuring the miss, and nudging its weights in the least mystical way possible. It gives the reader something to hold. A concrete scene also makes the tradeoff less slippery because the reader can ask what would happen next, who would notice, and what evidence would be left behind.
 
-- Last Post: [What is a Multi-Layer Perceptron (MLP)?](/blog/deep-learning-basics-unpacking-multi-layer-perceptron)
+## the part that looked harmless
 
-LinkedIn Post: [Coding by Hand: Backpropagation and Gradient Descent](https://www.linkedin.com/posts/jeremyclondon_aibyhand-backpropagation-gradientdescent-activity-7184565713854984192-hZfK)
+The first rough version of backpropagation usually looks better than it behaves. It has the right nouns, a reasonable diagram, and a few confident sentences. Then one ordinary detail changes and the explanation has to admit what it left out.
+
+## the first thing I would measure
+
+The diagram for backpropagation probably hides the work around the edges. Diagrams are good at boxes and arrows. They are bad at time, ownership, retries, permissions, naming, and the odd little checks that keep a workflow from surprising people.
+
+## where the user starts guessing
+
+Backpropagation fails quietly when the failure still produces something that looks acceptable. The answer returns. The page renders. The script exits zero. The problem is that the output is now missing context, using the wrong assumption, or teaching the reader the wrong lesson.
+
+When I read a post about backpropagation, I want at least one paragraph about the quiet failure. If the article cannot name the boring way the idea breaks, it probably has not earned the confident parts yet.
+
+## the smallest useful example
+
+The example I trust for backpropagation is small enough to run and specific enough to be wrong. That second part matters. If the example cannot fail in an instructive way, it is not an example. It is decoration with syntax highlighting.
+
+That is why a model making a bad guess, measuring the miss, and nudging its weights in the least mystical way possible works better than a generic setup. It gives the example a little dirt under its fingernails. The reader can imagine the next step instead of only admiring the shape of the explanation.
+
+## what I would refuse to automate
+
+Instrumentation around backpropagation should answer human questions. What happened? What input did we use? Who had access? Which version ran? What changed since the last successful run? If the logs cannot answer those questions, the team will invent a story under pressure.
+
+## what I would keep about backpropagation
+
+The part I would keep is the constraint. Backpropagation gets easier to reason about when the team can see the boundary, run the example, and inspect the evidence. That is not a grand conclusion. It is just the difference between a note that feels useful once and a system that keeps helping after the first read.

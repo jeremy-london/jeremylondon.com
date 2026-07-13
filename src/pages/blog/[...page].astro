@@ -1,34 +1,35 @@
 ---
 import Container from '@components/container.astro'
+import BlogExplorer from '@components/blog-explorer.astro'
 import Pagetitle from '@components/page-title.astro'
-import Pagination from '@components/pagination.astro'
-import PostList from '@components/post-list.astro'
 import Layout from '@layouts/Layout.astro'
 import { latestPosts } from '@utils/content'
 
-export async function getStaticPaths({ paginate }) {
-  return paginate(latestPosts, {
-    pageSize: 9,
-  })
+export function getStaticPaths() {
+  return [
+    {
+      params: { page: undefined },
+      props: { posts: latestPosts },
+    },
+  ]
 }
 
-const { page } = Astro.props
+const { posts } = Astro.props as { posts: typeof latestPosts }
 ---
 
-<Layout title="Blog">
-  <Container>
-    <Pagetitle>
-      <Fragment slot="title">Blog Posts</Fragment>
-      <Fragment slot="desc">
-        Dive into articles that blend technology insights with personal
-        experiences in the tech world.
-      </Fragment>
-    </Pagetitle>
-    <main>
-      <div class="grid gap-10 mt-10 lg:gap-10 md:grid-cols-2 xl:grid-cols-2">
-        {page.data.map((post) => <PostList post={post} aspect="landscape" />)}
-      </div>
+<Layout
+  title="Blog"
+  desc="Read Jeremy London's writing on AI systems, agent workflows, distributed systems, security, reliability, and engineering leadership.">
+  <Container class="py-3 lg:py-4">
+    <main class="max-w-full w-full">
+      <Pagetitle>
+        <Fragment slot="title">Blog Posts</Fragment>
+        <Fragment slot="desc">
+          Search by topic, filter by category or year, and sort through the
+          archive without losing the thread.
+        </Fragment>
+      </Pagetitle>
+      <BlogExplorer posts={posts} />
     </main>
-    <Pagination prevUrl={page.url.prev} nextUrl={page.url.next} />
   </Container>
 </Layout>

@@ -1,13 +1,19 @@
 ---
-const { align = 'center' } = Astro.props
+const { align = 'left' } = Astro.props
 ---
 
-<div class:list={[align === "center" && "text-center"]}>
+<div class:list={["motion-rise", align === "center" && "text-center"]}>
   <h1
-    class="text-3xl font-semibold tracking-tight text-center lg:leading-snug text-brand-primary lg:text-4xl dark:text-white">
+    class:list={[
+      "max-w-full wrap-break-words text-4xl font-bold leading-tight text-brand-primary hyphens-auto sm:text-5xl dark:text-white",
+      align === "center" && "mx-auto text-center",
+    ]}>
     <slot name="title">Title</slot>
   </h1>
-  <p class="text-lg mt-3 text-gray-600 dark:text-gray-200">
+  <p class:list={[
+    "mt-3 max-w-full text-lg text-gray-600 dark:text-gray-200",
+    align === "center" && "mx-auto",
+  ]}>
     <slot name="desc">Some description goes here</slot>
   </p>
 </div>

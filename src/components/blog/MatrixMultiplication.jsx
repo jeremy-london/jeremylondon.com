@@ -72,7 +72,7 @@ const MatrixMultiplication = () => {
 
   function extractMatrixFromString(str) {
     const match = str.match(/Matrix A \* Matrix B:\n\s*\[\[(.*?)\]\]/s)
-    if (!match || !match[1]) return []
+    if (!match?.[1]) return []
     const rows = match[1].split(']\n [')
     return rows.map((row) => row.trim().split(/\s+/).map(Number))
   }

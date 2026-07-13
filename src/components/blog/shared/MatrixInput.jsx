@@ -105,6 +105,9 @@ const MatrixInput = ({
           {rowValues.map((value, columnIndex) => (
             <input
               key={`${idPrefix}-${rowIndex}-${columnIndex}`}
+              id={`${idPrefix}-${rowIndex}-${columnIndex}`}
+              name={`${idPrefix}-${rowIndex}-${columnIndex}`}
+              aria-label={`${idPrefix} row ${rowIndex + 1} column ${columnIndex + 1}`}
               ref={(element) => assignRef(element, rowIndex, columnIndex)}
               type="text"
               inputMode={

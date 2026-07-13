@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import CodeBlock from './CodeBlock'
 
 const LOADED_IMPORTS = new Set()
+const PYODIDE_INDEX_URL = 'https://cdn.jsdelivr.net/pyodide/v314.0.2/full/'
 
 // ---- Pyodide singleton (only loads once) ----
 let pyodideReadyPromise = null
@@ -16,7 +17,7 @@ async function getPyodideInstance() {
       }
       if (!window.pyodide) {
         window.pyodide = await window.loadPyodide({
-          indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.28.3/full',
+          indexURL: PYODIDE_INDEX_URL,
         })
       }
       return window.pyodide
@@ -263,6 +264,9 @@ except Exception:
             <div className="rounded-md bg-[#e9e9e9] p-4 text-black dark:bg-[#333333] dark:text-white">
               <div className="mb-0 text-black dark:text-white">Output:</div>
               <textarea
+                id="python-output"
+                name="python-output"
+                aria-label="Python output"
                 ref={outputRef}
                 className="h-auto w-full resize-none overflow-hidden bg-[#e9e9e9] p-0 text-black dark:bg-[#333333] dark:text-white"
                 rows={1}

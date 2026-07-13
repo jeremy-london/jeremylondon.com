@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "hooks": {},
+  "claudecode": {
+    "hooks": {
+      "postToolUse": [
+        {
+          "matcher": "Edit|Write",
+          "command": "npx prettier --write \"$CLAUDE_FILE_PATH\" 2>/dev/null || true"
+        }
+      ],
+      "sessionStart": [
+        {
+          "command": "bash -c '.rulesync/hooks/session-start.sh'",
+          "async": false
+        }
+      ]
+    }
+  },
+  "codexcli": {
+    "hooks": {
+      "sessionStart": [
+        {
+          "command": "bash -c '.rulesync/hooks/session-start.sh'"
+        }
+      ]
+    }
+  }
+}
