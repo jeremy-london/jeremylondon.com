@@ -16,6 +16,7 @@
     "lint:fix": "biome lint --fix",
     "markdown:check": "rumdl check .",
     "markdown:fix": "rumdl check --fix .",
+    "blog:audit": "node scripts/audit-blog-content.mjs",
     "check": "biome check",
     "check:fix": "biome check --write",
     "rulesync": "npx -y rulesync generate"

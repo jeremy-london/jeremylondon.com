@@ -8,86 +8,18 @@ author: "jeremy-london"
 tags: ["cli", "developer tools", "dx"]
 ---
 
-I keep coming back to CLI output design because it looks smaller than it is. The first explanation usually sounds tidy. Then you put it inside a real workflow and the tidy version starts leaking.
+Terminal output should be written for the person debugging at 11 p.m., not for the happy path demo. The useful version is practical: Terminal output should be written for the person debugging at 11 p.m., not for the happy path demo.
 
-## the runnable version
+## What Changes
 
-The example I trust for CLI output design is small enough to run and specific enough to be wrong. That second part matters. If the example cannot fail in an instructive way, it is not an example. It is decoration with syntax highlighting.
+For developer tools, I would start from the constraint, not the announcement. The constraint is Terminal output should be written for the person debugging at 11 p.m., not for the happy path demo, and the surrounding question is how CLI behavior, scripts, commits, and local feedback loops changes in practice.
 
-That is why a command that fails with a stack trace when the user needed the missing file path works better than a generic setup. It gives the example a little dirt under its fingernails. The reader can imagine the next step instead of only admiring the shape of the explanation.
+## Where It Fails
 
-## what changes when the value changes
+The thing I would watch for with developer tools is quieter than a crash: the tool saves a minute while hiding the mistake that costs an afternoon. That is the kind of break that makes a developer tools post feel padded even when the topic is legitimate.
 
-Instrumentation around CLI output design should answer human questions. What happened? What input did we use? Who had access? Which version ran? What changed since the last successful run? If the logs cannot answer those questions, the team will invent a story under pressure.
+## The Check
 
-## the part I would slow down
+My bar for developer tools is the command output that tells the user what happened. If the developer tools post cannot show that, it should stay short and honest.
 
-Review changes CLI output design because it forces the idea to leave the author's head. The author knows which corner was cut. The reviewer only sees the artifact. That mismatch is irritating, but it is useful.
-
-For CLI output design, I would ask the reviewer to point at one sentence that feels too broad and one sentence that feels genuinely useful. Then I would edit toward the useful one.
-
-## how to tell if it clicked
-
-The maintenance version of CLI output design is less exciting than the first version. It asks who updates the example, who owns the dependency, what breaks when the surrounding code moves, and whether the post still tells the truth six months later.
-
-## the explanation I would delete
-
-The interface around CLI output design should reduce guessing. If the reader or user needs to know state, show state. If they need to understand a boundary, name the boundary. If the next step is risky, make the risk concrete before asking for approval.
-
-## what the next exercise needs
-
-The note I would leave about CLI output design would be short and practical: here is the constraint, here is the failure I am worried about, and here is the check that gives me confidence. That is enough to help the next person without pretending to settle the topic forever.
-
-For this topic, the position is that CLI output design needs evidence around it. The evidence might be a runnable example, a browser check, a log line, a permission test, or a category count. Without evidence, the post is only a polished claim.
-
-## the note I would keep nearby
-
-The second pass on CLI output design is where I would cut the generic parts. If a paragraph could appear in ten other posts, it has not earned the space yet. The rewrite should move closer to the actual scene, the real constraint, or the uncomfortable tradeoff.
-
-## start with the learner
-
-The reason CLI output design keeps showing up is not that the idea is hard to name. It is that the idea sits in the gap between the clean version people describe and the version they have to operate. That gap is where most of the useful writing lives.
-
-I would start with a command that fails with a stack trace when the user needed the missing file path. It gives the reader something to hold. A concrete scene also makes the tradeoff less slippery because the reader can ask what would happen next, who would notice, and what evidence would be left behind.
-
-## the example before the explanation
-
-The first rough version of CLI output design usually looks better than it behaves. It has the right nouns, a reasonable diagram, and a few confident sentences. Then one ordinary detail changes and the explanation has to admit what it left out.
-
-## why CLI output design gets fuzzy
-
-The diagram for CLI output design probably hides the work around the edges. Diagrams are good at boxes and arrows. They are bad at time, ownership, retries, permissions, naming, and the odd little checks that keep a workflow from surprising people.
-
-## the mistake worth showing
-
-CLI output design fails quietly when the failure still produces something that looks acceptable. The answer returns. The page renders. The script exits zero. The problem is that the output is now missing context, using the wrong assumption, or teaching the reader the wrong lesson.
-
-When I read a post about CLI output design, I want at least one paragraph about the quiet failure. If the article cannot name the boring way the idea breaks, it probably has not earned the confident parts yet.
-
-## what I would keep about CLI output design
-
-The part I would keep is the constraint. CLI output design gets easier to reason about when the team can see the boundary, run the example, and inspect the evidence. That is not a grand conclusion. It is just the difference between a note that feels useful once and a system that keeps helping after the first read.
-
-## The part I would not skip
-
-I keep coming back to Good CLI output is a kind of API because it sits inside CLI behavior, scripts, commits, and the tools developers actually trust in a way that is easy to miss until you have to explain the tradeoff to someone who will actually live with it. The practical part is that CLI behavior, scripts, commits, and the tools developers actually trust changes the shape of the work long before anyone agrees on a clean narrative, and that is why the piece needs more room than the first draft gave it. A lot of the mistakes around Good CLI output is a kind of API happen when people treat CLI behavior, scripts, commits, and the tools developers actually trust as if it were only a technical detail, when in practice it is often the thing that decides whether the product feels solid or flimsy. Compared with the shorter version of this post, the longer version makes it easier to see how CLI behavior, scripts, commits, and the tools developers actually trust connects to the rest of the stack instead of sitting off by itself as a neat little idea. I do not think about Good CLI output is a kind of API as an abstract pattern; I think about it as the kind of work that changes how I write the next checklist, the next review comment, or the next design note. If I ground Good CLI output is a kind of API in one real example, it looks like a team trying to keep CLI behavior, scripts, commits, and the tools developers actually trust understandable while still moving fast, which is exactly the sort of tension that exposes the weak spots.
-
-When I think about Good CLI output is a kind of API, I am mostly thinking about CLI behavior, scripts, commits, and the tools developers actually trust, because that is where the product work stops being abstract and starts touching real decisions. In practice, Good CLI output is a kind of API points at the place where CLI behavior, scripts, commits, and the tools developers actually trust has to survive a real team, a real timeline, and a real release that does not care about the cleanest version of the argument. The friction matters because CLI behavior, scripts, commits, and the tools developers actually trust never stays neat once users, data, latency, or permissions show up, and the second the system meets reality, every shortcut starts leaving a mark. I wanted this expanded version because CLI behavior, scripts, commits, and the tools developers actually trust starts to look different once you compare it with the maintenance, the rollout, and the user experience around it rather than the headline alone. From my side, I care about this because I have seen how CLI behavior, scripts, commits, and the tools developers actually trust behaves when the team is tired, the deadline is close, and the simplest path is also the one that makes the next release harder. Teams get into trouble when they overestimate how much CLI behavior, scripts, commits, and the tools developers actually trust can be held in memory and underestimate how quickly the surrounding system forgets why the choice mattered.
-
-## More of what I kept thinking about
-
-The practical part is that CLI behavior, scripts, commits, and the tools developers actually trust changes the shape of the work long before anyone agrees on a clean narrative, and that is why the piece needs more room than the first draft gave it. A lot of the mistakes around Good CLI output is a kind of API happen when people treat CLI behavior, scripts, commits, and the tools developers actually trust as if it were only a technical detail, when in practice it is often the thing that decides whether the product feels solid or flimsy. I can picture this in a real project when someone asks whether CLI behavior, scripts, commits, and the tools developers actually trust should live in a smaller helper, a bigger workflow, or a policy that gets checked every time the system changes shape. Teams get into trouble when they overestimate how much CLI behavior, scripts, commits, and the tools developers actually trust can be held in memory and underestimate how quickly the surrounding system forgets why the choice mattered. This is the part that connects back to how I build things day to day, since CLI behavior, scripts, commits, and the tools developers actually trust is usually the difference between a system I trust and one I only trust when I am looking straight at it. Compared with the shorter version of this post, the longer version makes it easier to see how CLI behavior, scripts, commits, and the tools developers actually trust connects to the rest of the stack instead of sitting off by itself as a neat little idea.
-
-In practice, Good CLI output is a kind of API points at the place where CLI behavior, scripts, commits, and the tools developers actually trust has to survive a real team, a real timeline, and a real release that does not care about the cleanest version of the argument. The friction matters because CLI behavior, scripts, commits, and the tools developers actually trust never stays neat once users, data, latency, or permissions show up, and the second the system meets reality, every shortcut starts leaving a mark. If I ground Good CLI output is a kind of API in one real example, it looks like a team trying to keep CLI behavior, scripts, commits, and the tools developers actually trust understandable while still moving fast, which is exactly the sort of tension that exposes the weak spots. The biggest mistake I see is assuming CLI behavior, scripts, commits, and the tools developers actually trust will stay obvious after the first week, when the actual result is usually a pile of edge cases that no one wants to name. I do not think about Good CLI output is a kind of API as an abstract pattern; I think about it as the kind of work that changes how I write the next checklist, the next review comment, or the next design note. When I think about Good CLI output is a kind of API, I am mostly thinking about CLI behavior, scripts, commits, and the tools developers actually trust, because that is where the product work stops being abstract and starts touching real decisions.
-
-## The part that stayed with me
-
-Another trap is letting CLI behavior, scripts, commits, and the tools developers actually trust become invisible because everyone is busy, which is how useful work turns into inherited work and then into a cleanup job nobody budgeted for. Compared with the shorter version of this post, the longer version makes it easier to see how CLI behavior, scripts, commits, and the tools developers actually trust connects to the rest of the stack instead of sitting off by itself as a neat little idea. I do not think about Good CLI output is a kind of API as an abstract pattern; I think about it as the kind of work that changes how I write the next checklist, the next review comment, or the next design note. If I have to reduce it to one line, Good CLI output is a kind of API is useful because it keeps CLI behavior, scripts, commits, and the tools developers actually trust in view while the rest of the project keeps moving. I keep coming back to Good CLI output is a kind of API because it sits inside CLI behavior, scripts, commits, and the tools developers actually trust in a way that is easy to miss until you have to explain the tradeoff to someone who will actually live with it. The practical part is that CLI behavior, scripts, commits, and the tools developers actually trust changes the shape of the work long before anyone agrees on a clean narrative, and that is why the piece needs more room than the first draft gave it.
-
-Teams get into trouble when they overestimate how much CLI behavior, scripts, commits, and the tools developers actually trust can be held in memory and underestimate how quickly the surrounding system forgets why the choice mattered. I wanted this expanded version because CLI behavior, scripts, commits, and the tools developers actually trust starts to look different once you compare it with the maintenance, the rollout, and the user experience around it rather than the headline alone. From my side, I care about this because I have seen how CLI behavior, scripts, commits, and the tools developers actually trust behaves when the team is tired, the deadline is close, and the simplest path is also the one that makes the next release harder. The point I want to leave behind is simple: Good CLI output is a kind of API only makes sense when CLI behavior, scripts, commits, and the tools developers actually trust is treated as part of the system, not as an optional side note. If I ground Good CLI output is a kind of API in one real example, it looks like a team trying to keep CLI behavior, scripts, commits, and the tools developers actually trust understandable while still moving fast, which is exactly the sort of tension that exposes the weak spots. What usually gets skipped in a short note about Good CLI output is a kind of API is the friction around CLI behavior, scripts, commits, and the tools developers actually trust, and that friction is where the useful part lives because it tells you what the team will have to fix later.
-
-## What the first draft left out
-
-That is why I still think Good CLI output is a kind of API matters. It is a way to talk about CLI behavior, scripts, commits, and the tools developers actually trust without pretending the work is smaller than it really is. The longer pass helps because it gives CLI behavior, scripts, commits, and the tools developers actually trust a second or third angle, and that usually exposes the seams that a clean summary tends to smooth over. This is the part that connects back to how I build things day to day, since CLI behavior, scripts, commits, and the tools developers actually trust is usually the difference between a system I trust and one I only trust when I am looking straight at it. In practice, Good CLI output is a kind of API points at the place where CLI behavior, scripts, commits, and the tools developers actually trust has to survive a real team, a real timeline, and a real release that does not care about the cleanest version of the argument. The reason I wrote more here is that Good CLI output is a kind of API is not just a headline about CLI behavior, scripts, commits, and the tools developers actually trust; it is a reminder that the boring version of the work is usually where the real judgment shows up. If I ground Good CLI output is a kind of API in one real example, it looks like a team trying to keep CLI behavior, scripts, commits, and the tools developers actually trust understandable while still moving fast, which is exactly the sort of tension that exposes the weak spots.
-
-If I have to reduce it to one line, Good CLI output is a kind of API is useful because it keeps CLI behavior, scripts, commits, and the tools developers actually trust in view while the rest of the project keeps moving. Compared with the shorter version of this post, the longer version makes it easier to see how CLI behavior, scripts, commits, and the tools developers actually trust connects to the rest of the stack instead of sitting off by itself as a neat little idea. I do not think about Good CLI output is a kind of API as an abstract pattern; I think about it as the kind of work that changes how I write the next checklist, the next review comment, or the next design note. A lot of the mistakes around Good CLI output is a kind of API happen when people treat CLI behavior, scripts, commits, and the tools developers actually trust as if it were only a technical detail, when in practice it is often the thing that decides whether the product feels solid or flimsy. The biggest mistake I see is assuming CLI behavior, scripts, commits, and the tools developers actually trust will stay obvious after the first week, when the actual result is usually a pile of edge cases that no one wants to name. The concrete version is usually less glamorous than the launch story, because CLI behavior, scripts, commits, and the tools developers actually trust becomes the thing a support engineer, a reviewer, or a teammate has to touch when something goes sideways.
+That is where I would leave it. Keep the developer tools claim narrow, make the tradeoff visible, and let the example do the work.
