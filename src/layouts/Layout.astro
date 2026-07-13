@@ -44,7 +44,7 @@ const resolvedOGImage = checkImageUrl(ogimage, Astro.site)
 
 const makeTitle = title?.trim()
   ? title.trim()
-  : `Jeremy London`
+  : `Jeremy London | AI systems, security, and engineering leadership`
 
 const defaultDescription =
   'Engineering leader and builder working across AI platforms, distributed systems, security, and reliability.'
@@ -108,6 +108,7 @@ const siteName = 'Jeremy London'
             : undefined,
       }}
     />
+    <meta property="og:logo" content={new URL('/apple-touch-icon.png', Astro.site).toString()} />
     <script is:inline>
       (() => {
         const html = document.documentElement;
