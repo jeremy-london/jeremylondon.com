@@ -13,6 +13,7 @@
         <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script src="rss/toggle-theme.js" type="text/javascript"></script>
+        <script src="rss/webmcp.js" type="text/javascript"></script>
         <link rel="stylesheet" type="text/css" href="rss/rss-style.css" />
         
       </head>
