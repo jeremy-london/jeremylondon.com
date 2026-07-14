@@ -10,181 +10,30 @@ tags: ["guardrails", "safety", "product design"]
 
 Guardrails are product decisions with a safety vocabulary.
 
-That is the part teams sometimes miss. A guardrail is not a magic layer you add after the product is designed. It defines what the product will do, refuse, explain, log, route, and escalate. Those are product behaviors. They affect users directly.
+That is the part teams sometimes miss. A guardrail is not a magic layer you add after the product is designed. It defines what the product will do, refuse, explain, log, route, and escalate.
 
-If the guardrail is vague, the product is vague. If the guardrail refuses too broadly, the product feels broken. If it allows too much, the product becomes risky. If it says no without explanation, the user cannot recover. If it logs nothing, the team cannot learn.
+I usually ask three questions before I trust a guardrail:
 
-The policy is only useful when it becomes an interface.
+1. what is blocked
+2. what is allowed
+3. what happens next
 
-## refusal is a user experience
+If the answer is vague, the boundary is too vague to trust. If the answer is broad enough to block ordinary work, the guardrail is broken product design with a safety label on it.
 
-A refusal is not only a safety outcome. It is a moment in the product.
+Concrete examples help here. A guardrail on a code assistant might block repository writes outside the workspace and route risky edits through a diff review. A guardrail on a support assistant might allow drafting but block sending without approval. A guardrail on a content tool might log every refusal and preserve the prompt that triggered it so the team can inspect false positives later.
 
-The user asked for something. The system decided not to do it. Now the product has to explain what happened and what can happen next.
+The refusal text, the allowed-action scope, and the logs should tell the same story. If they do not, the product is hiding the decision in three different places.
 
-Bad refusal copy sounds like a model hiding behind a rule:
+The shape can be almost embarrassingly simple in code. A moderation check can return `allow`, `block`, or `review`, and each branch can map to a visible product action. The complexity lives in the policy, not in the number of states. That is usually the right place for it.
 
-~~~text
-I can't help with that request.
-~~~
+~~~ts
+type GuardrailDecision = "allow" | "block" | "review"
 
-Sometimes that is enough. Often it is not. A better refusal says which boundary the user hit:
-
-~~~text
-I cannot change billing ownership from this chat because that requires workspace-owner approval. I can show the current owners or open the billing settings page.
-~~~
-
-That response is still a refusal, but it gives the user a path. It also reveals the product decision: changing billing ownership requires a stronger authorization surface.
-
-The useful guardrail asks:
-
-- What exactly is refused?
-- Why is it refused?
-- What safe alternatives exist?
-- Should the refusal be silent, explanatory, or escalated?
-- Should the event be logged?
-
-Those are product questions.
-
-## allowed actions need boundaries too
-
-Guardrails are not only about blocking.
-
-They also define what the system is allowed to do. An AI assistant might be allowed to draft an email but not send it. It might read files in a project but not outside it. It might summarize a security alert but not close the incident. It might suggest a code change but require approval before writing.
-
-Allowed actions should have scope:
-
-~~~json
-{
-  "action": "edit_file",
-  "allowed_paths": ["src/**", "tests/**"],
-  "blocked_paths": [".env", "secrets/**", "public/generated/**"],
-  "requires_approval": true,
-  "approval_copy": "Approve edits to source and test files for this task."
+function decide(request: string): GuardrailDecision {
+  if (request.includes("export all customer data")) return "review"
+  if (request.includes("ignore previous instructions")) return "block"
+  return "allow"
 }
 ~~~
 
-That record is not only security configuration. It tells the product how to behave. It controls what the assistant can promise, what approval text appears, and what failure looks like.
-
-An allowed action without scope is a liability. A blocked action without explanation is friction. The guardrail has to describe both sides.
-
-## guardrails belong at multiple layers
-
-Putting every guardrail in the prompt is tempting because it is fast.
-
-It is also weak. Some constraints belong in the prompt because they shape model behavior. Some belong in deterministic code because they protect boundaries the model should not decide. Some belong in product policy because they require human judgment or business rules.
-
-I would split guardrails by layer:
-
-~~~text
-prompt:
-  style, task framing, soft constraints, refusal language
-
-runtime:
-  tool permissions, file scopes, network access, rate limits
-
-validator:
-  schema checks, forbidden fields, citation requirements
-
-policy:
-  user role, plan limits, approval requirements, escalation paths
-
-review:
-  human approval, audit sampling, incident review
-~~~
-
-This split keeps the model from owning decisions that should be deterministic. A model can be asked not to reveal secrets. The runtime should still prevent it from reading secret files when the task does not require them.
-
-Defense in depth is less poetic than a perfect system prompt. It works better.
-
-## logging is part of the guardrail
-
-A guardrail that leaves no record is hard to improve.
-
-When the system refuses, allows, escalates, or blocks a tool call, the product should record enough to inspect the decision later. Not necessarily the full private input. Enough metadata to learn.
-
-~~~json
-{
-  "event": "guardrail_decision",
-  "surface": "agent_file_edit",
-  "decision": "blocked",
-  "reason": "path_outside_workspace",
-  "user_role": "editor",
-  "requested_action": "edit_file",
-  "target_class": "home_directory",
-  "timestamp": "2025-10-21T10:12:44Z"
-}
-~~~
-
-That event lets the team ask useful questions. Are users repeatedly trying to do something the product should support? Is the guardrail blocking legitimate work? Are risky attempts clustering around one workflow? Are approvals being requested too often?
-
-Without logs, guardrail quality becomes anecdotal.
-
-## false positives are product bugs
-
-Safety teams often focus on false negatives: the system allowed something it should have blocked. That is obviously serious.
-
-False positives matter too. A guardrail that blocks legitimate work can make users route around the product, disable safety features, or stop trusting the assistant. In internal tools, it can turn into shadow workflows. In user-facing tools, it can feel arbitrary or condescending.
-
-The eval should track both:
-
-~~~text
-slice                 correct_block   missed_block   bad_block
-billing_permissions      0.97           0.01          0.06
-security_triage          0.94           0.03          0.04
-code_file_edits          0.99           0.00          0.11
-policy_questions         0.91           0.02          0.08
-~~~
-
-The `bad_block` column is where product pain hides. A code assistant that blocks safe file edits 11 percent of the time may technically be safe and practically annoying.
-
-Guardrails should be evaluated as product behavior, not only as risk reduction.
-
-## escalation needs a shape
-
-Some requests should not be accepted or refused immediately. They should escalate.
-
-Escalation might mean asking the user for a narrower scope, requiring approval from an owner, routing to a human queue, switching to a safer tool, or creating an audit record before continuing.
-
-The escalation path should be specific:
-
-~~~text
-request: change access level for another user
-allowed if: requester is workspace owner
-otherwise: explain permission boundary and link to owner list
-high-risk case: removing last owner requires support review
-log: access_change_attempt
-~~~
-
-This is product design. It decides who can do what, how the system explains the boundary, and where exceptional cases go.
-
-An escalation path that says "ask a human" is incomplete. Which human? What information do they receive? What can they approve? What happens after denial?
-
-## ownership is the guardrail
-
-Every guardrail needs an owner.
-
-If nobody owns it, the rule will rot. Product changes, pricing changes, roles change, model behavior changes, and the guardrail keeps enforcing yesterday's assumptions. Users find the mismatch before the team does.
-
-Ownership should include:
-
-- policy meaning
-- implementation location
-- eval cases
-- logging review
-- appeal or escalation path
-- removal or migration plan
-
-That sounds heavy, but the alternative is worse: hidden safety logic with no accountable decision-maker.
-
-## the practical test
-
-When I look at a guardrail, I want to know whether it can answer a user-facing question:
-
-What happens when I ask the system to do something close to the boundary?
-
-If the answer is "the model will probably handle it," the guardrail is not finished. If the answer names the decision, the reason, the allowed alternative, the log, and the escalation path, the product has a real boundary.
-
-That is the standard I care about. Guardrails should make the product safer, but they should also make the product more legible.
-
-Safety that nobody can explain does not stay safe for long.
+That is only a toy, but the product logic is the same thing at a larger scale. The guardrail decides whether the request continues, gets inspected, or stops. The important part is that the user can see the outcome and the team can explain why it happened.

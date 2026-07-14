@@ -8,156 +8,98 @@ author: "jeremy-london"
 tags: ["diffusion", "generative models", "images"]
 ---
 
-Generative systems get interesting after the first impressive output.
+Generative systems get interesting only after the first good demo.
 
-The first image, paragraph, mockup, song clip, or synthetic row usually proves the model can produce something. That is useful, but it is a low bar. The product question starts after that: what shape should the output have, what counts as acceptable variation, who reviews it, what should be impossible, and what evidence do we keep when the system surprises us?
+The first image, paragraph, layout, or synthetic example usually proves the model can make something. That is not the product. The product question starts a step later: what has to stay fixed, what is allowed to move, who reviews the result, and how do we know the output still fits the job after the model has made a change?
 
-I think this is where a lot of generative AI demos lose the plot. They show range when the product needs control. Range is fun during exploration. Control is what lets somebody use the system twice.
+Diffusion models make that question easy to see because they begin with noise. They do not start with structure and then sprinkle on randomness. They start from randomness and slowly denoise toward something that matches the conditioning signal. That means the system is really about guiding motion, not just generating content.
 
-Diffusion models make this easy to see because they literally start with noise. The model denoises toward a distribution learned from training data, guided by text, conditioning inputs, classifier guidance, masks, seeds, and sampler settings. The user sees an image arrive. The system sees a stack of constraints pushing randomness into a useful shape.
+## noise is not a bug
 
-Text generation has the same problem with different machinery. Temperature, system instructions, schemas, retrieval context, tool results, examples, and output validators all act like constraints. They do not make the model boring. They make the output usable.
+Starting with noise sounds backwards until you look at what the model is actually doing.
 
-## creativity is bounded motion
+The model is not trying to preserve an initial image. It is trying to carve a useful sample out of a cloud of possibilities. Every denoising step nudges that cloud toward something the training distribution says is plausible. The prompt, the seed, the sampler, the guidance scale, the mask, and any conditioning image all shape the path.
 
-When somebody asks for a "creative" AI feature, I want to know which parts are allowed to move.
+That gives you a useful mental model:
 
-For an image generator, maybe the composition can vary but the product color cannot. Maybe the background can change but the logo placement cannot. Maybe a storyboard can explore mood, but the character sheet has to remain consistent across scenes. In those cases, free generation is the wrong mental model. The better model is controlled variation.
-
-For a writing system, maybe the examples can change but the claims must come from cited sources. Maybe tone can flex but the legal disclaimer must stay intact. Maybe the assistant can summarize support tickets, but it cannot invent a refund policy or promise a timeline. The generated text is not a blank page. It is a draft inside a set of obligations.
-
-That sounds obvious until the first version of the product ships with a single prompt and a save button. Then the same feature has to answer product questions it was never designed to handle:
-
-- Which fields are locked?
-- Which fields can be regenerated independently?
-- Which constraints came from the user, the brand system, the policy layer, or the surrounding document?
-- What happens when the user asks for something outside the allowed range?
-- Can we reproduce the output later?
-
-If those questions do not have a place in the design, the model becomes the place where every decision hides.
-
-## constraints are product material
-
-Constraints should not live only in a prompt string. Prompts are too easy to treat like a magic paragraph. A production generative system usually needs constraints represented as data.
-
-For an image workflow, I would rather see something like this than a loose prompt builder:
-
-~~~ts
-type ImageGenerationRequest = {
-  subject: string
-  intent: "thumbnail" | "hero" | "diagram" | "product_mockup"
-  lockedElements: Array<{
-    kind: "logo" | "color" | "text" | "composition" | "character"
-    rule: string
-  }>
-  allowedVariation: {
-    palette?: string[]
-    camera?: string[]
-    styleReferences?: string[]
-    seed?: number
-  }
-  reviewRules: string[]
-}
+~~~text
+noise
+  -> a rough structure
+  -> a more specific structure
+  -> a sample that satisfies the constraints
 ~~~
 
-That type will not save the product by itself. The useful part is that it forces the team to name the moving pieces. Once those pieces are named, you can inspect them, test them, and explain them to a reviewer.
+The final image looks sudden. The underlying process is incremental.
 
-The same pattern applies to text. A customer-facing generator should know the difference between source facts, user preferences, required clauses, and generated connective tissue. A synthetic data generator should know which label distribution it is trying to match and which slices are intentionally overrepresented. A code generator should know which APIs are allowed and which files are out of scope.
+## the controls matter more than the magic
 
-The constraint model is part of the product. It deserves the same review as the interface.
+People often talk about diffusion as if the model itself is the product. It is not. The controls around it are the product.
 
-## sampling is not policy
+A seed gives you reproducibility. A mask limits where change can happen. Classifier-free guidance changes how tightly the sample follows the prompt. A reference image can anchor the result. Different samplers can trade speed for fidelity. All of those choices change what the system is actually good at.
 
-Temperature and top-p are useful controls, but they are not policy. Lowering temperature can reduce visible weirdness, but it does not tell the system which facts matter, which claims need sources, or which outputs should be rejected. Raising temperature can create variety, but it does not make the variety good.
+That is why image products are so often won or lost in the interface around generation. If the user cannot lock a logo, preserve a face, keep text unchanged, or edit only one region, the model is doing more than generation. It is also doing policy enforcement, and it is not well suited to that job by itself.
 
-This matters because teams sometimes tune sampling parameters as if they are solving product quality. They are usually solving texture.
+## conditioning is where product work begins
 
-For image models, a seed can make a result reproducible. A negative prompt can steer away from obvious failures. A mask can localize edits. Guidance scale can change how tightly the model follows the prompt. Those are real controls, but none of them answer whether the output is acceptable for the use case.
+The hard part is deciding which parts of the output are allowed to drift.
 
-An acceptance rule sounds more boring:
+For a marketing image, the composition might be flexible but the product shape should not be. For an edit tool, the user might want to change the background without moving the subject. For a diagram, the labels matter more than the color palette. For a storyboarding tool, motion and framing may vary while the characters stay recognizable.
 
-- The generated product image cannot alter the product geometry.
-- The generated diagram must preserve all labels from the source sketch.
-- The generated support reply must cite the policy article it uses.
-- The generated dataset must keep train and eval examples separated by source document.
-- The generated summary must include uncertainty when the input conflict is unresolved.
+That means the prompt is only one constraint. The real question is what the system should preserve.
 
-Those are better controls because they can fail. A parameter can be adjusted forever. A rule can say no.
+I like to think about it as a contract with a few clauses:
 
-## review paths should match risk
+- these fields are locked
+- these fields can vary
+- this region may be regenerated
+- this region must stay exactly as provided
+- these outputs need review before export
 
-Not every generated output needs the same review path. A background texture for a personal note can be regenerated until it feels right. A customer email, a medical image explanation, a compliance summary, or an adversarial eval set needs a different amount of friction.
+If the product cannot say that clearly, then every generation request becomes an argument with the model.
 
-The review path should follow the cost of being wrong.
+## why polished failures are hard to notice
 
-Low-risk generation can optimize for speed. Give the user previews, variants, undo, and local editing controls. Keep the system responsive and avoid pretending every output needs ceremony.
+Generative systems fail in a way that looks expensive.
 
-Medium-risk generation needs traceability. Show the inputs that shaped the output. Keep the seed or model version when reproducibility matters. Let the reviewer see which constraints were applied and which ones were ignored.
+The image is clean. The paragraph flows. The mockup feels complete. The problem is often that one constraint quietly drifted. A face changed between frames. A chart label moved. A product detail is wrong. A policy answer sounds confident but cites the wrong rule.
 
-High-risk generation needs separation between proposal and acceptance. The model can draft, segment, classify, or compose, but another step has to decide whether the output can move forward. That step might be deterministic validation, human review, a second model with a narrow rubric, or a domain-specific checker.
-
-The annoying part is that risk changes inside the same product. A marketing image generator might be low risk for a mood board and high risk for a final ad using a protected brand asset. A code generator might be low risk in a scratch file and high risk when it touches authentication. A synthetic data tool might be low risk for UI demos and high risk when eval results decide whether a model ships.
-
-That means review cannot be bolted on at the end. The workflow needs enough state to route the output based on what it is being used for.
-
-## failure often looks polished
-
-Generative failures are irritating because they are often attractive. The image is sharp. The paragraph reads cleanly. The code compiles. The synthetic examples look plausible. The problem is that the output violated a constraint the system never made explicit.
-
-For images, that might be a product detail that changed, a face that drifted between frames, a diagram that swapped label positions, or a chart that looks official but encodes nonsense. For text, it might be a confident citation to the wrong source, a summary that smooths over a disagreement, or a policy answer that sounds helpful while promising something the company cannot do.
-
-The review loop has to look past surface quality. I would rather inspect boring artifacts:
+That is why review needs to look at more than surface quality. The useful artifacts are boring:
 
 - original input
 - generated output
-- model and version
-- seed or sampling settings when available
-- constraints requested
-- constraints checked
+- prompt or conditioning data
+- model version
+- seed or sampling settings
+- locked constraints
 - reviewer decision
 - reason for rejection
 
-That record is not glamorous. It is how the team learns whether failures cluster around prompt ambiguity, missing constraints, weak validators, bad retrieval, model drift, or reviewers accepting outputs too casually.
+Once you have that record, the team can stop guessing whether the model failed, the prompt was vague, or the UI hid the wrong control.
 
-Without that record, every bad generation becomes an anecdote.
+## editing matters more than regeneration
 
-## generated output needs an edit model
+Regeneration alone is a weak editing model.
 
-A lot of generative products treat regeneration as the main correction mechanism. That is fine for a toy. It is frustrating in real work.
+When a user says "keep this part but change that part," the system should not force them to re-prompt from scratch. It should give them a way to preserve one region and alter another. In image tools that can mean masks, layers, locked text, object references, or region-level regeneration. In text tools it can mean source pinning, paragraph-level revision, or protected clauses.
 
-When a user says, "keep this part but fix that part," the system needs an edit model. In image tools, that might mean masks, layers, object references, region-level regeneration, locked text, or a retained seed. In writing tools, it might mean paragraph-level regeneration, source pinning, protected terms, and comments that survive another pass.
-
-This is one reason constraints should be visible. If the user cannot tell what the system is trying to preserve, they cannot give useful feedback. They end up bargaining with the model through longer and longer prompts.
-
-Good editing controls reduce prompt negotiation. They let the user say:
-
-- keep the structure
-- change the tone
-- preserve the facts
-- replace only this section
-- try a different visual style
-- keep the subject position
-
-That is still generation, but it behaves more like a tool than a slot machine.
+That is where generative products start to feel usable. The output becomes something you can steer instead of something you restart.
 
 ## what i would measure
 
-I would not start with a single "quality" score. Quality is too vague. I would split measurement by the kind of constraint the system claims to honor.
+I would not start with a single quality score. I would measure the specific constraint the product claims to honor.
 
-For a writing generator, that might include source faithfulness, required-field inclusion, prohibited-claim rate, edit distance after human review, and reviewer rejection reasons. For image generation, I would look at prompt adherence, identity consistency, text rendering failures, protected asset drift, regeneration count, and how often users abandon the output after several attempts.
+For a text generator, that might be source faithfulness, prohibited-claim rate, required-field inclusion, and human edit distance after review. For an image tool, it might be prompt adherence, identity consistency, text rendering failures, protected asset drift, and how often the user abandons the result after a few tries. For synthetic data, it might be label validity, leakage, and slice coverage.
 
-For synthetic data, I would care about label validity, slice coverage, duplicate leakage, train-eval contamination, and whether models trained on the generated examples improve on the target slice without regressing elsewhere.
+The metric should tell you what to fix next. If reviewers keep rejecting outputs because locked elements drift, the problem is probably conditioning or constraint representation. If users keep regenerating without selecting a result, the issue may be the allowed variation range. If synthetic data improves one slice while hurting another, the generator is teaching shortcuts.
 
-The metric should connect to a failure the team can act on. If reviewers keep rejecting outputs because the model changes locked product details, the next fix is probably constraint representation or image conditioning. If users regenerate ten times and choose none, the problem might be the prompt UI, default style, or an output space that is too wide. If synthetic examples improve headline accuracy while hurting adversarial holdouts, the generator is teaching the model shortcuts.
+Useful measurement turns the mess into a next step.
 
-Useful measurement makes the next engineering decision smaller.
+## the part that keeps coming back
 
-## the part i keep coming back to
+The strongest generative systems are the ones that know what should stay still.
 
-Generative AI is strongest when the system knows what should stay still.
+That is the part people skip when they talk about creativity as if it means unconstrained output. Most useful creative work has a brief, a medium, a client, a deadline, and a review path. The model brings variation. The product brings boundaries.
 
-That is the part people skip when they talk about creativity as if it means unconstrained output. Most useful creative work has a brief, a medium, a client, a style, a deadline, a review path, and a reason the work exists. Generative systems need the same pressure.
+Without those boundaries, generation produces plausible artifacts that are hard to reproduce and hard to trust.
 
-The model can bring variation. The product has to bring boundaries. Without boundaries, generation becomes a pile of plausible artifacts that are hard to reproduce, hard to evaluate, and hard to trust.
-
-With boundaries, the output has somewhere to land.
+With them, the sample has somewhere to land.

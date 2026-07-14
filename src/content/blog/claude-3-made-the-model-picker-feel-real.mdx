@@ -10,47 +10,43 @@ tags: ["anthropic", "claude-3", "model-watch"]
 
 Claude 3 was the first time Anthropic's model picker felt like a real product decision to me instead of a branding exercise.
 
-Before that, "use the best model" was a lazy but understandable default. If the model was going into a serious workflow, you picked the strongest one and absorbed the cost. Claude 3 made that harder to justify because the lineup had meaningful differences around speed, price, and capability.
+Before that, "use the best model" was an easy default. If the model was going into a serious workflow, you picked the strongest one and swallowed the cost. Claude 3 made that harder to defend because the lineup had meaningful differences in speed, price, and capability.
 
 That is when model choice starts looking like architecture.
 
-## haiku, sonnet, opus
+## the lineup stopped being decorative
 
-The useful part of the Claude 3 lineup was not that the names were cute. It was that the names mapped to different jobs.
+The useful part of the Claude 3 family was not the naming. It was the fact that the tiers mapped to different jobs.
 
-Haiku made sense for cheap, fast work where the output could be checked or thrown away. Sonnet sat in the middle, which is often where product defaults live. Opus was the expensive path for work that needed more reasoning, more context, or more tolerance for ambiguity.
+Haiku made sense for cheap, fast work that could be checked or thrown away. Sonnet sat in the middle, which is where a lot of product defaults live. Opus was the expensive path for work that needed more reasoning, more context, or more tolerance for ambiguity.
 
 That split changed how I thought about AI features. A single "assistant" setting was not enough anymore. The product needed to know what kind of work it was asking for.
 
-The model family also made a quiet point about user expectations. A user does not experience "model lineup." They experience response time, answer quality, cost limits, and whether the product feels reliable. If the product exposes the choice directly, the labels need to mean something. If the product hides the choice, the routing needs to be good enough that users do not feel tricked.
+The picker also made user expectations more honest. A user does not experience "model lineup." They experience response time, answer quality, cost, and whether the product feels reliable. If the product shows the choice, the labels need to mean something. If it hides the choice, the routing needs to be good enough that users do not feel tricked.
 
-The worst version is the fake picker: three options with vague adjectives and no operational difference the user can understand. Claude 3 made the picker feel less fake because the tiers had a practical shape. Small and fast. Balanced. Strong and expensive.
+The fake picker is easy to spot. Three options with vague adjectives and no operational difference is just theater. Claude 3 felt more real because the tiers had a practical shape: small and fast, balanced, strong and expensive.
 
-That is a product vocabulary, not only a model catalog.
+## routing is a design choice
 
-## routing before it was fashionable
+The obvious rule is cost based: send easy tasks to the cheap model and hard tasks to the expensive one. That is a start, but it is not enough.
 
-The obvious routing rule is cost based: send easy tasks to the cheap model and hard tasks to the expensive one. That is a start, but it is not enough.
-
-Some cheap tasks are high risk. A short moderation decision can matter more than a long summary. Some long tasks are low risk. A draft outline can be wrong and still useful. The route should consider ambiguity, reversibility, user impact, and whether a verifier can cheaply catch the mistake.
+Some cheap tasks are high risk. A short moderation decision can matter more than a long summary. Some long tasks are low risk. A draft outline can be wrong and still useful. The route should consider ambiguity, reversibility, user impact, and whether a verifier can catch the mistake cheaply.
 
 I would rather route on task shape than on vibes:
 
-~~~text
+```text
 cheap path: classification, extraction, rewrite suggestions, cacheable summaries
 middle path: user-facing drafts, routine coding help, product support
 expensive path: ambiguous reasoning, high-impact decisions, messy multi-step work
-~~~
+```
 
-None of those buckets is permanent. They need evals. They need cost review. They need a rollback path when the model changes under you.
+None of those buckets is permanent. They need evals, cost review, and a rollback path when the model changes under you.
 
-The important detail is that routing should happen before the prompt becomes overloaded with hidden policy.
-
-If the product needs cheap extraction, choose the cheap extraction route. If it needs careful synthesis, choose the route that can handle that. Do not ask one prompt to secretly mean "be fast unless this is hard unless the user is premium unless the data is sensitive unless the answer affects billing." That is how prompts become junk drawers.
+The important part is that routing should happen before the prompt becomes a junk drawer of hidden policy. If the product needs cheap extraction, choose the cheap extraction route. If it needs careful synthesis, choose the route that can do that. Do not ask one prompt to secretly mean "be fast unless this is hard unless the user is premium unless the data is sensitive unless the answer affects billing."
 
 Model routing deserves structured inputs:
 
-~~~json
+```json
 {
   "task": "extract_invoice_fields",
   "risk": "low",
@@ -58,11 +54,11 @@ Model routing deserves structured inputs:
   "qualityFloor": "schema_valid",
   "fallback": "retry_with_sonnet"
 }
-~~~
+```
 
 For a different request, the route should look different:
 
-~~~json
+```json
 {
   "task": "review_security_architecture",
   "risk": "high",
@@ -70,29 +66,17 @@ For a different request, the route should look different:
   "qualityFloor": "human_review_required",
   "fallback": "escalate"
 }
-~~~
+```
 
-Those examples are intentionally plain. The product is making an explicit choice instead of pretending the biggest model is the only honest answer.
+Those examples are plain on purpose. The product is making an explicit choice instead of pretending the biggest model is the only honest answer.
 
-## the hidden cost of a model picker
-
-A model picker creates user agency, but it also leaks complexity. Most users do not want to think about model routing. They want the product to pick a sane default and let them override it when they have a reason.
-
-That means the product team still owns the decision. If the default is too cheap, the product feels flaky. If the default is too expensive, the bill becomes the product roadmap. If the picker is too prominent, users start debugging the model lineup instead of doing their work.
-
-Claude 3 made that tension visible. The model lineup was no longer a ladder. It was a set of tradeoffs.
-
-That is a healthier way to think about models. Less magic. More engineering.
-
-## defaults carry responsibility
+## the middle model matters
 
 The default model is a product promise.
 
-If the default is Haiku-shaped, the product is promising speed and cost control. That may be perfect for autocomplete, classification, or quick summaries. It may be wrong for messy planning. If the default is Opus-shaped, the product is promising quality and patience. That may be right for a hard reasoning mode. It may be wasteful for everyday work.
+If the default is Haiku-shaped, the product is promising speed and cost control. That is right for autocomplete, classification, or quick summaries. It is wrong for messy planning. If the default is Opus-shaped, the product is promising quality and patience. That is right for hard reasoning. It is wasteful for everyday work.
 
-Sonnet-style middle paths are interesting because product defaults often live in the middle. The middle model needs to be good enough that users do not constantly reach for the expensive option, and cheap enough that the product can afford normal use. That is a hard balance. It is also where a lot of AI product design actually happens.
-
-The mistake is treating the default as a neutral technical setting. It is not neutral. It decides what kind of experience most users get most of the time.
+Sonnet-style middle paths matter because product defaults often live there. The middle model needs to be good enough that users do not constantly reach for the expensive option, and cheap enough that the product can afford normal use. That balance is hard, and it is where a lot of AI product design actually happens.
 
 I would measure the default by task slice:
 
@@ -102,9 +86,9 @@ I would measure the default by task slice:
 - how latency changes completion rate
 - how cost changes feature availability
 
-Those measurements keep the picker honest. Without them, the model menu becomes a place for everyone to project vibes.
+Without that, the model menu just becomes a place for everyone to project vibes.
 
-## vision made the picker less text-only
+## vision widened the choice
 
 Claude 3 also mattered because the family handled image input.
 
@@ -114,7 +98,7 @@ Image input is not one task. Reading a receipt is different from interpreting a 
 
 That makes routing more interesting:
 
-~~~text
+```text
 haiku-like route:
   quick OCR-adjacent extraction where validation is cheap
 
@@ -123,11 +107,11 @@ sonnet-like route:
 
 opus-like route:
   ambiguous diagram reasoning, high-impact analysis, messy visual context
-~~~
+```
 
-Again, the names are less important than the habit. The product should know what kind of work the user is asking the model to do.
+The names matter less than the habit. The product should know what kind of work the user is asking the model to do.
 
-## the menu is not the architecture
+## the menu is not the system
 
 It is easy to confuse a model picker with routing architecture.
 
@@ -135,14 +119,12 @@ A dropdown is an interface. Routing is the system behind it. The dropdown may ex
 
 The product should be able to explain its choice:
 
-~~~text
+```text
 used: Sonnet
 reason: balanced route for user-facing summary with moderate context
 fallback: Opus available if summary fails review
-~~~
+```
 
 That does not need to be visible all the time. It should exist somewhere, because teams need to understand how model choice affects quality.
 
-Claude 3 made the picker feel real because the options mapped to different work. The next step was making the system around the picker real too.
-
-That is still the part worth caring about.
+Claude 3 made the picker feel real because the options mapped to different work. The part worth caring about was the system around the picker.

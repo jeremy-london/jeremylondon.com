@@ -8,142 +8,24 @@ author: "jeremy-london"
 tags: ["offline first", "sync", "product"]
 ---
 
-Offline-first is usually described as a technical architecture. Local storage. Sync. Conflict resolution. Background queues. Maybe CRDTs if the conversation gets spicy.
+Offline-first is usually sold as an architecture. Local storage, sync, queues, maybe conflict resolution if the conversation gets serious.
 
-That architecture matters, but it is not the point.
+That part matters, but it is not the point. The point is what the user can still trust when the network disappears.
 
-Offline-first is a product promise. It tells the user what they can still trust when the network disappears.
+Can I keep writing? Can I reopen the thing I was just reading? Can I queue this action? Can I tell whether the change is saved locally? Can I close the laptop and come back later without losing work?
 
-Can I keep writing? Can I read the thing I opened earlier? Can I submit this form later? Can I tell whether my changes are saved locally? Can I close the laptop? Can I board the plane? Can I lose signal in the basement and still finish the work?
+If the product cannot answer those questions, the promise is weak.
 
-If the product cannot answer those questions clearly, "offline support" is mostly a storage trick.
+1. name what works offline
+2. name what queues
+3. name what stays stale
+4. name what needs a connection
+5. name what conflicts look like
 
-## name what works offline
+That list sounds basic because it is basic. A note app, a field app, a banking app, and a coding tool all have different answers, and the user should not have to infer them from a spinner.
 
-The first product decision is scope.
+The state names matter just as much as the storage layer. "Saved on this device" is different from "waiting to sync." "Conflict needs review" is different from "sync failed." "Remote status unavailable" is different from "cached value." The interface should say the boring thing clearly.
 
-Offline-first does not mean everything works without a network. It means the product is explicit about which workflows continue, which degrade, and which stop.
+The queue is part of the promise too. If the user acts offline, the app is recording intent, not pretending the server already agreed. That means idempotency keys, visible pending state, and a recovery path when sync fails or permission changes before the action lands.
 
-A note-taking app may allow reading, writing, editing, deleting, tagging, and search offline. A banking app may allow reading cached balances but block transfers. A field inspection app may allow photo capture and form completion but queue submission. A coding tool may allow editing files and running local checks but block cloud deployment.
-
-Those are product choices.
-
-I would write them down as promises:
-
-- documents opened recently remain readable
-- edits are saved locally before sync
-- queued submissions show their pending state
-- destructive remote actions require connectivity
-- conflicts are shown before remote overwrite
-- cached data is labeled when freshness matters
-
-The user should not need to infer the promise from a spinner.
-
-## local state needs visible status
-
-The interface has to show the difference between saved locally, synced remotely, queued, failed, and conflicted.
-
-Those states are easy to collapse into one friendly checkmark. That is how products train users to distrust them.
-
-I want offline-capable products to use boring state language:
-
-- saved on this device
-- waiting to sync
-- synced
-- sync failed
-- conflict needs review
-- remote version unavailable
-
-The wording can be polished, but the states should be real. A user should know whether closing the app loses work, whether another device can see the change, and whether the server has accepted it.
-
-Local state also needs a recovery story. If the app crashes before sync, what happens? If the user clears storage, what happens? If the server rejects a queued action because permissions changed, what happens? Offline-first products need to be honest about the local copy because the local copy becomes part of the user's trust model.
-
-## queues turn actions into promises
-
-Many offline workflows are really queued workflows.
-
-The user does something while disconnected. The app records the intent. Later, the app tries to send it. That queue is not a background detail. It is the product's memory of a promise.
-
-A useful queued action has identity:
-
-~~~json
-{
-  "id": "action_017",
-  "type": "submit_inspection",
-  "createdAt": "2023-11-08T10:32:00Z",
-  "localStatus": "queued",
-  "attempts": 0,
-  "idempotencyKey": "inspection_882_submit_v1",
-  "dependsOn": ["photo_21", "photo_22"]
-}
-~~~
-
-The idempotency key matters because networks fail in boring ways. The app may send the same action twice. The server may accept it and the response may disappear. The user may reopen the app and retry. Without idempotency, offline queues create duplicate orders, duplicate comments, duplicate uploads, and duplicate support tickets.
-
-The queue also needs user-facing behavior. Can the user cancel a queued action? Can they edit it? Can they see why it failed? Does a failed action block later actions? Does the app retry forever or ask for help?
-
-These are product questions hiding inside sync code.
-
-## freshness should be visible
-
-Offline reading is useful, but cached data can become dangerous when freshness matters.
-
-A cached recipe is fine. A cached deployment status may be misleading. A cached account balance needs a timestamp. A cached security alert needs a warning if the device has been offline too long.
-
-Offline-first products should show freshness where stale information changes user behavior.
-
-That might be as simple as:
-
-~~~text
-last updated 18 minutes ago
-offline since 9:42 AM
-remote status unavailable
-~~~
-
-The point is not to scare the user. The point is to avoid pretending the local copy and the server state are the same thing when they may have drifted.
-
-## conflicts are interface problems
-
-Conflict resolution is often discussed as a data structure problem. Sometimes it is. For collaborative text, CRDTs and operational transforms can be the right tool. For many product workflows, the harder question is what the conflict means to the user.
-
-Two people edited the same field. A queued action targets a record that was deleted. A permission changed while the device was offline. The server accepted a newer version from another device. A local draft no longer matches the remote template.
-
-The app should not turn all of that into "sync failed."
-
-Some conflicts can be merged automatically. Some need a human. Some should preserve both versions. Some should discard a local action because the remote state makes it invalid. The user needs enough context to choose without becoming a database operator.
-
-## offline support should be tested by turning the network off
-
-This sounds obvious, so of course it gets skipped.
-
-Offline behavior should be tested by actually removing the network during real workflows:
-
-- open existing content, disconnect, edit, reconnect
-- create new content offline, close the app, reopen, reconnect
-- queue multiple actions, force one to fail, inspect recovery
-- edit the same record on two devices before sync
-- change permissions while a device is offline
-- fill storage or revoke local database access
-- upgrade the app with unsynced local state present
-
-Those tests find the product promises that were only true in diagrams.
-
-## the promise is the product
-
-Offline-first is worth doing when the user's work should not depend on a perfect network.
-
-That is common. People travel. Warehouses have bad signal. Hospitals have weird dead zones. Coffee shops lie. Home internet blips. Mobile networks fade at the exact moment someone is trying to finish something.
-
-The architecture has to handle local persistence, queues, sync, idempotency, conflict resolution, and freshness. But the product has to explain the promise in human terms.
-
-What can I do?
-
-What is saved?
-
-What is pending?
-
-What might be stale?
-
-What needs my attention?
-
-If the product answers those questions clearly, offline-first feels calm. If it hides them, offline-first feels like gambling with local storage.
+I like offline-first products when they are honest about the tradeoff. The network can go away, and the user can keep working. The app just has to say what is real, what is pending, and what may be stale. That is what makes the promise believable.

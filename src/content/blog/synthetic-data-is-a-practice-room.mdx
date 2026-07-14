@@ -1,6 +1,6 @@
 ---
-title: "Synthetic data is useful for evals"
-excerpt: "Synthetic data can help teams test rare cases, but it should not replace real examples from production."
+title: "Synthetic data is a practice room"
+excerpt: "Synthetic data is useful when it rehearses rare failures, but it should not become the only source of truth."
 publishDate: "2025-11-08T14:00:00Z"
 category: "advance-deep-learning"
 draft: false
@@ -10,31 +10,13 @@ tags: ["synthetic data", "datasets", "testing"]
 
 Synthetic data is useful for evals when it acts like a practice room.
 
-It lets a system rehearse situations that are rare, expensive, sensitive, or annoying to collect. That is valuable. A fraud classifier may need examples of weird account behavior before enough real cases exist. A tool-calling agent may need malformed tool results, ambiguous user intent, and hostile instructions before those failures appear in production. A document extraction system may need invoices with missing totals, inconsistent currency symbols, and vendor names that look like addresses.
+I use it when I need to rehearse cases that are rare, expensive, sensitive, or just annoying to collect. Fraud systems need weird account behavior before the weird behavior shows up in production. Tool-calling systems need malformed tool results and ambiguous intent before those failures become common. Extraction systems need invoices with missing totals or inconsistent currency before the model sees them in the wild.
 
-The mistake is treating synthetic data as proof. It is closer to a sparring partner. It can make the model stronger, but it can also teach the model to fight the sparring partner instead of the real opponent.
+The mistake is treating synthetic data like proof. It is closer to a sparring partner.
 
-## start with the behavior
+## write the behavior first
 
-Synthetic data works best when the eval already has a target behavior.
-
-Bad prompt:
-
-~~~text
-Generate examples for our customer support model.
-~~~
-
-Better prompt:
-
-~~~text
-Generate support tickets where the customer asks for a refund,
-but the policy text contains a time limit, a region-specific exception,
-or a prior manual override.
-~~~
-
-The second version names the behavior being tested. The model has to retrieve the right policy, handle conflicting clues, and avoid inventing a generous answer. That gives the generated examples a job.
-
-I would write the behavior down before generating anything:
+Before I generate anything, I write the behavior down:
 
 ~~~yaml
 behavior: refund_policy_exception_handling
@@ -49,13 +31,11 @@ must_not:
   - ignore region-specific rules
 ~~~
 
-That small contract keeps the dataset from becoming a bucket of plausible text.
+That contract keeps the dataset from becoming a bucket of plausible text.
 
 ## provenance matters more than volume
 
-Synthetic examples need receipts.
-
-For each record, I want to know where the idea came from, which generator created it, which prompt produced it, who reviewed it, and whether it can enter training, evaluation, or only exploratory analysis.
+Every synthetic record should say where it came from, which generator created it, which prompt produced it, who reviewed it, and whether it belongs in training, evaluation, or only exploratory analysis.
 
 ~~~json
 {
@@ -71,17 +51,15 @@ For each record, I want to know where the idea came from, which generator create
 }
 ~~~
 
-Without provenance, synthetic data becomes hard to retire. Six months later the team sees a passing eval and forgets that half the examples came from an old policy, an old prompt, and an old version of the failure taxonomy.
+Without provenance, synthetic data becomes hard to retire. Six months later the team sees a passing eval and forgets that half the examples came from an old policy, an old prompt, and an old failure taxonomy.
 
-Volume is cheap. Traceability is the work.
+## use it to fill gaps
 
-## synthetic examples should target gaps
+I would start by looking for gaps, not by asking a model for ten thousand examples.
 
-I would not start by asking a model for ten thousand examples. I would start by looking at the eval matrix and asking where the holes are.
+Maybe the real dataset has plenty of ordinary refunds but almost no policy exceptions. Maybe the retrieval system has English examples but almost none from mixed-language snippets. Maybe the tool caller has clean successes but few partial failures. Maybe the classifier has plenty of positive and negative labels but very few ambiguous examples where reviewers disagree.
 
-Maybe the real dataset has plenty of ordinary refunds but almost no policy exceptions. Maybe the retrieval system has examples from English docs but almost none from mixed-language snippets. Maybe the tool caller has examples of clean tool success but few examples of partial failure. Maybe the classifier has plenty of positive and negative labels but very few ambiguous examples where reviewers disagree.
-
-Synthetic data is good at filling that kind of gap:
+That is what synthetic data is good at:
 
 - rare policy combinations
 - hard negatives that look almost correct
@@ -91,33 +69,27 @@ Synthetic data is good at filling that kind of gap:
 - corrupted or incomplete inputs
 - tool outputs that are valid JSON but operationally useless
 
-The dataset should make the gap visible. If the gap cannot be named, the generated examples will probably drift toward generic coverage.
+## keep training and eval apart
 
-## keep train and eval separate
+The next mistake is mixing training and eval.
 
-The easiest way to fool yourself is to use the same synthetic pipeline for training and evaluation.
+If a teacher model generates both, the student may just get better at the teacher's style. The score rises. The product may not.
 
-If a teacher model generates training examples and then generates eval examples from the same prompt family, the student may improve at the teacher's style. The score rises. The product may not.
+I separate the uses:
 
-I would separate the uses:
+- training augmentation
+- regression eval
+- adversarial eval
+- exploratory review
+- production holdout
 
-- training augmentation: synthetic examples used to teach the system
-- regression eval: synthetic examples used to prevent old failures from returning
-- adversarial eval: synthetic examples designed to stress a boundary
-- exploratory review: synthetic examples used for human inspection only
-- production holdout: real examples that synthetic data never touches
+The production holdout is the anchor. It should include real failures, real user language, and examples that came from outside the synthetic generator's imagination.
 
-The production holdout is the anchor. It should include real failures, real user language, real messy inputs, and examples that came from outside the synthetic generator's imagination.
-
-Synthetic data can expand the map, but it should not draw the compass.
-
-## hard negatives are usually the best use
+## hard negatives do a lot of work
 
 The synthetic examples I trust most are hard negatives.
 
-A hard negative is an example that looks tempting but should fail. For retrieval, it might be a document chunk that uses the same words as the query but answers a different question. For classification, it might be an input that contains a risky phrase without actually being unsafe. For entity extraction, it might be a company name that looks like a person. For an agent, it might be a tool result that includes a success code while the payload says the operation did nothing.
-
-These examples sharpen the boundary.
+A hard negative looks tempting but should fail. For retrieval, it may be a chunk that uses the same words as the query but answers a different question. For classification, it may be an input that contains a risky phrase without actually being unsafe. For entity extraction, it may be a company name that looks like a person.
 
 ~~~json
 {
@@ -128,62 +100,20 @@ These examples sharpen the boundary.
 }
 ~~~
 
-That kind of record teaches the eval to reject shallow lexical matches. It also gives reviewers a concrete artifact to argue about.
+That kind of record teaches the eval to reject shallow lexical matches.
 
 ## review the labels, not the prose
 
-Synthetic data often looks good because the prose is clean. Clean prose is a trap.
+Clean prose is a trap.
 
-The useful review is label review. Does the expected answer follow from the evidence? Is the negative case actually negative? Would two reviewers agree? Is the example testing the intended behavior or a different one? Did the generator accidentally leak the answer into the wording?
+What matters is whether the expected answer follows from the evidence, whether the negative case is actually negative, whether two reviewers would agree, and whether the example is testing the intended behavior or something else.
 
-For a small eval set, I would rather have 200 reviewed synthetic examples than 20,000 unreviewed examples. The 200 records can catch regressions. The 20,000 records can create a fog of confidence.
+For a small eval set, I would rather have 200 reviewed synthetic examples than 20,000 unreviewed ones. Reviewer disagreement matters too. If humans disagree on the label, the example may belong in a separate ambiguity slice instead of the main pass-fail score.
 
-Reviewer disagreement is useful too. If humans disagree on the label, the example may belong in a separate ambiguity slice instead of the main pass or fail score.
+## keep the real world in the loop
 
-## measure by slice
+Synthetic examples age. Policies change. Products change. Model families change. The bug that inspired the dataset disappears. The generator prompt stops matching the current system.
 
-One aggregate score will hide the reason synthetic data was added.
+A maintenance pass should remove examples tied to deleted behavior, refresh examples when source documents change, keep old regressions when the failure still matters, and sample current production failures back into review.
 
-If synthetic data was created to test rare cases, report the rare cases separately. If it was created to test hard negatives, report hard negatives separately. If it was created to test old incidents, report incident regressions separately.
-
-I would want a table shaped like this:
-
-~~~text
-slice                         baseline   candidate   delta
-real_holdout_overall          0.81       0.83        +0.02
-real_policy_exceptions        0.64       0.70        +0.06
-synthetic_hard_negatives      0.58       0.76        +0.18
-synthetic_old_incidents       0.91       0.91         0.00
-reviewer_disagreement_cases   0.49       0.51        +0.02
-~~~
-
-The synthetic slice is allowed to move faster than the real slice, but it should not be the only thing improving. If a candidate model crushes synthetic hard negatives and regresses the real holdout, that is a warning, not a win.
-
-## retire stale practice data
-
-Synthetic examples age.
-
-The policy changes. The product changes. The model family changes. The bug that inspired the dataset disappears. The generator prompt stops matching the current system. The synthetic examples become oddly polished compared with production inputs.
-
-A synthetic dataset needs maintenance:
-
-- remove examples tied to deleted product behavior
-- refresh examples when source documents change
-- keep old incident regressions when the failure still matters
-- mark stale examples instead of silently editing history
-- sample current production failures back into review
-- compare synthetic language against real user language
-
-The last one matters more than it sounds. Synthetic examples often have a tidy rhythm. Real users do not. They paste screenshots, omit nouns, ask two questions at once, and use product nicknames that never appear in the documentation.
-
-If the eval never absorbs that mess, the model can pass the practice room and still fail the game.
-
-## the useful version is modest
-
-Synthetic data should make the eval more curious.
-
-It should ask questions the current dataset forgot to ask. It should preserve failures that would otherwise disappear after a bug fix. It should give reviewers a controlled way to probe boundaries before users find them.
-
-But it should stay in its lane. Real examples show the distribution. Human review keeps labels honest. Production incidents reveal the failures nobody thought to generate. Synthetic examples fill gaps between those sources.
-
-That is enough. Practice rooms are useful because they let you rehearse. They become dangerous when everyone forgets to leave the room.
+The synthetic room is only useful if the team keeps leaving it to check what happened outside.

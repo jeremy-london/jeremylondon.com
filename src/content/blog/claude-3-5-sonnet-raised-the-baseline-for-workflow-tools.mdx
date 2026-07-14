@@ -10,115 +10,69 @@ tags: ["claude", "agents", "workflow"]
 
 Claude 3.5 Sonnet changed the feel of workflow tools because it made the ordinary failures harder to excuse.
 
-Before that release, a lot of AI-assisted work still had a built-in apology. The model was helpful, but brittle. It could sketch the code but lose the surrounding constraint. It could write a decent explanation but miss the detail in the screenshot. It could follow a multi-step instruction until one step got weird. When the tool failed, it was easy to blame the model and move on.
+Before that release, a lot of AI-assisted work had a built-in shrug attached to it. The model was useful, but it would miss the surrounding constraint, flatten a diagram, or drift halfway through a multi-step instruction. When that happened, the easy answer was to blame the model and move on.
 
-Claude 3.5 Sonnet raised the baseline. The June 2024 release was faster than the previous top-end Claude path and much stronger at coding, instruction following, and visual reasoning. Anthropic also put Artifacts next to the model, which mattered because it gave generated work a place to live outside the chat transcript.
+Claude 3.5 Sonnet raised the floor enough that the weak points moved somewhere more interesting. The model was faster than the earlier top-tier Claude path, stronger at coding and instruction following, and better at visual reasoning. Anthropic also paired it with Artifacts, which gave generated work an actual surface instead of making everything live and die inside the chat transcript.
 
-That combination changed the question.
+That changed the kind of product problem workflow tools had to solve.
 
-If the model can produce better code, follow more nuance, and keep up with interactive work, the weak link shifts toward the workflow around it.
+## artifacts turned output into something reviewable
 
-## artifacts made output feel like work
+Artifacts matter because they make the output inspectable. A code block in chat disappears into the conversation. An artifact sits there as a thing the user can look at, compare, copy, test, or throw away.
 
-Artifacts were easy to dismiss as interface polish. I think that misses the point.
+That sounds small until you ship a tool around it. If Claude writes a React component, the user wants a diff and a preview. If it drafts a document, the user wants to edit the document, not scroll back through the prompt. If it builds a tiny page or SVG, the result needs to be easy to inspect outside the stream of model chatter.
 
-A code block in chat is still a code block in chat. It is transient, narrow, and awkward to inspect. An artifact gives the output a surface. The user can look at it as a thing being made instead of a paragraph being spoken.
+Once the output has a surface, the product has to support a real review loop. That means revision, comparison, save and restore, and some way to tell whether the artifact actually fits the surrounding project. The model is no longer just answering a question. It is producing work that someone expects to own.
 
-That matters for workflow tools because the artifact becomes a review target.
+The interface changes too. A generated artifact nudges the user toward treating the system like a place where work happens instead of a place where text appears.
 
-If Claude writes a small React component, the component can be inspected. If it drafts a document, the document has shape. If it creates an SVG or a simple web page, the user can react to the result directly. The output is no longer buried in the conversational stream with apologies above it and commentary below it.
+## the good failures are still failures
 
-The shift is subtle, but it is important: the model stops being only a responder and starts acting more like a collaborator inside a workspace.
+When models are weak, the obvious problem is bad output.
 
-That also raises expectations. Once the output has a surface, the tool has to support iteration. The user wants to revise, compare, test, copy, save, and reason about changes. The product cannot hide behind "the model wrote some text." It has created an object the user expects to work with.
+When models get better, the obvious problem shifts to bad process.
 
-## better coding makes process matter more
+Claude 3.5 Sonnet was good enough at routine code generation and explanation that a lot of failures started to read less like "the model is dumb" and more like "the tool gave it a bad job." No diff view. No test run. No package constraints. No linter output. No project context. No review step. No way to confirm the generated component matched the design system.
 
-When coding models are weak, the obvious problem is code quality.
+That is a better failure mode because it points at the system around the model. It is still a failure.
 
-When coding models get better, the process problems become more visible.
+For a coding tool, the question moved from "can the model produce plausible code?" to "can the product surround plausible code with enough context and verification that the output is actually usable?" That is the question worth building for.
 
-Claude 3.5 Sonnet was good enough at routine code generation and explanation that many failures started to look less like "the model is dumb" and more like "the workflow gave it a bad job." Missing project context. No tests. No diff view. No linter output. No package constraints. No review step. No way to confirm the generated component actually fits the design system.
+## visual reasoning widened the input
 
-That is a healthier failure mode, but it is still a failure mode.
+The release also mattered because a lot of real work is visual or semi-visual.
 
-For coding tools, the baseline moved from:
+Screenshots, charts, diagrams, UI bugs, scanned docs, and terminal output all show up in normal workflows. If the model can read more of that context, the tool can accept the artifact the user already has instead of forcing them to restate everything in prose.
 
-```text
-can the model produce plausible code?
-```
+That changes debugging in a practical way. A broken layout is easier to talk about when the model can see spacing and overflow. A chart is easier to discuss when the model can read the trend directly. A screenshot of an error can point the model toward the right code path faster than a vague complaint ever will.
 
-to:
+The limit is easy to miss. A screenshot is evidence, not the whole case. The DOM, styles, accessibility tree, and runtime console still matter. The tool has to know when an image is enough and when it needs to inspect the underlying system.
 
-```text
-can the tool surround plausible code with enough context, verification, and review to make it usable?
-```
+## speed made the loop smaller
 
-That is a much better question. It forces the product to care about the whole loop.
+Claude 3.5 Sonnet was fast enough that people stopped treating every prompt like a batch job.
 
-A strong coding assistant should know the local conventions, propose a small change, show a diff, run the right checks, explain what it did, and stop before turning one request into a surprise refactor. The model capability matters, but the workflow decides whether the capability lands safely.
+When a model is slow, users write one big request, wait, then read one big answer. When it is faster, they work in smaller steps. They correct direction sooner. They try a version, adjust it, and try again. The model starts to feel more like something on the bench than something in a queue.
 
-## speed changes the interaction
+That changes the workflow more than people expect. The tool has to preserve state across turns. It has to keep changes comparable. It has to let the user say, "keep this part, change that part," without making them restate the whole job.
 
-Speed is not only a comfort feature.
+Fast output without state discipline just creates churn. The user gets more versions, not better work.
 
-When a model is slow, users batch their thoughts. They write a larger prompt, wait, then inspect a large answer. When the model is faster, the interaction becomes more conversational and more iterative. Users ask smaller questions. They correct direction sooner. They try one version, then another. They treat the model less like a job queue and more like a tool on the bench.
+## the baseline moved
 
-Claude 3.5 Sonnet made that style feel more natural.
+The part I remember most about Claude 3.5 Sonnet is not one benchmark number. It is that surrounding products had less room to hide.
 
-That matters for workflow tools because faster iteration changes product design. The tool needs to preserve state between turns. It needs to make changes comparable. It needs to avoid losing the user's current working context. It needs to let the user say, "keep this part, change that part," without forcing a full restart.
+If the model can reason better, then sloppy context assembly hurts more. If it can code better, then missing tests become louder. If it can work faster, then weak state handling becomes obvious. If it can read images, then the product has to decide when an image is enough and when the system should inspect the actual artifact.
 
-Fast output without state discipline becomes churn. The user gets more versions, not better work.
+The real question changed from "can this model help?" to "can this workflow use a capable model well?"
 
-The better tool keeps the loop tight while still keeping the work inspectable.
-
-## visual reasoning expanded the input surface
-
-The release also pushed visual reasoning forward.
-
-For workflow tools, vision matters because a lot of real work is visual or semi-visual: screenshots, charts, UI bugs, diagrams, scanned docs, dashboards, logs in a terminal screenshot, and product mocks. If the model can read more of that context, the tool can accept the artifact the user already has instead of forcing them to translate everything into prose.
-
-That changes the shape of debugging.
-
-A user can show a broken layout. The model can reason about spacing, hierarchy, and text overflow. A user can show a chart. The model can talk about the trend. A user can show a screenshot of an error. The model can connect visible state to likely code paths.
-
-The danger is false confidence. Visual understanding is useful, but it should not replace direct inspection when direct inspection is available. A screenshot of a web page is a clue. The DOM, styles, accessibility tree, and runtime console are evidence.
-
-The workflow tool should know the difference.
-
-## the baseline moved from answer to loop
-
-The thing I remember about Claude 3.5 Sonnet is not a single benchmark. It is that the surrounding products had less room to be sloppy.
-
-If the model can reason better, then bad context assembly hurts more. If the model can code better, then missing tests become more embarrassing. If the model can work faster, then poor state management becomes more obvious. If the model can analyze images, then tools need to decide when an image is enough and when the system should inspect the underlying artifact.
-
-The baseline moved from "can this model help?" to "can this workflow use a capable model well?"
-
-That is where a lot of AI tools still get exposed.
-
-They have a strong model in the middle, but weak boundaries around the work:
+That is where a lot of AI tools still get exposed:
 
 - no durable workspace object
 - no diff
 - no project-specific constraints
 - no verification command
 - no way to compare attempts
-- no clear handoff from generated output to owned code
+- no clean handoff from generated output to owned code
 
-Claude 3.5 Sonnet made those gaps easier to see because the model was no longer the obvious excuse.
-
-## weak process became expensive
-
-Better models do not remove engineering discipline. They make the lack of it more expensive.
-
-If a weak model produces bad code, the user rejects it. If a strong model produces mostly good code inside a weak process, the bad part can slip through. The output looks credible enough to merge, paste, publish, or build on.
-
-That is why workflow tools need checks that match the work.
-
-For code, run tests or at least type checks and linters. For UI, render the state and inspect it. For writing, compare the draft against the intended argument. For data work, show the query, sample rows, and assumptions. For security work, name the permission boundary and the evidence.
-
-Claude 3.5 Sonnet raised the floor on what the model could do. The product still has to raise the floor on what happens after the model responds.
-
-That is the part I care about.
-
-The model getting better is exciting. The workflow getting more accountable is what makes it useful.
+Claude 3.5 Sonnet made those gaps harder to excuse. That is why it mattered.

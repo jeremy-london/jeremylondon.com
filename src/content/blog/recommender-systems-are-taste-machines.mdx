@@ -1,6 +1,6 @@
 ---
-title: "Ranking shows up everywhere"
-excerpt: "Ranking shows up in recommendations, retrieval, alerts, model routing, and engineering workflows."
+title: "Recommender systems are taste machines"
+excerpt: "Recommendations are not just ranking with a nicer label. They are a machine for encoding taste, feedback, and what a product thinks matters."
 publishDate: "2025-06-25T19:00:00Z"
 category: "deep-learning-networks"
 draft: false
@@ -8,127 +8,107 @@ author: "jeremy-london"
 tags: ["recommenders", "ranking", "personalization"]
 ---
 
-Ranking shows up everywhere: feeds, search results, triage queues, dashboards, recommendations, alert lists, and model routing. Any time a system chooses what someone sees first, ranking has entered the room.
+Recommender systems are taste machines.
 
-The hard part is not sorting. The hard part is deciding what the score means and what the product will learn from it.
+That sounds a little grand until you work through what they actually do. They take a noisy world, choose a candidate set, score it, and then teach the product what to pay attention to next. The product is not just showing items. It is rehearsing a theory of taste.
 
-## candidates come before scores
+I like thinking about recommendations that way because it keeps the hard part visible. The model is not only deciding what matches. It is deciding what the product will remember about the user, the catalog, and the feedback loop between them.
 
-A ranking system starts before the ranking function.
+## taste begins before the model
 
-Candidate generation decides what can possibly win. If the right item never enters the candidate set, no scoring function can save it.
+The first mistake is treating recommendations as a single scoring function.
 
-Candidate sources might include:
+Before scoring, something decides what is even eligible:
 
-- keyword search
-- embedding retrieval
-- graph neighbors
-- subscriptions
-- recently updated records
-- popularity
-- user history
-- business rules
-- alerts over a threshold
-- model routes that are eligible for a task
+- search results
+- recently viewed items
+- items from followed creators
+- similar products
+- editorial picks
+- sponsored placements
+- business-priority content
 
-This matters outside classic recommendations. In RAG, the candidate set is the retrieved chunks. In alerting, it is the events that pass the first filter. In model routing, it is the allowed routes. In an engineering dashboard, it is the list of incidents, PRs, builds, or flaky tests worth showing.
+If the right thing never enters the set, no ranking layer can rescue it. That is why feed quality often starts with candidate generation, not with the final model.
 
-The first ranking bug is often a recall bug. The best result was not ranked low. It was missing.
+For a store, taste might mean style and price fit. For a music app, it might mean mood and history. For a news product, it might mean relevance without replaying the same story forever. For an internal tool, it might mean what deserves the operator's attention first. The same machinery behaves differently once the product decides what taste means.
 
-## scoring should name its values
+## feedback is the part that bites
 
-After candidate generation comes scoring.
+Recommendations are dangerous because they learn from themselves.
 
-A simple scoring function might look like this:
+If the top item gets more clicks because it was top, the model receives a biased label. If popular items are shown more often, they collect more evidence and become even more popular. If the system never shows the long tail, it never learns whether the long tail was actually useful.
+
+That is not a bug in a corner. That is the product.
+
+I want recommender systems to make the feedback path obvious:
 
 ~~~text
-score = 0.45 * relevance + 0.20 * freshness + 0.15 * trust + 0.10 * diversity + 0.10 * context
+impression -> click -> dwell -> save -> return visit -> purchase
 ~~~
 
-The weights are less important than the discipline of naming the signals.
+The team should know which signals came from exposure and which signals came from actual preference. Otherwise the system ends up optimising for visibility masquerading as taste.
 
-Relevance to what? Fresh for how long? Trust according to whom? Diversity across which dimension? Context from the current user, team, task, location, query, or device?
+## the model should not be the only source of truth
 
-These are product decisions hiding inside math.
+When recommendations work well, they feel obvious in retrospect. That creates a trap. People start thinking the model is reading intent directly. It is not. It is combining weak signals.
 
-For a documentation search surface, trust might mean official docs beat forum posts. For incident triage, severity may beat recency. For model routing, policy eligibility may beat quality. For a feed, diversity may prevent one source from flooding the first page.
+Useful signals are often boring:
 
-The score is a compressed argument about what the product values.
+- recency
+- repetition
+- ownership
+- locale
+- device
+- follow graph
+- past dismissals
+- price band
+- item availability
+- editorial or policy constraints
 
-## ranking teaches the system
+The important part is not that one of these wins. It is that the product can explain why the item rose.
 
-Position bias makes top results look better because they were shown first. Freshness can bury durable work. Popularity can create feedback loops. Personalization can narrow the world too far. Diversity constraints can help, but only if the system knows what kind of repetition is bad.
+I like outputs that leave evidence:
 
-The scary thing is that the system may learn from its own display choices.
+~~~json
+{
+  "item_id": "item_918",
+  "signals": {
+    "collaborative": 0.71,
+    "freshness": 0.22,
+    "price_fit": 0.43,
+    "editorial_boost": 0.10
+  },
+  "reason": "similar users saved this and it is still in stock"
+}
+~~~
 
-If top results get more clicks because they are on top, clicks become a noisy label. If popular items get shown more, they become more popular. If a ranking system hides long-tail documents, the system gets less evidence about whether those documents were useful. If an alert queue always shows one category first, operators may train the system by responding to what it already prioritized.
+That record is not for the end user. It is for the engineer trying to answer, "Why did the product think this was a good idea?"
 
-Ranking systems create feedback loops. That is true for social feeds and also true for internal tools.
+## diversity is a product choice
 
-The product should know which feedback signals are biased by position, exposure, and UI design.
+Taste machines get boring fast if they keep serving one flavor.
 
-## metrics are useful and incomplete
+The system needs to know when repetition is good and when it is just noise. A music app may want a few similar songs in a row. A storefront may want some variety so the page does not feel like one narrow bet. A news app may need to avoid turning a user's feed into a single topic tunnel. An internal dashboard may need to surface both urgent and merely frequent issues.
 
-Offline ranking metrics are worth using.
+The product is deciding how much sameness is enough.
 
-Recall@K tells you whether relevant items appear in the top results. Precision@K tells you whether the top results are mostly useful. nDCG cares about order and graded relevance. MAP can help with ranked retrieval across many queries.
+That is why diversity terms in the score are not decoration. They are a statement about product behavior. If the system boosts diversity, it should know what dimension it is diversifying across and what cost it is willing to pay.
 
-Those metrics are necessary for repeatable work. They are not the whole product.
+## evaluation has to match the experience
 
-Online behavior matters too:
+Offline metrics matter, but the useful question is whether the list feels right when a real person uses it.
 
-- clicks
-- dwell time
-- hides
-- saves
-- conversions
-- reformulated queries
-- manual overrides
-- complaints
-- downstream task success
+I care about:
 
-The problem is that online behavior is full of confounders. A click may mean interest, confusion, habit, or a bad title. Dwell time may mean engagement or difficulty. A user may not click the right answer because the snippet already answered the question.
+- recall of relevant items
+- top-K precision
+- diversity across the page or session
+- novelty when the product needs it
+- stability across repeated visits
+- business constraints that override the model
 
-Metrics need interpretation. Ranking is where data science and product judgment constantly annoy each other.
+And I care just as much about the things the metric does not say: does the page feel stuck, too clever, too repetitive, or oddly random?
 
-## explanations help debugging
+That is the uncomfortable truth with recommender systems. They are part model, part policy, part UX, part memory. The score is only one layer. The product's taste is the rest of it.
 
-I want ranking systems to leave evidence.
-
-For any surprising result, an operator should be able to ask:
-
-- which candidates were considered?
-- which candidates were filtered out?
-- which signals dominated?
-- which rule overrode the score?
-- which model version scored it?
-- which user or query context mattered?
-- what feedback has this item received before?
-
-That does not mean showing all of this to the end user. It means the team can debug the ranking.
-
-I would keep examples where the ranking was surprising. Which signal dominated? Which candidate was missing? Did a business rule override relevance? Did the model learn a proxy for something we do not actually want?
-
-Those examples are more useful than aggregate dashboards alone. They show the system's taste in concrete form.
-
-## ranking in ai systems
-
-AI systems are full of ranking decisions.
-
-Retrieval ranks chunks before generation. A router ranks model paths. An agent ranks tools or next steps. An eval dashboard ranks failures. A threat analytics system ranks alerts. A code review assistant ranks files to inspect. A memory system ranks prior context.
-
-That means ranking quality affects far more than recommendation feeds.
-
-For AI work, I care about whether the ranking system preserves the evidence needed for the next step. The top retrieved chunk should support the answer. The top alert should be actionable. The top model route should satisfy policy and quality. The top tool should be allowed and useful.
-
-Ranking mistakes become downstream reasoning mistakes.
-
-## taste encoded as infrastructure
-
-Ranking is taste encoded as infrastructure.
-
-That makes it powerful and annoying. Powerful because small ranking changes can make a product feel much smarter. Annoying because the system will optimize whatever signals you give it, including bad proxies.
-
-A good ranking system should be measurable, debuggable, and humble about the difference between a score and a user's actual intent.
-
-The score is not the truth. It is a guess about what should be seen first.
+I trust recommender systems most when they admit they are making taste visible, not objective truth. The system is not discovering the best thing in the universe. It is deciding what to put first.

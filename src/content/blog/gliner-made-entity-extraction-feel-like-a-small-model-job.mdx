@@ -8,148 +8,79 @@ author: "jeremy-london"
 tags: ["gliner", "ner", "classification"]
 ---
 
-[GLiNER](https://github.com/urchade/GLiNER) is the kind of model that makes a task feel smaller in the right way.
+[GLiNER](https://github.com/urchade/GLiNER) made entity extraction feel like a small-model job.
 
-Entity extraction is often treated like a reason to reach for a general LLM. Give the model a paragraph, ask it to return JSON, repair the JSON when it drifts, argue with the prompt when it misses a label, and eventually build enough scaffolding that the "simple extraction" step is now a tiny application.
+That sounds obvious, but it is easy to forget when the default answer is to hand the paragraph to a large model and ask for JSON back.
 
-Sometimes that is the right move. Plenty of extraction problems need reasoning, context, or normalization beyond spans. But a lot of named entity recognition is narrower than that. Find these spans. Label them. Return offsets and confidence.
+Entity extraction is narrower than that. Find the span. Label it. Keep the offsets. Let the next stage do the rest.
 
-That is where GLiNER is interesting. It is a lightweight generalist NER model that can extract arbitrary entity types from text using labels you provide at inference time. The output is a list of spans with `start`, `end`, `text`, `label`, and `score`.
+The useful part of GLiNER is the output shape. It gives you text, label, span boundaries, and a score. That is enough to build a reviewable extraction step without pretending the model is also the resolver, the normalizer, and the policy engine.
 
-That shape is boring. Boring is exactly what extraction needs.
+## spans are the contract
 
-## spans are better than vibes
+That shape matters because it keeps the work honest. If I am scanning a support note, I do not want a generated paragraph about the note. I want exact spans I can point to later.
 
-For extraction, the span matters.
+For example, the model can return:
 
-If the system says a support ticket contains a customer ID, I want the exact characters. If it says a security report contains an API key, I want the start and end offsets. If it says an incident note mentions a vendor, I want the text it matched and the confidence that led to the label.
-
-A decoder LLM can return structured JSON, but it often wants to explain, normalize, infer, or be helpful. That is dangerous when the downstream system needs evidence. Entity extraction should preserve the link between the prediction and the source text.
-
-GLiNER's output shape is useful because it keeps that link:
-
-~~~python
-{
-    "start": 18,
-    "end": 24,
-    "text": "SpaceX",
-    "label": "organization",
-    "score": 0.97,
-}
+~~~text
+"sk-123..." -> api_key
+"ghp_xxx..." -> token
+"-----BEGIN PRIVATE KEY-----" -> private_key
 ~~~
 
-Now the product can highlight the span, redact it, review it, or pass it to another stage. If the prediction is wrong, a reviewer can point at the exact error. That is much better than a generated answer that says "the organization is probably SpaceX" without anchoring the claim.
+Those spans can feed a redaction pass, a review panel, or a deterministic validator. They are not the final policy. They are the evidence.
 
-## labels are an interface
+## what the model actually returns
 
-GLiNER lets you pass labels at inference time:
+For a local redaction pass, I like a shape like this:
 
 ~~~python
 from gliner import GLiNER
 
 model = GLiNER.from_pretrained("urchade/gliner_medium-v2.1")
+labels = ["api_key", "token", "password", "private_key"]
 
-text = "Maya renewed the Acme contract on April 12 after the SOC 2 review."
-labels = ["person", "company", "date", "compliance report"]
-
-entities = model.predict_entities(text, labels, threshold=0.5)
+spans = model.predict_entities(note_text, labels, threshold=0.35)
+high_risk = [span for span in spans if span["score"] >= 0.8]
+needs_review = [span for span in spans if span["score"] < 0.8]
 ~~~
 
-That looks simple, but the labels are doing real product work.
+The model is not trying to invent a document schema. It is trying to find a span that lines up with the text the user actually wrote. That matters because the product can keep offsets, show the user the source sentence, and let a deterministic step decide whether the span is safe to redact.
 
-`company` and `customer` may not mean the same thing. `incident` and `security event` may overlap. `credential` may be too broad if the product needs to distinguish passwords, API keys, private keys, and session tokens. A label name is part of the extraction contract.
+## the routing is the product
 
-I would treat labels like API fields. Name them carefully. Document them. Add examples. Decide whether labels are mutually exclusive. Decide what should happen when spans overlap. Decide whether the system should allow an `unknown` bucket or simply return no span.
-
-The model can accept arbitrary labels. The product still has to own the taxonomy.
-
-## thresholds are product choices
-
-The confidence threshold is not a technical afterthought.
-
-A high threshold reduces false positives and misses more real entities. A low threshold catches more entities and creates more review noise. The right threshold depends on what the extraction drives.
-
-For a highlight feature in a note-taking app, false positives may be acceptable. For secret redaction, false negatives are expensive. For CRM enrichment, a wrong entity can pollute records. For incident review, missing a vendor name might be less severe than incorrectly tagging a person as an owner.
-
-I would tune thresholds by label, not only globally:
+That is enough to power a useful product path:
 
 ~~~text
-label              threshold   reason
-private_key          0.35      prefer review noise over leaks
-person               0.70      avoid tagging ordinary words
-company              0.60      moderate review cost
-date                 0.80      formats are usually clear
+high confidence -> redact automatically
+medium confidence -> show in review panel
+low confidence -> ignore or send to deterministic check
 ~~~
 
-That table might live in code, config, or an eval note. The important part is that the threshold expresses risk.
+The product gets a span, a score, and a reason to route. It does not get fake certainty.
 
-## extraction is not normalization
+If the model says "password" is present but the span score is weak, I would not hide the result. I would surface it as "possible secret" and keep the original text visible. That lets a human confirm whether the model found a real credential or just matched a suspicious word in a harmless sentence.
 
-Named entity recognition finds spans. It does not solve every downstream problem.
+## the threshold is part of the interface
 
-If GLiNER extracts `Acme`, the system still has to decide whether that means `Acme Corp`, `ACME Inc.`, a test fixture, or a customer alias. If it extracts `April 12`, the system still has to resolve the year and timezone. If it extracts `SOC 2`, the system still has to decide whether that is a report type, a compliance requirement, or part of a document title.
+I also care about where the threshold sits. If I make it too low, the review queue fills with junk. If I make it too high, the model misses the messy cases that were the whole point of using it.
 
-That distinction matters because teams often overload extraction. They want the model to find, classify, normalize, deduplicate, and decide. Those are separate jobs.
-
-A cleaner pipeline might be:
+An eval table makes that trade visible:
 
 ~~~text
-text
-  -> span extraction
-  -> type-specific normalization
-  -> entity resolution
-  -> confidence and review policy
-  -> write to product state
+label           precision   recall   note
+api_key            0.98      0.91    good at obvious keys
+password           0.96      0.84    misses some pasted text
+private_key        1.00      0.79    threshold is conservative
+company            0.89      0.85    aliases need resolution later
 ~~~
 
-GLiNER can own the first step. The rest of the pipeline should remain explicit.
+That is enough to tell me whether the model is usable in front of a user. I do not need it to be poetic. I need it to be predictable enough that the surrounding system can make a good choice.
 
-## where this fits in ai systems
+## why this is easier to trust
 
-Entity extraction shows up everywhere around AI products.
+A classifier-style extraction step is easier to trust than a generic prompt when the job is local and repetitive. The label list is explicit, the threshold is visible, and the output can feed a second pass that knows how to behave when confidence is low.
 
-Before retrieval, extraction can identify product names, document IDs, customer names, dates, or policy references. Before logging, extraction can catch secrets or PII. During evals, extraction can compare whether required facts appeared in the answer. In agent workflows, extraction can turn messy tool output into structured candidates for a safer deterministic step.
+That is the part I like here. The model is not the whole workflow. It is one piece of it, and a pretty small one at that. Small is not a downgrade. For entity extraction, small is often the reason the rest of the system stays legible.
 
-The small-model angle is practical. If extraction runs cheaply and locally, it can sit closer to the data. It can process logs before storage. It can scan documents before they leave a workspace. It can run as a batch job over historical data without turning the bill into a meeting.
-
-That does not mean every extraction task belongs to GLiNER. Long documents, tables, nested schemas, cross-sentence reasoning, and domain-specific normalization may need additional machinery. But the first pass does not always need a large decoder model.
-
-## eval the span, not the sentence
-
-Entity extraction evals should be picky.
-
-A generated summary can be directionally useful. A span extractor is either aligned with the source text or it is not. The eval should measure exact matches, partial overlaps, label correctness, false positives, false negatives, and performance by label.
-
-For example:
-
-~~~text
-label          precision   recall   notes
-person           0.94      0.91     misses initials
-company          0.88      0.84     aliases need resolver
-api_key          0.97      0.72     threshold too strict
-date             0.96      0.95     strong
-~~~
-
-Partial overlaps deserve review. If the gold span is `Austin, Texas` and the model returns `Austin`, maybe that is acceptable for some products and wrong for others. If the gold span is `April 12` and the model returns `April`, that is probably wrong. The eval has to match the product use.
-
-I would also keep adversarial examples:
-
-- names that are also common words
-- fake keys that look real
-- companies with punctuation
-- dates without years
-- copied logs with mixed formatting
-- multilingual names
-- overlapping spans
-
-Small extraction models can be excellent, but they should be tested where span boundaries get annoying.
-
-## the useful reminder
-
-GLiNER is useful because it makes entity extraction feel like its own job again.
-
-That is the reminder I like. Not every language task needs a chat model pretending to be a classifier, a parser, and a database writer. Sometimes the right tool is a smaller model with a narrower output shape and a better relationship to the source text.
-
-When the job is "find the spans and label them," use a tool that respects spans. Then build the rest of the system around review, normalization, resolution, and product risk.
-
-That is less dramatic than asking a giant model to do everything. It is also much easier to operate.
+Labels become a contract. Thresholds become a product choice. Abstention becomes acceptable instead of embarrassing. The first pass is allowed to be small, which is exactly what the job asks for.

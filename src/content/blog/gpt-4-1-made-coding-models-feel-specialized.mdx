@@ -8,160 +8,23 @@ author: "jeremy-london"
 tags: ["gpt-4.1", "coding", "openai"]
 ---
 
-[GPT-4.1](https://openai.com/index/gpt-4-1/) made coding models feel more explicitly specialized.
+[GPT-4.1](https://openai.com/index/gpt-4-1/) made coding models feel specialized instead of generic.
 
-The API release was framed around a family: GPT-4.1, GPT-4.1 mini, and GPT-4.1 nano. OpenAI emphasized coding, instruction following, long-context comprehension, and lower costs compared with earlier routes. The coding benchmarks mattered, but the family shape mattered too.
+The useful part of the release was the shape of the family. Full, mini, and nano made the routing problem visible. A repo-level repair task is not the same thing as a quick diff summary. A migration is not the same thing as a type error. A broad rewrite is not the same thing as one small fix. One default model hides those differences and makes every code job look like a hammer job.
 
-It pushed model selection away from "use the best general model" and toward "pick the coding route that fits the job."
+I think of the family as a set of different tools for different failure shapes.
 
-That is closer to how developer tools actually work. Some coding tasks need deep repository reasoning. Some need fast edits in a narrow file. Some need cheap lint-style suggestions. Some need instruction following more than abstract reasoning. A single model default hides those differences.
+| job | route | why |
+| --- | --- | --- |
+| explain a test failure | mini | cheap read of logs and stack traces |
+| patch a tricky bug | full | needs broader context and better reasoning |
+| summarize a diff | nano | short, narrow, and low risk |
+| review a migration | full | higher cost of a bad change |
 
-## coding is not one workload
+That is the practical win. The product gets better when the route matches the job.
 
-The phrase "coding model" covers too much.
+Long context helped, but only if patch discipline stayed in place. I still want the model to keep the change small, respect the surrounding files, and leave a readable working tree behind. A model that can see more of the repository is useful only if it still behaves like a code editor and not like a rewrite bot.
 
-Generating a small component is different from fixing a failing integration test. Explaining an error is different from designing a migration. Updating docs is different from editing authentication logic. Planning a refactor is different from making a two-line type fix.
+For me, the specialization mattered because it made code work easier to route by intent. Not every code task deserves the same model, the same budget, or the same review path.
 
-Those tasks stress different behavior:
-
-- repository navigation
-- instruction following
-- patch minimality
-- test selection
-- long-context use
-- tool-call reliability
-- style matching
-- refusal or escalation around risky changes
-
-GPT-4.1's release made that segmentation feel more natural. The model family was not only stronger. It was shaped for routing: full model when the task needs more capability, mini when the task needs a cheaper competent path, nano when speed and cost dominate.
-
-The product question becomes: which coding steps deserve which route?
-
-## long context helps, but patch discipline still matters
-
-A million-token context window is useful for coding work because repositories are full of scattered dependencies. The bug may involve a route handler, a helper, a test fixture, a schema, and one line in a config file. More context can reduce bad guesses.
-
-But long context does not automatically produce a good patch.
-
-A good coding model still has to keep the change small, preserve local conventions, avoid unrelated cleanup, and run the right checks. The model can see the whole neighborhood and still decide to renovate the wrong house.
-
-For coding agents, I would separate context quality from patch quality:
-
-~~~text
-context quality:
-  read the relevant files
-  found related tests
-  included config and type definitions
-  avoided generated or irrelevant files
-
-patch quality:
-  changed the intended behavior
-  avoided unrelated edits
-  matched local style
-  added or updated focused tests
-  left the working tree understandable
-~~~
-
-Large context improves the first category. It does not excuse failures in the second.
-
-## instruction following is a developer-tool feature
-
-Instruction following sounds generic until you put it inside a coding workflow.
-
-"Only change the failing test fixture" is an instruction. "Do not modify generated files" is an instruction. "Preserve the public API" is an instruction. "Use the existing helper instead of adding a new dependency" is an instruction. "Show the diff before running the migration" is an instruction.
-
-If the model treats those as vibes, the tool becomes expensive to supervise.
-
-This is why I care about instruction-following gains in coding models. The useful model is not the one that writes the most code. It is the one that respects constraints while writing the right code.
-
-The eval should include constraint failures:
-
-~~~json
-{
-  "case": "generated-file-boundary",
-  "task": "Fix the route type error without editing generated files.",
-  "fail_if": [
-    "src/generated/** changes",
-    "public API changes",
-    "test command not run"
-  ]
-}
-~~~
-
-That kind of case catches the difference between capable and usable.
-
-## mini and nano matter because coding has small chores
-
-The smaller GPT-4.1 models were not the glamorous part of the release, but they are important for product design.
-
-Developer tools have many small chores:
-
-- summarize a diff
-- name a test
-- explain a type error
-- classify a failure log
-- rewrite a commit message
-- suggest a command
-- extract changed files from output
-- generate a short docstring
-
-Sending every one of those to the largest model is wasteful. It also creates latency where the tool should feel immediate.
-
-A coding assistant can use smaller routes for low-risk, high-frequency work and reserve the larger model for tasks that need repository reasoning or careful patch generation. That is a better architecture than one giant "ask AI" path.
-
-The smaller route still needs evals. A cheap model that writes misleading failure summaries will waste more time than it saves. But when the task is narrow, the cheaper model can be the better product choice.
-
-## the benchmark is not the workflow
-
-SWE-bench and similar coding benchmarks are useful, especially because they measure more than isolated code completion. But a product workflow has extra requirements.
-
-An agent inside a real codebase has to handle permissions, dirty working trees, flaky tests, missing dependencies, local conventions, generated files, secrets, CI differences, and user intent that changes mid-task. It also has to know when to stop.
-
-So I would test GPT-4.1-style routes with workflow cases:
-
-- fix a bug with an existing failing test
-- add a test before changing code
-- update a dependency without broad refactoring
-- respect a no-new-dependency instruction
-- handle truncated command output
-- decline a request that would expose secrets
-- summarize a diff without inventing behavior
-- choose between full, mini, and nano routes
-
-That last one matters. The model family creates a routing problem. The eval should include route selection, not only final patch correctness.
-
-## coding models need receipts
-
-The better the model gets, the more important receipts become.
-
-A strong coding model can make a change that looks plausible and passes a narrow check. The user still needs to know what happened. Which files changed? Which tests ran? Which assumptions were made? Which risks remain? Was a command skipped because dependencies were missing?
-
-I want coding tools to produce a small work record:
-
-~~~json
-{
-  "task": "fix parser handling for quoted commas",
-  "model": "gpt-4.1",
-  "route": "full",
-  "files_changed": [
-    "src/parser/csv.ts",
-    "tests/parser/csv.test.ts"
-  ],
-  "commands": [
-    { "cmd": "pnpm test tests/parser/csv.test.ts", "status": "passed" }
-  ],
-  "risk": "Only CSV parser tests were run."
-}
-~~~
-
-That record is not decoration. It is how the developer decides whether to trust the patch, run more tests, or ask for another review.
-
-## what felt specialized
-
-GPT-4.1 made coding feel less like a side capability of a general chat model.
-
-The release bundled the things developer tools care about: code performance, instruction following, long context, smaller routes, and pricing. That made it easier to think of coding models as infrastructure with task-specific routing rather than one magic assistant.
-
-That is the useful shift. A coding assistant should not choose a model because it is the newest name in the menu. It should choose based on the job: edit, explain, classify, plan, review, or verify.
-
-The model can be specialized. The workflow has to be specialized too.
+The practical example is boring. A typo fix can go through the cheap route and return a one-file patch. A failing migration might need the full model because the surrounding schema changes matter. A `git diff` summary can go to the nano route and produce a readable change log for a reviewer. The family only becomes useful when the product can say which job is being asked for before it burns the bigger model on everything.

@@ -1,6 +1,6 @@
 ---
 title: "Scripts should be idempotent by default"
-excerpt: "The best project scripts can run twice without making the second run weird."
+excerpt: "A script should survive interruption, rerun cleanly, and leave a useful trail when something goes wrong."
 publishDate: "2024-11-07T09:00:00Z"
 category: "developer-tools"
 draft: false
@@ -8,21 +8,13 @@ author: "jeremy-london"
 tags: ["scripts", "automation", "developer tools"]
 ---
 
-The best project scripts can run twice without making the second run weird.
+The best project scripts can be run twice without making the second run weird.
 
-That is the simplest test I know for whether a script belongs in a repo.
+That is the test I keep coming back to. Local work gets interrupted. Docker hangs around. Ports stay open. A file already exists. A migration half-ran. The next command should be able to recover instead of making the mess larger.
 
-Development scripts get interrupted. Dependencies fail. Ports stay open. A generated file already exists. A Docker container is half-created. A migration ran before the seed step failed. Someone hits control-C at exactly the wrong time. The next person runs the same command and inherits the mess.
+## start from what exists
 
-An idempotent script treats that as normal.
-
-It can start from a partially completed state, do the right thing, and stop with a useful message.
-
-## check before creating
-
-The first habit is to check for existing state before creating more state.
-
-Bad scripts assume the world is empty. Good scripts ask what is already there.
+An idempotent script checks before it creates.
 
 ~~~sh
 if [ ! -d "node_modules" ]; then
@@ -34,41 +26,34 @@ if ! docker volume inspect app_pgdata >/dev/null 2>&1; then
 fi
 ~~~
 
-That is not sophisticated. It prevents stupid failures.
+That kind of check is plain, but it saves people from stupid failures. The pattern applies to build output, local databases, certificate files, generated docs, fixture directories, cache folders, and anything else the script wants to create.
 
-The same pattern applies to generated files, local databases, cache directories, build output, SSL certificates, fixture data, and service containers. If the script can detect the desired state, it should converge on it instead of blindly adding another copy.
+If the desired state already exists, the script should converge on it instead of blindly making another copy.
 
-## names should be stable
+## stable names make cleanup possible
 
-Idempotency gets harder when scripts create unnamed things.
+Scripts get harder to recover when they create unnamed things.
 
-A container named `postgres` is easier to reason about than a random container created every run. A temp directory with a job ID is easier to clean than one named by timestamp only. A generated file with a stable path is easier to replace than a pile of numbered outputs.
+A container with a stable name is easier to stop than one with a random suffix. A cache directory with a known path is easier to clear than one written by timestamp only. A PID file or lock file only helps if the script can find it again.
 
-Stable names make cleanup possible.
-
-For local dev scripts, I want predictable names:
+I want local tooling to have predictable names:
 
 - container names
 - volume names
 - network names
-- PID files
-- log files
-- lock files
-- cache directories
+- log paths
+- lock paths
+- generated file paths
 
-Predictability is not glamorous. It is how `stop.sh`, `reset.sh`, and `status.sh` can exist.
+Predictability is what makes `stop.sh` and `reset.sh` possible instead of decorative.
 
-## partial failure needs a path
+## the halfway point matters
 
-A script should assume it can fail halfway.
+The script should assume it can fail in the middle.
 
-The question is what happens next.
+Maybe the database starts but the migration fails. Maybe a download stops halfway. Maybe a health check times out after the service has already written state. The next run should still know how to continue or clean up.
 
-If a database starts but migrations fail, can the next run retry migrations? If a file downloads halfway, does the script verify checksum before trusting it? If a service starts and the health check fails, does the script print the log path? If a generated file is invalid, does the script overwrite it cleanly or keep appending?
-
-The script should leave enough evidence for recovery.
-
-I like scripts that make their phases visible:
+I like scripts that print the phases they are in:
 
 ~~~text
 checking dependencies
@@ -80,33 +65,27 @@ writing env file
 done
 ~~~
 
-When a phase fails, the user knows where to look.
+That output gives the user a map when the script breaks.
 
-## destructive actions should be explicit
+## destructive commands should say so
 
-Idempotent does not mean harmless.
+Idempotent is not the same as harmless.
 
-A reset script may delete data. A cleanup script may remove containers. A migration script may change schema. Those actions need clear boundaries.
-
-I prefer separate commands:
+Resetting state may be the right thing to do. The command should say that clearly. I prefer separate commands for separate jobs:
 
 - `init.sh` creates or updates the local environment
 - `serve.sh` starts it
-- `stop.sh` stops running processes
-- `reset.sh` removes local state intentionally
-- `test.sh` verifies the expected path
+- `stop.sh` stops it
+- `reset.sh` removes local state
+- `test.sh` checks the expected path
 
-That split avoids the script that sometimes initializes and sometimes destroys depending on flags nobody remembers.
+That split keeps the dangerous path obvious. A command that deletes data should not hide behind the same name as a command that starts a server.
 
-If a command deletes data, make the name say so. If it targets production, stop and require explicit confirmation or use a different tool entirely. Local convenience scripts should not develop production-grade footguns.
+## locking prevents duplicate work
 
-## locks prevent duplicate work
+Some commands should not run twice at the same time.
 
-Some scripts should refuse to run twice at the same time.
-
-Starting two dev servers on the same port is annoying. Running two seed jobs against the same database can be worse. Running two code generators into the same output directory can create garbage.
-
-A simple lock file can be enough:
+Starting two dev servers on one port is annoying. Running two seed jobs against one database can be worse. A lock file is enough for a lot of these cases:
 
 ~~~sh
 LOCKFILE=".tmp/init.lock"
@@ -121,15 +100,13 @@ trap 'rm -f "$LOCKFILE"' EXIT
 touch "$LOCKFILE"
 ~~~
 
-Locking should have a recovery path. If the process died, the user should know how to clear the stale lock safely.
+The lock should also have a recovery story. If the process died, the user needs to know how to clear the stale file safely.
 
-## environment checks should fail early
+## fail before mutating
 
-An idempotent script should check prerequisites before it mutates state.
+An idempotent script checks its prerequisites before it changes anything.
 
-If the script needs `pnpm`, Docker, `psql`, `ffmpeg`, a specific Node version, or a local `.env` file, say that up front. Do not create half the environment and then fail because the last command is missing.
-
-Early checks also make error messages better:
+If it needs `pnpm`, Docker, `psql`, or a specific Node version, it should say that before writing half the environment and then dying on the last step. Early failure produces better errors.
 
 ~~~text
 missing: docker
@@ -137,17 +114,11 @@ expected: Docker running locally before init
 fix: start Docker Desktop and rerun ./init.sh
 ~~~
 
-That is much better than a stack of command failures from deep inside the script.
+That is a lot easier to use than a stack trace from deep inside a shell pipeline.
 
-Version checks belong here too. A script that assumes Node 26 should not quietly run under Node 20 and leave behind strange build output.
+## output should make reruns feel safe
 
-## output should be boring
-
-Good script output is a kind of interface.
-
-It should say what changed, what was skipped because it already existed, and what failed. It should avoid dumping pages of noise unless the user asks for verbose mode.
-
-Useful output:
+Good script output is a receipt, not a transcript.
 
 ~~~text
 database: already running
@@ -156,20 +127,12 @@ fixtures: seeded 14 records
 server: http://localhost:4321
 ~~~
 
-That tells the user the script converged. It also makes reruns feel safe.
+The user can tell what changed and what was skipped. That is what makes rerunning the script feel ordinary.
 
-## the second run is the test
+The second run is the real test.
 
-The best test for a project script is simple:
+Run the script. Run it again. Interrupt it halfway. Run it again. If it creates duplicates, fails because a file exists, starts another service, or needs manual cleanup after a normal interruption, the script is not ready.
 
-Run it. Run it again.
+Local tooling is part of the product experience for developers. A repo that can recover from a messy run is calmer to work in. A repo that cannot turns every setup issue into a small crisis.
 
-The second run should not create duplicate data, fail because a file exists, start another copy of a service, corrupt output, change unrelated files, or require manual cleanup.
-
-Then interrupt it halfway and run it again.
-
-That is where the real bugs appear.
-
-Scripts should be idempotent by default because local tooling is part of the product experience for developers. A repo that can recover from a messy half-run is calmer to work in. A repo that cannot makes every setup failure feel personal.
-
-Good scripts make recovery feel ordinary. That is worth designing before setup breaks again.
+Good scripts make recovery boring. That is the job.

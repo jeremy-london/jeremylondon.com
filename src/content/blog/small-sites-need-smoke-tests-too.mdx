@@ -1,6 +1,6 @@
 ---
 title: "Small sites need smoke tests too"
-excerpt: "A personal site can still break routes, feeds, images, and content collections if nobody checks the full path."
+excerpt: "A small site can still break routes, feeds, images, and content collections if nobody checks the public path."
 publishDate: "2026-06-01T13:00:00Z"
 category: "web-engineering"
 draft: false
@@ -10,9 +10,11 @@ tags: ["testing", "astro", "quality"]
 
 Small sites need smoke tests because small sites still break in public.
 
-A personal site can have a tiny codebase and still depend on routing, RSS, content collections, generated images, redirects, scripts, and deployment behavior. The failure is often not dramatic. It is a broken post page, a missing feed item, or a build that passes while the important route renders the wrong state.
+The site can be tiny and still depend on routing, RSS, content collections, generated images, redirects, scripts, and deployment behavior. The failure is usually not dramatic. It is a broken post page, a missing feed item, or a build that passes while the important route renders the wrong thing.
 
-The check I like is boring: build the site, request a handful of public routes, verify status codes, and make sure the feed exists. That is enough boundary for most small sites.
+## check the public contract
+
+The shortest useful smoke test is boring:
 
 ~~~text
 /                     200
@@ -22,52 +24,26 @@ The check I like is boring: build the site, request a handful of public routes, 
 /not-real             404
 ~~~
 
-This does not need a test cathedral. It needs a cheap signal that the public contract still works.
+That is enough to catch a surprising amount of breakage. The homepage is not the whole site.
 
-## the homepage is not the whole site
+## the usual misses
 
-Small-site testing often stops at "the homepage loads."
-
-That misses the places static sites actually break:
+Small-site testing often stops at "the homepage loads." That misses the places static sites actually fail:
 
 - a blog post route with bad frontmatter
 - a tag page with no posts
 - an RSS feed with malformed XML
 - an image path that works locally but not after build
 - a redirect that changed during a redesign
-- a content collection query that sorts incorrectly
+- a content query that sorts incorrectly
 - an MDX island that fails hydration
 - a draft post leaking into production
 
-The homepage can look fine while the archive is broken.
-
 The smoke test should cover the public contract, not the one page everyone remembers to open.
-
-## choose routes by risk
-
-A smoke test does not need to crawl every page every time.
-
-Pick routes that represent different parts of the system:
-
-- `/` for the main shell
-- `/blog` for the archive
-- one recent post
-- one old post
-- one MDX-heavy post if the site has interactive islands
-- `/rss.xml` or `/feed.xml`
-- `/sitemap.xml`
-- one expected redirect
-- one missing route that should return 404
-
-That small set catches a lot of failures.
-
-For content-heavy sites, I also like sampling posts from the content collection. Pick the newest post, oldest post, and a random post. That catches date sorting, slug handling, and weird old frontmatter.
 
 ## feeds deserve direct checks
 
-RSS and sitemaps are easy to break because nobody sees them in the browser during normal development.
-
-The smoke test should request them directly and check more than status code.
+Feeds do not get enough attention because nobody sees them in the browser during normal development.
 
 For RSS:
 
@@ -85,61 +61,46 @@ For sitemap:
 - draft routes are absent
 - canonical URLs use the production origin
 
-These tests are not glamorous. They protect the machines and readers that consume the site without visiting the homepage.
+These checks are not glamorous. They protect the readers and machines that consume the site without visiting the homepage.
 
-## images fail differently after build
+## images are part of the content
 
 Image bugs are common on small sites.
 
-The local dev server may serve an asset that the production build does not include. A generated image may have the wrong path. A remote image may timeout. An optimized image component may emit a different filename. A case-sensitive production filesystem may reject a path that worked locally.
+The local dev server may serve an asset that the production build does not include. A generated image may have the wrong path. A remote image may time out. A case-sensitive filesystem may reject a path that worked locally.
 
-Smoke tests can catch some of this by checking rendered HTML for broken image URLs, then requesting a few important assets.
-
-At minimum:
+At minimum I want checks for:
 
 - site logo or avatar
 - Open Graph image
 - one blog post image
 - one generated asset if the site creates them
 
-If a post depends on visual examples, the images are part of the content. They deserve checks.
+If the post depends on visual examples, the images are not decoration. They are the content.
 
-## redirects and 404s are content too
+## redirects and missing routes
 
 Old URLs keep living after a redesign.
 
 If a post slug changes, a project page moves, or `/feed.xml` becomes `/rss.xml`, the site should either redirect intentionally or return a clear 404. Accidental 200s are bad too. A missing route that renders the homepage can confuse readers, crawlers, and debugging tools.
 
-The smoke test should include one known redirect and one known missing route. That proves the site handles both memory and absence.
+I like including one known redirect and one known missing route. That proves the site handles both memory and absence.
 
-## content collections need schema pressure
+## content collections are small databases
 
 Static sites with content collections are basically tiny databases.
 
 Frontmatter is schema. Slugs are keys. Dates drive sorting. Tags drive indexes. Draft flags drive publishing behavior. Excerpts show up in feeds and cards.
 
-If the schema gets loose, the site breaks quietly.
+If the schema gets loose, the site breaks quietly. I want checks for required title, valid publish date, draft behavior, unique slugs, non-empty excerpt, valid category, tags shaped consistently, and any site-specific heading convention.
 
-I want checks for:
+## preview needs the same check
 
-- required title
-- valid publish date
-- draft flag behavior
-- unique slugs
-- non-empty excerpt
-- valid category
-- tags shaped consistently
-- no uppercase heading style if the site convention says lowercase
+Small sites often deploy through preview URLs. That is great, but the preview should be smoke-tested with the same route list.
 
-The build may catch some of this. A smoke test or content check should catch the rest.
+Some bugs only show up with the deployed origin: canonical URLs, feed links, asset prefixes, redirects, and environment-specific config.
 
-## deploy previews should be tested like production
-
-Small sites often deploy through preview URLs.
-
-That is great, but the preview should be smoke-tested with the same route list. Some bugs only show up with the deployed origin: canonical URLs, feed links, asset prefixes, redirects, and environment-specific config.
-
-The flow can be simple:
+The flow can stay simple:
 
 ~~~text
 build
@@ -151,16 +112,8 @@ build
   -> repeat route smoke test against preview URL
 ~~~
 
-That is enough for most personal sites.
-
-## cheap tests change behavior
-
-The point of a smoke test is not high coverage.
-
-The point is to make breakage cheap to notice. If the route list fails locally, fix it before publishing. If the feed is malformed, fix it before readers see duplicate junk. If a redirect breaks, catch it before search and old links drift.
+The point is not coverage for its own sake. The point is to make breakage cheap to notice.
 
 Small sites still have public contracts. Routes should load. Feeds should parse. Images should resolve. Content should publish when intended.
 
 A tiny smoke test respects that contract without turning a personal site into enterprise theater.
-
-That is the right amount of boring for this job.

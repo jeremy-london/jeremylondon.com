@@ -10,15 +10,9 @@ tags: ["queues", "workers", "ai workflows"]
 
 Queues make AI workflows calmer because they stop pretending every request should finish inside the user's patience window.
 
-The moment a task needs retrieval, model calls, tool execution, retries, file processing, verifier passes, or human review, a synchronous request starts lying about the shape of the work.
+As soon as a task needs retrieval, model calls, tool execution, retries, file processing, verifier passes, or human review, a synchronous request starts lying about the shape of the work. Some work should stay inline. A short classification, a route decision, or a small rewrite can still fit in the request path. The rest needs somewhere honest to live.
 
-Some work should be immediate. A small classification, a short rewrite, an autocomplete suggestion, a route decision. Keep those inline when they are cheap and predictable.
-
-But long-running AI work usually has a different shape. It starts, waits, fails, retries, gathers evidence, asks another system, maybe needs a human, and eventually becomes an artifact. A queue gives that work somewhere honest to live.
-
-## job identity comes first
-
-A queued AI job needs an identity that survives retries. The job should carry an idempotency key, input references, model or route choice, attempt count, and a place to store evidence.
+The first thing I want is identity.
 
 ~~~json
 {
@@ -30,51 +24,15 @@ A queued AI job needs an identity that survives retries. The job should carry an
 }
 ~~~
 
-Without identity, retries become duplicate work and incident review becomes archaeology.
+The idempotency key matters because AI jobs sit behind flaky systems all the time. The model call may succeed while the worker crashes before recording the result. A tool may finish while the network drops. The user may hit the button again. The queue may redeliver after a visibility timeout. Identity is what keeps that from turning into duplicate work.
 
-The idempotency key matters because AI jobs often sit behind flaky systems. The model call may succeed while the worker crashes before recording the result. A tool may complete while the network drops. The user may hit the button again. The queue may redeliver after a visibility timeout.
+I also like input references more than giant payloads in the queue message. Put the big document, image, prompt bundle, or repository snapshot somewhere durable. The job points to it. That makes retries read the same input version instead of whatever happened to be in memory when the worker woke up.
 
-The system needs to know whether it is continuing the same work or creating new work.
-
-For AI workflows, I also like input references instead of giant payloads inside the queue message. Put the large document, image, prompt bundle, or repository snapshot somewhere durable. The job points to it. That keeps the queue message small and makes retries read the same input version.
-
-## leases make workers honest
-
-A worker should claim a job with a lease or visibility timeout. If the worker is still making progress, it renews the lease. If it finishes, it records completion. If it fails, it releases the job with a retry decision.
-
-This is basic queue behavior, but AI workloads make the details more visible.
-
-A summarization job may take seconds. A document extraction job may take minutes. A coding agent job may run tests several times. A video analysis job may fan out into segments. A human review job may sit for hours.
-
-Those jobs should not all pretend to be the same kind of request.
-
-The lease duration should match the work. The worker heartbeat should say that work is still alive. A timed-out lease should be treated as ambiguous: maybe the worker died, or maybe it is still running without the lease. That ambiguity is why idempotency matters.
-
-## retries need reasons
+### retries need reasons
 
 "Retry on failure" is too crude.
 
-Some failures are transient:
-
-- model provider timeout
-- rate limit
-- temporary network failure
-- database connection issue
-- worker restart
-- tool service unavailable
-
-Some failures are permanent until the input or code changes:
-
-- invalid file type
-- missing permission
-- malformed schema
-- prompt too large for the selected route
-- source document deleted
-- verifier rejected the result for a deterministic reason
-
-Those should not share the same retry loop.
-
-I would store a failure class with each attempt:
+Some failures are transient, like a provider timeout or a network issue. Some are permanent until the input changes, like malformed schema, missing permission, deleted source material, or a verifier that rejected the result for a deterministic reason. Those should not share the same loop.
 
 ~~~ts
 type JobFailure =
@@ -86,93 +44,12 @@ type JobFailure =
   | { kind: "bug"; reason: string }
 ~~~
 
-Retries should be budgeted. Infinite retry loops are denial-of-wallet bugs when model calls cost money.
+### dead letters are a review queue
 
-## dead letters are review queues
+Dead-letter queues are not failure closets. They are evidence that the workflow does not know what to do with a case. Better to inspect them and learn than to let them disappear into a counter nobody reads.
 
-Dead-letter queues are not failure closets.
+### backpressure is the point
 
-A dead-lettered AI job is evidence that the workflow does not know what to do with a case. That might be fine. Some cases should land in a review queue. But the product and operations team should inspect them.
+A queue also gives the system a place to say "not yet." That is healthier than letting every agent workflow compete for model capacity, database connections, reviewer attention, and budget at once.
 
-Useful dead-letter categories:
-
-- bad input the UI should have prevented
-- stale source reference
-- model route cannot handle the context
-- repeated provider failure
-- verifier rejection
-- policy block
-- human review timeout
-- worker bug
-
-Each category points to a different fix. Better validation. Different route. Cleaner UI. More reviewer capacity. Lower concurrency. A new eval case. A code fix.
-
-If dead letters are only counted and never read, the system loses one of the best feedback loops it has.
-
-## backpressure is a feature
-
-A queue gives the system a place to say "not yet." That is healthier than letting every agent workflow compete for model capacity, database connections, and reviewer attention at once.
-
-Backpressure is not failure. It is the system refusing to lie about capacity.
-
-AI platforms have several constrained resources:
-
-- model rate limits
-- token budgets
-- GPU capacity
-- database connections
-- vector index throughput
-- browser automation slots
-- filesystem sandboxes
-- human reviewers
-- cost budgets
-
-A queue can shape work around those constraints. It can prioritize interactive jobs over batch jobs. It can pause low-priority analysis when provider limits are tight. It can route jobs to different worker pools. It can keep a human review queue from silently growing past what the team can handle.
-
-The user experience should reflect that. "Queued" is a real state. "Waiting for review" is a real state. "Retrying after provider timeout" is a real state. The product feels calmer when waiting is named.
-
-## workers should be specialized
-
-One giant worker that can do everything is easy to start and painful to operate.
-
-AI workflows often benefit from specialized workers:
-
-- document ingestion workers
-- embedding workers
-- model-call workers
-- tool-execution workers
-- verifier workers
-- browser automation workers
-- human-review dispatchers
-- notification workers
-
-Specialization lets each pool have its own concurrency, timeout, retry, and resource limits. Browser automation jobs should not starve short model calls. Long PDF parsing should not block lightweight routing. Human review dispatch should not depend on the same workers that handle token-heavy generation.
-
-The queue topology does not need to be elaborate on day one. It does need to leave room for different work to have different operating rules.
-
-## metrics make the calm real
-
-The metrics I would watch:
-
-- queue age by priority
-- attempts per successful job
-- dead-letter rate by failure class
-- worker saturation
-- lease expirations
-- retry delay distribution
-- cost per accepted job
-- model time versus non-model time
-- human review wait time
-- cancellation rate
-
-The slice matters. A global queue depth is less useful than knowing that low-priority batch work is backed up while interactive jobs are fine, or that verifier failures are spiking after a prompt change.
-
-For AI workflows, cost per accepted job is especially useful. A queue can hide retries that make a workflow expensive. The system may "succeed" after five model calls, but that success has a cost and latency shape the product should know.
-
-## calm is an architecture property
-
-Queues do not make AI systems simple. They make the complexity explicit.
-
-The work has an identity. The worker has a lease. The retry has a reason. The failure has a category. The waiting has a state. The review queue has ownership. The metrics show whether the system is keeping up.
-
-That is why queues make AI workflows calmer. They give slow, expensive, failure-prone work a shape that software already knows how to operate.
+The calm part is not that queues make AI easy. The calm part is that they give slow, expensive, failure-prone work a shape software already knows how to operate.

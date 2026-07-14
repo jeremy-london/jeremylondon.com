@@ -16,7 +16,7 @@ That is useful. I use these tools. I like them.
 
 But plausible code is not the same thing as reviewed code. In some ways, plausible code is harder to review because it does not trip the same alarms.
 
-## the texture changed
+## the diff looks calmer than it is
 
 Before AI autocomplete, a lot of low-quality code looked low quality. The naming was off. The structure was weird. The person clearly had not read the neighboring function. Reviewers could spot the mismatch quickly.
 
@@ -28,7 +28,7 @@ Did this helper handle the edge case the product actually cares about? Did the g
 
 Those are review questions. The autocomplete tool cannot own them.
 
-## generated code borrows confidence
+## confidence comes for free
 
 The thing that bothers me most about autocomplete is how easily it borrows confidence from the surrounding code.
 
@@ -38,9 +38,9 @@ That makes review more responsible, not less.
 
 A reviewer has to ask whether the new code is following the right local pattern. Sometimes the answer is yes. Sometimes the answer is "this matches the file, but the file is wrong."
 
-AI tools are especially good at extending a bad pattern neatly. That is a dangerous kind of helpful.
+Autocomplete is especially good at extending a bad pattern neatly. That is a dangerous kind of helpful.
 
-## tests can get performative
+## tests can start lying politely
 
 Autocomplete also changes the feel of tests.
 
@@ -48,15 +48,15 @@ It is now very cheap to generate a test that looks like coverage. That sounds go
 
 I want code review to ask blunt questions about tests:
 
-- Would this test fail if the bug came back?
-- Does it describe behavior a user or caller depends on?
-- Is it testing the branch that changed?
-- Did the assistant invent a fixture that avoids the hard case?
-- Does the test name explain the failure it protects against?
+- would this test fail if the bug came back?
+- does it describe behavior a user or caller depends on?
+- is it testing the branch that changed?
+- did the assistant invent a fixture that avoids the hard case?
+- does the test name explain the failure it protects against?
 
 That last question is small but useful. A test named `works correctly` is a smell. A test named `rejects archived projects during sync` tells the next reviewer what kind of mistake happened or could happen.
 
-## review needs to slow down at the seams
+## slow down at the seams
 
 I do not think reviewers need to distrust every AI-assisted line. That would be exhausting and mostly fake discipline.
 
@@ -81,25 +81,11 @@ The worst habit is treating autocomplete as a second author.
 
 "Copilot wrote that" is not a review defense. Neither is "the model suggested it." The human who sends the diff owns the diff. They own the decision to accept the suggestion, the decision to leave it shaped that way, and the decision to ask someone else to review it.
 
-That should change how people prepare reviews. If autocomplete produced the first pass, the author should still do the boring work before asking for approval:
-
-- read the diff out of order
-- remove code that exists only because the tool kept going
-- check names against the domain, not only the file
-- run the relevant tests
-- add a note for any non-obvious tradeoff
+That should change how people prepare reviews. If autocomplete produced the first pass, the author should still do the boring work before asking for approval: read the diff out of order, remove code that exists only because the tool kept going, check names against the domain, run the relevant tests, and add a note for any non-obvious tradeoff.
 
 Review is expensive attention. Do not spend it on cleanup the author should have done.
 
-## what changed for me
-
-AI autocomplete made me less tolerant of lazy review comments and lazy pull requests.
-
-If the code was easier to produce, the review needs to be more deliberate. The time saved in typing should move into better judgment: clearer tests, smaller diffs, better explanations, and more attention to the boundaries where mistakes matter.
-
-That is not anti-tool. It is the opposite. The tool is useful enough that the process around it has to grow up.
-
-## the smaller diff wins
+## smaller diffs are easier to trust
 
 One practical change I like is asking for smaller diffs. Autocomplete makes it easy to accept one more helper, one more branch, one more cleanup near the original change. That extra work feels cheap while writing and expensive while reviewing.
 

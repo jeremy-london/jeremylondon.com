@@ -10,31 +10,21 @@ tags: ["figma", "components", "design systems"]
 
 Figma Dev Mode made component drift harder to ignore.
 
-That is the part I like. A design system can look healthy from a distance while its components slowly separate from the codebase. The button in Figma has six variants. The production button has nine. The design file uses one spacing token. The app uses another. A disabled state exists in code but not in the component sheet. A loading state exists in the mockup but not in the implementation.
-
-Before developers had a better inspection surface, some of that drift stayed fuzzy. You could still find it, but the conversation often started from a screenshot or a comment thread. Dev Mode made the mismatch more concrete. Developers can inspect frames, variables, measurements, code snippets, and component details in a surface meant for their job.
-
-That does not fix the design system. It makes the design system more accountable.
+That is the part I like. A design system can look healthy from a distance while the code and the file quietly move apart. The button in Figma has six variants. The production button has nine. The design file uses one spacing token. The app uses another. Dev Mode made that mismatch visible inside the artifact instead of around it.
 
 ## a component is a contract
 
-A component is not a pretty reusable layer. It is a contract between design, code, product behavior, and accessibility.
+A component is not a pretty reusable layer. It is a contract between design, code, behavior, and accessibility.
 
-For a button, the contract includes size, spacing, label behavior, disabled state, loading state, focus style, icon placement, density, destructive styling, and what happens when the text is longer than expected. For a card, it includes content hierarchy, truncation, interactive regions, empty media, keyboard behavior, and responsive layout.
+For a button, that means size, spacing, label behavior, disabled state, loading state, focus style, icon placement, density, and what happens when the text runs long. For a card, it means content hierarchy, truncation, interactive regions, empty media, keyboard behavior, and responsive layout.
 
-If the Figma component only captures the visual happy path, the contract is incomplete. If the code component only captures implementation convenience, the contract is also incomplete. The useful component lives where the two meet.
+If the Figma component only captures the visual happy path, the contract is incomplete. If the code component only captures implementation convenience, the contract is also incomplete.
 
-Dev Mode raises the cost of pretending otherwise. When a developer inspects a component and sees raw values instead of tokens, detached instances, unnamed layers, or variants that do not match production props, the design-system gap is visible.
+## variants only matter when they map to behavior
 
-That visibility is uncomfortable in a productive way.
+It is easy to create a grid of variants that looks complete and still misses the actual product behavior.
 
-## variants need to map to behavior
-
-Figma variants are easy to multiply. `primary`, `secondary`, `large`, `small`, `icon`, `disabled`, `danger`, `selected`, `pressed`, `mobile`, `desktop`. Soon the component has a grid that looks complete and still does not match the code.
-
-The problem is not the number of variants. The problem is whether the variants describe behavior the product actually supports.
-
-If code exposes this API:
+If code exposes this shape:
 
 ~~~ts
 type ButtonProps = {
@@ -46,21 +36,15 @@ type ButtonProps = {
 }
 ~~~
 
-Then the Figma component should not quietly invent a `tertiary-large-danger-icon-after-pressed` combination unless the production component can render it. Maybe that variant is a proposal. Maybe it is a future state. Maybe it belongs in exploration. But if it sits in the ready component library, developers will treat it as part of the contract.
+Then the design file should not quietly invent a state the component cannot render. If the production button supports loading and the design component does not, engineers will fill in the gap on their own and the system gets inconsistent.
 
-The inverse is also true. If production supports a loading state and the design component does not, engineers will create loading behavior without design guidance. That is how systems get weird little spinners, bad text shifts, and inconsistent disabled styles.
+Dev Mode helps because inspection catches that mismatch before it becomes routine.
 
-Dev Mode helps because inspection makes those mismatches easier to catch at handoff time instead of during QA.
+## tokens make intent readable
 
-## tokens reveal intent
+Raw values are tolerable during exploration. They are much less useful in a component library.
 
-Raw values are sometimes fine during exploration. They are much less fine in a component library.
-
-A developer inspecting `#2563eb` has to guess whether that value is the brand blue, an old alias, a one-off choice, or a mistake. A token tells a better story. It says the value belongs to a named decision: `color.action.primary.background`, `space.3`, `radius.sm`, `font.body.medium`.
-
-When Dev Mode shows variables and code syntax, the design file can point toward the implementation language. That does not mean the snippet should be pasted blindly. It means the design artifact can speak in the same nouns as the codebase.
-
-The more useful component sheet is full of named decisions:
+`#2563eb` forces a guess. A token says what the value means:
 
 ~~~text
 button.primary.background = color.action.primary
@@ -70,15 +54,15 @@ button.radius = radius.control
 button.gap = space.2
 ~~~
 
-That kind of mapping gives reviewers something to check. If a designer changes a token, the impact is visible. If an engineer uses a hardcoded value, the divergence is obvious. If the token name is wrong, the conversation moves to the token system instead of a pixel argument.
+When Dev Mode shows variables and code syntax, the design artifact can speak in the same nouns as the codebase. That is better than pasting snippets blindly.
 
-## component ownership has to cross the file boundary
+## ownership has to cross the file boundary
 
 Design-system ownership cannot stop at the Figma library.
 
-The library component, production component, docs page, tests, and examples all describe the same thing. If they drift, users experience the drift as product inconsistency. Developers experience it as extra interpretation. Designers experience it as "why did engineering build it that way?"
+The library component, production component, docs page, tests, and examples all describe the same thing. If they drift, users feel it as inconsistency and engineers feel it as translation work.
 
-I like components with a boring ownership record:
+I like a boring ownership record:
 
 ~~~text
 component: Alert
@@ -91,19 +75,15 @@ last reviewed: 2024-02-07
 known gaps: no inline action variant in native app
 ~~~
 
-That record does not need to live in Figma, but Figma should point to it. The code should point back. The goal is to make the component traceable across the places where it exists.
+That record does not need to live in Figma, but Figma should point to it.
 
-Dev Mode makes the file more inspectable. Ownership makes inspection actionable.
-
-## inspection is not the same as alignment
+## inspection is not alignment
 
 It is possible to inspect a component perfectly and still build the wrong thing.
 
-The file might encode an outdated pattern. The codebase might have a newer primitive. The design might show a desktop layout while the product mostly fails on mobile. The component might look correct but miss keyboard behavior. The measurement might be exact but the information architecture might be wrong.
+The file might encode an outdated pattern. The codebase might have a newer primitive. The design might show a desktop layout while the product mostly fails on mobile. Inspection helps with translation. It does not replace product judgment.
 
-Inspection helps with translation. It does not replace product judgment.
-
-This is why component review should include behavior:
+So the handoff has to include behavior:
 
 - keyboard focus
 - disabled and loading states
@@ -116,33 +96,21 @@ This is why component review should include behavior:
 
 Figma can represent some of this. Code has to prove the rest.
 
-The handoff should make it clear which parts are specified visually and which parts are enforced by component tests or documentation. When the division is unclear, both sides assume the other side has it covered.
+## drift should be treated like a bug
 
-## drift should be treated as a bug
+Design-system drift rarely breaks everything at once, which is why it survives.
 
-Design-system drift is easy to normalize because it rarely breaks everything at once.
+One component gets a custom margin. One variant is missing. One color value is hardcoded. One prop name differs from the design label. Each exception feels reasonable. Together they make the system harder to trust.
 
-One component gets a custom margin. One variant is missing. One color value is hardcoded. One prop name differs from the design label. One screen uses an older component because migration was inconvenient. Each exception feels reasonable. Together they make the system harder to trust.
-
-Dev Mode gives teams a better surface for catching drift, but the team still has to decide that drift matters.
-
-I would track a few boring signals:
+I would watch for boring signals:
 
 - detached instances in ready-for-dev frames
-- raw color or spacing values in component library usage
+- raw color or spacing values in component usage
 - variants present in Figma but absent in code
 - props present in code but absent in Figma
-- screenshots from implementation that diverge from component examples
+- screenshots that diverge from component examples
 - accessibility states documented in code but absent from design guidance
 
-Those signals are not about blaming designers or engineers. They are about keeping the shared contract current.
+That is not about blame. It is about keeping the shared contract current.
 
-## the better handoff is a smaller translation
-
-The best version of Dev Mode is not "developers can extract code from designs." That framing is too shallow.
-
-The better version is that developers and designers have fewer translations to perform. The inspected component uses the same tokens as the code. The variant names match the props. The ready state says which frame matters. The notes explain behavior that pixels cannot. The linked resource points to production docs. The implementation can be reviewed against the same component contract.
-
-That is why Dev Mode made components easier to inspect and more accountable. It moved design-system drift out of vague opinion and into visible artifacts.
-
-Visible drift is still drift. But at least now the team can point at it.
+Dev Mode made components easier to inspect. The accountability comes from deciding that the inspection should matter.

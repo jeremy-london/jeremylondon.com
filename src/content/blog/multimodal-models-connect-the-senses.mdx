@@ -8,163 +8,47 @@ author: "jeremy-london"
 tags: ["multimodal", "vision", "language models"]
 ---
 
-Multimodal systems get interesting when they stop being file upload demos.
+The first mistake people make with multimodal systems is treating them like a file upload demo.
 
-The demo version is easy to understand: drop in an image, ask a question, get an answer. That is useful, but it is not yet a workflow. A workflow has inputs with different reliability, an output someone will act on, a review point, and some way to recover when the model reads the evidence wrong.
+An image in a chat box is useful. It is not yet a workflow. A workflow has source material, extracted material, a review point, and a clear answer about what happens when the model and the evidence disagree.
 
-The hard part is that multimodal evidence is uneven. A screenshot, camera photo, PDF page, chart, transcript, OCR layer, form field, and user note do not deserve the same trust. Some are raw observations. Some are lossy extractions. Some are metadata. Some are claims. Some are guesses made by another model upstream.
+### one bug report, four kinds of evidence
 
-If the system flattens all of that into "context," it will eventually lie with confidence.
-
-## keep the evidence types separate
-
-A multimodal workflow should preserve where each piece of information came from.
-
-Consider a bug report with a screenshot, a browser console log, a user description, and an uploaded screen recording. The model can inspect all of it, but those inputs have different failure modes. The user description may be incomplete. The screenshot may be cropped. The console log may be stale. The video may show the actual sequence but require temporal reasoning.
-
-I would rather represent those as distinct evidence objects than smash them into one prompt.
+Take a bug report with a screenshot, a browser console log, a short user note, and a screen recording. Those inputs do not fail in the same way. The note may be incomplete. The screenshot may be cropped. The log may be stale. The video may show the sequence but not the reason.
 
 ~~~ts
 type Evidence =
-  | {
-      kind: "screenshot"
-      assetId: string
-      capturedAt?: string
-      visibleText?: string
-      source: "user_upload" | "system_capture"
-    }
-  | {
-      kind: "console_log"
-      assetId: string
-      timeRange?: [string, string]
-      source: "browser" | "server"
-    }
-  | {
-      kind: "transcript"
-      assetId: string
-      derivedFrom: string
-      confidence?: number
-    }
-  | {
-      kind: "user_claim"
-      text: string
-      source: "form_field"
-    }
+  | { kind: "screenshot"; assetId: string; source: "user_upload" | "system_capture" }
+  | { kind: "console_log"; assetId: string; source: "browser" | "server" }
+  | { kind: "transcript"; assetId: string; derivedFrom: string }
+  | { kind: "user_claim"; text: string; source: "form_field" }
 ~~~
 
-That shape gives the model and the product a cleaner contract. The answer can say which evidence it used. The review screen can show the screenshot next to the extracted text. A verifier can notice when the transcript claims something the image does not show.
+If the product keeps those separate, the answer can point back to the exact evidence it used. If it smashes them into one prompt, review becomes guesswork.
 
-The goal is not bureaucracy. The goal is to stop treating derived text as if it were the original artifact.
+### extraction is a boundary, not a shortcut
 
-## extraction is a boundary
+OCR, speech-to-text, chart parsing, frame sampling, table extraction, and layout detection all create new artifacts with their own failure modes. OCR can merge columns. Transcript output can miss acronyms. Frame sampling can skip the moment the UI changed. Chart extraction can catch the title and miss the axis scale.
 
-Multimodal workflows often begin with extraction: OCR, chart parsing, speech-to-text, layout detection, frame sampling, table extraction, object detection, captioning, or document chunking.
+I do not mind extraction. I mind pretending the extracted layer is the source of truth.
 
-Each extraction step creates a new artifact with its own error profile.
+### contradictions should stay visible
 
-OCR can miss small text, merge columns, confuse `0` and `O`, drop icons, or invent spacing. Speech-to-text can mishear product names and acronyms. Chart extraction can understand the title and miss the axis scale. Frame sampling can skip the only moment where the UI changed. PDF parsing can preserve text while losing the visual relationship between label and value.
+The interesting cases are the ones where inputs disagree.
 
-That does not mean extraction is bad. It means extraction output should be labeled as extraction output.
+A user says the button is disabled and the screenshot shows it enabled. OCR says the total is `$1,000` and the image looks closer to `$7,000`. The transcript says the customer approved the change and the audio makes it sound uncertain. The system should not flatten all of that into "context."
 
-A useful multimodal workflow keeps both:
-
-- the original asset
-- the extracted representation
-
-When the model makes a claim, the product should be able to trace whether the claim came from the raw image, the OCR layer, the transcript, the user's form text, or a fusion of several signals. That trace is how review works.
-
-## contradiction handling is a real feature
-
-The most interesting multimodal cases are not the ones where all inputs agree.
-
-A user says the button is disabled, but the screenshot shows the button enabled. The OCR says the total is `$1,000`, but the image looks like `$7,000`. A transcript says the customer approved the change, but the audio tone and following sentence suggest confusion. A chart caption says conversion improved, but the plotted series declines after the release.
-
-The model should not resolve every contradiction by sounding confident.
-
-For many workflows, the right output is:
+For those cases, the right output is often a review state:
 
 ~~~json
 {
   "status": "needs_review",
-  "reason": "user claim conflicts with screenshot",
-  "evidence": [
-    {
-      "kind": "user_claim",
-      "claim": "the submit button is disabled"
-    },
-    {
-      "kind": "screenshot",
-      "observation": "submit button appears enabled"
-    }
-  ]
+  "reason": "user claim conflicts with screenshot"
 }
 ~~~
 
-That is less exciting than a fluent answer. It is also more useful.
+### the interface has to show its work
 
-Contradiction handling should be designed into the workflow. If the product only has a text answer box, the model will be pressured into resolving uncertainty as prose. If the product has a review state, the model can surface uncertainty as work.
+Grounding is an interface problem as much as a model problem. If the model says an invoice is wrong, the user should see the relevant region and the extracted numbers. If it says a video proves the issue, the user should land on the right timestamp. If it says a chart supports the claim, the chart and the series need to be visible.
 
-## grounding belongs in the interface
-
-Grounded output is a model behavior and an interface behavior.
-
-If a multimodal system says "the invoice total is wrong," the user should be able to see the invoice region, the extracted numbers, the comparison value, and the reason for the mismatch. If it says "this video shows the failure," the user should land on the relevant timestamp. If it says "the chart supports the claim," the user should see the chart and the series that mattered.
-
-This is where a lot of multimodal products feel unfinished. They can answer, but they cannot show their work in the medium where the work happened.
-
-Text citations are not enough for visual evidence. A screenshot needs a bounding box or crop. A PDF needs a page and region. A video needs a timestamp range. An audio result needs a waveform or transcript window. A table needs the row and column. The user should not have to search the source again to verify the model's claim.
-
-Grounding also gives reviewers better correction tools. "Wrong" is less useful than "you read the table header as the value" or "the relevant action happened five seconds later."
-
-## ownership changes by workflow
-
-Multimodal systems cross team boundaries quickly.
-
-The model team may own the encoder or VLM call. The product team owns the workflow. The design team owns review and correction affordances. Security owns permissions. Data engineering owns asset storage and retention. Support or operations owns the human review queue.
-
-If nobody owns the whole path, failures get weird.
-
-The model may be working correctly while the product stores screenshots without enough metadata. The OCR may be fine while the UI hides the original image from reviewers. The retrieval layer may find the right PDF page while permissions allow a preview the user should not see. The workflow may ask for a human review while no team is staffed to review the queue.
-
-That is why I think of multimodal systems as operational workflows before I think of them as model features.
-
-## evals should test the workflow and the model
-
-A model benchmark can tell you whether the system is good at visual question answering, OCR, chart reasoning, or video understanding. The product still needs workflow evals.
-
-For a grounded multimodal workflow, I would test:
-
-- whether the correct evidence object was used
-- whether the answer points to the right region, timestamp, page, or table cell
-- whether OCR errors are caught or propagated
-- whether contradictory inputs trigger review
-- whether the model distinguishes user claims from observed facts
-- whether permission filters prevent restricted previews
-- whether reviewers can correct the output without starting over
-
-The unit of evaluation is the completed workflow state, not a text answer alone.
-
-For example, a bug-triage eval should grade whether the system attached the relevant screenshot region, named the likely UI state, preserved the console error, and routed ambiguous cases to review. A chart-review eval should grade whether the system cited the right axis and series. An invoice workflow should grade whether the model found the line item and left enough evidence for finance to trust the result.
-
-That kind of eval is less portable than a public benchmark. It is also the eval that tells you whether the product works.
-
-## useful multimodal systems feel less magical
-
-The better a multimodal workflow gets, the less it feels like a model guessing across file types.
-
-It feels like a system that knows what it looked at, knows what it extracted, knows what it inferred, and knows when the evidence is too thin. The model still does the interesting perceptual work, but the product keeps the evidence disciplined.
-
-The shape I trust is:
-
-~~~text
-source asset
-  -> extraction artifact
-  -> model observation
-  -> cited evidence
-  -> workflow decision
-  -> review or action
-~~~
-
-The arrows matter. They keep the system from confusing the original screenshot with OCR, the transcript with the audio, the caption with the chart, or the user's claim with observed state.
-
-Multimodal models make more of the world available to software. Grounded workflows decide whether that extra input becomes useful work or just a more convincing way to be wrong.
+That is the part that keeps multimodal systems from feeling like a trick. They know what they looked at, what they extracted, and when the evidence is too thin to pretend otherwise.

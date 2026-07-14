@@ -8,48 +8,21 @@ author: "jeremy-london"
 tags: ["reasoning models", "latency", "openai"]
 ---
 
-The o1 preview made it easier to say something that should have been obvious: some steps deserve more time than others.
+The o1 preview made it easier to say something that should have been obvious for a while: some steps deserve more time than others.
 
-Before reasoning models became a normal product category, a lot of AI latency conversation was flattened. Faster was better. Lower p95 was better. Stream sooner. Answer now. If quality was bad, try a bigger model or a better prompt.
+Before reasoning models became a normal product category, latency conversation was too flat. Faster was better. Lower p95 was better. Stream sooner. Answer now. If quality was bad, try a bigger model or a better prompt. That is not wrong, just incomplete.
 
-Reasoning models made the latency budget feel more deliberate.
+### latency is part of the interface
 
-The question became: where should the system spend extra thinking time?
+A user does not experience latency as a metric. They experience it as a promise. A 200ms delay in autocomplete feels broken. A five-second delay for a careful code review can feel fine. A longer delay for a background analysis job can also be fine if the interface makes the wait legible.
 
-That is a better question than "how do we make every response fast?"
+### route by difficulty, not prestige
 
-## latency is part of the interface
+The fastest way to misuse a reasoning model is to route everything through it because it is the "smart" model. Some tasks are hard. Some are just wordy. Some are small transformations. Some need external evidence. Some need careful refusal. The route should match the shape of the work.
 
-Users do not experience latency as a number. They experience it as a promise.
+### hard steps need visible budgets
 
-A 200ms delay in autocomplete feels broken. A five-second delay for a careful code review may feel fine. A thirty-second delay for a background analysis job may be fine if the product shows progress and lets the user leave. The same delay that feels unacceptable in one surface feels responsible in another.
-
-Reasoning models make that distinction sharper because the delay is not always overhead. Sometimes the delay is the work.
-
-The product has to show that. If the model is spending time planning, checking, or analyzing, the interface should make the wait legible. If it is a simple task, the product should avoid the slow path entirely.
-
-## route by difficulty, not prestige
-
-The fastest way to misuse a reasoning model is to route everything through it because it is the "smart" model.
-
-Some tasks are hard. Some are merely wordy. Some are small transformations. Some require external evidence. Some require tool work. Some require careful refusal. A system that treats all of those as the same kind of reasoning problem wastes time and money.
-
-I would split tasks by latency shape:
-
-- instant: autocomplete, formatting, simple labels
-- interactive: short drafting, small explanations, classification with feedback
-- deliberate: code analysis, math, policy edge cases, multi-document synthesis
-- background: long reports, repository analysis, batch extraction, human review prep
-
-The model route should follow that shape. A reasoning model belongs in the deliberate and sometimes background path. It may be the wrong fit for instant work even when it can do the task.
-
-## hard steps need visible budgets
-
-Reasoning time should have a budget.
-
-That budget might be explicit in the model API, implicit in the route, or enforced by the application timeout. Either way, the system should know how much time it is willing to spend before asking for help, degrading, or stopping.
-
-For example:
+Reasoning time should have a budget. If the task is simple, keep it fast. If the task is risky, spend more time, but name the limit and the fallback. When the budget is gone, the system should ask for help, degrade, or stop.
 
 ~~~yaml
 routes:
@@ -60,7 +33,6 @@ routes:
   code_failure_analysis:
     max_latency_ms: 20000
     reasoning: high
-    fallback: summarize_findings
 
   legal_policy_question:
     max_latency_ms: 30000
@@ -68,61 +40,8 @@ routes:
     fallback: human_review
 ~~~
 
-The budget is product judgment. It says how much delay the task is worth and what happens when the delay does not produce a confident result.
+### streaming is not the same as progress
 
-Without a budget, reasoning latency becomes mushy. The system waits because waiting feels like quality.
+Token streaming can make a slow model feel alive, but it does not always tell the user what is actually happening. Sometimes the useful progress is at the workflow level: reading context, searching sources, checking examples, running tools, or reviewing the result.
 
-## streaming is not the same as progress
-
-Streaming tokens can make a slow model feel alive, but it does not always make the task better.
-
-For reasoning-heavy tasks, the user may not need to watch the model narrate every partial thought. They may need progress at the workflow level: analyzing files, checking tests, comparing documents, building plan, waiting for tool result, reviewing evidence.
-
-That is different from token streaming.
-
-For some workflows, showing intermediate text is distracting or unsafe. For others, it helps the user steer. The product should decide what kind of progress matters.
-
-I like progress that reflects state:
-
-- reading context
-- searching sources
-- checking examples
-- running tool
-- reviewing result
-- preparing answer
-
-Those states are less flashy than a stream of prose. They are often more useful.
-
-## expensive thinking needs acceptance checks
-
-Spending more time does not guarantee a better answer.
-
-Reasoning models can still take the wrong path, overthink simple tasks, miss a constraint, or produce a confident answer after a long delay. The longer wait can even make the output feel more trustworthy than it deserves.
-
-That means the slow path needs acceptance checks.
-
-For code, run tests or at least validate the patch shape. For math, check the result. For retrieval, verify citations. For policy, check category and escalation rules. For structured output, parse and validate. For agent work, inspect the run trace.
-
-The acceptance check is how the product converts "the model thought longer" into "the system has more confidence."
-
-## the product should expose the tradeoff
-
-Users can understand tradeoffs when the product names them.
-
-Fast answer. Careful answer. Background analysis. Draft now, verify later. Use a cheaper model. Spend more time. Ask a human.
-
-Those controls do not need to be everywhere, but they are useful in tools for technical work. A developer may want a quick explanation now and a deeper codebase scan later. A security analyst may want a fast triage label and a slower evidence review for high-risk cases. A writer may want a quick rewrite, then a more careful structural critique.
-
-Reasoning models made that split easier to explain.
-
-## latency belongs where uncertainty is expensive
-
-The useful rule for me is: spend latency where uncertainty is expensive.
-
-If the cost of a bad answer is low, keep the path fast. If the cost is high, spend time on reasoning, evidence, checks, and review. If the task is background work, move it out of the interactive path entirely.
-
-The o1 preview made this easier to talk about because it gave the industry a visible model category for deliberate reasoning. But the product lesson is broader than one model release.
-
-Latency is not a tax to minimize uniformly. It is a budget to spend where the work earns it.
-
-That makes waiting a design choice instead of an accident.
+The rule I keep coming back to is simple. Spend latency where uncertainty is expensive. That is a better use of waiting than pretending every answer should arrive at the same speed.

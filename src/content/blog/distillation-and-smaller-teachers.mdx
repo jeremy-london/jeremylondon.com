@@ -8,40 +8,36 @@ author: "jeremy-london"
 tags: ["distillation", "small models", "training"]
 ---
 
-The largest model in the system should not be the default answer to every question.
+The largest model in a system should not be the default answer to every question.
 
-That is not a cost rant. Cost matters, but it is the least interesting part. Smaller models change the shape of an AI system because they can live closer to the work. They can run with lower latency, tighter permissions, cheaper retries, smaller prompts, and sometimes less data leaving the machine. They also fail differently. A small classifier that says "I do not know" is much easier to reason about than a large general model trying to be helpful in a place where helpfulness is the problem.
+That is not mainly a cost argument. Cost matters, but the more interesting part is architectural. Smaller models can sit closer to the work. They can run with lower latency, tighter permissions, smaller prompts, and sometimes without sending the data anywhere at all. They are also easier to scope. A small model that only classifies or extracts can be much easier to reason about than a general model that tries to help everywhere.
 
-The trick is knowing when a small model is an architectural component and when it is wishful thinking.
+The hard part is not deciding that small models are useful. The hard part is deciding where they are allowed to own a step.
 
-I like small models for jobs that have a narrow input shape, a bounded output shape, and a clear penalty for being wrong. Entity extraction, routing, command classification, language detection, toxicity screening, duplicate detection, intent bucketing, lightweight summarization, and local redaction all fit that pattern. The system does not need a model that can write a sonnet and debug Kubernetes. It needs a model that can decide whether this support ticket contains a billing dispute.
+## the job has to be narrow enough to name
 
-That narrowness is the feature.
-
-## start with the job boundary
-
-Before choosing a model, I would write down the job in the most boring form possible:
+Before I pick a model, I want the task written down in the dullest possible form.
 
 ~~~text
 input: one customer message, under 4,000 characters
 output: { intent: billing | login | cancellation | bug | unknown }
-allowed abstention: yes
+abstention: allowed
 latency budget: 50 ms p95 after tokenization
-failure cost: bad routing creates one extra handoff
-escalation: unknown routes to the larger model or human queue
+failure cost: one extra handoff
+escalation: unknown routes to the larger model or a human
 ~~~
 
-That little contract does more for the design than a leaderboard. It tells you whether a small model can plausibly own the step. It also tells you what the model is not allowed to do.
+That kind of contract does more for model choice than a benchmark chart. It tells you whether the job is narrow enough for a smaller model to own it. It also makes the failure mode visible before the model ships.
 
-Small models get into trouble when the job boundary is fuzzy. "Understand the user" is too wide. "Extract invoice numbers from this message and return null when absent" is a job. "Decide whether this prompt is trying to exfiltrate secrets from a codebase" might be a job if the labels are precise enough. "Handle safety" is not a job. It is a governance wish with no interface.
+If the task description is "understand the user," the job is too vague. If the task is "extract invoice numbers and return null when absent," the boundary is clear. The smaller the model, the more precise the boundary has to be.
 
-The smaller the model, the more honest the boundary has to be.
+## distillation is mostly a data problem
 
-## distillation is a data process
+Distillation gets talked about like it is a clever compression trick. In practice it is a data pipeline.
 
-Distillation sounds like model magic, but most of the work is data work. A teacher model, or a larger existing system, produces labels, rationales, rankings, or rewritten examples. A student learns the behavior from that generated or annotated set. If the teacher is good and the task is narrow, the student can become fast and cheap enough to use in places where the teacher would be too slow or expensive.
+A larger teacher model produces labels, rankings, rationales, or rewrites. A student model learns from that output. If the task is narrow and the teacher is good enough, the student can become fast and cheap enough to use in hot paths.
 
-The dangerous version is simple:
+The naive version is too simple:
 
 ~~~text
 ask big model for labels
@@ -49,115 +45,100 @@ train small model on labels
 ship small model
 ~~~
 
-That pipeline copies the teacher's mistakes, hides uncertainty, and gives the student no reason to know where the edge of the task is. It can look good on a friendly test set because the teacher wrote both the training data and the style of the examples.
+That pipeline copies mistakes, hides uncertainty, and gives the student no reason to know where the edge of the task is. It can look good on a friendly eval set because the teacher shaped both the data and the style of the examples.
 
-The better version treats the teacher as one noisy source:
+The version I trust is messier:
 
 ~~~text
 raw examples
   -> teacher labels
-  -> confidence and disagreement checks
-  -> human review for thin slices
-  -> train, validation, and adversarial holdout sets
+  -> confidence checks
+  -> disagreement review on thin slices
+  -> train, validation, and adversarial holdout splits
   -> student training
-  -> per-slice evaluation against baseline
+  -> per-slice eval against a baseline
   -> shadow rollout
 ~~~
 
-The teacher helps produce coverage. It does not get to grade itself.
+The teacher helps create coverage. It does not get to grade itself.
 
-For a classifier, I want real examples mixed with synthetic ones. Synthetic data is useful for rare classes, adversarial phrasings, and boundary cases, but it can become too clean. Real user text has typos, pasted logs, half sentences, sarcasm, boilerplate, and old context. A student trained only on teacher-shaped prose may perform well in the lab and then fall apart when it sees a message that starts with "ok so this is weird but..."
+## the student should learn one behavior, not the whole workflow
 
-That is where most small model projects become less glamorous and more useful. You spend time on class definitions, label disagreement, deduplication, leakage checks, and slices. The model is the easy part to talk about. The dataset is where the system learns its manners.
+A student model is not a compressed copy of the teacher's entire skill set.
 
-## the student should learn less than the teacher knows
+If the teacher can read a long support thread, infer sentiment, choose a policy path, and write a reply, the student should probably do one of those jobs. Maybe it classifies the intent. Maybe it extracts the order number. Maybe it decides whether the request needs policy retrieval. If you ask the student to inherit the entire workflow, you usually get a weaker assistant with a stronger opinion about its own competence.
 
-A student model is not a compressed copy of the teacher's entire mind. It is a learned shortcut for one behavior. That distinction matters.
+I would rather split the work across small, boring models:
 
-If the teacher can read a long support thread, infer customer sentiment, decide a refund policy, and write a reply, the student should probably do one piece of that work. It might classify the intent. It might extract the order number. It might flag whether the reply needs policy retrieval. If you ask the student to inherit the entire workflow, you will get a weaker assistant with higher confidence than it deserves.
-
-I would rather have five small models with boring jobs than one small model pretending to be general:
-
-- a router that sends messages to billing, account, bug, or unknown
+- a router that picks billing, account, bug, or unknown
 - an extractor that finds IDs and timestamps
 - a redactor that removes secrets before logs are stored
 - a similarity model that finds nearby historical cases
 - a guard model that blocks a narrow set of risky requests
 
-Each model has a different eval. Each has a different fallback. Each can be replaced without redesigning the whole product.
-
-That is the architectural win. The small model becomes an interface with a budget and a rollback path.
+Each of those can have its own eval and fallback. That makes the architecture easier to change without rebuilding the whole product.
 
 ## baselines keep the project honest
 
-The first baseline should often be embarrassingly simple. Regexes, keyword rules, linear models, vector similarity, and prompted large models are all useful comparisons. If a distilled student cannot beat a cheap rule set on the slices that matter, it has not earned a place in the system.
+The first comparison should be embarrassingly simple.
+
+Regexes, keyword rules, embedding nearest-neighbor search, and prompted large models are all useful baselines. If a distilled student cannot beat a cheap rule on the slices that matter, it has not earned a place in the system.
 
 For routing, I would compare:
 
 - a keyword baseline
-- an embedding nearest-neighbor baseline
+- an embedding baseline
 - a prompted large model
-- the small trained model
-- the small model with abstention enabled
+- the trained student
+- the student with abstention enabled
 
-The abstention case matters because small models are often valuable when they know when to step aside. A model that gets 92 percent accuracy by guessing every example may be worse than a model that gets 86 percent coverage with 98 percent precision on the cases it accepts. The second model can sit in front of a larger route and save time without silently poisoning the workflow.
+The abstention case matters because a small model is often valuable when it knows when to step aside. A model that gets 92 percent accuracy by guessing every example may be worse than one that gets 86 percent coverage with high precision on the cases it accepts.
 
-The eval should report slices, not only an aggregate score. Rare classes, ambiguous inputs, long inputs, short inputs, multilingual examples, adversarial examples, and out-of-distribution examples all deserve their own lines. A small model can look strong overall while failing the exact slice that made the project worth doing.
+I also want slice-level reporting. Rare classes, ambiguous inputs, long inputs, multilingual examples, and adversarial examples all deserve their own line. A small model can look great overall and still fail the exact slice that justified the work.
 
-## latency changes product behavior
+## latency changes the product surface
 
-Small models are not only cheaper. They can make different interfaces possible.
+Small models can make different interfaces possible.
 
-If an intent classifier runs in tens of milliseconds, the UI can update suggestions as the user types. If a redaction model runs locally, the app can protect logs before they leave the device. If a small embedding model runs near the data, search can stay responsive without shipping every query to a remote service. If a router is cheap, the system can retry or ask for a second opinion without turning every request into a budget conversation.
+If an intent classifier runs in tens of milliseconds, the UI can update suggestions as the user types. If a redaction model runs locally, the app can protect logs before they leave the device. If a router is cheap, the system can retry or ask for a second opinion without turning every request into a budget discussion.
 
-Latency changes what feels natural. A 3-second model call belongs behind a button or a visible wait state. A 30-millisecond model call can become part of the interface fabric. That is a different product surface.
+That is not a minor implementation detail. It changes what feels natural to the user.
 
-But low latency also tempts teams to call the model everywhere. That creates a new maintenance problem. Now the small model is in hot paths, background jobs, search ranking, moderation, and analytics. If the model changes behavior, the whole system changes behavior.
+But low latency also tempts teams to put the model everywhere. Then the small model shows up in hot paths, background jobs, moderation, and analytics. If its behavior changes, the whole system changes with it.
 
-Small models need versioning for the same reason large models do. The release note should say which checkpoint is running, which dataset trained it, which eval it passed, and what fallback catches failures.
+So the small model needs the same release discipline as anything else in the stack: versioning, evals, fallback paths, and a clear note about what changed.
 
 ## where small models fail
 
-Small models fail at fuzzy boundaries. They overfit label language. They learn formatting clues from synthetic data. They collapse rare classes into common ones. They become stale when user behavior changes. They can be harder to debug than rules because the failure is distributed across weights, data, tokenizer behavior, and threshold choices.
+Small models fail at the boundaries.
 
-The worst failure is silent confidence. A large model may ramble when it is uncertain. A small classifier may return a clean enum with no visible doubt. That is tidy and dangerous.
+They overfit label language. They learn formatting clues from synthetic data. They collapse rare classes into common ones. They become stale when user behavior changes. They can also be harder to debug than rules because the failure is distributed across weights, thresholds, and training data.
 
-I usually want one of these escape hatches:
+The worst failure is clean confidence. A large model may ramble when it is unsure. A small classifier may return a neat enum with no visible doubt. That looks tidy and it can be very wrong.
+
+The escape hatches I want are simple:
 
 - an `unknown` class
-- calibrated confidence thresholds
+- calibrated thresholds
 - a second model for disagreement on high-risk cases
 - random audit sampling
 - shadow comparison against a larger route
-- review queues for new clusters of inputs
 
-None of that makes the small model less useful. It makes the system honest about what the model can own.
+None of that makes the student less useful. It just keeps the system honest.
 
-## local models are a product choice
+## the architecture i actually want
 
-On-device and local small models are especially interesting because they move the trust boundary. A local model can classify private notes, redact secrets, summarize a local folder, or pre-process images without a network call. That is valuable even when the model is weaker.
-
-The tradeoff is that deployment gets messier. You have to care about memory, startup time, quantization, device support, update cadence, model download size, and what happens when the user is offline with an old checkpoint. The model is now part of the application runtime, not a remote dependency hidden behind an API.
-
-That can be worth it. A private workflow with a slightly weaker local model may be better than a stronger remote one if the data should never leave the machine. A fast local classifier may be better than a large remote model if the task runs hundreds of times inside one user action.
-
-Small does not mean less serious. It means the constraints are different.
-
-## the architecture i want
-
-I do not want a system that asks, "Can we replace the frontier model?" That question is too broad.
+I do not want a system that asks whether the frontier model can be replaced.
 
 I want a system that asks:
 
-- Which steps are narrow enough to model directly?
-- Which steps need general reasoning?
-- Which steps need privacy more than raw capability?
-- Which steps can abstain safely?
-- Which steps are called often enough that latency dominates?
-- Which steps have labels good enough to train against?
+- which steps are narrow enough to model directly?
+- which steps need general reasoning?
+- which steps need privacy more than raw capability?
+- which steps can abstain safely?
+- which steps are called often enough that latency dominates?
+- which steps have labels good enough to train against?
 
-That gives small models a real place to live.
+That is where smaller models belong. Use the large model where ambiguity and context justify the cost. Use the small model where the job is repeated, bounded, and measurable. Use distillation when the teacher can help create a better dataset, but keep the eval independent enough to catch copied mistakes.
 
-Use the large model where the work is ambiguous, contextual, and worth the cost. Use the small model where the work is repeated, bounded, and measurable. Use distillation when the teacher can help create a better dataset, but keep the eval independent enough to catch copied mistakes.
-
-The point is not to make the architecture look efficient. The point is to put the right amount of intelligence in the right part of the system.
+The point is not efficiency as a slogan. The point is to put the right amount of intelligence in the right part of the system.

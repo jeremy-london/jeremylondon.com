@@ -8,98 +8,67 @@ author: "jeremy-london"
 tags: ["attention", "transformers", "neural networks"]
 ---
 
-The quietest part of an AI platform is often the part that decides where the request goes.
+The quiet part of an AI platform is often the part that decides where the request goes.
 
-People like to talk about the model. That is understandable. The model is the visible miracle. It writes the answer, calls the tool, classifies the alert, summarizes the document, or gives you the weird failure that ruins your afternoon.
+People notice the model because the model talks. That is fair. It writes the answer, calls the tool, summarizes the document, classifies the alert, or produces the failure that ruins your afternoon. But the visible output is only the last step in a chain of routing decisions.
 
-But production systems are full of decisions that happen before the model gets a turn.
+The system has already decided which context matters, which model shape should see the request, whether tools are allowed, whether the user is crossing a permission boundary, and whether the answer should come from retrieval, a classifier, or a real generation pass. Those choices are less dramatic than the model itself. They shape almost everything the user experiences.
 
-Which context should be retrieved? Which model should receive the request? Should the system use a cheap classifier first? Should the request go to a local model because the data is private? Should the agent get tool access, or should it answer from context only? Should the product refuse because the user does not have permission to ask about that resource?
+## the first route is usually context
 
-That is routing.
+When an answer is wrong, people like to blame the model first. Sometimes that is correct. Very often the model was sent to the wrong room.
 
-It is less dramatic than generation, but it shapes almost everything the user experiences.
+Context routing is the decision about which source of truth gets consulted. That can be public docs, private account data, source code, terminal output, recent incident notes, an embeddings index, or some mixture of them. The hard part is not finding text. The hard part is deciding which text belongs in the working set.
 
-## attention is already a routing story
+A support assistant should not rummage through a codebase because it saw a question mark. A coding agent should not browse incident notes when the task is a build failure. A security workflow should not drag public docs into a permission-sensitive decision just because they are nearby. If the product has more than one source of truth, it needs a way to route between them without guessing.
 
-The name of this post started as a note to myself about attention.
+That routing should ask ugly but necessary questions:
 
-Inside a transformer, attention decides which tokens matter to which other tokens. That is not the same thing as platform routing, obviously. I do not want to stretch the analogy until it snaps. But the instinct is useful: intelligence is not only in the final computation. A lot of the behavior comes from deciding what gets considered.
+- what resource did the user name?
+- which sources are allowed for this user?
+- which source is freshest for this fact?
+- does this request need private state or public docs?
+- would missing context be safer than guessed context?
 
-An AI product has its own version of that problem.
-
-The request cannot look at every document, every tool, every model, every policy, and every memory with equal seriousness. The system has to narrow the field. It has to decide what belongs in the working set.
-
-That happens in layers:
-
-- route the user to the right product capability
-- route the request to the right context source
-- route the context to the right model shape
-- route risky work through review
-- route low-confidence output toward fallback
-
-None of those choices are glamorous. They decide whether the glamorous part has a chance.
+That last one is important. Sometimes the right answer is “I do not have enough context to answer safely.” Retrieval is not a moral obligation.
 
 ## one path is a prototype smell
 
-A prototype often has one path because one path is how you get something working.
+The default prototype path is easy to recognize.
 
-Take the user's prompt. Retrieve a few chunks. Send everything to the strongest model. Stream the answer. Log the transcript. Done.
+Take the prompt. Retrieve a few chunks. Send everything to the strongest model. Stream the answer. Log the transcript. Done.
 
-That is a good way to learn. It is a bad permanent architecture.
+That is a fine way to learn. It is a bad permanent architecture.
 
-Real traffic is uneven. Some requests are cheap. Some are sensitive. Some need fresh data. Some need a deterministic lookup. Some are mostly classification. Some need reasoning time. Some should never reach a frontier model because the data should stay local. Some should not run at all because the user is asking across a permission boundary.
+Real traffic is uneven. Some requests are cheap. Some are sensitive. Some need fresh data. Some need deterministic extraction. Some are mostly classification. Some need longer reasoning. Some should never reach a frontier model because the data should stay local. Some should not run at all because the user is crossing a boundary the product should respect.
 
-If every request goes through the same path, the system spends too much money on easy work, too little care on risky work, and too much trust on ambiguous work.
+If every request takes the same path, the system spends too much money on easy work, too little care on risky work, and too much trust on ambiguous work.
 
-The platform needs more than one path because users ask more than one kind of question.
+## model choice should happen after task shape
 
-## context routing is usually the first failure
+Choosing a model before understanding the job is mostly guesswork.
 
-When an AI answer is wrong, people often blame the model first. Sometimes that is fair. Often the model was given the wrong room to search.
+The router should first classify the shape of work. Is this extraction, generation, ranking, transformation, moderation, search, or tool planning? Does it need a long context window? Does it need low latency? Does it need deterministic structure? Does the answer have to stay private? Is approximation acceptable?
 
-Context routing is the decision about which knowledge source, memory, file set, or retrieval index should be used for a request. It sounds simple until the product has more than one source of truth.
+Only after that does model choice become useful.
 
-A support assistant might need public docs, private account data, internal runbooks, recent incident notes, and product changelogs. A coding agent might need source files, test output, package metadata, docs, and previous plan notes. A security workflow might need alert history, identity context, asset inventory, threat intel, and policy definitions.
+A small model can be a better classifier because it is fast and easier to evaluate. A larger model may be the right choice for synthesis or messy reasoning. A local model may be the only acceptable route for private notes. A specialized embedding model may matter more than the generator if retrieval quality is the real bottleneck.
 
-Throwing all of that into one retrieval bucket is lazy. It also makes permission bugs easier to hide.
+The wrong habit is “use the best model unless cost complains.”
 
-Context routing should ask boring questions:
+The better habit is “use the model whose failure mode matches the task.”
 
-- what resource did the user actually name?
-- which sources are allowed for this user?
-- which source is freshest for this kind of fact?
-- does the request need private state or public docs?
-- should old memory be ignored for this task?
-- would missing context be safer than guessed context?
+That is the phrase I keep coming back to. A cheap model that fails loudly may be safer than a strong model that produces elegant nonsense. A slow model is fine for a nightly review and unacceptable for autocomplete. A strong coding model can still be the wrong route if the governance path around it is weak.
 
-The last question matters. Sometimes the right route is to say the system cannot answer because the necessary context is unavailable. Retrieval is not a moral obligation. Bad context can be worse than no context.
+## tools are a permission decision
 
-## model routing should be late enough to know the job
+Tool access should not be an accidental side effect of model choice.
 
-Choosing a model before understanding the task is usually premature.
+Two requests can land on the same model and still deserve different tools. A local coding task may allow file reads. A reviewed edit may allow file writes. A deployment task may require a separate approval path. A general question should not inherit tool access just because the previous request needed it.
 
-The system should first classify the shape of work. Is this extraction, generation, reasoning, search, transformation, moderation, ranking, or tool planning? Does it need a long context window? Does it need low latency? Does it need deterministic structure? Does it involve sensitive data? Is the answer allowed to be approximate?
+This is where agent systems get messy, because routing here is both capability and permission. The model may know how to use the tool. The user may not have authority for the side effect. Or the user may have authority, but the request may not justify opening the tool at all.
 
-Only then does model choice become meaningful.
-
-A small model may be better for a narrow classifier because it is fast, cheap, and easier to evaluate. A larger model may be worth the cost for messy reasoning or synthesis. A local model may be the only acceptable route for private notes. A specialized embedding model may matter more than the generator if the task is retrieval quality.
-
-The wrong routing habit is "use the best model unless cost complains."
-
-The better habit is "use the model whose failure mode matches the task."
-
-That phrase is clunky, but it is how I actually think about it. A cheap model that fails loudly may be safer than a strong model that produces elegant nonsense. A slow model may be fine for a nightly review and unacceptable for autocomplete. A model with great code ability may be the wrong choice for a policy-sensitive support answer if the governance path is weak.
-
-## tool routing is a permission decision
-
-Tool access should not be bundled into the model route by accident.
-
-The platform might choose the same model for two requests but expose different tools based on user, task, environment, or risk. A local coding task may allow file reads. A reviewed edit may allow file writes. A deployment task may require a separate approval path. A user asking a general question should not inherit tool access because the previous request needed it.
-
-This is where agent systems get messy. Tool routing combines capability and permission. The model may be capable of using a tool well, but the user may lack authority for the side effect. Or the user may have authority, but the current request may not warrant that tool.
-
-I like routing that makes tool availability explicit:
+I like routes that make that explicit:
 
 ```text
 request: summarize failing test output
@@ -109,26 +78,16 @@ tools: read-only filesystem
 blocked: shell execution, network, external issue tracker
 ```
 
-That tells the system what kind of work this is. It also gives a reviewer a way to spot accidental privilege.
+That is plain on purpose. It tells the system what kind of work it is doing and gives a reviewer a clean way to spot accidental privilege.
 
-## good routing leaves traces
+## traces are the only way to debug routing
 
-Routing decisions should be visible after the fact.
+If routing is invisible, it turns into folklore.
 
-If an answer fails, I want to know which path the request took. Which context source was chosen? Which model answered? Which tools were available? Which policy denied or allowed a route? Was there a fallback? Did the request hit a cost ceiling? Did the router think the task was summarization when it was actually diagnosis?
+When a request goes sideways, I want to know which context source was chosen, which model answered, which tools were available, whether a policy allowed or denied the route, whether a fallback happened, and whether the router thought the request was summarization when it was actually diagnosis. Without that trail, people end up arguing about model quality when the real bug was stale retrieval or a bad permission boundary.
 
-Without that trace, routing becomes folklore. People argue about model quality when the real bug was stale retrieval. They tune prompts when the request should have gone to a structured extractor. They blame latency on the model when the context builder fetched too much.
+The trace does not need to be pretty. It needs to be specific enough to replay the decision.
 
-The trace does not need to be beautiful. It needs to be specific enough to replay the decision.
+Routing work is easy to ignore because it does not get a screenshot. There is no big button labeled “route better.” There is just a stack of small decisions that make the product feel cheaper, safer, faster, or more frustrating.
 
-## quiet systems still need owners
-
-Routing work is easy to ignore because it rarely has a single screenshot.
-
-There is no big button labeled "route better." There is a collection of small choices that make the product feel smarter, cheaper, faster, safer, or more frustrating. That is why routing needs an owner. Otherwise every team adds a special case, every prompt starts carrying hidden policy, and every failure becomes somebody else's layer.
-
-The platform does not need to be elaborate on day one. Start with explicit routes. Log the decisions. Measure where requests go. Keep a few ugly examples where the route was wrong. Add learned routing only after the rules have proved too crude.
-
-The useful AI systems I trust tend to have this habit: they know the difference between a hard problem and the wrong path for an easy one.
-
-Routing is how they learn that difference.
+The AI systems I trust tend to know the difference between a hard problem and the wrong path for an easy one. Routing is how they keep that distinction visible.

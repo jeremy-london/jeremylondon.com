@@ -19,31 +19,25 @@ import MatrixMultiplication from "@components/blog/MatrixMultiplication.jsx";
   outputRows={32}
 />
 
-Matrix multiplication is the first batch trick.
+Matrix multiplication is the first place the repeated structure becomes impossible to ignore.
 
-That is the point I wish more neural network introductions made earlier. Matrices do not show up because someone wanted the lesson to look more mathematical. They show up because repeated dot products get annoying fast.
+That is why it shows up so early in neural network lessons. The point is not to look formal. The point is to stop writing the same dot product over and over by hand. Once there is more than one neuron or more than one example, the compact version starts paying rent.
 
-With one neuron and one input, you can write the calculation out by hand:
+With one neuron and one input, the calculation is still straightforward:
 
 ~~~text
 output = input_1 * weight_1 + input_2 * weight_2 + bias
 ~~~
 
-That is fine. It is even useful. But as soon as there are several neurons or several examples, the repeated structure becomes the real lesson. Matrix multiplication is the compact way to say, "do all of these related weighted sums at once."
+That works. But the minute the pattern repeats, matrix multiplication is the better tool.
 
-The notation is not the enemy. The notation is trying to save you from copying the same arithmetic until you stop seeing the pattern.
+## one cell, one dot product
 
-## rows meet columns
+The clearest way to read matrix multiplication is cell by cell.
 
-The core rule is simple enough to say without mysticism.
+Each output value comes from one row of the left matrix and one column of the right matrix. Multiply the matching entries. Add the products. That is the whole operation.
 
-Each value in the output comes from one row of the left matrix and one column of the right matrix. Multiply matching entries. Add the products.
-
-In this example, Matrix A is `2x2` and Matrix B is `2x3`. The result is Matrix C, which is `2x3`.
-
-Why `2x3`?
-
-Because A has two rows and B has three columns. Each row-column meeting produces one value.
+In this example, Matrix A is `2x2` and Matrix B is `2x3`, so Matrix C is `2x3`.
 
 ~~~text
 A rows: 2
@@ -51,90 +45,78 @@ B columns: 3
 C shape: 2 x 3
 ~~~
 
-The shared middle dimension is the part that has to match. A is `2x2`. B is `2x3`. The inner `2` is what makes the multiplication legal.
+The shared middle dimension has to match. That is the part that often saves you from a bad shape bug before the code gets any farther. If the inner dimensions do not agree, the multiplication should not happen.
 
-That shape rule is worth learning early because neural network bugs are often shape bugs wearing more complicated clothes.
+That rule looks basic, but neural network code leans on it constantly.
 
-## the output cell has a story
+## why the shape matters more than the arithmetic
 
-Pick one cell in Matrix C.
+Pick one output cell in the result.
 
-It is not magic. It is a small dot product.
-
-If you want the value at row 1, column 2 of C, take row 1 from A and column 2 from B. Multiply the paired numbers and add them.
+It is just a dot product with a specific row and a specific column:
 
 ~~~text
 C[1, 2] = A row 1 dot B column 2
 ~~~
 
-That is all matrix multiplication is doing, repeatedly.
+That small fact is doing a lot of work. It means each input number participates in a specific set of output cells, not all of them equally. Change one value in Matrix A and only certain rows of C move. Change one value in Matrix B and a different set of cells changes.
 
-The interactive grid makes this easier to feel. Change one value in A. Watch which output cells change. Then change one value in B. The affected cells are different because the value participates in different row-column meetings.
+The interactive grid makes that dependency pattern easier to see than a page of equations does.
 
-This is the useful intuition: a number inside a matrix has a neighborhood of consequences.
-
-## why neural networks care
+## why neural networks keep using it
 
 Neural networks use matrix multiplication because layers are repeated weighted sums.
 
-If a layer has several neurons, each neuron has its own weights. Stack those weights into rows, and the layer becomes a matrix. If you have several input examples, place them into columns or rows depending on the convention, and the layer can process a batch.
+If a layer has several neurons, each neuron has its own weight vector. Stack those vectors into rows and you get a matrix. If you also have several input examples, you can arrange them so the same operation processes the whole batch instead of one example at a time.
 
-The math is the same idea as the small example:
+The idea stays simple:
 
 ~~~text
 outputs = weights * inputs
 ~~~
 
-Then the model adds biases and applies an activation function.
+Then the network adds bias and usually applies an activation function. Matrix multiplication does not replace those steps. It just organizes the part that repeats.
 
-The important part is that the matrix operation keeps the relationship organized. Rows can represent neurons. Columns can represent examples or features depending on the layout. The shape tells you what is being combined with what.
+That is the useful part to remember. A layer is many dot products laid out so the computer can do them efficiently.
 
-Once that clicks, the jump from "one neuron" to "a layer" is less dramatic. A layer is many dot products arranged so the computer can do them efficiently.
+## batches are where the repetition becomes obvious
 
-## batching hides repetition in a good way
+Batching is the first place matrix multiplication starts to feel natural.
 
-Batching is the first place matrix multiplication starts to earn its keep.
+Imagine running three inputs through the same layer. You could write the same weighted sum three times. After a while that becomes clutter. The model is not changing between examples. The weights are the same. The operation is the same. Only the inputs differ.
 
-Imagine running three inputs through the same layer. You could write three separate calculations. That might help once. After that, it becomes noise. The model is not changing between examples. The same weights are being reused.
+The matrix form says that directly.
 
-A matrix lets the lesson say that directly.
+The batch is not a different model. It is one model applied to several inputs.
 
-The batch is not a different model. It is the same model applied to multiple inputs.
+That distinction matters because it is easy to think of a batch as a pile of examples. It is more accurate to think of it as pressure on the same parameters.
 
-That distinction matters because it is easy to think of a batch as a pile of examples. It is more useful to think of it as pressure on the same parameters. The same weights have to handle all examples in the batch.
-
-Matrix multiplication is the operation that makes that reuse visible.
-
-## shapes are debugging tools
+## the shape checks are not decoration
 
 Learning matrix multiplication is partly learning to debug shapes.
 
-If A is `2x2` and B is `2x3`, the multiplication works. If A is `2x3` and B is `2x2`, it does not. The numbers may look innocent, but the shape says no.
+If A is `2x2` and B is `2x3`, the multiplication works. If the shapes are swapped, it does not. The numbers may look harmless, but the shapes decide what can combine with what.
 
-This is not pedantry. In neural network code, a wrong transpose can make the model combine examples as if they were features or features as if they were examples. Sometimes the code errors. Sometimes it broadcasts or reshapes in a way that runs and gives nonsense.
+That is not pedantry. A wrong transpose in neural network code can make features look like examples or examples look like features. Sometimes the code crashes. Sometimes it runs and produces nonsense.
 
-The first defense is knowing what shape you expected.
-
-Before running the example, ask:
+So before you run the example, it helps to ask:
 
 - how many rows should the result have?
 - how many columns should it have?
 - which dimension has to match?
-- what does each row mean?
-- what does each column mean?
+- what does each row stand for?
+- what does each column stand for?
 
-Those questions are boring and extremely useful.
+Those are boring questions. They are also the ones that save time.
 
-## use the module slowly
+## try a value change, then look at the blast radius
 
-Change one number in Matrix A and predict which row of Matrix C will move.
+Use the module slowly.
 
-Then change one number in Matrix B and predict which column or set of cells will move. The exact arithmetic matters less than the dependency pattern. Which outputs depend on the changed value?
+Change one number in Matrix A and predict which row of Matrix C should move. Then change one number in Matrix B and see whether the affected cells match what you expected. The arithmetic matters, but the dependency pattern matters more.
 
-That is the part you want to keep.
+That is the part worth keeping.
 
-Matrix multiplication is not a symbol to memorize before the neural network starts. It is the first place the network's repeated structure becomes visible.
+Matrix multiplication is not a symbol you memorize and move on from. It is the first compact way to show how a neural network reuses the same structure many times.
 
-Rows meet columns. Dot products become cells. Cells become a layer output.
-
-Once you can see that in a `2x2` times `2x3` example, the larger versions feel less like a wall of notation and more like the same small trick scaled up.
+Rows meet columns. Dot products become cells. Cells become a layer output. Once that is visible in a `2x2` times `2x3` example, the larger versions stop looking like a wall of notation and start looking like the same trick scaled up.

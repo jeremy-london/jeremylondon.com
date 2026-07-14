@@ -8,25 +8,11 @@ author: "jeremy-london"
 tags: ["opir", "classification", "guardrails"]
 ---
 
-[Opir](https://github.com/Knowledgator/Opir) was interesting because it made guardrails look like classifiers again.
+[Opir](https://github.com/Knowledgator/Opir) reminded me that a lot of guardrail work is really classification.
 
-That sounds obvious until you look at how much AI safety tooling gets pulled toward generative models. Ask a big model whether a prompt is safe. Ask a judge model whether the response violates policy. Ask another model to explain the risk. That can work, but it is a strange default for every safety decision.
+The conversation around safety often drifts toward judge models and verbose explanations. That can help, but it is a strange default for every decision. Is the prompt safe? Is this a jailbreak attempt? Does the response violate policy? Which category is involved? Those are classifier-shaped questions.
 
-Many guardrail problems are classification problems.
-
-Is this prompt safe or unsafe? Is it a jailbreak attempt? Which toxicity labels apply? Does the response refuse correctly? Which policy category is implicated? Is this a benign discussion of sensitive content or an operational request for harm?
-
-Opir put that framing back in the small-model conversation.
-
-## encoder guardrails have a different shape
-
-Opir is built around encoder-style safety classification, including GLiClass-based variants. The model family covers binary safe/unsafe classification, toxicity classification, jailbreak and prompt-injection detection, prompt safety, response safety, response refusal, and taxonomy-based categorization.
-
-That is a different operational shape from a decoder model acting as a verbose judge.
-
-An encoder classifier can be fast, cheap, and easier to place in the request path. It does not need to generate a long rationale for every decision. It can return labels and scores. Edge variants can be small enough to run near the application boundary. Multi-task variants can handle richer policy categories when the product needs more than a binary decision.
-
-That makes the guardrail feel like infrastructure again:
+The useful part of Opir is that it makes that shape easy to see again.
 
 ~~~text
 prompt or response
@@ -36,118 +22,10 @@ prompt or response
   -> allow, block, route, redact, or review
 ~~~
 
-The output still needs product judgment. But the primitive is clean.
+The labels matter because "unsafe" is too blunt for most products. Harassment is not the same thing as malware. Prompt injection is not the same thing as self-harm. A benign explanation of a risky topic is not the same thing as an instruction to do harm. The taxonomy is what turns a safety score into something the product can act on.
 
-## labels are policy surfaces
+That also means false positives matter. A classifier that blocks ordinary security education, research content, or benign mentions of dangerous terms creates product damage even when the system is catching bad actors correctly. The hard negatives are what keep the boundary sane.
 
-The label taxonomy is where things get serious.
+I like the edge variants because they make the guardrail cheap enough to sit in front of the expensive model or next to a local tool path. That gives the app options: block, route, redact, or send to review. It does not remove judgment. It just makes the judgment inspectable.
 
-Opir's paper describes a three-level taxonomy with hundreds of categories across top-level, mid-level, and leaf labels. That matters because "unsafe" is too blunt for most products.
-
-A moderation system may need to distinguish:
-
-- harassment
-- self-harm
-- sexual content
-- malware
-- cyber abuse
-- regulated goods
-- hate speech
-- jailbreak attempts
-- prompt injection
-- benign educational discussion
-
-Those labels drive different product behavior. Some content should be blocked. Some should be allowed with care. Some should be routed to a stricter model. Some should ask for clarification. Some should be logged for review. Some should be ignored because the classifier is seeing a scary word in a harmless context.
-
-The classifier score is evidence for policy. It is not the policy by itself.
-
-That distinction keeps the product from outsourcing judgment to a threshold.
-
-## binary safety is useful but incomplete
-
-Binary safe/unsafe classification is useful because it is fast to reason about.
-
-For many request paths, the product wants a quick first-pass answer:
-
-- obviously safe
-- obviously unsafe
-- uncertain
-
-That first pass can protect expensive models, reduce risk before tool access, or route questionable inputs to a stricter path. Edge classifiers make that even more practical because they can run with low latency and lower deployment cost.
-
-But binary safety is not enough when the product needs a good user experience.
-
-A blocked request should have a reason. A false positive needs a path to correction. A policy-sensitive request may need a safer alternative. A compliance workflow may need the category for audit. A red-team workflow needs to know which boundary moved.
-
-That is where multi-label classification matters. The system can separate "unsafe because malware" from "unsafe because sexual content" from "unsafe because jailbreak." Those are different decisions.
-
-## false positives are product damage
-
-Guardrail conversations often focus on bypasses. That makes sense. A safety filter that misses harmful requests is dangerous.
-
-But false positives are also product damage.
-
-A classifier that blocks benign security education makes the product less useful. A toxicity classifier that cannot distinguish quoting hate speech for analysis from directing hate speech at a person will frustrate researchers, moderators, and journalists. A jailbreak detector that fires on any prompt mentioning "ignore previous instructions" may block legitimate debugging of prompt-injection defenses.
-
-Good safety classification needs hard negatives: examples that look close to the unsafe class but should be allowed.
-
-For Opir-style guardrails, I would evaluate:
-
-- unsafe recall by category
-- false positives on benign nearby content
-- jailbreak detection across paraphrases
-- multilingual performance if the product needs it
-- prompt versus response classification separately
-- threshold behavior by category
-- stability across model and taxonomy updates
-
-The threshold is part of the product. A high-risk category may tolerate more false positives. A broad internal assistant may need lower friction for benign technical content. One global cutoff rarely fits every workflow.
-
-## guardrails belong before and after generation
-
-Input moderation and output moderation solve different problems.
-
-Input classification asks whether the user request should reach the model, which model path should handle it, and whether tools should be available. Output classification asks whether the generated response is safe to show, whether it complied with refusal policy, and whether it introduced content the prompt did not require.
-
-The same classifier family may support both, but the product logic should treat them separately.
-
-~~~text
-user prompt
-  -> input classifier
-  -> route or block
-  -> model response
-  -> output classifier
-  -> show, revise, block, or review
-~~~
-
-This separation matters for jailbreaks. A prompt may look safe until the response reveals that the model followed an unsafe instruction. The reverse can also happen: a prompt may discuss harmful content in a benign context, and the output may be a safe refusal or educational explanation.
-
-Input and output guardrails should leave separate records.
-
-## small guardrails change deployment options
-
-The edge variants are what make Opir feel architecturally interesting.
-
-A small binary classifier can run near the gateway, inside an internal tool, next to a local model, or in a lower-latency path before the expensive model wakes up. That gives teams more options than "call a large judge model after everything."
-
-For an AI gateway, the classifier can help decide:
-
-- reject immediately
-- route to a safer model
-- require a stricter system prompt
-- disable tools
-- add human review
-- log for abuse monitoring
-- allow with normal path
-
-This does not remove the need for deeper review on high-risk paths. It gives the system a cheap first layer.
-
-## what I like about the framing
-
-Opir is a useful reminder that guardrails are not mystical.
-
-They are classifiers, policies, thresholds, labels, evals, logs, and product decisions. They can be tested with false positives, false negatives, hard negatives, category slices, multilingual examples, and adversarial prompt families. They can be deployed at different points in the request path. They can be fast enough to use routinely instead of ceremonially.
-
-The model is still imperfect. Every classifier is. But the shape is understandable.
-
-That is the part I care about: guardrail systems get better when they become inspectable engineering objects instead of vibes wrapped around a giant judge prompt.
+The framing I trust is simple. Safety is not magic text. It is labels, thresholds, policies, and a place in the request path where those things can actually do work.

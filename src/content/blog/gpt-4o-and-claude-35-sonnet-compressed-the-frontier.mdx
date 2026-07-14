@@ -8,120 +8,21 @@ author: "jeremy-london"
 tags: ["openai", "anthropic", "gpt-4o", "claude-3.5-sonnet"]
 ---
 
-[GPT-4o](https://openai.com/index/hello-gpt-4o/) and [Claude 3.5 Sonnet](https://www.anthropic.com/news/claude-3-5-sonnet) made the frontier feel compressed.
+`GPT-4o` and `Claude 3.5 Sonnet` made the frontier feel smaller.
 
-In May 2024, OpenAI released GPT-4o with GPT-4-level text performance, better vision and audio understanding, much faster responses, and lower API cost than GPT-4 Turbo. In June 2024, Anthropic released Claude 3.5 Sonnet as a faster Sonnet model with strong benchmark performance, a 200K context window, and pricing far below what teams associated with the largest frontier tier.
+The useful part was not that one model beat the other. It was that both launches pushed capable models closer to ordinary product work. Latency, price, and multimodal input stopped feeling like special cases and started feeling like route design. Once that happened, "best model" stopped being a useful phrase on its own.
 
-The specific benchmarks mattered. The shape mattered more.
+I started thinking about product routes instead of model trophies.
 
-The frontier stopped feeling like one expensive model at the top of a ladder. It started feeling like capability was being pulled downward into faster, cheaper, more interactive product surfaces.
+| route | what it needs | why it exists |
+| --- | --- | --- |
+| quick support triage | speed and decent text understanding | answer fast and move on |
+| screenshot analysis | vision plus reliable explanation | review UI states and failures |
+| coding help | strong reasoning and patch discipline | keep diffs small and useful |
+| long-form drafting | cheaper token economics | good enough without wasting budget |
 
-## speed changed the interface
+That middle layer mattered because it made capable models feel ordinary. A model did not have to be the smartest thing in the room to be the right choice. It just had to be fast enough, cheap enough, and good enough for the workflow.
 
-Latency is a product feature.
+The evals had to change with that. I cared less about leaderboard bragging and more about patch quality, screenshot reasoning, tool stability, and whether the route made the product calmer instead of just more impressive. A model that is slightly worse on a public benchmark can still be the better product route if it reduces latency, handles the right slice, and fails in a way the app can recover from.
 
-That sounds obvious, but model discussions often treat speed as an operations metric instead of an interface constraint. A slow model belongs behind a deliberate submit action. A fast model can sit inside a conversation, a coding loop, a design iteration, or a triage workflow without making the user feel like they are waiting for a batch job.
-
-GPT-4o made this especially visible because the launch centered on real-time voice and multimodal interaction. Even if every product was not using the full audio path on day one, the direction was clear: frontier-level interaction was moving toward lower latency.
-
-Claude 3.5 Sonnet pushed from another direction. It made a high-capability model feel usable for ordinary tool work: analysis, coding, multi-step support, and document-heavy workflows where a slower premium model would be reserved for special cases.
-
-That changes routing. If the capable model is fast enough, teams stop saving it only for final answers. They start using it during the work.
-
-## price changed default behavior
-
-Price changes architecture because defaults multiply.
-
-A model that is expensive per call gets used carefully. A model that is cheaper and good enough becomes part of the product fabric. It can classify, draft, inspect, revise, and verify more often. It can sit in background workflows. It can support retries. It can power lower-friction features that would have been hard to justify with an older frontier price.
-
-That does not mean cost disappears. It means the cost conversation moves from "can we afford to call the model?" to "which calls deserve this model?"
-
-For a product team, that is a better problem:
-
-~~~text
-cheap route:
-  classify, summarize short items, draft low-risk text
-
-compressed frontier route:
-  code edits, policy-sensitive answers, multimodal reasoning, longer documents
-
-premium or reasoning route:
-  hard planning, ambiguous failures, high-risk decisions
-~~~
-
-GPT-4o and Claude 3.5 Sonnet made the middle route more interesting. That middle route is where a lot of real product work lives.
-
-## multimodal moved closer to normal
-
-GPT-4o mattered because multimodal stopped feeling like a separate feature bolted onto text.
-
-The "o" mattered less as branding than as product direction. A model that can operate across text, vision, and audio changes how teams think about input. A support ticket can include a screenshot. A bug report can include a short screen recording. A classroom tool can listen and respond. A design review can ask about a visual artifact without translating everything into text first.
-
-That does not make multimodal products easy. They still need evidence, timestamps, image regions, privacy rules, and fallback behavior when the model cannot inspect something confidently. But the default expectation shifted. Text-only stopped feeling like the natural boundary for high-end models.
-
-Claude 3.5 Sonnet's release was less about live multimodal interaction and more about capable visual/document reasoning inside a fast work model. Together, the releases made "the model can look at the artifact" feel less exotic.
-
-## benchmarks got less decisive
-
-When models differ by modality, latency, price, context, and interaction style, one leaderboard becomes less helpful.
-
-A model can win a coding benchmark and be worse for a voice interface. A model can be cheaper and good enough for support triage while losing on hard math. A model can have excellent visual understanding and still be the wrong choice for long context. A model can be fast enough to change the product even if it is not best on every academic score.
-
-So the eval has to match the product:
-
-- coding patch quality
-- tool-call argument stability
-- visual question answering on real screenshots
-- latency under normal user flows
-- cost per completed workflow
-- refusal behavior in exposed surfaces
-- citation quality on document tasks
-- user correction rate
-
-This is where the frontier compression became operational. Teams could no longer ask "which model is best?" and stop there. They had to ask which model was best for the route.
-
-## the middle got crowded
-
-The most interesting thing about these releases was the pressure on the middle.
-
-Before, many architectures had two obvious routes: cheap model for easy stuff, premium model for hard stuff. GPT-4o and Claude 3.5 Sonnet made a third route feel real: fast enough, strong enough, and affordable enough for a lot of serious work.
-
-That route is awkward in a good way. It forces the product to define "serious work":
-
-- Is this answer customer visible?
-- Does it touch code?
-- Does it need visual reasoning?
-- Does it need long context?
-- Is latency part of the experience?
-- Can a verifier catch failure cheaply?
-- Would a smaller model be fine?
-
-The middle route should not become the new lazy default. But it should exist. A lot of workflows need more than a tiny model and less than the slowest premium reasoning path.
-
-## compression creates maintenance
-
-Model compression sounds like a pure win until you operate it.
-
-If the cheaper faster model becomes good enough, teams start migrating routes. That creates comparison work. Does the new model match old behavior? Does it refuse differently? Does it change tone? Does it handle long documents the same way? Does it produce different JSON quirks? Does it make the interface feel faster but the failure mode harder to debug?
-
-Every route change needs a small migration plan:
-
-~~~text
-current route: premium-model-doc-review
-candidate route: compressed-frontier-doc-review
-expected win: lower latency and cost
-must not regress: citation accuracy, policy refusal, table extraction
-rollout: shadow on 10 percent of cases, then assisted review
-~~~
-
-The better models get, the more often this work happens. Model selection becomes maintenance, not a one-time platform choice.
-
-## what i remember about that month
-
-May and June 2024 made the frontier feel closer to the product surface.
-
-GPT-4o made fast multimodal interaction feel like the direction of travel. Claude 3.5 Sonnet made high capability feel less tied to the slowest and most expensive model tier. Together, they compressed the distance between demo-grade frontier behavior and deployable product behavior.
-
-That is why the releases were hard to rank with one benchmark. They were not only competing on raw intelligence. They were competing on where intelligence could live in the product.
-
-That is still the question I care about.
+That also changed how I looked at demos. A support assistant that can read a screenshot and answer in under a second is more useful than a benchmark winner that takes long enough to feel ceremonial. A code helper that writes one readable patch beats a model that produces a nicer score but makes reviewers clean up the diff. The frontier compressed because the middle became good enough to ship.

@@ -8,21 +8,17 @@ author: "jeremy-london"
 tags: ["duckdb", "analytics", "data"]
 ---
 
-DuckDB made a particular kind of work feel less like a side quest.
+DuckDB made a particular kind of work feel normal.
 
-I mean the work where you have a folder of CSVs, Parquet files, logs, exports, or experiment results and you need answers before it deserves a warehouse table. The old options were all slightly annoying. Load it into Postgres. Write a pandas notebook. Copy it into a spreadsheet. Ask somebody with warehouse access. Build a little script and promise yourself you will delete it later.
+I mean the work where you have a folder full of CSVs, Parquet files, logs, exports, or eval runs and you want answers before it deserves a warehouse table. The old options were all slightly annoying. Spin up Postgres, write a notebook, copy the data into a spreadsheet, or build a script and hope nobody asks how it works two weeks later.
 
-DuckDB sits in a useful middle place. It lets local analytical work use SQL without turning every question into infrastructure.
+DuckDB sits in the useful middle. It lets local analytical work use SQL without turning every question into infrastructure. That matters because local analytics should still leave a paper trail: a query, a result file, a reproducible path, and enough context that somebody else can run it again without guessing.
 
-That is the important part to me. Local analytics should still be engineering. It should leave a query, a result file, a reproducible path, and some idea of what changed. DuckDB does not automatically give you discipline, but it makes the disciplined path short enough that I am more likely to take it.
+## the folder is the workspace
 
-## file-shaped data is real data
+A lot of good data starts life outside a database. Product exports, benchmark results, crawler output, security findings, trace samples, and eval runs all arrive as files first. The mistake is treating that phase as disposable and therefore sloppy.
 
-A lot of useful data arrives as files. Product exports, billing reports, benchmark results, crawler output, eval runs, security findings, trace samples, one-off vendor dumps, and compressed logs all start their lives somewhere outside a database.
-
-The bad habit is treating that stage as temporary and therefore sloppy. The file sits in Downloads. A notebook reads it by absolute path. A chart gets pasted into Slack. Two weeks later somebody asks how the number was calculated and the answer is a shrug with a timestamp.
-
-DuckDB changes the default because it can query files directly. A Parquet file can be a table for the duration of the query:
+That is where DuckDB helps. It can query the files directly, which means the question can start where the data already is:
 
 ~~~sql
 SELECT
@@ -35,17 +31,17 @@ GROUP BY model
 ORDER BY p95_latency_ms DESC;
 ~~~
 
-That is a small thing, but it matters. The analysis can start where the data already is. I do not have to create a database service before I know whether the question is worth keeping.
+I like that query because it does not ask for ceremony. No new service. No import step just to prove the question is worth asking. If the data is already a file on disk, I can inspect it now and decide later whether the shape deserves to live somewhere bigger.
 
-CSV works too, although I still prefer to convert repeated work into Parquet once the shape stabilizes. CSV is an interchange format. Parquet is where I want larger local analytical loops to settle because types, compression, columnar reads, and partitioning make the work less fragile.
+The same is true for CSV, although I usually convert repeated work into Parquet once the shape settles. CSV is fine for interchange. Parquet is better when the analysis becomes something I expect to rerun, compare, or hand to somebody else.
 
-## sql makes the notebook less magical
+## sql keeps the work reproducible
 
-I like notebooks for exploration, but notebooks can hide too much state. Cells run out of order. Variables survive longer than they should. The data frame on screen may not match the code path someone else will run later. That does not make notebooks bad. It means the notebook is often the wrong artifact to preserve as the source of truth.
+I still like notebooks for exploration, but they hide too much state. Cells run out of order. Variables hang around longer than they should. The output on screen may not match the code path that produced it. That is fine while you are poking at a question. It is a bad place to stop.
 
-SQL has a useful bluntness. The query says what it reads, what it groups, what it filters, and what it writes. You can put it in a file. You can review a diff. You can run it from the CLI or a small script. You can attach a comment explaining the weird filter that excludes a broken export from last Tuesday.
+SQL gives you a cleaner artifact. The query says what it reads, what it filters, what it groups, and what it writes. Put it in a file and you get something that can be reviewed like code.
 
-For a local analysis, that might be enough:
+For a local analysis, that can be enough:
 
 ~~~sql
 CREATE OR REPLACE TABLE runs AS
@@ -64,50 +60,13 @@ COPY (
 ) TO 'artifacts/eval-summary.csv' (HEADER, DELIMITER ',');
 ~~~
 
-The artifact is boring in the best way. A future version of me can run the query again and compare the output. A reviewer can ask why `prod-like` is the filter. A script can fail if the expected input folder is missing. The local analysis starts behaving like a small build step.
+That kind of output is boring in the best way. A future version of me can rerun it. A reviewer can ask why `prod-like` is the filter. A script can fail if the input folder is missing. The analysis starts to look like a small build step instead of a disposable notebook.
 
-## local does not mean casual
+## the schema still bites back
 
-The word "local" can make people lower their standards. That is a mistake.
+Local does not mean casual. Columns still drift. CSV inference still guesses wrong. Dates turn into strings, IDs lose leading zeros, and a null column can quietly stop being null when the next export lands.
 
-Local analytical work still needs names. It needs folders that make sense. It needs input files that are not silently edited. It needs result files that are either ignored because they are disposable or checked in because they are part of the argument. It needs enough README context that somebody else can reproduce the number without reading your mind.
-
-I like a shape like this:
-
-~~~text
-analysis/
-  eval-latency/
-    README.md
-    queries/
-      summary.sql
-      slow-cases.sql
-    data/
-      .gitignore
-    artifacts/
-      summary.csv
-      slow-cases.parquet
-~~~
-
-The `data` folder might contain large local inputs that never get committed. The `queries` folder is reviewable. The `artifacts` folder is a choice: commit small summaries when they support a post, decision, or investigation; ignore large derived files when they are easy to regenerate.
-
-DuckDB fits that shape because the database can be ephemeral or file-backed. For many analyses, I do not need a long-lived database file at all. The query reads source files and writes a result. For repeated work, a `.duckdb` file can cache intermediate tables and make exploration faster. The trick is to decide which mode you are in instead of letting state accumulate accidentally.
-
-## schemas still matter
-
-Direct file querying is convenient until a column changes under you.
-
-CSV inference can guess wrong. Dates become strings. IDs become numbers and lose leading zeros. Empty columns look like nulls until a later file fills them. Parquet is better, but a directory of Parquet files can still drift when producers add fields, change meanings, or backfill old data with a different writer.
-
-The local workflow needs a schema check when the result matters. That can be as simple as a query that fails loudly:
-
-~~~sql
-SELECT
-  assert_true(count(*) = 0, 'missing model') AS model_check
-FROM runs
-WHERE model IS NULL;
-~~~
-
-Or it can be a small validation query that reports the shape before the real summary runs:
+DuckDB is convenient because it lets me ask those questions close to the files, but it does not remove the need to check the shape. If the result matters, I want a query that fails loudly or at least tells me what I am looking at before I trust the output:
 
 ~~~sql
 SELECT
@@ -119,46 +78,29 @@ SELECT
 FROM runs;
 ~~~
 
-The point is not to build a warehouse governance program around one local analysis. The point is to catch the cheap mistakes. If a chart decides whether a model route changes, I want to know whether half the rows had null labels before I trust the chart.
+Or, if I already know the risky field, I want the query to stop instead of producing a pretty lie.
 
-## where duckdb fits in ai work
+The point is not to recreate warehouse governance for every local analysis. The point is to catch the cheap mistakes while the data is still close enough to inspect.
 
-DuckDB is handy around AI systems because AI work produces piles of semi-structured evidence.
+## where it fits in ai work
 
-Eval runs create rows. Agent traces create rows. Tool calls create rows. Retrieval experiments create rows. Human review queues create rows. Prompt variants create rows. Most of that data starts life as JSONL, CSV, or Parquet before anyone knows which part will matter.
+DuckDB is especially handy around AI systems because AI work produces a lot of semi-structured evidence. Eval runs create rows. Agent traces create rows. Tool calls create rows. Retrieval experiments create rows. Human review queues create rows. Most of that starts as JSONL, CSV, or Parquet before anyone knows which fields will matter later.
 
-The loop I like is:
+I like a loop that goes like this: capture events as append-only files, query them locally while the question is still forming, save the SQL that produced a useful answer, and only promote the dataset or metric when it repeats. That keeps the early investigation close to the engineer doing the work. It also keeps the warehouse from becoming a junk drawer for every experiment that had one good chart.
 
-1. Capture events as append-only files.
-2. Query them locally while the question is still forming.
-3. Save the SQL that produced a useful answer.
-4. Promote the dataset or metric only when it repeats.
-
-That keeps early analysis close to the engineer doing the work. It also prevents the warehouse from becoming a junk drawer for every experiment.
-
-For example, an agent eval might dump one JSON object per case:
+For example, an agent eval might emit one record per case:
 
 ~~~json
 {"case_id":"a17","model":"small-router","route":"docs","passed":true,"latency_ms":42}
 {"case_id":"a18","model":"small-router","route":"code","passed":false,"latency_ms":39}
 ~~~
 
-DuckDB can read that into a table, join it against case metadata, and write a failure slice without a service migration. If that slice becomes an official metric, then it deserves stronger ownership. Until then, local SQL is enough to learn.
+DuckDB can read that straight into a table, join it against case metadata, and write a failure slice without a service migration. If that slice becomes a formal metric, it deserves stronger ownership. Until then, local SQL is enough to learn whether the pattern is real.
 
-## when local stops being enough
+## when the laptop stops being enough
 
-DuckDB does not remove the need for shared infrastructure. It delays the decision until there is evidence.
+DuckDB does not replace shared infrastructure. It just delays the decision until the evidence says the local workflow has outgrown the machine.
 
-Local analytics starts to break down when the dataset is too large for the machine, when multiple people need concurrent writes, when access control matters, when freshness has a service-level expectation, or when downstream systems depend on the result. At that point the work has become a data product, and it should move into a warehouse, lakehouse, or application database with the usual boring machinery around ownership and lineage.
+At some point the dataset gets too large, people need concurrent writes, access control matters, freshness turns into a requirement, or one query has to run on a schedule instead of on a laptop. That is when the work moves into a warehouse or a shared job runner. I do not mind that handoff. I mind pretending every question deserves that machinery from the start.
 
-That promotion should be a design decision, not a reflex. Plenty of analysis should die as a local folder. Some should become a scheduled job. A smaller amount should become shared data infrastructure.
-
-DuckDB is useful because it makes the first stage respectable. You can answer a question locally without pretending the answer is production infrastructure. You can also keep enough structure that, if the question keeps coming back, the path to production is visible.
-
-## the habit i want
-
-The habit is simple: write the query down.
-
-If a number matters enough to mention in a meeting, a post, a PR, or a decision record, the query that produced it should probably exist somewhere. DuckDB makes that easy for file-backed analytical work. It lets the first honest version of the analysis happen before the platform conversation starts.
-
-That is why DuckDB 1.0 felt bigger than a database release to me. It made local analytics feel normal: SQL over local files, result artifacts on disk, and fewer excuses for spreadsheet archaeology.
+For me, DuckDB earns its keep because it makes the first version of the work honest. The folder is the workspace. The SQL is the record. The result is something I can explain.

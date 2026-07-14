@@ -8,100 +8,42 @@ author: "jeremy-london"
 tags: ["google", "gemini", "model-watch"]
 ---
 
-[Gemini 1.0](https://deepmind.google/blog/2023-a-year-of-groundbreaking-advances-in-ai-and-computing/) felt like Google changing the frame of the model race.
+[Gemini 1.0](https://deepmind.google/blog/2023-a-year-of-groundbreaking-advances-in-ai-and-computing/) felt like Google changing the shape of the model race.
 
-The obvious read in December 2023 was competition with GPT-4. That was real. Google talked about benchmark performance, MMLU, coding, reasoning, and the usual frontier-model scoreboard. But the more interesting part was the product shape: Gemini arrived as a family, with Ultra for the largest tasks, Pro for broad use, and Nano for on-device work. It was also presented as multimodal from the ground up across text, audio, image, and video.
+## three sizes, one launch
 
-That combination mattered more than one benchmark table.
+Yes, it was a direct answer to GPT-4. That part was obvious.
 
-It said the next model fight would not be a single chatbot answering a single text prompt. It would be model tiers, device placement, multimodal inputs, developer surfaces, product integrations, and safety reviews all moving at once.
+The more interesting move was the product shape: Ultra, Pro, and Nano; multimodal from the start; and a launch that made placement part of the conversation instead of just raw benchmark ranking.
 
-## the family shape mattered
+That mattered because it forced a more honest question. Where should intelligence live. On the device. In the product flow. In the expensive frontier route. The answer was not one model for everything, and Gemini said so out loud.
 
-Ultra, Pro, and Nano were a product architecture statement.
-
-Ultra was the frontier bet. Pro was the model meant to spread through developer and product workflows. Nano was the reminder that not every useful AI feature belongs in a remote data center. That split made the model conversation feel less like a ladder and more like a deployment map.
-
-I like that framing because real systems do not have one kind of work. A phone keyboard suggestion, a document summarizer, a coding assistant, a visual reasoning task, and an enterprise workflow should not all route to the same model by default. They have different latency, privacy, cost, reliability, and capability needs.
-
-The tiering made those tradeoffs visible:
+I remember the launch mostly for the way it changed the default architecture sketch:
 
 ~~~text
-Nano: local or device-adjacent tasks where latency and privacy matter
-Pro: broad application work where cost and availability matter
-Ultra: hard reasoning and complex tasks where capability dominates
+small on-device model -> quick local work
+pro model -> normal multimodal product flow
+ultra model -> hard reasoning or expensive review
 ~~~
 
-That is simplified, but it is the useful simplified version. The model family forced product teams to ask where intelligence should live, not only how much intelligence they could buy.
+That is a real shift. Once you have that ladder, the product stops pretending there is one correct route for every task.
 
-## multimodal stopped sounding like an add-on
+The other thing Gemini 1.0 did was make mixed input feel less like an exception. A screenshot, a voice note, a chart, and a document all belonged in the same conversation. That sounds obvious now. It did not feel obvious before.
 
-Before Gemini, a lot of multimodal product work still felt bolted together. Text model here. Vision model there. OCR in front. Speech in another service. A workflow stitched the pieces into something that looked unified to the user.
+## remove the glue first
 
-Gemini's launch language pushed a different idea: multimodality as a native model assumption.
+If I were shipping against that model family, I would strip out the glue code before adding more prompt text. For a billing flow, the request could look more like this:
 
-That matters because multimodal systems fail at the joins. OCR loses layout. Image captioning drops the detail the reasoning step needed. Audio transcripts flatten timing and tone. Video gets reduced to a few sampled frames. Then the text model reasons over a degraded shadow of the original input.
+~~~text
+user uploads a screenshot of a charge
+user adds: "this is not mine"
+client keeps the image, visible text, and account context together
+pro model handles the first answer
+ultra only gets the case if the first pass cannot tell whether this is fraud or a duplicate charge
+~~~
 
-A model that can reason across modalities directly does not eliminate those problems, but it changes the product ambition. It makes a PDF, screenshot, chart, video clip, whiteboard photo, and voice note feel like first-class inputs instead of pre-processing chores.
+That is the point. The model size tells you where the work should sit, but the product still has to keep the important inputs intact long enough for the model to see them.
 
-For builders, that opens different workflows:
+If I were writing the brief, I would have to say which route answers on-device, which route stays in the app, and which route is worth the expensive call. That is more annoying to write and much easier to operate.
 
-- ask questions about a chart without manually extracting the table
-- inspect UI screenshots alongside bug reports
-- reason over a document page with layout intact
-- connect audio or video evidence to a written summary
-- use image context as part of a larger task rather than a separate captioning step
-
-The important part is not that every one of those worked perfectly on day one. The important part is that the interface expectation changed.
-
-## nano made placement part of the conversation
-
-Nano was easy to underrate if you only cared about frontier demos.
-
-On-device models are not impressive in the same way as a giant reasoning model. They are useful because they change boundaries. A local model can help with latency, offline behavior, privacy-sensitive input, and high-frequency interactions where a remote call would feel ridiculous.
-
-That has product consequences. If a feature runs locally, the UI can feel immediate. If it can inspect sensitive local context without sending it away, the trust model changes. If it works when the network is unreliable, it can live in parts of the product a cloud-only model cannot reach.
-
-The tradeoff is capability and maintenance. Local models have device constraints, memory budgets, update problems, and a wider deployment surface. The product has to decide which tasks are narrow enough to live there.
-
-Gemini 1.0 made that decision feel less like an edge case. The family itself said: some intelligence belongs on the device.
-
-## the benchmark story was only part of it
-
-Google's technical report and launch materials made strong claims about Gemini Ultra across academic benchmarks, including MMLU and multimodal benchmarks. Those numbers mattered because Google needed to show it was back in the frontier conversation.
-
-But benchmark wins are not the same as product fit.
-
-A multimodal model can score well and still struggle with the messy inputs a product sees: blurry screenshots, cropped mobile photos, tables with weird formatting, policy documents with contradictory sections, audio with background noise, or video where the important event happens between sampled frames.
-
-The product question is always more specific:
-
-- Does the model handle the modality the user actually provides?
-- Does it preserve enough evidence to cite or explain the answer?
-- Does it know when vision or audio evidence is ambiguous?
-- Does it route smaller tasks away from the frontier path?
-- Does the system evaluate multimodal failures separately from text failures?
-
-The launch made the possibility space larger. It did not remove the need for product-level evals.
-
-## developer surfaces were part of the launch
-
-Gemini Pro becoming available through AI Studio and Vertex AI mattered because model launches are also distribution events.
-
-A model that exists only inside a demo changes expectations. A model exposed through developer tools changes roadmaps. Suddenly teams can ask whether their document workflow, support triage, data extraction, or mobile feature should use a multimodal model path.
-
-That is where the hard work begins. The interface has to accept richer inputs. The storage layer has to preserve files and derived representations. The eval harness has to compare answers against visual or audio evidence. The privacy model has to name which inputs leave the device or workspace. The failure UI has to handle "the model could not inspect this image well enough" instead of pretending every failure is a text misunderstanding.
-
-Multimodal capability is not one endpoint. It is a product redesign pressure.
-
-## what it changed for me
-
-Gemini 1.0 made me think less about "the best model" and more about model placement.
-
-Which tasks belong on the device? Which tasks need broad cloud availability? Which tasks deserve the largest model? Which inputs should stay multimodal through the reasoning step instead of being flattened into text early? Which failures need a human to inspect the original artifact?
-
-Those questions feel normal now, but they were less normal in the text-first chatbot moment.
-
-The reset was that multimodal stopped being a side quest and tiering stopped being only a pricing detail. Together, they made model architecture feel more like product architecture.
-
-That is what I remember about Gemini 1.0. It was a competitive launch, sure. More importantly, it made the next set of product questions harder to keep text-only.
+Gemini 1.0 made that trade visible early, and once you notice it you stop designing as if all intelligence belongs in one place.

@@ -16,19 +16,17 @@ Claude 4 arrived in May 2025 with Opus 4 and Sonnet 4, and Anthropic was explici
 
 Those releases were easy to describe as capability jumps. They were also maintenance events.
 
-When agents can work longer, reason more often, and operate across files or tools, the hard part shifts. The question is no longer whether the model can do a useful chunk of work. The question is whether the team can keep the agent workflow healthy after the demo.
-
-## long-running work creates state
+## agent runs create state
 
 A short chat answer can disappear into the transcript.
 
-A long-running coding agent cannot. It has state. It has a plan. It has files it inspected, edits it made, commands it ran, checks it skipped, assumptions it carried, and user approvals it relied on. If that state is only implied by the conversation, the workflow becomes brittle.
+A long-running coding agent cannot. It has state. It has a plan. It has files it inspected, edits it made, commands it ran, checks it skipped, assumptions it carried, and user approvals it relied on. If that state is only implied by the conversation, the workflow gets brittle fast.
 
-Claude 4 made this more obvious because the agent-shaped coding story got stronger. A capable model can stay with a task longer. That means it can also accumulate more hidden context.
+Claude 4 made this easier to see because the agent-shaped coding story got stronger. A capable model can stay with a task longer, which also means it can accumulate more hidden context.
 
 The platform needs a durable run record:
 
-~~~text
+```text
 request
   fix failing markdown validation in blog posts
 
@@ -46,13 +44,13 @@ checks
 
 open questions
   full build not yet run
-~~~
+```
 
 Without that record, every interruption becomes expensive. The next run has to reconstruct what happened. The user has to remember. The agent guesses. That is not autonomy. That is unmanaged state.
 
-## automatic reasoning needs budgets
+## automatic reasoning still needs accounting
 
-GPT-5's default path made another maintenance problem clearer: reasoning can become an automatic product behavior.
+GPT-5 made another maintenance problem obvious: reasoning can become an automatic product behavior.
 
 That is useful. Most users do not want to decide whether a model should reason every time they ask a question. A good product should route the request. But automatic routing still needs budgets, logs, and evaluation.
 
@@ -70,7 +68,7 @@ The maintenance questions are concrete:
 
 Automatic does not mean unowned. It means the product owns the choice.
 
-## prompts become dependencies
+## prompts and tools age together
 
 Agent workflows depend on prompts, tool descriptions, policies, and verifier instructions.
 
@@ -82,7 +80,7 @@ This is why model upgrades are not only dependency bumps. They are behavior migr
 
 When a model changes, I want to know which prompt paths are affected:
 
-~~~text
+```text
 model route:
   coding-agent-default
 
@@ -100,7 +98,7 @@ eval suites:
   focused-edit
   no-unrelated-files
   markdown-repair
-~~~
+```
 
 That inventory is boring until it saves the team from debugging a personality change as if it were a random user complaint.
 
@@ -140,9 +138,9 @@ The product needs to ask whether the prompt still describes the real side effect
 - does it explain what happens after approval?
 - does it describe the rollback path?
 
-The approval system is not set-and-forget. It is part of the agent runtime, and the runtime changes when models change.
+The approval system is not set and forget. It is part of the agent runtime, and the runtime changes when models change.
 
-## model retirement becomes operational work
+## retirement is operational work
 
 By 2025, model menus already felt less permanent.
 
@@ -160,7 +158,7 @@ When a model is retired or replaced, the team should treat it like an operationa
 
 That is not overkill for a workflow that edits files, touches customer data, or performs security analysis. It is normal maintenance.
 
-## the agent is a system now
+## the system owns the loop
 
 The main lesson from Claude 4 and GPT-5 was not that agents became finished.
 

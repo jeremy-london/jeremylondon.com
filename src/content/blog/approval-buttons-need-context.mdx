@@ -8,49 +8,15 @@ author: "jeremy-london"
 tags: ["agents", "permissions", "ux"]
 ---
 
-Approval buttons are weirdly easy to overestimate.
+The first time I saw an approval card do real work, it was not because the button said the right thing. It was because the card showed enough context that I could tell whether I was approving a harmless edit or a bad idea with a nice label on it.
 
-The product has a scary action. The agent wants to do something with side effects. The team adds an approval step. There is a button. The user has to click it. The system now feels safer.
+That is the trap with approval UI. A team sees a risky action, adds a button, and assumes the system is safer. All they have really done is move the decision from the model to the user without giving the user much to decide about.
 
-Maybe.
+If the prompt only says “approve tool call,” the human is guessing. Guessing is not review.
 
-The button only helps if the person clicking it can make a real decision. If the user sees "Approve" next to a vague agent sentence, the product has mostly transferred anxiety from the system to the human. That is not review. That is a ritual.
+The better version names the thing that will change, shows the scope, and tells me what happens next. For a blog edit, I want the filename, the number of paragraphs, the kind of change, and the verification step. For an email, I want the recipient, subject, and body. For a calendar change, I want the time, attendees, and timezone. For a database write, I want the table, filter, row count, and fields.
 
-Agent approval needs context at the exact moment the interface is most tempted to hide it.
-
-## the decision should be about the work
-
-I do not want approval copy that asks whether the agent can "continue."
-
-Continue is too broad. It makes the human approve the agent's confidence instead of the actual work. The interface should name the action in terms the user already understands.
-
-Weak:
-
-> Approve tool call?
-
-Better:
-
-> Replace the draft introduction in `chatgpt-work-made-desktop-agents-feel-inevitable.mdx`.
-
-Better still:
-
-> Replace 4 paragraphs in `chatgpt-work-made-desktop-agents-feel-inevitable.mdx`, then run `pnpm markdown:check` on that file.
-
-That version gives the human something to inspect. The target is named. The scope is visible. The follow-up command is explicit. If the user expected a grammar cleanup and the agent is about to rewrite the whole argument, the mismatch has a chance to surface before the action happens.
-
-Approval should point at the work, not at the agent.
-
-## show the thing that changes
-
-The most useful approval surface is usually a diff, preview, or structured summary of the side effect.
-
-For file edits, show the diff. For an email, show the exact recipient, subject, and body. For a calendar event, show the date, time, attendees, and description. For a database operation, show the table, filter, row count, and fields being changed. For a GitHub action, show the repository, issue or pull request target, comment body, labels, and account.
-
-The user should not have to infer the side effect from the tool name.
-
-Tool names are developer language. `updateRecord`, `sendMessage`, `createIssue`, and `runCommand` can each be harmless or dangerous depending on arguments. A good approval prompt treats arguments as first-class product copy.
-
-I like this shape for a human-facing approval card:
+Tool names are developer language. People do not approve `updateRecord` or `runCommand`; they approve a specific side effect. The product should treat arguments as the real interface.
 
 ```text
 action
@@ -63,7 +29,7 @@ change
   replace current body with a rewritten article draft
 
 why
-  current post is generated template residue
+  current post still reads like generated template residue
 
 after approval
   write file, run markdown check
@@ -72,74 +38,31 @@ undo
   restore previous file contents from git diff
 ```
 
-That is not fancy, but it answers the right questions. What is happening? Where? Why? What follows? How do I get back?
+That card is plain, which is the point. I can see the target, the scope, the reason, and the escape hatch. If I was expecting a typo fix and the agent was about to rewrite the whole post, I have a chance to stop it before the damage is committed.
 
-## hide less when risk goes up
+The right amount of context also depends on risk. A read-only action can stay compact. A local file write needs more room. A destructive action needs even more. Anything that crosses an identity boundary or reaches outside the workspace should start expanded, not hidden behind a “more” link.
 
-Approval UI should change shape based on risk.
+That is where a lot of approval flows go wrong. They collapse the details that matter because the design is trying to stay tidy. Tidiness is not the goal here. Decision quality is.
 
-A low-risk read action can be compact. If the agent wants to read a file inside the active project, a short inline prompt may be enough. The user probably does not need a modal full of ceremony.
+Timing matters too. A prompt can be technically accurate and still be useless if it arrives after the user lost the thread. When an approval appears minutes after the model has wandered through several intermediate steps, the UI needs to reconnect the person to the original request. What started this? What step is this? What is already done? What is still pending if I say yes?
 
-A write action needs more room. A destructive action needs even more. A credentialed external action needs identity and destination. A shell command needs working directory, command text, expected output, and whether it can modify files or reach the network.
-
-The interface should not treat all approvals as the same little confirmation.
-
-This is where I get picky about collapsed details. Hiding details by default can make sense for routine actions, but risky actions should start expanded. If the user has to click "more" to discover that the agent is sending data outside the workspace, the UI is working against them.
-
-The product can still stay calm. Context does not require panic styling. It requires visible facts.
-
-## timing is part of context
-
-An approval prompt can be accurate and still arrive too late.
-
-If the user asked the agent to make a plan, then walked away, then came back after the conversation drifted, the approval needs to reconnect them to the current state. The prompt should explain which user request caused the proposed action and whether anything changed since then.
-
-Stale approvals are a real failure mode. The model proposes an action based on old context. The user approves because the prompt looks reasonable in isolation. The result is technically authorized and still wrong.
-
-I want approval prompts to carry a little history:
+I like prompts that carry a little history, not just the current action:
 
 - original request
 - current plan step
-- files or resources already inspected
-- assumptions the agent is using
-- what will remain undone after this action
+- files already inspected
+- assumptions the agent is making
+- what remains undone after this approval
 
-That last one is easy to miss. Approval does not mean the whole task is finished. It means one step is allowed. If the action is part of a longer run, the user should know whether the agent will stop afterward, continue automatically, or ask again.
+That last line matters more than it looks. Approval is not completion. It is permission for one move. The user should know whether the agent will stop after this, continue automatically, or come back for another decision.
 
-## evidence beats persuasion
+The agent also should not argue for the click. Models are very good at sounding reasonable. “I need to do this to complete your request” is not evidence. It is pressure with a clean interface.
 
-The agent should not argue the user into approval.
+What helps is evidence. The prompt should show why the system believes this action is the right one: the file still contains generated residue, the requested scope is a rewrite, the current checklist item points at this path, and the follow-up command is the configured checker. Then the human can verify the chain instead of trusting the model’s confidence.
 
-This is a subtle problem because models are good at sounding helpful. "I need to do this to complete your request" is not evidence. It is pressure with friendly grammar.
+Denials should be useful, not terminal. If the user says “wrong file,” “too broad,” “show me the diff,” or “stop,” that is information. It helps the system recover. It also tells you where the UI is failing. Repeated denials on expanded prompts usually mean the summary is vague. Repeated denials on shell commands usually mean the risk language is too thin.
 
-A better prompt shows the evidence that led to the action:
-
-- the file contains the broken generated text
-- the requested scope was "rewrite this post"
-- the target path matches the current checklist item
-- the command is the configured Markdown checker
-
-Evidence lets the human verify the chain without trusting the model's confidence. It also gives reviewers something to inspect later if the approval was a mistake.
-
-I would rather see three blunt facts than one polished paragraph about why the agent believes the action is appropriate.
-
-## denial should be useful
-
-Rejecting an approval should not be a dead end.
-
-The product should let the user say why, at least cheaply. "Wrong file," "too broad," "show me the diff first," "use a different command," and "stop the run" are different decisions. If every denial becomes a generic failure, the agent loses information it could have used to recover.
-
-Denial reasons also help the product improve. If users keep rejecting actions after expanding details, the approval summary is probably too vague. If they reject because the target is wrong, the agent may be carrying stale context. If they reject shell commands more than file edits, the command prompt may need clearer risk language.
-
-The button should not be the end of the conversation. It should be a fork in the workflow.
-
-## approval needs a receipt the user can read
-
-After approval, the product should leave a record that says what was approved and what actually happened.
-
-This is where a lot of systems get lazy. They log the tool call but not the human decision. Or they log the decision but not the final side effect. Or they keep everything in an internal trace that the user cannot see.
-
-For agent work, I want a receipt that can be shown in the product:
+After approval, I want a receipt that reads like a record, not a victory lap.
 
 ```text
 approved by
@@ -158,16 +81,6 @@ verification
   pnpm markdown:check passed for this file
 ```
 
-The receipt does two jobs. It helps the user trust the run, and it gives the next review pass a starting point. If something went wrong, the question changes from "what did the agent do?" to "where did the approved plan diverge from the result?"
+That gives the next review pass a place to start. If something went wrong, the question is no longer “what did the agent do?” It becomes “where did the approved plan diverge from the result?”
 
-That is a much better debugging problem.
-
-## a good button slows the right moment
-
-I do not want approval steps everywhere. Too many prompts turn users into click-through machines. The product should reserve them for moments where the decision matters.
-
-But when the decision matters, the button has to earn the click.
-
-Show the plan. Show the affected resource. Show the data or diff. Show the identity. Show what happens next. Show how to recover. Keep the copy concrete. Let denial teach the system something.
-
-The approval button is small. The context around it is the feature.
+I do not want approval steps everywhere. Too many of them turn the user into a click-through operator. But when the action matters, the button has to earn the click.

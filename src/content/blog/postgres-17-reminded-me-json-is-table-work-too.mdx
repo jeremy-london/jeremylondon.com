@@ -8,33 +8,17 @@ author: "jeremy-london"
 tags: ["postgres", "json", "data"]
 ---
 
-Postgres 17 was a good reminder that JSON is table work too.
+Postgres 17 was a reminder that JSON is table work too.
 
-Application teams like JSON because it lets messy data move before the schema is fully understood. That is useful. Product events, webhook payloads, third-party API responses, feature flags, model outputs, user preferences, telemetry envelopes, and integration blobs often arrive before anyone knows the final relational shape.
+Application teams like JSON because it lets messy data move before the schema is fully understood. Product events, webhook payloads, model outputs, user preferences, telemetry envelopes, and third-party responses often arrive before anyone knows the final relational shape. That is fine. The mistake is pretending the blob is the end of the modeling work.
 
-The mistake is letting "we store it as JSON" become "we do not have to model it."
+### document shape is not analysis shape
 
-Postgres adding more SQL/JSON support, including `JSON_TABLE`, `JSON_VALUE`, and `JSON_QUERY`, makes the point directly. JSON may be stored as a document, but serious use still needs projection, types, null behavior, constraints, indexes, and query plans.
+JSON usually mirrors the producer. A webhook payload mirrors a vendor API. A model output mirrors a prompt schema. A UI settings blob mirrors a screen. Analysis wants something else: rows, columns, joins, filters, null handling, and stable names.
 
-The database is saying: if you are going to analyze it like data, bring it into relational view.
+### the bridge is the useful part
 
-## document shape is not analysis shape
-
-JSON is often shaped around the producer.
-
-A webhook payload mirrors the vendor's API. A product event mirrors the client code. A model output mirrors a prompt schema. A settings blob mirrors a UI. Those shapes are optimized for movement and local convenience.
-
-Analysis usually wants a different shape.
-
-You want rows, columns, joins, filters, aggregations, null handling, and stable names. You want to ask which customers saw a certain event, which model outputs failed validation, which payloads have a missing field, which feature flag variant changed behavior, or which API version introduced a new nested property.
-
-That means the JSON blob is not the end of the modeling work. It is a source.
-
-## json_table is a bridge
-
-`JSON_TABLE` is useful because it makes the bridge explicit: take a JSON value and project part of it as a table source inside a SQL query.
-
-The exact syntax can get dense, but the idea is straightforward.
+`JSON_TABLE` lets you project JSON into a table source inside SQL.
 
 ~~~sql
 SELECT item.sku, item.qty
@@ -49,37 +33,15 @@ JSON_TABLE(
 ) AS item;
 ~~~
 
-Now the nested `items` array behaves like rows. You can join it. You can aggregate it. You can compare it with a products table. You can find bad payloads.
+That is the right shape for a query because it makes the nested array behave like rows. You can join it, aggregate it, compare it with a products table, and catch bad payloads without reimplementing the same extraction logic in application code.
 
-That is different from repeatedly writing ad hoc extraction expressions everywhere in application code.
+### nulls need decisions
 
-The relational view gives the messy document a query surface.
+JSON gives you several different "nothing" cases: missing field, JSON null, empty string, wrong type, path failure, or a model that omitted a key because the prompt was vague. Those are not the same thing, and the SQL layer should force a choice about what each one means.
 
-## nulls need decisions
+### keep the raw blob, expose the contract
 
-JSON data makes null behavior annoying in several different ways.
-
-A field may be absent. A field may be present with JSON `null`. A field may be present with an empty string. A field may be present with the wrong type. A path expression may fail. A vendor may change the payload in a minor version. A model may omit a key because the prompt was ambiguous.
-
-Those are not the same thing.
-
-When projecting JSON into table-shaped data, the query should decide what happens on empty and error cases. Do you want `NULL`? A default? An error? A row dropped? A validation failure?
-
-For analytics, silent nulls can be expensive. A missing revenue field and a real zero are not equivalent. A missing model-confidence score and a low confidence score should not collapse into the same dashboard bucket.
-
-JSON support in SQL is helpful because it forces these decisions closer to the data.
-
-## generated columns and views can make contracts visible
-
-Sometimes the right answer is to keep the raw JSON and expose stable relational surfaces.
-
-A view can project the fields analysts need. A generated column can make a frequently queried path indexable. A check constraint can verify that required paths exist. A materialized view can turn heavy JSON extraction into a refreshed table. A migration can gradually move from blob storage to normalized schema when the shape stabilizes.
-
-I like this because it respects both stages of the data.
-
-Raw JSON keeps the original payload for audit, replay, and schema drift. Relational projections give the rest of the system something dependable.
-
-For model outputs, that pattern is especially useful:
+I like raw JSON plus stable relational projections. A view, generated column, or materialized view can give analysts the shape they need while keeping the original payload around for replay and drift checks.
 
 ~~~sql
 CREATE VIEW extracted_invoice_fields AS
@@ -92,50 +54,4 @@ FROM model_runs
 WHERE task = 'invoice_extraction';
 ~~~
 
-The raw output remains available. The downstream workflow gets named fields.
-
-## indexes are part of the design
-
-JSON queries can start as exploration and become production paths quietly.
-
-At first, someone filters on `payload->>'status'` in a notebook. Then the dashboard uses it. Then a background job runs it every minute. Then the table grows and the query becomes everyone's problem.
-
-If a JSON path matters to production, it deserves index and query-plan attention.
-
-That might mean a GIN index on a `jsonb` column, an expression index on a specific path, a generated column, or a normalized table. The right answer depends on access pattern.
-
-The important part is admitting that JSON did not exempt the team from database design. It delayed the moment when the design had to get specific.
-
-## schema drift should be observable
-
-JSON payloads drift.
-
-That is often the reason they were stored as JSON in the first place. The upstream producer changes. The client releases a new event version. A model starts emitting an optional field. A vendor adds nesting. A mobile app sends an old shape for months. A beta feature creates one-off payloads nobody remembers.
-
-The database should help notice drift.
-
-I would track:
-
-- payload version if one exists
-- required path presence
-- unexpected path frequency
-- type changes for important fields
-- extraction failure counts
-- null rates by producer version
-- query usage against JSON paths
-
-This is where JSON becomes operational data, not a junk drawer.
-
-## relational does not mean rigid
-
-The lazy argument is that JSON is flexible and tables are rigid.
-
-The better framing is that JSON and tables handle different parts of uncertainty.
-
-JSON is good when the shape is evolving, sparse, nested, producer-owned, or rarely queried. Tables are good when fields become contractual, joined, filtered, aggregated, indexed, or governed.
-
-Most serious systems need both.
-
-Postgres 17's SQL/JSON work did not make every blob a schema. It made it easier to treat messy application data as database work when the data starts mattering.
-
-That is the reminder I care about. If the product depends on a JSON field, that field has already become part of the schema. The only question is whether the database knows it yet.
+That is the part I keep coming back to. If the product depends on a JSON field, that field is already part of the schema. Postgres just makes it harder to keep pretending otherwise.

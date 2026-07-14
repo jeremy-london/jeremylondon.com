@@ -8,23 +8,15 @@ author: "jeremy-london"
 tags: ["codex", "sandboxing", "agents"]
 ---
 
-Codex sandboxing is the agent story I care about because coding agents touch real working state.
+Codex sandboxing matters because coding agents do real work against real state.
 
-A model producing a diff is interesting. A model producing a diff inside a clear filesystem, command, network, and credential boundary is useful. The second version has a chance to survive review.
+A diff by itself is only half the story. A diff produced inside a clear filesystem boundary, a command policy, network rules, and secret isolation is the version that can survive review. That is the agent story I care about: not personality, but containment.
 
-The repo is not one permission. Reading source is different from reading secrets. Editing a blog draft is different from editing a migration. Running tests is different from opening the network. Installing a dependency is different from formatting a file. A sandbox should name those differences directly.
+## the repo is not one permission
 
-Agent safety gets vague when it stays at the level of personality. Is the agent careful? Is it aligned? Does it understand the task? Fine questions, but too soft for the part where a process is about to mutate a checkout.
+Reading source, editing a blog post, changing a migration, and peeking at secrets are different actions.
 
-The sandbox is where the claims become concrete.
-
-## filesystem scope is the first line
-
-The first sandbox question is what the agent can read and write.
-
-Read access and write access should be separate. A coding agent may need to read a broad part of the repo to understand the system, but only write to a narrow set of files. It may need to inspect package metadata but should not edit lockfiles unless the task explicitly involves dependencies. It may need to read tests but only change source, or the reverse.
-
-A useful grant is explicit:
+The sandbox should say that plainly. A task may need broad read access and narrow write access. It may need tests but not network. It may need package metadata but not lockfile edits. If the agent crosses a boundary, the runtime should notice.
 
 ~~~json
 {
@@ -35,89 +27,52 @@ A useful grant is explicit:
 }
 ~~~
 
-That shape lets the runtime catch boundary crossings. If the agent tries to edit `src/content.config.ts` during a blog rewrite, the system can stop and ask. Maybe the edit is justified. Maybe the agent drifted. The point is that the crossing becomes visible.
+That shape is useful because it turns drift into a visible event instead of a surprise later.
 
-The worst version is a workspace-wide write grant for a narrow task. That turns every agent mistake into a repo-wide review problem.
+## command policy keeps the shell honest
 
-## commands need their own policy
+Shell access deserves the same scoping.
 
-Shell access is not one permission either.
-
-Running `pnpm markdown:check` is different from running a migration. Running tests is different from installing packages. Running a formatter is different from deleting generated output. Commands deserve the same scoping as files.
-
-I like command allowlists for routine work:
+Running checks is different from installing dependencies. Formatting is different from wiping generated state. A sandbox should not pretend all commands are equally safe.
 
 ~~~json
 {
   "commands": {
-    "allow": [
-      "pnpm markdown:check",
-      "pnpm check",
-      "pnpm astro check"
-    ],
-    "ask": [
-      "pnpm build",
-      "pnpm install"
-    ],
-    "deny": [
-      "rm -rf",
-      "git push"
-    ]
+    "allow": ["pnpm markdown:check", "pnpm check", "pnpm astro check"],
+    "ask": ["pnpm build", "pnpm install"],
+    "deny": ["rm -rf", "git push"]
   }
 }
 ~~~
 
-This is not about pretending an allowlist solves every shell risk. Commands can be composed. Scripts can do surprising things. But a command policy gives the runtime a starting point and gives the user something to review.
+That policy will not solve every shell problem, but it gives the runtime a place to start and gives the user a reason to review.
 
-If the agent needs a new command, that is useful information. It means the task has changed shape or the environment is missing something.
+## network and secrets are the sharp edges
 
-## network access should be deliberate
+Agents can leave the local problem through the network or through leaked credentials.
 
-Network access is where coding agents can quietly leave the local problem.
-
-Sometimes network is necessary. The agent may need documentation, package metadata, an issue tracker, or a remote API. Sometimes network is exactly what should be blocked, especially when the workspace might contain private code or credentials.
-
-The sandbox should separate local work from external calls:
+Localhost is one thing. Package registries are another. Arbitrary web access is another again. Internal services should not be reachable by default. The same goes for secrets. A workspace may contain `.env` files, shell history, credential helpers, or cloud auth state. The agent should not get that just because it is curious.
 
 ~~~text
 network:
   localhost: allow
   package registry: ask
   arbitrary web: ask
-  internal services: deny unless explicitly granted
-~~~
+  internal services: deny unless granted
 
-Localhost access is useful for testing web apps. Arbitrary web access is a different decision. Internal services are different again.
-
-The agent should not get to decide that a failing test probably requires searching the web if the user asked for an offline repo cleanup. It can ask. The sandbox should enforce the answer.
-
-## secrets should be absent by default
-
-The best secret available to an agent is the one it cannot read.
-
-That sounds obvious until a local development environment leaks credentials through `.env`, shell history, config files, package manager auth, cloud CLI state, or browser sessions. A coding agent operating near a real workspace can stumble into sensitive material without malicious intent.
-
-The sandbox should make secrets unavailable by default. If a task genuinely requires a credential, the credential should be resolved through a controlled tool with a narrow purpose, not exposed as raw text to the model.
-
-For most coding tasks, the correct secret policy is simple:
-
-~~~text
 secrets:
   environment: stripped
-  dotfiles: read blocked
+  dotfiles: blocked
   credential helpers: unavailable
-  secret lookup: tool-specific approval required
 ~~~
 
-That policy may feel strict. Good. The agent can still do a surprising amount of useful work without seeing secrets.
+That sounds strict. It is. The point is not to make the agent timid. The point is to keep the trust boundary readable.
 
-## recovery is part of the sandbox
+## recovery matters as much as prevention
 
-A sandbox is not only about preventing bad actions. It is also about making recovery cheap.
+Sandboxing is also about making cleanup cheap.
 
-If an agent edits inside a worktree, the user can inspect or discard the diff. If the agent writes only inside scoped paths, cleanup is smaller. If commands are logged, failures are easier to replay. If network calls are recorded, unexpected external dependencies can be investigated.
-
-Recovery should be designed into the run:
+If the agent edits inside a worktree, the diff can be inspected or discarded. If commands are logged, failures are easier to replay. If network calls are recorded, weird dependencies are easier to explain. Recovery is what makes the sandbox practical instead of ceremonial.
 
 ~~~text
 before:
@@ -130,17 +85,15 @@ after:
   show diff, checks, denied actions, and cleanup steps
 ~~~
 
-That record makes the sandbox practical. It is not enough to say the agent was contained. The user needs to know what happened inside the container.
+That receipt is the thing a reviewer actually needs.
 
-## authority drift is the real failure
+## authority drift is the failure mode
 
-The failure mode I watch for is authority drift.
+The task starts small. The agent reads a file, finds a failing check, and then wants a helper edit. The helper depends on another module. The test needs a fixture update. A dependency is stale. Soon the run wants broader write access, a new command, and network access to look something up.
 
-A task starts small. The agent reads a file. It finds a failing check. It edits a helper. The helper depends on another module. A test needs a fixture update. A dependency is stale. Suddenly the agent wants broader write access, a new command, and network access to check documentation.
+Some of that may be legitimate. Some of it is the task expanding because nobody named the next step.
 
-Some of that may be legitimate. Some of it may be the agent turning a focused task into a wandering repair session.
-
-The sandbox should make each escalation explicit:
+The sandbox should force each escalation into the open:
 
 - new write path requested
 - new command requested
@@ -148,28 +101,22 @@ The sandbox should make each escalation explicit:
 - secret lookup requested
 - external write requested
 
-Those are not errors by default. They are decision points.
+Those are decision points, not automatic failures.
 
-This is where sandboxing supports productivity. It lets the agent continue when the expansion is justified and stops it when the expansion is just momentum.
+## the numbers should be boring
 
-## measure the boring things
+I want to know how often the sandbox is doing its job:
 
-The metrics I want for sandboxed agents are not flashy.
+- files touched
+- denied writes
+- permission escalations
+- commands run
+- failed commands
+- network requests
+- discarded runs
+- accepted runs
+- mismatches between receipt and diff
 
-Count files touched. Count denied writes. Count permission escalations. Count commands run. Count failed commands. Count network requests. Count runs discarded. Count runs accepted after review. Count cases where the receipt did not match the diff.
+Those numbers tell you whether the sandbox is helping the team operate or just getting in the way.
 
-Those numbers tell you whether the sandbox is helping or getting in the way.
-
-If every useful task needs three escalations, the default scope is too tight or the task slicer is bad. If agents rarely hit boundaries but produce huge diffs, the scope may be too broad. If reviewers discard many runs after command failures, verification is happening too late.
-
-Sandboxing should be tuned from evidence, not from fear.
-
-## the point is reviewable autonomy
-
-I do not care about sandboxing because I want agents to be timid.
-
-I care because autonomy without reviewable boundaries is a mess. A coding agent should be able to do real work. It should read code, make edits, run checks, and report back. But that work should happen inside a shape the user can understand.
-
-Filesystem scope. Command policy. Network rules. Secret isolation. Escalation. Recovery. Receipts.
-
-That is the agent story I care about because it turns capability into something a team can operate.
+Sandboxes are not for timid agents. They are for agents that can do real work without making the system impossible to understand.

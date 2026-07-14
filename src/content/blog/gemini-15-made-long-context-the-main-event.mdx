@@ -8,158 +8,58 @@ author: "jeremy-london"
 tags: ["google", "gemini-1.5", "long-context"]
 ---
 
-[Gemini 1.5 Pro](https://blog.google/innovation-and-ai/products/google-gemini-next-generation-model-february-2024/) made long context feel like the headline instead of a footnote.
+[Gemini 1.5 Pro](https://blog.google/innovation-and-ai/products/google-gemini-next-generation-model-february-2024/) made long context feel like the headline instead of the footnote.
 
-The launch was not only a capability update. It changed the product questions around context. Google described Gemini 1.5 Pro as a mid-size multimodal model with performance near Gemini 1.0 Ultra and an experimental long-context window up to 1 million tokens. The technical report later pushed the research story even further, with long-context experiments across documents, audio, and video.
+## one manifest is better than three summaries
 
-That made the obvious reaction understandable: what if we stop retrieving little chunks and just put everything in the prompt?
+The obvious temptation was to ask whether we should just throw the whole document set into the prompt. I do not think that is the right move.
 
-I do not think that is the right answer. But Gemini 1.5 made the question worth taking seriously.
+But Gemini 1.5 made the question worth asking in the first place.
 
-## long context changes the first design instinct
+What changed for me was the default instinct. With enough context, the system does not have to chop everything down immediately. It can keep more of the original material intact, which is useful when summaries flatten the one detail that matters.
 
-With a small context window, the system architecture is forced into compression. Summarize the conversation. Retrieve a few chunks. Keep the prompt tight. Drop old details. Ask the user for the missing file again. Every token is scarce.
+The useful version of this is easy to write down:
 
-A very large context window changes that instinct. Suddenly the system can carry a whole code file, a long transcript, a pile of documents, or a large section of a repository. It can reason over more of the original artifact instead of a summary of a summary.
+~~~text
+user asks: compare refund language across current policy and old policy
+retrieval: pull the full policy section, not three paragraphs
+context window: keep both sections intact
+answer: cite the clause that differs, not just the summary
+~~~
 
-That is useful because summaries lose sharp edges. Retrieval misses. Chunk boundaries split relevant details. A long context model can sometimes keep the raw material available long enough to answer the actual question.
+That does not remove the need for retrieval or for context design. It just changes the balance. Retrieval still decides what is eligible and relevant. Long context keeps more of it alive.
 
-For product work, that suggests new workflows:
-
-- review a whole contract instead of selected clauses
-- inspect an entire incident timeline
-- reason over a video or audio transcript with surrounding context
-- compare several long documents without pre-cutting them into tiny pieces
-- let a coding assistant see more of the relevant project at once
-
-The value is not simply "more tokens." The value is fewer forced guesses about which context will matter.
-
-## context is not attention
-
-The trap is treating context size as if it means perfect use of context.
-
-A model can accept a million tokens and still miss the paragraph that matters. It can retrieve a detail and fail to connect it to the user's question. It can overweight a recent section, a repeated phrase, or a misleading summary. It can produce an answer that cites a nearby fact while ignoring the contradictory section 400 pages earlier.
-
-Large context reduces one bottleneck. It does not remove the need for context design.
-
-I would still want a context manifest:
+I would still want a manifest that says what went in:
 
 ~~~json
 {
-  "request_id": "contract-review-184",
+  "request_id": "refund-policy-184",
   "sources": [
     {
-      "id": "msa",
-      "path": "contracts/vendor-msa.pdf",
-      "tokens": 182000,
-      "role": "primary_contract"
+      "path": "docs/billing/current-refund-policy.md",
+      "role": "current_source_of_truth",
+      "selected_unit": "full_section"
     },
     {
-      "id": "security_addendum",
-      "path": "contracts/security-addendum.pdf",
-      "tokens": 41000,
-      "role": "policy_constraints"
+      "path": "docs/archive/refund-policy-2022.md",
+      "role": "historical_comparison",
+      "selected_unit": "full_section"
     }
   ],
-  "question": "Find termination language that conflicts with the security addendum."
+  "question": "Which clause controls annual-plan refunds?"
 }
 ~~~
 
-That manifest helps the system and the reviewer know what entered the model. It also makes failures easier to debug. If the answer ignored the addendum, was the addendum missing, too far away, poorly labeled, or present but unused?
+That manifest is the part I would show in review. It tells me whether the model saw the right source, whether the comparison was fair, and whether the question was too broad for the slice that was provided.
 
-Long context needs receipts because the prompt becomes too large for humans to casually inspect.
+It also keeps the source shapes visible. A policy section, a contract clause, and a changelog entry are not interchangeable. If the system compresses them into a single summary, the answer may still look fine while quietly dropping the one line that matters.
 
-## retrieval did not become obsolete
+## where the long window earns its keep
 
-Long context changes retrieval. It does not kill it.
+The part that matters is not that the model can ingest more. It is that the model can keep the parts of the source that usually get collapsed into one summary sentence.
 
-For many systems, retrieval still matters because it controls eligibility, freshness, permission, cost, and focus. The fact that a model can read a huge amount does not mean every user should be allowed to send every document. It also does not mean the system should pay to process irrelevant material.
+If I were comparing refund language, I would rather keep both policy versions intact and ask for the clause that differs than force the system to reconstruct the answer from a thin extract. That is where the longer window earns its keep. It reduces the amount of meaning that gets dropped on the floor before the model even starts thinking.
 
-I would think about long context and retrieval as complementary:
+That also changes the failure mode. With a short window, the system can miss the clause entirely. With a larger one, the evidence is present even when the answer is wrong, which makes the bug much easier to debug.
 
-~~~text
-retrieval chooses what is allowed and likely relevant
-long context keeps more of that material intact
-reranking or source planning decides what deserves attention
-answering cites the specific evidence used
-~~~
-
-The difference is that retrieval can return larger, more coherent units. Instead of slicing a policy into tiny chunks, maybe the model gets the whole section. Instead of summarizing a source file, maybe it gets the file plus related tests. Instead of extracting a few transcript snippets, maybe it gets the full meeting transcript and a question-specific index.
-
-The architecture becomes less desperate, not less disciplined.
-
-## mixed media makes the context problem stranger
-
-Gemini 1.5 was interesting because long context was tied to multimodality.
-
-Long documents are already hard. Long video and audio make the problem stranger. A video has timing, frames, actions, speech, visual references, and moments where the important evidence is not spoken. Audio has pacing, emphasis, overlap, and noise. Converting all of that into text too early can erase useful signal.
-
-If the model can consume more of the original media, the product can ask richer questions. But the system also needs better evidence handling. When the model says "the presenter changed the chart after the second question," the user needs a timestamp. When it summarizes a long video, the product should let the user jump to the moment. When it compares an image and a document, the answer should explain which part of each source mattered.
-
-Long multimodal context needs anchors:
-
-- page numbers
-- timestamps
-- frame ranges
-- section headings
-- file names
-- speaker labels
-- source IDs
-
-Without anchors, the output may be correct and still hard to trust.
-
-## cost and latency move into the foreground
-
-Huge context is not free.
-
-Even when the model can accept a large input, the product has to decide when the large input is worth it. Processing an entire codebase, a long video, or a pile of PDFs may be appropriate for an analysis task. It is silly for a question that only needs one section.
-
-The router needs a cost model:
-
-~~~text
-small context:
-  use when the answer depends on recent conversation or one known source
-
-retrieved medium context:
-  use when sources are known but need supporting detail
-
-large context:
-  use when source selection is uncertain or cross-document reasoning matters
-
-huge context:
-  use when preserving original material is worth the latency and cost
-~~~
-
-The thresholds depend on the product, but the shape matters. Long context should be a tool the system chooses, not the new default for every request.
-
-Latency also changes the interface. If a long-context analysis takes time, the UI should admit that. Show what is being loaded. Let the user see sources. Preserve intermediate work. Do not pretend a million-token request should feel like autocomplete.
-
-## evals need needles and tasks
-
-Long-context evals are easy to make silly.
-
-Needle-in-a-haystack tests are useful because they measure recall under distraction. They are not enough. Real work is rarely "find the random sentence." It is "find the clause that conflicts with this other clause," "identify the decision that changed after the third meeting," or "explain why the test failure started after this dependency update."
-
-I want both eval types:
-
-- retrieval recall inside long context
-- cross-source reasoning
-- contradiction detection
-- citation accuracy
-- resistance to repeated irrelevant text
-- performance by source position
-- answer quality under different context packing strategies
-
-Position matters. If the model is great near the beginning and end but weaker in the middle, the context builder needs to know that. If repeated irrelevant sections distract the model, deduplication matters. If citations drift, the product needs source verification.
-
-Long context should be evaluated as a system behavior, not a marketing number.
-
-## what changed
-
-Gemini 1.5 made long context feel like a product primitive.
-
-It did not make retrieval obsolete. It did not make prompt design disappear. It did not make source permissions, citations, latency, or cost easier. It did make a new set of workflows feel plausible: give the model much more of the original material, keep mixed media closer to its source form, and ask questions that were awkward when everything had to be pre-shrunk.
-
-That is why the launch felt different from a normal benchmark update. The model was saying: maybe the context boundary is farther out than you thought.
-
-The engineering answer is not to dump everything into the prompt. It is to build systems that know when the extra context is worth carrying.
+The part I remember most is that long context stopped sounding like a weird experiment. It started sounding like a product primitive.

@@ -10,146 +10,38 @@ tags: ["long context", "gemini", "retrieval"]
 
 Long context changed what retrieval is expected to do.
 
-It did not make retrieval disappear. It made the old version of retrieval feel too small.
+It did not make retrieval disappear. It made tiny shards feel too cramped.
 
-When context windows were tight, retrieval had to be aggressive. Chop documents into small chunks, rank the chunks, send the top few, and hope the answer was inside them. That design was often necessary, but it created its own failures. The right section might be split across chunks. The answer might need a table header that was not retrieved. The model might see a paragraph without the surrounding caveats.
+## retrieve units, not scraps
 
-Larger context windows changed the tradeoff. Retrieval can now select broader source units. The model can inspect more of the original material. The system can choose a chapter, file, transcript segment, or policy section instead of a paragraph-sized shard.
+With larger windows, retrieval can select coherent source units instead of paragraph fragments. The hard part moves to eligibility, ordering, and citations: what the model is allowed to see, what it should trust, and where the answer came from.
 
-That is a better place to be, but it still requires judgment.
+If the context window is generous, I would rather give the model a whole section, a whole policy, or a whole page than a few sentence fragments that lose the thread the moment they arrive. The retrieval layer becomes more about choosing the right unit than about stuffing the tiniest possible chunk into the prompt.
 
-## retrieval chooses eligibility
+## a simple selection loop
 
-Retrieval has to care about eligibility as much as relevance.
+The implementation shape is not mysterious:
 
-The model should not receive every document that might be semantically related. It should receive documents the user is allowed to use, documents fresh enough to trust, documents that match the current product surface, and documents that belong to the requested task.
-
-Long context makes this more important because the system can now include more material. More room means more opportunity to leak stale or unauthorized context into the prompt.
-
-A retrieval record should carry why a source was eligible:
-
-~~~json
-{
-  "source": "docs/billing/refund-policy.md",
-  "reason": "current_policy_source",
-  "freshness": "current",
-  "permission": "workspace_support_agent",
-  "selected_unit": "full_section"
-}
+~~~python
+def select_context(query, candidates):
+    scored = rank_by_similarity(query, candidates)
+    ordered = sort_by_source_and_time(scored)
+    return dedupe_by_section(ordered)[:8]
 ~~~
 
-That is a different mindset than nearest-neighbor search alone. Similarity proposes. Eligibility decides.
+The point is not the code. The point is that larger windows give you room to be conservative. You can keep a section intact, preserve citations, and avoid the weird middle state where the model has seen part of a source but not enough to trust it.
 
-## chunking can get less desperate
+## what still needs judgment
 
-Long context lets chunking be more respectful of the source.
+Long context does not solve retrieval quality by itself. It just changes the questions.
 
-Instead of slicing every 800 tokens with overlap, the system can preserve natural boundaries: headings, functions, classes, tickets, transcript turns, policy sections, PDF pages, or test files. This often produces better inputs because the model sees the context around the fact.
+Now I care about:
 
-For code, that might mean retrieving the whole function plus its tests. For policy, the full section and exceptions. For support, the initial ticket, resolution, and final customer reply. For video, a contiguous time window with transcript and frame references.
+- whether the source unit is coherent
+- whether the order preserves the argument
+- whether the citation still points at the right place
+- whether the answer used a source that was eligible in the first place
 
-The chunk should match the reasoning task.
+That is why long context feels operational rather than magical. It gives the system more breathing room, but the retrieval layer still has to earn its keep.
 
-~~~text
-bad unit:
-  paragraph 42 of a cancellation policy
-
-better unit:
-  full cancellation section with exceptions and effective date
-~~~
-
-The larger window does not mean the unit should be huge by default. It means the unit can be coherent.
-
-## citations still need precision
-
-A model can read a long source and still answer vaguely.
-
-That is why citation requirements become more important, not less. If the model receives a 40-page policy document, the answer should cite the section. If it receives a code file, the answer should point to the function or line range if the product supports it. If it receives a transcript, the answer should include a timestamp.
-
-Without precise citations, long context can make answers harder to audit. The user knows the source was somewhere in the giant prompt, but not where the claim came from.
-
-A retrieval system should preserve anchors:
-
-- document path
-- heading path
-- page number
-- timestamp
-- function name
-- record ID
-- byte or character offset when useful
-
-Long context gives the model more evidence. Anchors let the product show which evidence mattered.
-
-## source packing becomes a product decision
-
-Once the system can include many sources, ordering and grouping start to matter.
-
-Should current docs appear before archived docs? Should the user’s selected file appear before retrieved neighbors? Should contradictory sources be placed together? Should a summary sit above the raw source or below it? Should the model see metadata before content?
-
-Those choices can change the answer.
-
-I like source manifests because they make packing visible:
-
-~~~text
-context order:
-  1. user question
-  2. selected source file
-  3. current policy docs
-  4. related tickets
-  5. archived docs excluded
-~~~
-
-That order is a product decision. It encodes trust and priority. If the model answers from the wrong source, the manifest gives the team something to debug.
-
-## long context needs negative examples
-
-Long-context retrieval evals should include cases where the nearest related document is wrong.
-
-That is common in real systems. The archived policy uses the same words as the current one. A migration guide resembles the current API docs. A test fixture contains a fake secret. A support ticket mentions a product feature but was resolved under old behavior.
-
-The eval should ask whether retrieval excludes the tempting wrong source:
-
-~~~json
-{
-  "query": "Can a canceled annual plan get a refund?",
-  "must_include": ["docs/billing/current-refund-policy.md"],
-  "must_exclude": ["docs/archive/refund-policy-2022.md"],
-  "reason": "archive uses similar language but old rules"
-}
-~~~
-
-This is where long context can hurt. If the system includes both current and archived policies without telling the model which one wins, the answer may blend them.
-
-## retrieval still reduces cost
-
-Large windows are useful, but they cost time and money.
-
-Retrieval remains the mechanism for avoiding waste. It decides when a small source is enough, when a coherent larger source is worth including, and when the task deserves a huge context route.
-
-The router can be simple:
-
-~~~text
-known source selected by user:
-  include selected source plus nearby metadata
-
-ambiguous source:
-  retrieve candidate set, rerank, include coherent units
-
-cross-source reasoning:
-  include multiple full sections with manifest
-
-broad exploratory search:
-  retrieve summaries first, expand on demand
-~~~
-
-That is a better strategy than treating long context as the new default.
-
-## the expectation changed
-
-Long context raised the bar for retrieval.
-
-Users will reasonably expect the system to preserve more of the source, avoid silly chunk misses, and answer from coherent context. They will also expect the answer to remain grounded, cited, permissioned, and current.
-
-That is the new retrieval expectation: less desperate compression, more source judgment.
-
-The system still has to decide what belongs in front of the model. Bigger windows make that decision more important, not less.
+The practical win is simpler than the hype: fewer chopped-up prompts, fewer missing references, and fewer answers that look right only because the relevant evidence was spread across too many tiny chunks.

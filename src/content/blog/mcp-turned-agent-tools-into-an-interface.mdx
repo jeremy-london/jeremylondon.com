@@ -8,56 +8,13 @@ author: "jeremy-london"
 tags: ["mcp", "agents", "tools"]
 ---
 
-[MCP](https://modelcontextprotocol.io/docs/getting-started/intro) made agent tool access feel like an interface instead of a pile of bespoke integrations.
+[MCP](https://modelcontextprotocol.io/docs/getting-started/intro) is the first tool protocol I have seen that made agent plumbing look like a product surface instead of a pile of custom adapters.
 
-That is the interesting part. Tools already existed. Function calling existed. Agents could call APIs, read files, search databases, and run commands before MCP. But every integration had its own shape. The agent had to learn a new tool contract each time, and the host application had to decide how to expose tools, data, prompts, authentication, errors, and permissions.
+The model side did not suddenly get safer. The useful shift was simpler: the seams showed up. Once a server advertises a tool, the name, schema, error shape, side effects, and approval story become part of the interface. That is the part people used to bury inside integration code and hope nobody asked about later.
 
-The [Model Context Protocol](https://www.anthropic.com/news/model-context-protocol) gave that work a shared vocabulary: clients, servers, tools, resources, prompts, schemas, and capabilities.
+I keep thinking about one line in the spec because it does more work than most tool descriptions I see in the wild: "Does not send it to the customer." That is not garnish. That is the contract.
 
-That does not make tool use safe by itself. It makes the design questions easier to see.
-
-## tool access is an interface
-
-Once a server exposes a tool to an agent, it has designed an interface.
-
-The interface includes the tool name, description, input schema, output shape, permissions, error behavior, and side effects. If any of those are vague, the agent has to guess. Agents are very willing to guess.
-
-A tool named `run` is a problem. A tool named `create_invoice_draft` is better. A schema that accepts `data: any` is a problem. A schema with required fields, enums, limits, and clear descriptions is better.
-
-MCP did not invent this discipline. It forced it into view.
-
-~~~json
-{
-  "name": "create_invoice_draft",
-  "description": "Create a draft invoice. Does not send it to the customer.",
-  "inputSchema": {
-    "type": "object",
-    "required": ["customerId", "lineItems"],
-    "properties": {
-      "customerId": { "type": "string" },
-      "lineItems": {
-        "type": "array",
-        "items": {
-          "type": "object",
-          "required": ["description", "amountCents"]
-        }
-      }
-    }
-  }
-}
-~~~
-
-The important sentence is in the description: "Does not send it to the customer." That is product behavior and safety behavior in one line.
-
-## resources and tools should not be blurred
-
-MCP separates resources and tools for a reason.
-
-Resources provide context. Tools perform actions. That difference should matter in the product. Reading a document, listing projects, and fetching a schema are different from sending an email, editing a file, or changing a customer record.
-
-If the interface blurs read and write operations, approvals become messy. A user may approve "access project data" and accidentally authorize mutation. A model may treat a read-like tool as harmless even though it triggers a side effect.
-
-I want read paths to be boring and write paths to be explicit:
+The same thing applies to the split between resources and tools. A resource is something the agent reads. A tool is something that changes the world. If those two are mixed up, the user ends up approving a read when the system is really asking for write access, and the model starts treating side effects like they are harmless metadata.
 
 ~~~text
 resource:
@@ -66,114 +23,14 @@ resource:
 tool:
   update_customer_billing_contact
   requires approval
-  logs audit event
-  can be rolled back manually
+  leaves a receipt
+  can be reversed by an operator
 ~~~
 
-That separation helps the host, the user, and the agent reason about risk.
+That little distinction is the entire game. The host decides what is visible, the schema narrows what can happen, the approval explains the consequence, and the receipt makes the action reviewable after the fact.
 
-## descriptions are part of the control plane
+The more I use MCP-shaped tools, the more I want the descriptions to sound like operator notes rather than help copy. "Search support articles by keyword and product area" is useful. "Unlock helpful answers with our rich knowledge base" is not. The model needs a purpose, a boundary, and a clue about what not to do.
 
-Tool descriptions are not documentation garnish.
+Once the tools become explicit, governance has somewhere to live. The questions are not abstract anymore. Which server is trusted? Which tool needs approval? Which resource is sensitive? Which output can feed another tool? Which calls are safe in CI and which ones should never leave a sandbox? That is why MCP feels bigger than a connector format. It puts the risk where people can inspect it.
 
-The model uses them to decide which tool to call and how to call it. A weak description can misroute work. A vague description can encourage overuse. A missing warning can hide a side effect. A bloated description can waste context and still fail to say the one thing that matters.
-
-Good descriptions are compact and operational:
-
-~~~text
-Search current support articles by keyword and product area.
-Use this before answering policy questions.
-Does not search archived articles.
-~~~
-
-That gives the model a purpose, a recommended use, and a boundary.
-
-Bad descriptions sound like marketing:
-
-~~~text
-Powerfully search our rich support knowledge base to unlock helpful answers.
-~~~
-
-That tells the model almost nothing.
-
-## permissions need to be visible before execution
-
-MCP gives a common shape for connecting tools, but permission is still the host's job.
-
-The host has to decide which servers are allowed, which tools are available, which resources can be read, which calls need approval, and what the user sees before a tool runs.
-
-For risky tools, approval text should be specific:
-
-~~~text
-Approve editing `src/routes/billing.ts` in this workspace.
-This tool can modify files but cannot access paths outside the repository.
-~~~
-
-That is much better than:
-
-~~~text
-Approve tool call?
-~~~
-
-The approval is part of the interface. If the user cannot understand the effect, the permission model is not finished.
-
-## errors should be model-readable
-
-Tool errors are a major part of agent behavior.
-
-If a tool returns `failed`, the agent may retry blindly, apologize, or invent a workaround. If the tool returns a structured error, the agent has a chance to recover.
-
-~~~json
-{
-  "ok": false,
-  "code": "permission_denied",
-  "message": "The user can read invoices but cannot create invoice drafts.",
-  "recoverable": true,
-  "next": "Ask a workspace owner to approve invoice drafting."
-}
-~~~
-
-That error tells the model what happened and what not to do next. It also gives the UI something useful to show.
-
-Agent tools need error contracts for the same reason APIs do. The caller is trying to decide the next step.
-
-## receipts matter more as tools get real
-
-Tool calls should leave receipts.
-
-For read operations, the receipt might be which resource was read and at what version. For write operations, it should include what changed, who authorized it, and how to inspect or reverse it. For external calls, it should include the target system and result.
-
-~~~json
-{
-  "tool": "update_issue_status",
-  "issue": "PLAT-184",
-  "from": "in_review",
-  "to": "done",
-  "authorizedBy": "jeremy",
-  "receipt": "audit://agent-runs/2024-12-02/184"
-}
-~~~
-
-Without receipts, agent work becomes hard to audit. The final answer says something changed, but the system has no durable record.
-
-MCP makes tool calling easier to standardize. The product still has to decide what evidence survives.
-
-## the interface will attract governance
-
-Once tools have a shared shape, governance naturally moves there.
-
-Which tools can a given agent see? Which ones require approval? Which servers can run locally? Which tools are allowed in CI? Which descriptions are trustworthy? Which outputs can be passed to another tool? Which resources are sensitive?
-
-Those questions should not be scattered across prompts. They belong in the host, server configuration, permissions, and audit layer.
-
-That is why MCP feels bigger than a connector format. It creates a place where agent capability can be inspected.
-
-## the useful shift
-
-MCP did not solve agent safety. It did not make every tool well designed. It did not remove the need for approvals, scoping, logging, or evaluation.
-
-It did something more basic: it turned agent tools into an interface people could argue about.
-
-That is progress. Once the interface is visible, teams can improve names, schemas, permissions, descriptions, errors, receipts, and review paths. Before that, tool access is mostly integration glue and vibes.
-
-Agents get better when their tools have real contracts.
+I do not think MCP solved agent safety. It did something more practical. It made the contract visible enough that we can argue about it, tighten it, and leave a record when it changes.

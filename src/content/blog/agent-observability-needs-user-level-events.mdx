@@ -14,41 +14,19 @@ The process did not crash. The HTTP call returned 200. The tool schema validated
 
 That is the part normal observability misses. Agents operate across product state. They read a thing, infer a plan, choose a tool, modify something, check the result, and then explain themselves to a human. If the logs only show tokens, latency, and status codes, the system may be observable to the platform team and opaque to everyone else.
 
-AI operations need user-level events. Not because traces are bad. Traces are useful. But traces answer a different question. They tell you how the machine moved. They do not automatically tell you what the agent thought it was doing for the user.
+## start with the question a person asks
 
-## infrastructure events are too low-level
+I do not want to start from spans.
 
-A traditional trace might show:
+I want to start from the sentence a support person or reviewer would say: why did the agent edit the wrong draft? Did it use the active file? Which approval covered the write? What did the user think they approved?
 
-~~~text
-POST /api/agent/run 200 1842ms
-model_call gpt-x 1287 tokens
-tool_call update_document 200 231ms
-queue_job complete
-~~~
+That is the level the log should answer first. Traces are still useful, but they answer a different question. They tell you how the machine moved. They do not automatically tell you what the agent thought it was doing for the user.
 
-That is better than nothing, but it is not enough for an incident review. If the user says, "Why did the agent edit the wrong draft?", those events do not answer the question. They prove that the machinery ran. They do not prove that the work made sense.
+## the run is the object worth naming
 
-The missing layer is product intent:
+For agents, I would treat a run as the main observable object. A run has a user request, a scope, selected context, planned steps, tool calls, approvals, verification results, and a final state.
 
-~~~text
-user_requested: "tighten the intro on the desktop agents post"
-agent_selected_artifact: "chatgpt-work-made-desktop-agents-feel-inevitable.mdx"
-agent_reason_for_selection: "title match and active editor context"
-tool_action: "edit section: opening paragraphs"
-user_visible_effect: "updated draft content"
-verification: "markdown check passed, diff shown to user"
-~~~
-
-That record is not a replacement for traces. It sits above them. It is the part a support engineer, product owner, reviewer, or future agent can use without reconstructing the entire run from raw logs.
-
-## the run is the product event
-
-For agents, I would treat a run as the main observable object. A run has a user request, a scope, selected context, planned steps, tool calls, approvals, verification results, and final state.
-
-The run is where user-level events belong because the run is what the user experiences. They do not experience "span 4827." They experience "the agent changed my file after I approved a plan." If that sentence cannot be reconstructed from the logs, the observability model is too low-level.
-
-A useful run record might include:
+That record can include the boring pieces too:
 
 - requested task
 - visible user context
@@ -62,15 +40,15 @@ A useful run record might include:
 - user-facing summary
 - rollback pointer
 
-That sounds like a lot, but most of it already exists somewhere. The problem is that it is usually scattered across model telemetry, app logs, queue logs, browser state, and a chat transcript. The user-level event brings the story back together.
+Most of that already exists somewhere. The problem is that it is usually scattered across model telemetry, app logs, queue logs, browser state, and a chat transcript. The run pulls it back together.
 
-## approval is an event, not a button
+## approval should be replayable
 
 Approval flows are especially easy to under-log. The UI shows a button. The user clicks it. The agent continues. Later, everyone argues about whether the user approved the thing that actually happened.
 
 An approval event should capture what the user saw at the time:
 
-~~~json
+```json
 {
   "event": "approval_requested",
   "runId": "run_74",
@@ -81,47 +59,27 @@ An approval event should capture what the user saw at the time:
   "approvedBy": "user",
   "approvedAt": "2025-08-07T10:14:03Z"
 }
-~~~
+```
 
-I care less about the exact schema than the principle: approval has to be replayable. If the user approved "rewrite this paragraph" and the agent edited five files, the system should show that mismatch. If the user approved a tool call without seeing the target, the product should treat that as a design bug.
+I care less about the exact schema than the principle: approval has to be replayable. If the user approved "rewrite this paragraph" and the agent edited five files, the system should show that mismatch.
 
-This matters even more when agents use tools with side effects. A model-generated explanation after the fact is not enough. The receipt needs to come from the application boundary.
-
-## failures need product names
+## call the failure by its product name
 
 Agent failures should be grouped by product behavior, not only technical cause.
 
-"Tool call failed" is a technical event. "Agent could not update the selected draft" is a product event. "Model exceeded context window" is technical. "Agent lost the user's active file context" is product-level. "Permission denied" is technical. "Agent attempted to read outside approved scope" is product-level.
+"Tool call failed" is a technical event. "Agent could not update the selected draft" is a product event. "Model exceeded context window" is technical. "Agent lost the user's active file context" is product-level.
 
 Those names change the incident review. They make the failure legible to people who own the workflow, not only the people who own the infrastructure.
 
-I would track categories like:
+I would track categories like wrong artifact selected, stale context used, approval mismatch, tool result accepted without verification, user intent changed mid-run, scope boundary hit, rollback unavailable, and summary contradicted the diff.
 
-- wrong artifact selected
-- stale context used
-- approval mismatch
-- tool result accepted without verification
-- user intent changed mid-run
-- scope boundary hit
-- rollback unavailable
-- summary contradicted the diff
+Those are not exotic. They are the actual failures that make agents feel untrustworthy.
 
-These are not exotic. They are the actual failures that make agents feel untrustworthy.
-
-## metrics that matter
+## keep machine metrics beside product metrics
 
 Token count and latency still matter. Cost still matters. But agent observability needs product metrics beside the platform metrics.
 
-I would start with:
-
-- run completion rate by task type
-- approval reversal rate
-- verifier disagreement rate
-- stale-context failures
-- wrong-artifact selections
-- tool retries after valid but useless output
-- rollback usage
-- user correction rate
+I would start with run completion rate by task type, approval reversal rate, verifier disagreement rate, stale-context failures, wrong-artifact selections, tool retries after valid but useless output, rollback usage, and user correction rate.
 
 That last one is underrated. When users keep correcting an agent after "successful" runs, the system is telling you something. The platform sees success. The product sees cleanup.
 
@@ -134,5 +92,3 @@ Then add the story the user would recognize.
 An agent run should be debuggable from both directions. An engineer should be able to start from a slow span and find the product step it belonged to. A product owner should be able to start from "the agent edited the wrong draft" and find the model call, context selection, tool action, and approval event that led there.
 
 That is the observability shape I trust: machine trace plus user-level event log.
-
-Without both, agents become hard to operate in the most annoying way. They look healthy until someone asks what happened.

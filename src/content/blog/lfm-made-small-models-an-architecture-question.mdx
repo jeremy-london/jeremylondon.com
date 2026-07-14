@@ -8,150 +8,24 @@ author: "jeremy-london"
 tags: ["liquid ai", "lfm", "small language models"]
 ---
 
-[Liquid Foundation Models](https://www.liquid.ai/blog/liquid-foundation-models-our-first-series-of-generative-ai-models) made small models feel like an architecture question, not a thrift-store version of the frontier.
+[Liquid Foundation Models](https://www.liquid.ai/blog/liquid-foundation-models-our-first-series-of-generative-ai-models) made small models feel like an architecture question.
 
-Liquid AI's first LFM series was announced with 1B, 3B, and 40B models, a smaller memory footprint, efficient inference, and hardware optimization across NVIDIA, AMD, Qualcomm, Cerebras, and Apple targets. The exact benchmark claims are less interesting to me than the design posture: build models for places where compute, latency, memory, and privacy are first-order constraints.
+The useful shift was not "can a small model imitate a big one." It was "where should this model live, what hardware does it want, and which local jobs can it own."
 
-That changes the small-model conversation.
+I think the interesting design space opens up once the model gets a job instead of a benchmark.
 
-Instead of asking whether a small model can imitate a larger one, the better question is where the model should live. On the device? Near the data? In a local worker? In a hybrid route that tries local first and escalates when needed?
+| local job | why a small model fits |
+| --- | --- |
+| prefilter obvious spam | cheap and fast |
+| redact secrets before upload | narrow and safety sensitive |
+| classify a note or file | bounded output |
+| suggest a filename or tag | low stakes |
+| offline helper for a device | needs to work without a server |
 
-Size becomes a placement decision.
+Efficiency changes the product map. It opens up prefiltering, redaction, offline helpers, and other narrow tasks that do not deserve a remote frontier route. The point is not that the small model is smarter. The point is that it can sit closer to the work and cheaper to run.
 
-## efficient inference changes the product map
+The catch is simple: local-first still needs escalation, privacy boundaries, updates, and hardware-aware evals. Otherwise it is just a smaller box with the same old problems. The architecture question is what makes the box useful.
 
-Efficiency reaches beyond cost. It changes which product surfaces are possible.
+I would even sketch the deployment choice before I picked the model. If the device can run the model cheaply, keep the job local. If the job is sensitive, keep the raw inputs local and only escalate a narrow result. If the task needs broad reasoning, use the smaller model as a prefilter or assistant and stop pretending it has to do everything. That decision tree is the real product.
 
-A model with lower memory pressure and faster inference can sit closer to interaction. It can run more often. It can process smaller tasks before the user thinks of them as AI tasks. It can prefilter, classify, summarize, redact, or route without forcing every operation through a remote frontier model.
-
-That matters in places where latency is part of the feature:
-
-- local document search
-- on-device note cleanup
-- private message classification
-- background log redaction
-- edge telemetry summarization
-- offline assistant behavior
-- low-latency UI suggestions
-
-The model does not need to be generally brilliant. It needs to be good enough for the local job and cheap enough to call without ceremony.
-
-## architecture beats parameter counting
-
-Small-model discussions can get stuck on parameter counts. One billion. Three billion. Seven billion. Thirteen billion. Those numbers matter, but they are not the architecture.
-
-The architecture includes:
-
-- where the model runs
-- what hardware it targets
-- what inputs it sees
-- what output shape it owns
-- how uncertainty escalates
-- how updates ship
-- what privacy boundary it protects
-- how the larger system verifies its work
-
-That is why LFM's hardware-optimization story was interesting. A model family designed with deployment targets in mind invites different product thinking than a model shrunk after the fact and dropped into the same cloud API pattern.
-
-The product question becomes:
-
-~~~text
-Can this task run locally enough to improve latency, privacy, or cost?
-If yes, what does local own?
-If no, what route should receive the task?
-~~~
-
-That is a systems question before it is a benchmark question.
-
-## local first needs an escalation path
-
-Local-first AI sounds clean until the local model is uncertain.
-
-The product needs an escalation path. A local model can classify the obvious cases, redact high-confidence secrets, summarize short notes, or suggest a route. When confidence drops, the system can ask the user, run a deterministic check, send a narrowed prompt to a remote model, or defer until connectivity returns.
-
-A useful route might look like this:
-
-~~~json
-{
-  "task": "classify_support_ticket",
-  "local_model": "lfm-small-route",
-  "local_decision": "billing",
-  "confidence": 0.72,
-  "threshold": 0.85,
-  "next": "remote_review",
-  "reason": "mixed_billing_and_security_language"
-}
-~~~
-
-The local model is still valuable even when it escalates. It narrowed the problem and produced a reason. The remote model can receive a cleaner request. The product can log when local was enough and when it was not.
-
-Without escalation, local-first becomes local-only, and local-only is often too brittle.
-
-## privacy is a design constraint, not a slogan
-
-On-device and local models are attractive because they can keep data closer to the user.
-
-That is useful for notes, health-adjacent data, internal documents, source code, credentials, personal media, or anything that should not leave a machine casually. But privacy does not happen automatically because a model is small. The product still has to decide what is stored, what is logged, what is sent for escalation, and what the user can inspect.
-
-A local redaction workflow might be:
-
-~~~text
-raw file stays local
-local model proposes sensitive spans
-deterministic patterns add high-risk matches
-user reviews uncertain spans
-redacted text is eligible for remote processing
-raw text is not uploaded
-~~~
-
-That is a real privacy boundary. The model placement supports it, but the workflow enforces it.
-
-## updates become deployment work
-
-If the model runs on-device or near the edge, updating it becomes part of the product.
-
-Cloud model updates are already tricky. Local model updates add download size, hardware compatibility, old-version support, rollback, cache invalidation, and user trust. A desktop app may have users running last month's model. A mobile app may delay updates. An enterprise customer may pin a version for audit reasons.
-
-That means model versioning has to be visible:
-
-~~~text
-model: lfm-local-classifier
-version: 2024-10-01
-target: desktop cpu
-supports: ticket routing, pii prefilter
-rollback: previous baked model in app bundle
-expires: prompt user after 90 days
-~~~
-
-The smaller model may reduce inference cost and improve privacy, but it increases release-management responsibility. That is not a reason to avoid it. It is a reason to plan it like software.
-
-## evals need hardware in the loop
-
-A small model eval that ignores hardware is incomplete.
-
-The same model may behave acceptably on a developer workstation and feel sluggish on a laptop with less memory. Quantization may change output quality. CPU inference may be fine for one document and painful for a batch. Battery and thermal behavior matter for device-native experiences.
-
-I would evaluate:
-
-- task quality by slice
-- p50 and p95 latency on target hardware
-- memory footprint
-- startup time
-- battery or thermal impact when relevant
-- behavior after quantization
-- escalation rate
-- local versus remote outcome differences
-
-That is the difference between a model demo and a product route.
-
-## the different design bet
-
-What I liked about the LFM announcement was the reminder that small models do not have to be framed as compressed general assistants.
-
-They can be designed for efficient inference, hardware placement, and narrow product roles. They can sit in front of larger models, beside them, or entirely outside the cloud path. They can make privacy and latency architecture more interesting.
-
-That does not make them magic. The same boring requirements apply: task boundaries, evals, fallback, versioning, observability, and ownership.
-
-But the design bet is different. A small model can be the reason a workflow runs in a different place, not merely a cheaper route through the same system.
-
-That is when small models become architecture.
+That is why small models are not a one-line efficiency win. They are a placement question. Put them near the data when privacy matters, near the user when latency matters, and near the routing layer when you want a cheap first pass. The architecture is the feature.

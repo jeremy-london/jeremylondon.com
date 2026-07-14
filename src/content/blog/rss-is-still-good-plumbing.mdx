@@ -1,6 +1,6 @@
 ---
 title: "RSS is still good plumbing"
-excerpt: "Feeds are unglamorous, durable, and still worth maintaining for a personal site."
+excerpt: "A feed is boring infrastructure until you need durable distribution that does not depend on a platform."
 publishDate: "2025-11-15T15:00:00Z"
 category: "web-engineering"
 draft: false
@@ -10,128 +10,94 @@ tags: ["rss", "web", "publishing"]
 
 RSS is still good plumbing.
 
-That is the whole argument, almost. Feeds are unglamorous, durable, and still worth maintaining for a personal site because they give readers a way to follow writing without signing into another platform, accepting another algorithm, or remembering to check manually.
+That is not nostalgia. It is a statement about ownership. If the site has a feed, readers can follow along without signing into another platform, waiting on an algorithm, or remembering to check the homepage by hand.
 
-The web keeps inventing louder distribution surfaces. RSS keeps doing a quiet job.
+The web has spent a lot of time inventing louder ways to distribute writing. RSS keeps doing the quiet job. For a personal site, that quiet job is enough.
 
-For a personal site, that quiet job matters.
+## the feed is for the reader
 
-## feeds respect reader control
+A feed gives the reader control over how and when to read.
 
-A feed lets the reader decide how to read.
+They can use a local reader, a hosted reader, an email bridge, a script, or a terminal client. They can group by topic or by priority. They can follow two sites or two hundred. They can let the post arrive and deal with it later.
 
-They can use a local reader, a hosted reader, a terminal tool, an automation, an email bridge, or something they wrote themselves. They can follow twenty sites or two hundred. They can organize by topic. They can ignore social ranking entirely.
+That matters for technical writing. Most posts are not emergencies. They are better read when someone has time to pay attention. RSS fits that pace without asking for a new account or a notification system in the middle.
 
-That is a small but real kind of respect.
+## breakage usually looks small
 
-The author publishes. The reader subscribes. Nobody needs a notification platform between them.
+Feed bugs are usually not dramatic. They are irritating.
 
-This is especially useful for technical writing. A lot of technical posts are not urgent. They are better consumed when someone has attention. RSS fits that pace. The post can arrive in a queue and wait.
+A title is missing. A link points to localhost. A draft leaks. A GUID changes and the reader thinks an old post is new. Dates jump around. HTML shows up escaped. The feed validates locally and still breaks in one reader because the content shape was slightly off.
 
-## correctness is boring and important
+That is why I like checking feeds the same way I check routes and sitemap output. The public contract is small enough to smoke test.
 
-A feed should be boringly correct.
+At minimum:
 
-That means:
+~~~text
+homepage links to the feed
+feed parses
+latest post appears once
+draft posts are absent
+post links are absolute
+dates sort correctly
+items do not duplicate after rebuild
+~~~
 
-- stable item IDs
-- correct absolute URLs
-- sensible titles
-- useful summaries
-- valid dates
-- escaped content
-- canonical links
-- no draft posts
-- no broken image references
-- no duplicate items after rebuilds
+None of that is fancy. It is just the difference between a site that publishes and a site that feels haunted.
 
-Most feed bugs are small and irritating. A reader sees the same post twice. A title is missing. A link points to localhost. A draft leaks. A date changes and old posts jump to the top. HTML renders as escaped garbage. The feed validates locally but breaks in one reader because the content is malformed.
+## stable ids matter more than people think
 
-This is why feeds belong in the same smoke-test list as routes and sitemaps.
+The item ID only becomes visible when it is wrong.
 
-## stable identifiers matter
+If the ID changes on every build, readers think every run is a new publication. If the ID is tied to a mutable title, a title edit can look like a new post. If old items get regenerated with a different date, the archive starts to churn for no reason.
 
-The feed item ID is the part you notice only when it is wrong.
+For a static site, I want the feed identity to line up with the canonical post URL or slug. Once a post is public, the feed should remember that it exists.
 
-If the ID changes every build, readers think every post is new. If the ID is tied to a title and the title changes, the same thing can happen. If old posts get regenerated with different dates, the archive churns.
-
-For a static site, I want the item identity tied to the canonical post URL or slug, not incidental build output.
-
-The feed is a contract with readers. Once a post is published, changing the slug, date, title, or GUID can have downstream effects. That does not mean never edit. It means edit with awareness that feed readers remember.
-
-## summaries should be useful
+## summaries are attention routing
 
 A feed summary is not marketing copy.
 
-It should tell a subscriber whether they want to open the post. For technical writing, that usually means naming the actual subject and the angle.
+It should tell a subscriber whether the post is worth opening. For technical writing, that usually means naming the actual topic and the angle.
 
 Bad:
 
 ~~~text
-Thoughts on AI systems and modern engineering.
+Thoughts on web publishing.
 ~~~
 
 Better:
 
 ~~~text
-Why model routing needs route-level evals, fallback behavior, and cost per accepted output instead of a favorite-model debate.
+Why feed validation matters more than a social share button on a personal site.
 ~~~
 
-The summary does not need to repeat the first paragraph. It should be a small routing decision for the reader's attention.
+That summary is a small routing decision for attention. It should help the reader decide, not decorate the archive.
 
-## feeds are part of archive quality
+## the feed is also a check on the archive
 
-RSS also keeps the archive honest.
+RSS exposes problems that the browser can hide.
 
-If a post has a bad date, missing title, broken canonical URL, or malformed excerpt, the feed will often expose it. That makes the feed a useful publishing test. The same metadata powers cards, sitemaps, Open Graph tags, search, and internal archives.
+If the date is wrong, the title is empty, the canonical URL is bad, or the excerpt is malformed, the feed often catches it first. That makes it useful as a publishing test. The same metadata powers cards, sitemaps, search, and preview surfaces, so a feed check pulls its weight.
 
-For a personal site, I would validate:
+I would rather have one XML file complain early than discover the same bug through a broken archive card three days later.
 
-- homepage link works
-- post route works
-- RSS feed validates
-- latest post appears once
-- post URL is absolute in the feed
-- draft posts are excluded
-- dates sort correctly
-- HTML content does not break XML
+## machine clients make the case stronger
 
-That is not fancy. It catches real mistakes.
+RSS is not only for humans.
 
-## rss works well with automation
+Scripts, agents, feed readers, archivers, and newsletter bridges can consume it without scraping the homepage. That gives the site a predictable interface for external tooling.
 
-RSS is also a good machine interface.
+In an AI-heavy world, that matters more than it used to. A feed is a stable entrance into the archive. It is much better than asking a bot to inspect the layout and hope the DOM still looks the same next week.
 
-Agents, scripts, feed readers, archivers, search tools, and newsletter bridges can consume it without scraping the homepage. That is useful for a personal site because the feed becomes a stable way to discover new writing.
-
-In an AI-heavy world, this matters more. If people want assistants to follow their sources, the source should expose a predictable feed. The alternative is scraping layouts that were designed for humans and will change during the next redesign.
-
-RSS is a small piece of web infrastructure that already solved this.
-
-## discovery should be boring too
+## keep it obvious
 
 The feed should be easy to find.
 
-Put the RSS link in the page head. Link it from the footer or blog index. Use a predictable URL. Do not make readers inspect a bundle or guess whether the feed lives at `/rss.xml`, `/feed.xml`, or `/blog/rss.xml`.
+Link it in the head. Put it in the footer. Use a stable path. Do not make the reader guess whether the site exposes `/rss.xml`, `/feed.xml`, or something else hidden in a script.
 
-The canonical URL for each item should match the public post URL. The feed URL should survive redesigns. If the site moves, redirects should preserve the feed path. These are small details, but they decide whether subscribers keep receiving posts after the site changes shape.
+The point of the link is not ceremony. It is to say the site supports a durable way to follow the writing without permission from a platform.
 
-I also like exposing the feed as a real first-class surface instead of treating it as hidden compatibility output. A tiny "RSS" link is enough. The point is to say: this site supports a durable way to follow along.
+That is enough.
 
-## the maintenance cost is tiny
+RSS is plumbing, and plumbing is only boring until it breaks. A small site with a good feed is easier to trust than a small site that depends on a platform feed or a redesign to stay discoverable.
 
-The reason I keep feeds around is not nostalgia.
-
-The cost is low. Generate XML. Keep metadata clean. Validate it. Link it from the site head. Check it when publishing changes. That is it.
-
-The upside is durable distribution that does not depend on a social platform deciding the post is interesting today.
-
-It also gives future tools a simple, documented entrance into the archive.
-
-That is a good trade for one XML file.
-
-For a personal site, that trade is easy.
-
-RSS is not a growth strategy. It is plumbing. Good plumbing disappears when it works and becomes obvious when it breaks.
-
-That is exactly why it deserves maintenance.
+The maintenance cost is tiny. The payoff is a distribution path that does not flinch when the rest of the web gets loud.

@@ -19,113 +19,81 @@ import MultiLayerPerceptron from "@components/blog/MultiLayerPerceptron.jsx";
   outputRows={32}
 />
 
-An MLP is a stack of small calculations.
+An MLP looks more complicated than it is.
 
-The acronym can make it sound like a bigger idea than it is. Multi-layer perceptron. It has the weight of textbook language. But the mechanism is mostly the same pattern repeated: multiply by weights, apply an activation, pass the result to the next layer.
+The acronym suggests a big object. In practice, it is just a sequence of matrix multiplies with activations in between. The reason people keep talking about multi-layer perceptrons is not that the math is exotic. It is that stacking these small calculations gives the model enough room to change its representation a few times before it produces an answer.
 
-The stack gets interesting because each layer changes the representation before the next layer sees it.
+That is the part worth watching in the example: each layer receives a slightly different world than the one before it created.
 
-That is the useful way to read the interactive example. Do not try to understand the whole network at once. Follow the values layer by layer.
+## the batch is already telling you something
 
-## the input is already a small batch
+This example starts with two input vectors. That means the same weights are being applied to two examples at once.
 
-This example starts with two input vectors.
+That matters because it shows how an MLP behaves as a reusable machine rather than a one-off formula. The first layer does not get to invent a custom rule for each row. It has to transform both rows with the same parameters.
 
-That means the network is processing two examples through the same stack. The weights do not change between examples. Each layer applies the same transformation to both columns and produces two output columns for the next layer.
+If you change a weight in the first matrix, both columns should react. They may not react in the same way, because the inputs differ, but the same parameters are touching both examples. That is the first sign you are looking at a real layer and not just a toy arithmetic trick.
 
-That is a good thing to notice early because it keeps the model honest. The network is not allowed to invent a separate rule for each input. The same matrices have to handle both.
+## the stack is doing representation work
 
-When you change a weight, watch both columns of the output. If only one column changes, ask why. If both columns change differently, ask which input value caused the difference.
+Layer 1 takes the input and produces a new set of values. Layer 2 takes those values and reshapes them again. Layer 3 does the same thing. By the time you reach the output layer, the original input has been filtered through several decisions about what should stay alive.
 
-The batch makes the network less like a single arithmetic trick and more like a reusable machine.
-
-## each layer rewrites the representation
-
-Layer 1 receives the original input.
-
-Layer 2 does not. It receives the output of Layer 1. Layer 3 receives the output of Layer 2, and so on. By the time the final layer produces a value, the original input has been transformed several times.
-
-That is the core idea:
+That is what depth buys you.
 
 ~~~text
 input
-  -> layer 1 output
-  -> layer 2 output
-  -> layer 3 output
-  -> ...
-  -> final output
+  -> first transform
+  -> second transform
+  -> third transform
+  -> final readout
 ~~~
 
-Each layer is a chance to create a new representation. Early layers may separate simple patterns. Later layers can combine those patterns.
+Each transform changes what the next layer gets to see. An early layer might separate the data into useful fragments. A later layer might combine those fragments into something that looks like an answer. If you only look at the final number, you miss the part where the network built the intermediate shape.
 
-In this tiny example, the numbers are not trying to solve a real task. They are here so the shape is visible. You can change one matrix and watch the downstream layers react.
+## activations are what make the stack useful
 
-## depth creates dependency
+Without activations, a stack of linear layers collapses into another linear layer. That would be easy to compute and hard to use.
 
-The deeper the stack, the more one early change can echo.
+ReLU is doing the blunt version of the gating here. Positive values pass through. Negative values become zero. The output is no longer just a scaled version of the input. It now has a shape that depends on which paths survived the gate.
 
-Change a value in `W1`, and Layer 1 changes. Then Layer 2 sees a different input, so it may change. Then Layer 3 sees that change, and the effect can continue all the way to the end.
+That is why the zeros in the example matter. A zero means a path went quiet for the current inputs. The next layer cannot read a signal that got cut off upstream.
 
-Change a value in `W7`, and only the final layer changes directly.
+For learning, that is useful. It gives the network a way to keep some combinations of values and suppress others.
 
-That difference matters.
+## what each matrix is buying you
 
-Early weights shape the representation that everything else uses. Later weights decide how to read the representation they receive. Both matter, but they matter differently.
+The matrices are the learned parts.
 
-This is why debugging deep networks is harder than debugging one neuron. The final output may be wrong because the last layer read the signal poorly, or because an early layer created a bad signal in the first place.
+When you edit `W1`, you are changing how the first layer transforms the input. When you edit a later matrix, you are changing how a later layer reads whatever it received. Those are different kinds of change even though they both look like "tweaking a weight."
 
-## activations keep the stack from collapsing
+That distinction is easy to miss if you only look at the final output. It becomes obvious if you move one number at a time and watch where the effect first appears.
 
-An MLP usually has activation functions between linear layers.
+I usually think about the stack this way:
 
-Without activations, a stack of linear transformations can be collapsed into one linear transformation. That is not very useful. Activations let the network create non-linear behavior across layers.
+- early matrices shape the representation
+- middle matrices refine the representation
+- later matrices decide how to read the representation
 
-In these beginner examples, ReLU is the activation. It keeps positive values and turns negative values into zero.
+That is not a complete theory of deep learning. It is a practical way to stay oriented when a notebook has six matrices and the forward pass feels like one blur.
 
-That means each layer is not only scaling and combining values. It is also deciding which signals continue.
+## a small experiment that pays off
 
-When you inspect a layer output, look for zeros. Zeros tell you which paths went quiet for the current inputs. A later layer cannot use a signal that ReLU already turned off.
+Start at the end and work backward.
 
-## the matrices are the learned parts
+Change a value in the last matrix and watch the final output move immediately. Then change a value one layer earlier and check whether the effect survives the next activation. Then change a value in the first matrix and see how many downstream layers it touches.
 
-In a trained MLP, the weight matrices are what learning changes.
+The useful questions are simple:
 
-This interactive example lets you edit them by hand, which is useful because it makes the dependency visible. Training would adjust those weights based on loss and gradients. Here, you can move one value and see the forward pass immediately.
-
-That is slower, but it teaches the shape.
-
-The matrices are not abstract parameters floating in a model file. Each value participates in a specific layer calculation. Each row or column affects a specific part of the next representation.
-
-If a number feels meaningless, change it and watch the outputs. The network will tell you where it mattered.
-
-## do not read the stack as a story too quickly
-
-There is a temptation to assign human meaning to every layer.
-
-Layer 1 detects this. Layer 2 understands that. Layer 3 reasons about something else.
-
-Sometimes interpretability work can identify meaningful features. In this beginner example, do not rush there. The safer habit is mechanical: this layer transforms these values into those values. This activation gates those values. The next layer combines them.
-
-Meaning comes later, if the model is trained on a real task and evaluated carefully.
-
-For now, the goal is to read the plumbing.
-
-## what to try
-
-Start at the end.
-
-Change a value in `W7` and watch the final output move. That is the simplest dependency because it is close to the output.
-
-Then move earlier. Change a value in `W5`. Watch whether the effect reaches the final output. Then change a value in `W1` and see how many layers react.
-
-The useful questions are:
-
-- which layer changed first?
-- did both input columns change?
+- did both input rows react?
 - did a ReLU zero out the signal?
-- did the effect disappear before the final layer?
-- did a small early change become a large later change?
+- did the effect survive into the next layer?
+- did an early change become a larger later change?
 
-Those questions are enough for this stage.
+That is enough to understand how the stack behaves.
 
-An MLP is a stack of small calculations. The hard part is not the acronym. The hard part is staying patient enough to follow the stack instead of treating it as one black box.
+## the part people over-read
+
+People sometimes talk about MLPs as if each layer is learning a neat semantic concept. Sometimes that happens. More often, especially in tiny examples, the network is just learning a better basis for the next multiplication.
+
+That is still important. A better basis can make a later decision easier. It just does not need to sound mystical.
+
+An MLP is a stack of small calculations. The useful habit is to keep track of which calculation changed the input, which one gated it, and which one turned it into the final output.

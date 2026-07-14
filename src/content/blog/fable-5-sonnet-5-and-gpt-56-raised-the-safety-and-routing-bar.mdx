@@ -8,67 +8,57 @@ author: "jeremy-london"
 tags: ["anthropic", "openai", "gpt-5.6", "claude-sonnet-5", "fable-5"]
 ---
 
-The model names are getting less useful.
+The names on the release posts are the least interesting part of the week.
 
-That is a strange thing to say during a week of model launches, but it feels true. [Claude Fable 5](https://www.anthropic.com/news/claude-fable-5-mythos-5), [Claude Sonnet 5](https://www.anthropic.com/news/claude-sonnet-5), and [GPT-5.6](https://openai.com/index/gpt-5-6/) all matter. They are also hard to talk about with the old "which one is smartest?" framing.
+What changed with [Claude Fable 5](https://www.anthropic.com/news/claude-fable-5-mythos-5), [Claude Sonnet 5](https://www.anthropic.com/news/claude-sonnet-5), and [GPT-5.6](https://openai.com/index/gpt-5-6/) is the stuff that sits around the model. Safety posture, effort levels, pricing, routing hints, and tool behavior matter enough now that you cannot treat them as packaging.
 
-The interesting question is what they do to the routing table.
+### the model name is no longer enough
 
-Frontier models now arrive with product posture attached: safety cards, effort levels, price tiers, different availability paths, tool behavior, caching rules, and deployment guidance. OpenAI describes GPT-5.6 as a family with Sol, Terra, and Luna. Anthropic separates Fable, Mythos, Sonnet, Opus, and effort controls across different availability and risk surfaces. That is not trivia for procurement. It changes how a system should choose models.
+For a while, teams could get away with a simple ladder. Use the strongest model for hard tasks, the cheaper one for easy work, and the small model for classification. That was always a simplification, but it was usable.
 
-If the model picker still looks like a dropdown of names, it is hiding too much.
+This year made it feel lazy.
 
-## capability is no longer a single axis
+A model can be good at long coding tasks and still be the wrong answer for a policy response. A cheaper model can be fine for routing and poor as the final writer. A safety-tuned model can refuse correctly in public and still annoy people inside a narrow internal workflow. A high-effort setting can solve the case and quietly wreck the budget.
 
-For a while, teams could pretend model selection was a simple ladder. Use the strongest model for hard things, the cheaper model for easy things, and maybe a tiny model for classification. That was always incomplete, but it was good enough for many prototypes.
+The routing decision should name the work, not the brand. I want the system to recognize shapes like:
 
-The 2026 model shape makes that shortcut feel stale.
-
-A model can be stronger at long-horizon coding and less appropriate for a user-facing policy answer. A cheaper model can be good enough for routing but terrible as a final writer. A safety-tuned model can refuse correctly in public and get in the way of a narrow internal workflow where the surrounding system already controls the task. A high-effort setting can solve more cases and quietly destroy the unit economics.
-
-So the route has to name the job more precisely.
-
-I would start with buckets like these:
-
-- fast classification and extraction
-- routine writing with source constraints
-- agent planning with tool access
-- sensitive policy or safety-adjacent work
-- deep technical reasoning
+- fast extraction and classification
+- routine writing under source constraints
+- agent planning with tools
+- policy-adjacent work
+- deep reasoning on ambiguous tasks
 - background summarization where latency matters less
 
-Those are not model names. They are work shapes. The model choice should follow the work shape.
+The model should follow the shape of the job.
 
-## safety behavior changes product behavior
+### safety changes the product surface
 
-Safety is not a footer on the model card. It changes the product.
+Safety is not just a score hidden in a model card. It changes what users feel.
 
-If a model refuses more often, the team needs to know whether those refusals are correct. If it allows more requests through, the team needs to know whether the gain came from better judgment or a looser threshold. If a model asks clarifying questions more aggressively, that might improve safety metrics and annoy users who gave enough context the first time.
+If the model refuses more often, the team needs to know whether those refusals are correct. If it accepts more requests, the team needs to know whether that came from better judgment or a looser threshold. If it starts asking more clarifying questions, the safety score may improve while the workflow gets harder to use.
 
-This gets especially messy in agent systems. A refusal in a chat window is visible. A refusal in the middle of an agent run might look like a stalled workflow, a skipped tool call, or a generic "I could not complete that" summary. The user may never see the safety decision that shaped the outcome.
+That gets messier once the model sits inside an agent. A refusal in chat is obvious. A refusal halfway through a tool run can look like a stall, a skipped action, or a vague summary nobody asked for.
 
-The eval should separate safety outcomes:
+The eval should split those outcomes instead of averaging them away:
 
 - correct refusal
 - incorrect refusal
 - correct continuation
 - unsafe continuation
-- clarification that helped
-- clarification that added friction
-- tool call blocked by policy
-- tool call allowed with insufficient context
+- useful clarification
+- annoying clarification
+- blocked tool call
+- allowed tool call with too little context
 
-That split matters because "safer" is not a single product state. A model can reduce one kind of risk while increasing another kind of failure. If the dashboard flattens that into one safety score, the router will learn the wrong lesson.
+If the dashboard flattens all of that into one safety score, the router learns the wrong lesson.
 
-## effort levels need accounting
+### effort needs a ledger
 
-Effort controls are one of the more useful product ideas in this generation of models. They admit something teams already knew: some requests deserve more thinking budget than others.
+Effort controls are useful because they admit a plain truth: some tasks deserve more thinking budget than others.
 
-The trap is letting effort become a panic button.
+The mistake is to turn effort into a panic button. If every ambiguous task jumps to the biggest route, the product gets expensive. If the router is too stingy, the product gets brittle right where users need help the most.
 
-If every ambiguous task escalates to the largest or highest-effort route, the system may look brilliant in evals and painful in production. If the router is too stingy, the product becomes brittle in the cases where users most need help. The model choice and effort level need their own evidence trail.
-
-I would log route decisions in a shape like this:
+I would keep a record for each escalation. Not a novel. Just enough to reconstruct why the system moved:
 
 ~~~json
 {
@@ -83,64 +73,57 @@ I would log route decisions in a shape like this:
 }
 ~~~
 
-That record is not bureaucracy. It is how the team finds out whether escalation is doing useful work. Maybe the high-effort path improves ambiguous security alerts. Maybe it only papers over bad entity extraction. Maybe the expensive route is being used because the cheap route lacks one piece of retrieval context.
+That record tells you whether the expensive path is doing real work or just hiding bad retrieval, weak extraction, or an underspecified prompt.
 
-Without those records, the router becomes a superstition machine.
+### cost shows up in loops
 
-## pricing belongs in the architecture
+Pricing matters once the model sits inside a repeated workflow.
 
-Pricing is architecture when the model sits inside a repeated workflow.
+One chat turn is easy to price. Planning, retrieval, tool calls, retries, verifier passes, and a final answer are different. The cost shows up several times in one user action, and token drift becomes product drift.
 
-One chat answer is easy to price. A workflow with planning, retrieval, tool calls, retries, verifier passes, and a final summary is different. The model cost appears several times inside the same user action. A small increase in output tokens can become a real product constraint when multiplied across long-running tasks.
+That is why I think in portfolios:
 
-GPT-5.6 being a family matters here. Sonnet 5 being positioned for broad daily work matters too. These releases push model selection away from a single best answer and toward a portfolio: strong enough for the task, cheap enough for the frequency, safe enough for the surface, fast enough for the interface.
+- strong enough for the task
+- cheap enough for the frequency
+- safe enough for the surface
+- fast enough for the interface
 
-I would measure cost per completed workflow, not cost per request. A cheap model that fails and retries may cost more than a stronger route that finishes once. A strong model that writes long intermediate reasoning into every step may be too expensive even when the final answer is good. A fast model that needs verifier repair on every third case may be hiding cost in the rest of the system.
+I care more about cost per completed workflow than cost per request. A cheap model that retries twice may be more expensive than the stronger one that finishes once. A fast model that needs verifier cleanup every third turn may be hiding cost in the rest of the system.
 
-The cost metric has to include the loop.
+### stop conditions matter
 
-## routing should know when to stop
+More routes create a new failure mode: endless escalation.
 
-More model choice creates a new failure mode: endless escalation.
+The first model struggles, so the system tries a stronger one. The stronger one produces something plausible but fails a verifier. The router retries with more context. Then it raises effort. Then it asks for approval with a vague summary. The result may be acceptable, but the system has quietly turned one task into a maze.
 
-The first model struggles, so the system tries a stronger model. The stronger model produces a plausible answer but fails a verifier. The router retries with more context. Then it tries a higher effort level. Then it asks for human approval with a vague summary. The final output might be acceptable, but the system has quietly turned one request into a maze.
-
-A good router needs stop conditions:
+The router needs hard stop conditions:
 
 - max retries per workflow
 - max cost per task class
-- max latency before user-visible handoff
-- required human review after certain policy failures
-- refusal when the requested action is outside scope
-- downgrade when the task is simple enough
+- max latency before handoff
+- required review after policy failures
+- refusal when the action is out of scope
+- downgrade when the task is obviously simple
 
-Stopping is part of safety. It is also part of product quality. Users can tolerate "I cannot do that" more easily than an agent wandering through tools and producing something unreviewable.
+Stopping is part of safety. It is also part of product quality. Users can live with "I cannot do that." They do not need an agent wandering through the system and producing something nobody can review.
 
-The newer model families make this more important because the system has more knobs. More knobs are useful only when the product knows which ones it is willing to turn.
+### what i would test first
 
-## what i would test before changing defaults
+I would not change the default because a launch post looked good or a few prompts felt nicer.
 
-I would not change a production default because a launch post looked good or a handful of prompts felt better. I would run the candidate through cases that stress the wrapper around the model:
+I would test the wrapper around the model:
 
 - malformed tool results
 - stale retrieved context
 - policy-adjacent requests
-- long workflows with one bad early assumption
-- tasks where the right answer is to refuse
-- tasks where the right answer is to ask one narrow question
-- tasks where the cheap route should be enough
-- tasks where high effort must earn its cost
+- one bad early assumption in a long workflow
+- tasks that should refuse
+- tasks that should ask one narrow question
+- tasks that should stay on the cheap route
+- tasks where high effort has to earn its cost
 
-The comparison should include the current system, not only the current model. Sometimes the older model with a better prompt, narrower tool schema, and stronger verifier beats the new model dropped into a loose wrapper. That is boring, which makes it easy to ignore.
+The comparison should include the current system, not just the shiny new model. Sometimes the older model with a tighter prompt, a narrower tool schema, and a better verifier beats the new release in a loose wrapper. That is boring, which is exactly why it gets ignored.
 
-I would also inspect flips manually. Cases that move from fail to pass are useful. Cases that move from pass to fail are urgent. Cases that still pass but take twice as long or cost three times as much are product decisions, not benchmark trivia.
+I would also inspect the flips by hand. Fail-to-pass is useful. Pass-to-fail is urgent. Pass-but-slower is a product decision, not a benchmark note.
 
-## the maintenance event
-
-This is where I land on the 2026 frontier launches: they are maintenance events for model-routing systems.
-
-The launches matter because the models are better. They matter more because they force the system around the models to grow up. Safety behavior needs evals. Effort levels need accounting. Pricing needs workflow-level measurement. Tool use needs route-specific tests. Rollouts need baselines and rollback plans.
-
-The model name still matters. It just does not carry enough information anymore.
-
-The product has to know why it picked that model, for that task, with that effort level, under that safety posture, at that cost. If it cannot answer that, the new model is being used as a vibe upgrade. That is fun for an afternoon and miserable to operate.
+These launches feel like maintenance events for routing systems. The models improved, but the bigger change is that the surrounding system now has to explain why it picked a model, why it escalated, and why it stopped where it did. If it cannot do that, the upgrade is just a nicer label on the same guess.

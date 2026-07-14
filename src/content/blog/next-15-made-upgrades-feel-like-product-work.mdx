@@ -8,147 +8,30 @@ author: "jeremy-london"
 tags: ["nextjs", "react", "frameworks"]
 ---
 
-Next.js 15 was a useful reminder that framework upgrades are product work.
+Next.js 15 was one of those releases that made a framework upgrade feel like a product decision.
 
-That sounds dramatic for a JavaScript framework release, but the shape of the changes matters. When routing, request APIs, caching defaults, and rendering behavior move, the upgrade can change what users feel: stale data, slower pages, broken metadata, missing query handling, different loading behavior, or a route that used to be static becoming dynamic.
+The diff looked like dependency maintenance. The impact was bigger. When request APIs become async, caching defaults change, or route behavior shifts, the thing that changes is not just build output. Users feel it as freshness, loading, metadata, or a page that used to behave one way and now behaves another.
 
-Those are not dependency-manager concerns. Those are product concerns.
+#### what I checked first
 
-I do not mean every framework upgrade needs a giant program. Most should be routine. But routine does not mean blind. A good upgrade plan knows which parts of the product are sensitive to the framework's defaults.
+- dynamic route params still resolved the right page
+- query strings still reached the component that needed them
+- metadata still matched the page
+- auth-gated routes still blocked the right users
+- cached pages were still cached on purpose
+- live pages were still live on purpose
 
-## async request APIs exposed hidden assumptions
-
-The cleanest example in Next.js 15 was the move toward async dynamic APIs. In the App Router, things like `params`, `searchParams`, `cookies()`, `headers()`, and `draftMode()` moved into a shape that expects `await` or React's `use()` depending on the component context.
-
-That is not merely syntax churn.
-
-It exposes a design assumption: request-specific data is dynamic, and dynamic data has to be treated as something that may not be available synchronously at module evaluation time.
-
-Before:
-
-~~~tsx
-type Params = { slug: string }
-
-export default function Page({ params }: { params: Params }) {
-  return <Article slug={params.slug} />
-}
-~~~
-
-After:
+The async request API change was the one that exposed hidden assumptions fastest. `params`, `searchParams`, `cookies()`, and `headers()` no longer belonged in the same mental bucket as plain synchronous props. That pushed route code to admit that request data is dynamic and should be treated that way.
 
 ~~~tsx
 type Params = Promise<{ slug: string }>
 
-export default async function Page(props: { params: Params }) {
-  const params = await props.params
-  return <Article slug={params.slug} />
+export default async function Page({ params }: { params: Params }) {
+  const { slug } = await params
+  return <Article slug={slug} />
 }
 ~~~
 
-That change is simple when the route is simple. It gets more interesting when the slug influences metadata, Open Graph images, permission checks, data fetching, analytics labels, canonical URLs, or static generation decisions.
+The caching change was similar. "Fetch" no longer implied the same default everywhere, which is inconvenient and useful at the same time. A dashboard should not behave like a blog post. A pricing page should not behave like a private workspace. The upgrade forced those decisions into view.
 
-A codemod can do a lot of mechanical work. It cannot know whether the route still behaves correctly for the product.
-
-## caching defaults are user-facing
-
-Another practical change: `fetch` requests are no longer cached by default in Next.js 15. A request that used to rely on implicit caching may need `cache: "force-cache"` or a route-level default. A request that accidentally had stale data may become fresher after the upgrade.
-
-Both outcomes can be good or bad.
-
-The product question is not "does the page render?" The product question is "is this page supposed to be fresh?"
-
-A pricing page, dashboard, marketing page, changelog, docs page, authenticated workspace, and search results page may all want different cache behavior. The upgrade is a forcing function to name those expectations.
-
-I would audit fetch calls by intent:
-
-- static content that should be cached
-- dynamic user data that should not be cached
-- expensive public data that can revalidate
-- auth-dependent data that must respect identity
-- build-time data that should fail loudly if missing
-- client-side data that needs loading and error states
-
-The dangerous category is "we never decided." Framework defaults had been carrying a product decision nobody wrote down.
-
-## routes need behavioral tests
-
-The upgrade surface for a Next app is usually bigger than the package diff suggests.
-
-I would smoke-test routes by behavior:
-
-- dynamic routes still resolve the right params
-- query-string paths still hydrate correctly
-- metadata and canonical URLs still match the page
-- redirects and rewrites still preserve intent
-- auth-gated routes still block unauthenticated users
-- stale data does not appear where freshness matters
-- cached data does not disappear where performance matters
-- loading, empty, and error states still work
-
-That list looks like product QA because it is product QA.
-
-The framework can compile while a route quietly loses a query parameter. TypeScript can pass while a page becomes dynamic and slower. A visual check can pass while metadata breaks link unfurls. The upgrade plan needs to include the behaviors users and crawlers actually touch.
-
-## codemods are a starting point
-
-I like codemods. They are one of the reasons modern framework upgrades are even tolerable.
-
-But a codemod should leave a review trail. When it changes request API access, caching options, route handlers, or generated types, the reviewer should understand which changes were mechanical and which require product judgment.
-
-I usually want the diff split into two mental buckets:
-
-- mechanical migration required by the framework
-- behavior decisions made because the migration exposed an assumption
-
-The first bucket is boring. The second bucket needs review.
-
-For example, adding `await` around `params` is mechanical. Deciding whether a fetch call should now use `cache: "force-cache"` is a behavior decision. Changing `generateMetadata` to await route inputs is mechanical. Discovering that metadata depends on user-specific state is a design smell worth talking about.
-
-The upgrade is easier when those decisions are visible in the diff.
-
-## performance can move sideways
-
-Framework releases often include performance work, but application performance can still move sideways during an upgrade.
-
-Caching changes, route dynamicness, server component boundaries, image behavior, bundle splitting, and runtime choices can all affect what the user feels. A page may become more correct and slower. It may become faster and less fresh. It may reduce server work while increasing client hydration. The benchmark headline does not replace local measurement.
-
-For a Next.js upgrade, I would check:
-
-- key route TTFB before and after
-- LCP on the pages that matter
-- server render time for dynamic routes
-- cache hit rate where caching is expected
-- error rate in route handlers and server actions
-- bundle size changes for heavy client routes
-- p95 latency for authenticated pages
-
-Not every small site needs a full performance lab. A personal site might only need build output, route smoke tests, and a couple of Lighthouse or WebPageTest checks. A product app with traffic needs a real rollout.
-
-The principle is the same: measure the product path, not the release note.
-
-## upgrade plans should name the rollback shape
-
-The annoying part of framework upgrades is that rollback can be awkward.
-
-Once a migration touches route APIs, generated types, config, lint rules, and caching decisions, a simple package revert may not be clean. The team should know the rollback shape before the upgrade lands.
-
-That might mean:
-
-- keep the upgrade branch small
-- avoid mixing feature work into the migration
-- land codemod changes separately from product behavior changes
-- deploy behind a preview environment
-- test the highest-value routes before merge
-- watch route errors and cache behavior after release
-
-This is basic release hygiene. Framework upgrades are where teams forget it because the work looks like dependency maintenance.
-
-## the product is the acceptance test
-
-Next.js 15 did what good framework releases often do: it pushed application assumptions into the open.
-
-Request data being async is an architectural hint. Caching defaults changing is a product hint. Routing and metadata changes are SEO and UX hints. The framework is saying, in its own way, that the app has to be explicit about where data comes from and how fresh it should be.
-
-That is why I think upgrades like this belong on the product calendar as well as the dependency queue.
-
-The acceptance test is not "the app builds." The acceptance test is that the pages people use still behave the way the product promises.
+I do not think framework upgrades need ceremony for their own sake. I do think they need route-level smoke tests, a small preview rollout, and a rollback path that does not require guessing which behavior changed. The real test is whether the product still tells the truth after the framework moves underneath it.

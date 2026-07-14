@@ -8,153 +8,47 @@ author: "jeremy-london"
 tags: ["verification", "agents", "review"]
 ---
 
-Fresh context review is not bureaucracy. It is a defense against the builder's memory.
+Fresh context review is what keeps the builder from reviewing their own story.
 
-That sounds backwards because memory feels useful. The builder knows why each change happened. They remember the false starts, the constraints, the bug they were chasing, and the reason a weird line exists. That context helps them move quickly.
+The builder always has extra information. They remember the false starts, the awkward workaround, the reason a strange line exists, and the command that almost worked. That memory is useful while building. It is a liability when it is time to decide whether the work actually stands on its own.
 
-It also makes them a bad final reviewer.
+I prefer a reviewer who gets a thin packet: goal, diff, verification, risk, question. If the reviewer needs the whole history, they can ask for it. Starting cold makes the important thing harder to dodge.
 
-After a long session, a human or agent starts seeing the intended solution instead of the actual diff. The missing edge case feels handled because it was discussed. The test feels run because a similar command ran earlier. The requirement feels satisfied because the implementation moved in the right direction. The final review becomes a defense of the journey.
+## why the builder is the wrong final judge
 
-Fresh context cuts that away. The reviewer gets the goal, the files, the commands, and the result. They do not inherit the builder's excuses.
+After a long session, the intended solution starts to look more real than the actual artifact. The missing edge case feels handled because it was discussed. The test feels run because a similar command happened earlier. The requirement feels satisfied because the patch moved in the right direction.
 
-## the reviewer should start cold
+That is exactly the bias fresh review is supposed to break.
 
-A fresh-context reviewer should not begin with a transcript of every decision the builder made. That recreates the same bias with more tokens.
-
-The reviewer needs a smaller packet:
-
-~~~text
-goal: what the change was supposed to accomplish
-contract: acceptance criteria or user-visible behavior
-diff: files changed
-verification: commands run and results
-known risks: areas the builder is unsure about
-question: what the reviewer should decide
-~~~
-
-That is enough to inspect the work. If the reviewer needs more history, they can ask or read it. Starting cold forces the important question: does the artifact satisfy the goal without relying on the builder's private reasoning?
-
-This matters even more with coding agents. Agents are very good at producing a coherent story about what they changed. A fresh reviewer should be suspicious of that story. Read the diff. Run or inspect the checks. Compare against the goal. Ignore the confidence level.
-
-## review the contract, not the effort
-
-Long sessions create sympathy for effort. That is dangerous.
-
-The builder tried three approaches. The tests were annoying. The framework fought back. The final patch is much better than the first attempt. All true, maybe. None of it answers whether the change is correct.
-
-Fresh review should anchor on the contract:
-
-- Did the requested behavior change?
-- Did unrelated behavior change?
-- Are the tests aimed at the risk?
-- Did the implementation preserve existing conventions?
-- Is there a simpler failure path the builder missed?
-- Are generated artifacts or temporary files left behind?
-- Does the final answer overclaim what was verified?
-
-The reviewer is not grading effort. They are protecting the project from a believable incomplete result.
-
-## agents need hostile review
-
-Agent-built work has a specific failure mode: it often looks complete at a glance.
-
-The code compiles. The prose is fluent. The checklist is marked. The final message says the right commands passed. The structure resembles competent work. The bug may be hiding in a copied assumption, a stale file, an untouched edge case, a fabricated source, or a test that never exercised the changed path.
-
-Same-context self-review is weak against that. The agent that made the mistake carries the same mistaken model into the review. It can catch syntax, formatting, and obvious omissions. It is worse at catching the premise error it already accepted.
-
-A fresh reviewer can ask dumber, better questions:
-
-~~~text
-Where did this requirement come from?
-Which file actually owns this behavior?
-Why does this test prove the bug is fixed?
-What happens when the old path runs?
-Is this source real?
-Did the command output say what the final answer claims?
-~~~
-
-Those questions are annoying because they interrupt momentum. That is the point.
-
-## the review artifact should be small
-
-The builder should not hand off a novel.
-
-A useful handoff is concise enough that the reviewer can hold it in their head and specific enough that they do not have to reconstruct the goal from scratch.
-
-For code, I like:
+## the handoff should be small
 
 ~~~text
 goal:
-  Fix duplicate invite submission when the user retries after timeout.
+  one sentence about the change
 
 changed:
-  src/routes/invites.ts
-  src/lib/idempotency.ts
-  tests/invites.test.ts
+  files that matter
 
 verified:
-  pnpm test tests/invites.test.ts
-  pnpm check
+  commands that actually ran
 
 risk:
-  Existing pending invites use old records without idempotency keys.
+  what still makes me uneasy
 
-review question:
-  Does the retry path avoid duplicate invites without blocking legitimate second invites?
+question:
+  the one thing the reviewer should decide
 ~~~
 
-For writing, the same shape works:
+If the handoff cannot fit in that shape, it is probably trying to smuggle in too much explanation.
 
-~~~text
-goal:
-  Rewrite the fine-tuning post without agent-control-plane template residue.
+## receipts matter more than confidence
 
-changed:
-  src/content/blog/fine-tuning-is-not-a-shortcut.mdx
+“Tests pass” is not a receipt. Which tests. Which command. Did it exit zero. Did it cover the changed path or just the whole project by habit.
 
-verified:
-  word count
-  markdown check
-  banned phrase scan
+That sounds fussy until you see how often agent output sounds more complete than the verification behind it. Fresh review is the part that checks whether the claims and the evidence are actually in the same room.
 
-risk:
-  The post may still be too generic if dataset and checkpoint sections do not teach enough.
+## pay the cost where it buys safety
 
-review question:
-  Does the article read like a fine-tuning article rather than a generic AI operations post?
-~~~
+I would use fresh review for public writing, auth changes, migrations, automation, and anything with a wide blast radius. I would not spend the same effort on a typo fix.
 
-The review question is the useful part. It tells the reviewer where skepticism should land.
-
-## verification claims need receipts
-
-Fresh review also protects against sloppy completion claims.
-
-"Tests pass" is not a receipt. Which tests? When? What failed before? Did the command exit zero? Was the output truncated? Did the check run against the changed file or the whole project? Was a warning ignored because it looked unrelated?
-
-The reviewer should compare claims to evidence. If the builder says `pnpm build` passed, the handoff should include that command and result. If the builder could not run something, the final answer should say so. If only a narrow check ran, the review should not treat that as full project validation.
-
-This is basic engineering hygiene. Agent workflows make it more important because the final narrative can sound more complete than the verification actually was.
-
-## fresh context has a cost
-
-Fresh review is not free. It adds time. It can slow small changes. It can annoy people who want to keep momentum. It can create review theater if the reviewer only rubber-stamps the handoff.
-
-So I would not use the same weight everywhere.
-
-Tiny typo fix? Lightweight review or no separate reviewer. Production auth change? Fresh review. Generated blog archive rewrite? Fresh review. Agent with filesystem or browser access? Fresh review. Anything that touches security, data migration, public writing, billing, or long-running automation deserves an independent pass.
-
-The cost should follow the blast radius.
-
-## what i would measure
-
-I do not care how many reviews happened. I care what they caught.
-
-The useful metric is reversal rate: how often fresh context changes the outcome. That includes rejected patches, added tests, corrected claims, narrowed scope, found source errors, or caught incomplete work.
-
-I would also track false comfort. If fresh review never catches anything on high-risk work, either the builder is perfect, the work is trivial, or the review is too gentle. I know which one I would bet against.
-
-Fresh context review is valuable because it makes the work stand alone. The diff has to satisfy the goal. The article has to read well without the prompt. The test has to prove the bug. The final claim has to match the command output.
-
-That is not bureaucracy. That is how you keep the builder's confidence from becoming the project’s problem.
+The point is not to create ceremony. The point is to make sure the diff has to satisfy the goal without leaning on the builder’s memory to explain away the gaps.

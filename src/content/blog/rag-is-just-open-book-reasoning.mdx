@@ -10,129 +10,33 @@ tags: ["RAG", "retrieval", "language models"]
 
 RAG is usually sold as a generation pattern, but most of the quality lives in retrieval.
 
-The generator can only reason over the evidence it sees. If the wrong chunks arrive, the model has three options: answer from bad context, answer from memory, or refuse. None of those feels like the product people thought they were building.
+The generator can only reason over the evidence it sees. If the wrong chunks arrive, the model can answer from bad context, answer from memory, or refuse. None of those feels like the product people thought they were building.
 
-Retrieval augmented generation depends less on a clever prompt and more on reliably finding the right context.
+### the question is not the query
 
-That is the boring part. It is also the part that decides whether the system works.
+Users ask messy questions. They use old names, acronyms, error strings, screenshots, and language that does not match the docs. The retrieval layer has to turn that into something searchable without erasing the detail that matters.
 
-## the question is not the query
-
-Users ask messy questions.
-
-They use old names, partial names, acronyms, vague references, screenshots, pasted errors, and language that does not match the documentation. The retrieval system has to turn that into something searchable.
-
-The raw user question may be enough for simple cases. For real workflows, query construction becomes a step:
-
-- extract the task
-- identify entities
-- expand acronyms
-- preserve exact error strings
-- add product or tenant scope
-- choose filters
-- decide whether to search docs, tickets, code, or logs
-- keep the original user wording available
-
-The query builder should not get too clever. If it rewrites away the one exact phrase that matters, retrieval gets worse. I like systems that search with a mix of exact terms, semantic query, and structured filters rather than betting everything on one rewritten sentence.
-
-## chunks are product decisions
+### chunks are product decisions
 
 Chunking is where a lot of RAG systems quietly lose.
 
-A chunk should be large enough to contain the answer and small enough to avoid drowning it. That sounds simple until the source material varies.
+Docs want headings and section paths. Code wants function or class boundaries. Tickets want conversation turns. PDFs want pages or regions. Policies want clauses and definitions. One chunking strategy rarely fits all of that.
 
-Documentation has headings, sections, code blocks, warnings, tables, and version notes. Tickets have conversation turns, attachments, status changes, and internal comments. Code has files, functions, tests, comments, and generated output. PDFs have pages, captions, tables, and layout. Policies have exceptions and definitions.
+### metadata does real work
 
-One chunking strategy rarely fits all of that.
-
-I would rather see chunking rules tied to source type:
-
-~~~text
-docs: section plus heading path
-code: function or class with file path
-tickets: conversation window with author roles
-policies: clause with parent section and definitions
-pdfs: page region plus extracted text
-~~~
-
-The chunk is part of the product. It determines what the model can cite, what the user can inspect, and whether the answer has enough context to be useful.
-
-## metadata does real work
-
-Vector similarity alone is not enough.
-
-Production retrieval needs metadata: source, owner, permissions, version, date, product area, language, document type, tenant, freshness, deprecation status, and maybe confidence from extraction.
-
-Metadata does three jobs.
-
-First, it filters. A user should not retrieve documents they cannot access. A customer-support assistant should not mix tenants. A developer asking about v2 APIs should not get v1 docs unless the system says why.
-
-Second, it ranks. Fresh docs may beat old docs. Official docs may beat forum posts. Code in the current branch may beat archived code. A resolved incident may be less relevant than the current runbook.
-
-Third, it explains. A citation is more useful when it includes title, section, version, and timestamp. "Source 3" is not enough.
-
-## hybrid search is often the boring answer
-
-Dense embeddings are excellent for semantic neighborhoods. They are bad at some things exact search handles well: error codes, identifiers, rare product names, version numbers, stack trace fragments, and quoted strings.
-
-Keyword search has the opposite shape. It can nail exact terms and miss paraphrase.
-
-Hybrid retrieval is often the practical answer:
+Vector similarity is not enough. Metadata filters permissions, ranks fresh over stale, keeps tenants separate, and makes citations inspectable. Without it, the system is just finding similar text and pretending that is enough.
 
 ~~~text
 user question
-  -> keyword search for exact anchors
-  -> vector search for semantic neighbors
+  -> keyword anchors
+  -> semantic search
   -> metadata filters
-  -> merge candidates
   -> rerank
-  -> pass top evidence to model
+  -> pass evidence to model
 ~~~
 
-The merge and rerank step matters. If the exact error code match is ranked below a semantically similar blog post, the generated answer may sound plausible and be useless.
+### eval retrieval before generation
 
-## citations should point to inspectable evidence
+I would rather test whether the expected document appears in top K than argue about an answer that may have been built on bad evidence. Retrieval and generation need different evals because they fail in different ways.
 
-A RAG answer without inspectable evidence is just a confident answer with extra steps.
-
-The user should be able to open the source and see why it was used. For text, that means the section. For code, the file and function. For a PDF, the page and region. For a ticket, the relevant turn. For a table, the row or field.
-
-This is important for trust and debugging.
-
-If the answer is wrong, the citation tells you whether retrieval failed or generation failed. Did the system find the wrong source? Did it find the right source and misread it? Did it cite a source that does not support the claim? Did the source itself contain stale information?
-
-Those are different bugs.
-
-## eval retrieval before generation
-
-RAG evals often grade final answers first. That is useful, but it hides the retrieval problem.
-
-I would evaluate retrieval separately:
-
-- does the expected document appear in top K?
-- does the expected chunk appear in top K?
-- did permission filtering behave correctly?
-- did the reranker move useful evidence up?
-- did stale or deprecated material get suppressed?
-- did exact anchors survive query rewriting?
-- did multilingual queries find the right source?
-
-Then evaluate generation:
-
-- did the answer use the provided evidence?
-- did it cite the right chunk?
-- did it avoid unsupported claims?
-- did it say when evidence was missing?
-- did it preserve uncertainty?
-
-Separating those stages keeps teams from blaming the model for retrieval failures.
-
-## boring retrieval is the product
-
-RAG works when retrieval is boringly good.
-
-The right sources show up. The wrong sources stay out. Permissions are enforced before results are visible. Chunks contain enough context. Metadata is current. Citations are inspectable. Eval failures become fixtures. Stale documents lose ranking power. The model sees evidence that actually supports the answer.
-
-That is not glamorous, but it is the whole game.
-
-A clever prompt can make a bad retrieval system sound better for a while. It cannot make the right document appear.
+RAG works when the boring part is boringly good. The right source shows up. The wrong source stays out. The citation points at something the user can inspect. A clever prompt can make a bad retrieval system sound better for a while, but it cannot make the right document appear.

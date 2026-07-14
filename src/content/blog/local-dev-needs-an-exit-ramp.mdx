@@ -10,179 +10,34 @@ tags: ["dev servers", "scripts", "workflow"]
 
 A local development loop should tell you how to leave.
 
-Starting the app is only half the contract. The other half shows up later, when the port is stuck, the database is dirty, a worker is still running, a Docker volume is full, or the last agent left a dev server in the background.
+Starting the app is only half the contract. The other half is how you stop, reset, and recover when the port is stuck or the last session left a mess behind.
 
-That is when local development stops feeling like a setup problem and starts feeling like an operations problem in miniature.
+## stop without guessing
 
-The project needs an exit ramp.
+Local dev should make the exit visible: start, stop, reset, logs, and a clear note about what each script owns. If that path is not obvious, the loop is already too fragile.
 
-## start is the easy command
+I want one command that shuts the process down cleanly, even if I started it three hours ago and forgot which terminal tab owns it. If the app wrote a PID file, use it. If it bound a port, free the port. If it opened a browser session, close the tab or at least tell me which tab still points at the old state.
 
-Most projects eventually get a start command.
+## reset without drama
 
-~~~bash
-pnpm dev
-~~~
+Reset is different from stop.
 
-That is fine, but it does not describe the loop. Does it start one process or five? Does it start a database? Does it write a PID file? Does it assume ports are free? Does it reuse an existing container? Does it clean old state? Does it watch files? Does it leave logs somewhere?
+Stop means the process is gone. Reset means the process is gone and the local junk is gone too: stale cache, old lockfile, temp data, orphaned sockets, whatever the app uses to pretend it is persistent.
 
-The start command should make its shape visible:
-
-~~~text
-starting web: http://localhost:4321
-starting worker: pid 18422
-using database: localhost:5432
-logs: .local/logs/dev.log
-stop with: pnpm stop
-reset with: pnpm reset
-~~~
-
-That output is not fluff. It gives the next human or agent the recovery path before anything breaks.
-
-## stop should be safe twice
-
-The stop command should be boring and idempotent.
-
-If the server is running, stop it. If it is already stopped, say so and exit cleanly. If the PID file is stale, remove it. If a port is occupied by a process the script started, kill it. If the port is occupied by something else, warn instead of swinging wildly.
-
-A good stop script distinguishes ownership:
-
-~~~text
-web:
-  pid file exists
-  process matches expected command
-  sending SIGTERM
-
-worker:
-  pid file exists
-  process not running
-  removing stale pid file
-
-postgres:
-  external service
-  leaving it alone
-~~~
-
-That is the difference between an exit ramp and a demolition button.
-
-Local scripts should avoid cleverness where failure is expensive. Killing every process on a port may be convenient until it kills the wrong thing. Deleting every volume may be easy until it destroys test data someone needed. The script should say what it owns.
-
-## reset should name what it destroys
-
-Reset is more dangerous than stop.
-
-It might delete a database, clear generated files, remove caches, reinstall dependencies, prune containers, or wipe uploads. That can be useful. It should never be vague.
-
-I want reset output that reads like a warning label:
-
-~~~text
-This will delete:
-  .local/db.sqlite
-  .local/uploads/*
-  .astro/
-  node_modules/.vite
-
-This will keep:
-  .env
-  src/content/*
-  public/uploads/manual-fixtures
-~~~
-
-For destructive resets, require an explicit flag:
+I like a reset script when it is explicit about scope:
 
 ~~~bash
-pnpm reset --yes
+pnpm dev:stop
+pnpm dev:reset
+pnpm dev:logs
 ~~~
 
-That protects humans and agents. An agent should not infer that `reset` is safe because the name sounds routine. The script should make the blast radius obvious.
+That is enough if the scripts have narrow jobs. The first one ends the process. The second one clears local state. The third one helps me see why I needed the first two.
 
-## stale state is expected
+## recovery is the real test
 
-Local state goes stale because development is messy.
+The failure mode that matters is not "the server crashed." The failure mode is "I do not know how to get back to a clean baseline."
 
-Seed data changes. Migrations half-run. Environment variables get renamed. Browser sessions persist old auth. Feature flags stick. Background jobs hold locks. Generated files lag behind schemas. A dev server survives the terminal that launched it.
+That is where the exit ramp pays for itself. A good dev loop tells me what to do when the port is stale, the migration is half-applied, or the app is now holding onto a bad bit of local state. It should not require a ritual, a browser cache purge, and a memory of the last four commands I ran.
 
-The project should assume this will happen.
-
-Useful recovery checks include:
-
-- port ownership
-- database migration status
-- generated file freshness
-- required environment variables
-- background worker health
-- dependency install state
-- lock files
-- stale PID files
-
-The point is not to make local dev perfect. It is to make recovery obvious enough that someone can get back to a known state without reading every script in the repo.
-
-## agents make this more important
-
-Coding agents make local exit ramps more valuable because they often run commands while the user is not watching every line.
-
-An agent may start a dev server, run a browser check, leave a session alive, then move on. A later agent may inherit the same workspace and find port 3000 occupied. If the project has no stop command, the agent has to inspect processes manually and guess what is safe to kill.
-
-That is how local state becomes a hidden dependency between sessions.
-
-For agent-friendly projects, I like fixed script names:
-
-~~~text
-init.sh   prepare dependencies and local state
-serve.sh  start the app
-test.sh   run the expected checks
-stop.sh   stop owned processes
-reset.sh  return to a known local state
-~~~
-
-Package scripts can wrap those. The important part is that the contract is discoverable.
-
-## logs should have a place
-
-Local logs should not require terminal archaeology.
-
-If a dev loop starts multiple processes, write logs to predictable files. Keep the terminal summary readable and let the details live somewhere durable.
-
-~~~text
-.local/logs/web.log
-.local/logs/worker.log
-.local/logs/db.log
-~~~
-
-This helps humans and agents in the same way. When a smoke test fails, the next step can be "read `.local/logs/web.log`" instead of "scroll up and hope the terminal still has the line."
-
-Logs should rotate or reset with the local state. A six-month log file is a different kind of mess.
-
-## the readme should include the exit
-
-README files often explain how to start and forget how to stop.
-
-A useful local-dev section should answer:
-
-~~~text
-start:
-  pnpm dev
-
-stop:
-  pnpm stop
-
-reset:
-  pnpm reset --yes
-
-smoke test:
-  pnpm smoke
-
-common failure:
-  port 4321 occupied
-  run pnpm stop, then pnpm dev
-~~~
-
-That is enough for most days. The deeper docs can explain internals. The top-level instructions should get a new session unstuck.
-
-## the standard
-
-The standard I want is simple: a new session should recover without folklore.
-
-If the project starts processes, it should stop them. If it creates state, it should explain how to reset it. If reset destroys data, it should say what data. If logs matter, they should have a path. If ports matter, they should be named.
-
-The exit ramp is not glamorous. It is how the project lets you come back tomorrow and still know where you are.
+If the scripts make recovery obvious, local dev feels calm. If they do not, every small failure becomes a tiny archaeology project.

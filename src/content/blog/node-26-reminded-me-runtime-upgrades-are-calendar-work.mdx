@@ -8,139 +8,22 @@ author: "jeremy-london"
 tags: ["node", "runtime", "maintenance"]
 ---
 
-Node release lines keep moving. That is the deal.
+Node releases keep moving whether the project is ready or not.
 
-Every April and October, the runtime calendar nudges the ecosystem forward. Even-numbered Node releases become the lines teams eventually care about for longer support. Odd-numbered releases are useful for current testing and ecosystem movement. Dependencies follow. Docker images follow. CI images follow. Hosted platforms follow. Security support windows keep shrinking behind you whether you think about them or not.
+That is the boring fact behind the whole upgrade conversation. If the team waits until support is expiring, the runtime bump drags in everything at once: container images, CI, native dependencies, build scripts, local dev setup, and the weird package that only breaks when nobody is watching.
 
-Node 26 reminded me that runtime upgrades are calendar work.
+I like runtime upgrades when they are calendar work instead of panic work.
 
-The least painful teams do not treat runtime upgrades as surprise projects. They put them on the maintenance calendar, run the compatibility work before it becomes urgent, and keep the blast radius small enough that the upgrade feels boring.
+1. add the candidate runtime to CI
+2. fix the failures while the old runtime still works
+3. run the scripts people forget about
+4. deploy a preview or canary
+5. switch production
+6. keep a rollback path until the new line settles
 
-## the runtime is part of production
+The risky part is usually not the JavaScript syntax. It is the edge between Node, V8, OpenSSL, native addons, and whatever old build assumption is hiding in the repo. A Docker image may still run. A database driver may not. A watcher may behave differently. A serverless platform may default to a different line than local dev.
 
-It is easy to think of Node as local tooling until it breaks in production.
-
-The runtime shapes the event loop, standard library behavior, TLS defaults, URL parsing, fetch behavior, test runner behavior, permission experiments, ESM handling, native addon compatibility, V8 behavior, diagnostics, memory behavior, and platform support. Most application code does not touch those edges every day. That is exactly why runtime upgrades can surprise people.
-
-The code that breaks is often boring:
-
-- an old dependency with a native addon
-- a build script that assumes a specific OpenSSL behavior
-- an ESM/CJS boundary that only worked by accident
-- a Docker base image pinned to an older line
-- a CI action using a different Node version than production
-- a package manager lockfile created under a different runtime
-- a serverless platform default that moved before the app did
-
-None of this is glamorous. It is the kind of maintenance that decides whether a release Friday is normal or stupid.
-
-## start with a version inventory
-
-The first runtime-upgrade question is not "what changed in Node 26?" It is "where are we running Node?"
-
-For a real codebase, the answer may include:
-
-- local development
-- CI jobs
-- test containers
-- production containers
-- serverless functions
-- background workers
-- cron jobs
-- build images
-- Storybook or docs builds
-- Playwright browsers and test harnesses
-- one-off scripts run by operations
-
-If those are on different Node lines, the upgrade is already partially broken. The team may be testing one runtime, building on another, and deploying a third.
-
-I like writing this down as configuration rather than tribal knowledge:
-
-~~~yaml
-runtime:
-  node:
-    current: "24.x"
-    candidate: "26.x"
-    surfaces:
-      - name: web
-        location: Dockerfile
-        owner: platform
-      - name: ci
-        location: .github/workflows/check.yml
-        owner: platform
-      - name: scripts
-        location: package.json engines
-        owner: web
-      - name: workers
-        location: deploy/workers.Dockerfile
-        owner: infra
-~~~
-
-That inventory is not fancy. It prevents the classic half-upgrade where the app builds under the new runtime but deploys under the old one.
-
-## support windows should create tickets
-
-Runtime support dates are not trivia. They are backlog inputs.
-
-When an LTS line is approaching maintenance or end-of-life, the team should already have a ticket. Not an emergency ticket. A normal maintenance ticket with a target window, owner, test plan, and known blockers.
-
-The older the runtime, the more expensive the upgrade becomes. Dependencies stop testing against it. New packages assume newer APIs. Tooling drops support. Security fixes become harder to consume. Eventually the team is not upgrading one runtime. It is upgrading the runtime, package manager, framework, build tooling, container image, and half the transitive dependency graph at once.
-
-That pileup is avoidable.
-
-Runtime upgrades belong in the same calendar as certificate rotation, database minor versions, Kubernetes upgrades, framework migrations, and dependency audits. The work is not intellectually hard most of the time. It is coordination work, and coordination work gets worse when ignored.
-
-## the ci matrix is the rehearsal
-
-The safest runtime upgrade starts in CI.
-
-Add the candidate Node version to the matrix. Run tests. Run lint. Run type checks. Run build. Run the scripts people forget about, especially migrations, code generators, content pipelines, and test setup scripts.
-
-~~~yaml
-strategy:
-  matrix:
-    node-version: [24.x, 26.x]
-~~~
-
-For a small project, that may be enough. For a product with production traffic, the matrix should be followed by preview deployments or canary traffic. The goal is to find runtime-sensitive failures while the old runtime remains available.
-
-I would pay special attention to:
-
-- native dependencies
-- test flakiness
-- unhandled rejection behavior
-- warning output that became errors
-- memory growth during long test runs
-- ESM/CJS import paths
-- package manager behavior
-- Docker image availability
-- serverless platform compatibility
-
-This is also where cleanup pays off. A repo with a single runtime declaration is easier to upgrade than a repo with `.nvmrc`, `.node-version`, `package.json engines`, Dockerfiles, CI setup, and docs all disagreeing.
-
-## native dependencies deserve suspicion
-
-The JavaScript part of a Node upgrade is usually less scary than the native edge.
-
-Anything that compiles against Node, V8, N-API, OpenSSL, libc, or operating-system libraries deserves a closer look. Image processing, database drivers, file watchers, cryptography libraries, observability agents, and performance profilers can all have runtime coupling.
-
-The failure may not show up as a clean compile error. It may show up as a slow install, a missing prebuild, a runtime crash, a memory leak, or a container image that works on one architecture and fails on another.
-
-For these packages, I would check:
-
-- whether the package publishes prebuilt binaries for the candidate Node line
-- whether the CI image has the required build toolchain
-- whether production uses the same architecture as CI
-- whether the package has open issues for the new runtime
-- whether a newer package version is required before the runtime upgrade
-
-This is where a "small" runtime bump can become dependency work. Better to know that while the old runtime still works.
-
-## local development has to move too
-
-Runtime upgrades fail socially when local development becomes the last unplanned surface.
-
-If the repo expects Node 26, developers should get a clear error when they are on the wrong version. The setup docs, version files, package manager config, and devcontainer should all agree. A script that prints the expected runtime before starting the app can save a lot of nonsense.
+That is why I want the runtime version written down in more than one place. `engines`, CI, Docker, and the developer setup should all point at the same target. If the repo wants Node 26, the mismatch should be obvious instead of becoming a mystery bug in a test harness.
 
 ~~~json
 {
@@ -151,31 +34,4 @@ If the repo expects Node 26, developers should get a clear error when they are o
 }
 ~~~
 
-I do not love hard engine failures for every project, but I do like explicit expectations. A runtime mismatch should not turn into a mystery bug in a test harness.
-
-## rollback is easier before cleanup
-
-A runtime upgrade should have a rollback path until the new line has proven itself.
-
-That usually means avoiding a giant mixed PR. Do not combine the Node upgrade with framework rewrites, package manager changes, deployment config changes, and feature work unless the project is tiny and you enjoy pain.
-
-The clean sequence is:
-
-- add candidate runtime to CI
-- fix compatibility issues
-- deploy a preview or canary
-- switch production runtime
-- watch errors and performance
-- remove old-runtime compatibility only after confidence is high
-
-Rollback may be as simple as changing the base image tag back. It may be more complex if dependencies were upgraded to versions that no longer support the old runtime. That is another reason to keep the diff understandable.
-
-## calendar work is still engineering work
-
-Runtime upgrades rarely feel like the most important thing on the board. They do not usually ship a feature. They do not look good in a demo. They are easy to postpone because the old line works today.
-
-But the calendar keeps moving.
-
-The engineering standard I want is simple: know where the runtime is used, test the next line before the deadline, keep the upgrade small, and leave the system easier to upgrade next time.
-
-Node 26 is not special because every team must rush to it immediately. It is special in the ordinary way every runtime line is special: it reminds you that software has a maintenance schedule even when the product roadmap pretends otherwise.
+The release note matters less than the maintenance habit. Know where the runtime runs, test the next line before the deadline, keep the upgrade small, and leave the system easier to move next time. That is the whole job.

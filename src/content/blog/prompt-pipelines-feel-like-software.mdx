@@ -10,33 +10,7 @@ tags: ["prompts", "pipelines", "workflow"]
 
 Prompts become more reliable when teams stop treating them like private notes.
 
-A production prompt is software. It may not compile, but it has inputs, outputs, dependencies, versions, owners, tests, release behavior, and regressions. It also has a habit of hiding in places where nobody can review it: inline strings, dashboard fields, notebooks, vendor consoles, support macros, feature flags, and one-off scripts.
-
-That is fine for experiments. It is not fine once the prompt controls product behavior.
-
-Prompt pipelines need ownership.
-
-## the prompt is rarely alone
-
-The word "prompt" makes the system sound smaller than it is.
-
-A production prompt may depend on:
-
-- system instructions
-- developer instructions
-- user input
-- retrieved documents
-- tool schemas
-- examples
-- output schema
-- policy text
-- model version
-- temperature and decoding settings
-- post-processing code
-
-Change any of those and the behavior can move.
-
-That is why I like thinking in pipelines. The prompt file is one stage in a larger path. The input gets assembled, the model runs, the output gets parsed, checks run, and the product accepts, retries, routes, or rejects the result.
+I think of a production prompt as one stage in a pipeline, not as a magic string. The input is assembled, the model runs, the output gets parsed, checks run, and the product either accepts the result or sends it somewhere else.
 
 ~~~text
 user input
@@ -48,135 +22,22 @@ user input
   -> product action
 ~~~
 
-When an output regresses, the team needs to know which stage changed.
+That sequence matters because a regression can come from any step in the chain. A prompt edit might be fine. A retrieval change might not be. A parser might be hiding the failure. A model upgrade might have shifted behavior under the same template.
 
-## ownership should be explicit
+### every prompt needs an owner
 
-Every production prompt should have an owner.
+Someone has to be responsible for the prompt. Not in a mystical prompt-whisperer sense. In a plain, boring sense: who reviews changes, who owns the fixtures, who watches failures, who decides the prompt is obsolete?
 
-Not a mystical prompt whisperer. An actual team or person responsible for reviewing changes, maintaining examples, watching failures, and deciding when the prompt is obsolete.
+Without an owner, prompt behavior becomes folklore. People tweak wording because one example failed. Somebody else adds a policy paragraph. A third person changes the schema. The result is usually a prompt that looks stable and behaves like a patchwork.
 
-An owner answers basic questions:
+### fixtures should cover the ugly cases
 
-- what is this prompt supposed to do?
-- which product surface depends on it?
-- which model versions are supported?
-- what examples define acceptable behavior?
-- what failures require rollback?
-- who can approve changes?
+I want prompt reviews to include the cases production actually produces: long inputs, missing fields, hostile phrasing, stale retrieval, low-quality documents, partial tool output, and edge cases that barely fit the schema.
 
-Without an owner, prompt quality becomes folklore. Someone tweaks wording because a single example failed. Someone else adds a policy paragraph. A third person changes the output schema. The product improves for one slice and regresses for another.
+If a prompt change fixes one failure, that failure should become a fixture. Otherwise the same regression comes back later with a different face.
 
-The prompt did not become unreliable by itself. It became unowned.
+### not every check needs a judge model
 
-## fixtures are better than memories
+Some checks are deterministic. Does the output parse? Are the required fields present? Are the enums valid? Do citations point at the provided sources? Are forbidden fields absent? The semantic checks can come after that. I like failing fast on shape before spending review time on meaning.
 
-A prompt review needs examples.
-
-The examples should include the expected easy cases and the weird cases production will actually produce: long inputs, missing fields, hostile phrasing, ambiguous requests, stale retrieval, low-quality documents, partial tool output, and user text that does not look like the product team's happy-path sample.
-
-For a summarizer, fixtures might include:
-
-- short clean document
-- long messy thread
-- document with contradictory statements
-- document with irrelevant boilerplate
-- document containing private data that should be omitted
-- document where the correct summary is "nothing actionable"
-
-For an extraction prompt, fixtures might include malformed input, missing values, multiple candidates, and values that look valid but should be rejected.
-
-The point is to stop relying on memory. If a prompt was changed to fix a specific failure, that failure should become a fixture. Otherwise the same regression comes back later wearing a different hat.
-
-## prompt diffs need readable reviews
-
-Prompt diffs are awkward because small wording changes can have large behavioral effects.
-
-That does not mean review is hopeless. It means the review should focus on intent and evidence.
-
-A good prompt PR should say:
-
-- what behavior is being changed
-- which fixtures were added or updated
-- which evals improved
-- which evals got worse
-- whether the output schema changed
-- whether the model version changed
-- how rollback works
-
-I do not trust prompt changes that only say "improve quality."
-
-Quality where? For which slice? Compared with what baseline? At what cost? With what new failure risk?
-
-The review can be lightweight, but it needs evidence.
-
-## tests should run before the model bill gets exciting
-
-Not every prompt test needs an LLM judge.
-
-Some checks are deterministic:
-
-- output parses as JSON
-- required fields exist
-- enums are valid
-- citations point to provided sources
-- forbidden fields are absent
-- token budget stays under a limit
-- tool arguments match the schema
-
-Then there are semantic checks. These may use human review, golden examples, another model as judge, or task-specific scoring. The important part is to separate deterministic failures from judgment calls.
-
-I like a pipeline that fails fast on shape before spending time on semantic review.
-
-~~~text
-generate output
-  -> parse
-  -> schema check
-  -> deterministic policy check
-  -> semantic eval
-  -> reviewer sample
-~~~
-
-That keeps the expensive evaluation focused on outputs that are at least structurally valid.
-
-## rollout matters
-
-Prompt changes should be deployable in small steps.
-
-For low-risk internal tools, maybe the prompt can ship after fixtures pass. For customer-facing or high-risk workflows, the team may need shadow runs, canaries, or route-level comparison. The old prompt and new prompt can run side by side on the same inputs, with the old output still live while the new one is reviewed.
-
-This is especially useful when changing model versions at the same time. If the model and prompt change together, the team loses attribution. Did the improvement come from the model, the prompt, the examples, or the parser?
-
-The cleaner migration compares:
-
-- old prompt with old model
-- old prompt with new model
-- new prompt with new model
-
-That is more work than editing a string. It is less work than debugging a silent production regression.
-
-## prompts should leave incident evidence
-
-When an AI feature fails, the incident review should include prompt state.
-
-Which prompt version ran? Which model version? Which context builder? Which retrieval index? Which parser? Which safety instruction? Which route? Was there a recent prompt change? Did a fixture already cover this case?
-
-If the answer is "we do not know," the prompt pipeline is not observable enough.
-
-A prompt incident should usually produce one of three artifacts:
-
-- a new fixture
-- a prompt or parser change
-- a product decision that the behavior was acceptable
-
-That is how the system improves instead of collecting anecdotes.
-
-## boring ownership is the upgrade
-
-The goal is not to make prompts bureaucratic.
-
-The goal is to stop treating them as magic text.
-
-Production prompts deserve names, owners, versions, fixtures, review, evals, rollout plans, and incident evidence. That does not make them heavy. It makes them maintainable.
-
-The prompt is where product intent touches model behavior. That is too important to leave as an unreviewed string.
+Prompt work gets easier when the pipeline is visible. Version the prompt, version the examples, record the model, and keep a rollback path. That is not ceremony. That is how you stop a production prompt from becoming a hidden dependency nobody remembers to test.

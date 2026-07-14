@@ -19,19 +19,17 @@ import FourNeuron from "@components/blog/FourNeuron.jsx";
   outputRows={32}
 />
 
-Four neurons are enough to expose the wiring.
+Four neurons are enough to show that a layer is several opinions, not one big one.
 
-A single neuron is good for learning the basic calculation: multiply inputs by weights, add a bias, pass the result through an activation. But one neuron can also make the lesson feel too tidy. It hides the fact that a layer is really several small calculations running beside each other.
+A single neuron teaches the arithmetic cleanly: multiply the inputs, add the bias, run the activation, look at the result. That is useful, but it can also make the layer feel tidier than it really is. Four neurons is still small enough to inspect by hand, and large enough to show that the same input can be judged four different ways.
 
-Four neurons is still small enough to inspect by hand. It is also large enough to show the shape of a layer.
+That is the point of this lesson. Not a useful model. Just enough wiring to see the shape of the thing.
 
-That is the sweet spot for this lesson. The point is not to make a useful model. The point is to see how the calculation is organized before the notation gets bigger.
-
-## each row is a neuron
+## four rows, four rules
 
 In the interactive example, the input has three numbers.
 
-Each neuron has three weights and one bias. The row is the neuron's little rule:
+Each neuron has three weights and one bias. Each row is its own little rule:
 
 ~~~text
 weighted sum = input_1 * weight_1
@@ -40,39 +38,23 @@ weighted sum = input_1 * weight_1
              + bias
 ~~~
 
-Four rows means four neurons. Each one sees the same input, but each one asks a different weighted question.
+Four rows means four neurons. They all look at the same input, but they do not ask the same question. One row may care a lot about the first input. Another may mostly react to the last two. Another may stay quiet unless the bias nudges it over the edge.
 
-That is a useful mental model. A layer is not one mysterious block. It is a stack of small tests. The output of the layer is the list of answers from those tests.
+That is the useful mental model: a layer is a row of separate tests.
 
-The matrix format is just a compact way to write that stack.
+## z is where the arithmetic still looks honest
 
-## bias is part of the neuron's rule
+The `Z` values are the raw weighted sums before the activation function touches anything.
 
-The bias column is easy to treat as an extra number that got bolted onto the end.
+I like looking at `Z` first because it shows the calculation in plain view. If a value surprises you there, the cause is in the input, the weights, or the bias. ReLU has not entered the story yet.
 
-It is more useful to think of the bias as the neuron's offset. The weights decide how much each input matters. The bias shifts the final sum before activation.
+That matters more than it sounds like. Two neurons can both end up at zero after ReLU and still mean very different things. One raw value might be `-1`. Another might be `-30`. Both get clipped to zero, but they are not equally close to turning on.
 
-That shift can change whether the neuron fires after ReLU.
+That distance is useful later in training, and it is useful now because it keeps the layer from feeling like a yes/no machine.
 
-If a neuron's weighted sum is slightly negative, increasing the bias may push it above zero. If the weighted sum is deeply negative, the same bias change may not matter. That is why the bias is easier to understand when you can see `Z` before ReLU and `A` after ReLU.
+## relu turns one row into a gate
 
-The bias does not belong to the input. It belongs to the neuron.
-
-## z is the raw answer
-
-The `Z` column shows the raw weighted sums.
-
-This is the layer before the activation function changes anything. It is the cleanest place to debug the arithmetic. If a value in `Z` surprises you, the cause is in the input, weights, or bias.
-
-I like pausing at `Z` because it prevents ReLU from hiding the calculation too early.
-
-For example, if two neurons both end up with activation `0`, they may not be equally close to firing. One `Z` might be `-1`. Another might be `-30`. ReLU turns both into zero, but those raw values tell different stories.
-
-That difference matters later during training, but even before training it matters for intuition.
-
-## relu turns raw answers into active signals
-
-The `A` column shows the values after ReLU.
+The `A` values show what survives after ReLU.
 
 ReLU is simple:
 
@@ -81,51 +63,41 @@ if z > 0, keep z
 if z <= 0, output 0
 ~~~
 
-That simplicity is why it is good for a first layer example. You can see which neurons are active and which ones are silent for the current input.
+That simplicity is exactly why it works here. You can see which neurons stay active and which ones go silent for the current input. The weights do not change. The signal does.
 
-The important part is that ReLU does not change the weights. It changes the signal that moves forward. A negative raw answer stops contributing downstream. A positive raw answer keeps its value.
+If a row is negative before ReLU, it does not help the next layer for this input. If it is positive, it carries forward intact. That is the moment the layer starts to feel less like homework and more like a filtering step.
 
-This is where the layer starts to feel less like arithmetic homework and more like a set of gates.
+## one input does not exercise every wire
 
-## change one number at a time
+The interactive module gets more interesting when you move one number at a time.
 
-The interactive module is most useful when you move slowly.
+Change one weight in one row. Predict which `Z` value should move. Then run the code and check. If the matching input is large, the effect should be obvious. If the matching input is zero, the weight change should do nothing for this example.
 
-Change one weight in one row. Before running the code, predict which `Z` value should change. Then run it and check. If the input value paired with that weight is large, the change should be larger. If the paired input is zero, that weight change should do nothing for the current input.
+That last case is worth noticing because it is easy to overread one example. A weight can exist and still not matter for the current input. That does not make it useless. It means the input did not touch that part of the layer.
 
-That last case is worth noticing.
+One neuron can only tell you so much. Four neurons give you comparison.
 
-A weight can exist and still have no effect on a specific example if the corresponding input is zero. That does not mean the weight is useless. It means this input did not exercise it.
+## the layer starts to look like a set of opinions
 
-This is why multiple examples eventually matter. One input can only test part of the wiring.
+With four neurons, the differences inside the layer become visible.
 
-## four neurons make comparison possible
+One neuron may respond sharply to the first input. Another may mostly care about the second and third. Another may stay blocked by a negative bias. Another may stay active across a broad range of values.
 
-With four neurons, you can compare behavior inside the layer.
+The layer begins to look like four small opinions about the same input. None of them knows the whole problem. Each one contributes a partial signal. Later layers can combine those partial signals into something more useful.
 
-One neuron may be sensitive to the first input. Another may mostly respond to the second and third. Another may be held back by a negative bias. Another may stay active across a wide range of input values.
+That is the real structure to remember. Neural networks are not one large calculation. They are small calculations stacked into larger behavior.
 
-You can see that by changing the input and watching which rows move.
+## what to keep from the example
 
-The layer starts to look like several small opinions about the same input. None of the neurons understands the whole problem. Each one produces a partial signal. Later layers can combine those signals into something more useful.
+The actual numbers are not the lesson. The wiring is.
 
-That is the basic shape of neural networks: small computations composed into larger behavior.
-
-## the lesson is the wiring, not the numbers
-
-The exact numbers in the example do not matter much.
-
-What matters is learning to read the wiring:
-
-- input values feed every neuron
+- the same input feeds every neuron
 - each row has its own weights and bias
-- `Z` shows the raw weighted sums
-- ReLU turns `Z` into `A`
-- active values continue forward
-- silent values become zero for this input
+- `Z` shows the raw score
+- ReLU keeps positive values and drops negative ones
+- silent rows stay silent for this input
+- active rows keep moving forward
 
-Once that shape is familiar, deeper networks are less mysterious. A larger layer is more rows. A batch is more input columns. Another layer is another round of weighted sums and activations.
+Once that shape feels normal, larger networks are less mysterious. A bigger layer is just more rows. A batch is more columns. Another layer is another pass through the same kind of arithmetic.
 
-The notation gets bigger, but the basic habit stays the same.
-
-Follow the numbers. Predict before you run. Let the wrong guess show you which wire you misunderstood.
+Follow the numbers. Predict before you run. The wrong guess is often the fastest way to see which wire you misunderstood.

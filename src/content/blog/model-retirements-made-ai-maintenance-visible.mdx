@@ -8,138 +8,26 @@ author: "jeremy-london"
 tags: ["models", "maintenance", "migration"]
 ---
 
-AI applications used to make model choice feel like a configuration detail. Pick the good model, put the name in an environment variable, ship the feature, and revisit it when quality feels off.
+Model retirements were the moment AI stopped pretending it was static infrastructure.
 
-Model retirements made that too casual.
+Once providers started publishing deprecation dates, replacement guidance, and fuller model menus, the maintenance work showed up in the open. A model name is closer to a runtime version or an API contract than a permanent setting. It can drift, disappear, get cheaper, get stricter, or stop being the right tool for the job.
 
-Once providers started showing fuller model menus, migration guidance, replacement suggestions, and deprecation dates, the hidden maintenance work became visible. A model name is not a constant. It is closer to a database version, a runtime version, or an external API contract. It can improve, disappear, change behavior, become expensive, lose a capability, gain a stricter policy layer, or stop being the best fit for the job.
-
-That does not make hosted models bad. It makes them normal infrastructure.
-
-The mistake is treating a model retirement as an emergency announcement from someone else's roadmap. It should be a scheduled maintenance event with inventory, tests, rollout, and rollback.
-
-## start with the model inventory
-
-The first annoying question is simple: where is the model used?
-
-That sounds easy until a product has prompt files, background jobs, customer support tools, eval scripts, notebooks, internal admin screens, agents, retrieval summarizers, and one-off cron jobs. The production path may be obvious. The places that matter during a retirement are often less obvious.
-
-I would want an inventory that records at least this:
+I like thinking about that as inventory work. You cannot migrate what you have not listed.
 
 ~~~yaml
 - surface: support-draft-summarizer
   owner: support-platform
   model: provider/model-name
   purpose: summarize long ticket history before human reply
-  output_contract: markdown summary with action items
   fallback_model: provider/alternate-model
   eval_suite: evals/support-summary.yml
   last_reviewed: 2026-02-10
 ~~~
 
-This does not need to become a ceremony. It needs to exist somewhere more durable than a Slack thread. The inventory is how you answer the first migration question without spelunking through every repo.
+That kind of record is useful because the retirement question is never just "what is the new model?" It is "where does the old one live, who owns it, what behavior matters, and what happens if the replacement is a little worse on the slice the product cares about?"
 
-The owner field matters more than people like to admit. An unowned model call becomes everyone's problem when the retirement window gets short.
+I want the migration harness to include boring, ugly examples: long inputs, malformed inputs, policy edge cases, prompt overflow, stale retrieved context, and the cases where the right answer is to decline. Shadow runs help. Canary traffic helps. A rollback path helps more than people admit.
 
-## model names are compatibility contracts
+The other thing retirements expose is prompt coupling. If the prompt and model both change at once, nobody can explain the result. I prefer to compare old prompt against new model before I touch the prompt at all. That usually tells you whether the problem is the model, the instructions, or the way the app assembled context in the first place.
 
-Changing a model is not the same as changing a library patch version.
-
-The API may accept the same input and return the same shape while the behavior changes enough to break the product. A summarizer may become more verbose. A classifier may move borderline cases. A code agent may edit more aggressively. A JSON-producing prompt may start using a different escape pattern. A safety layer may refuse examples that the older model handled.
-
-That is why the compatibility contract has to include behavior, not merely schema.
-
-For each important model call, I want to know:
-
-- what input shapes are expected
-- what output shape the rest of the system assumes
-- what examples represent acceptable behavior
-- what examples represent known bad behavior
-- which user or business slices are sensitive
-- which failures are recoverable
-- which failures require a human path
-
-The retirement date tells you when the old contract goes away. It does not tell you whether the new contract is acceptable.
-
-## evals are the migration harness
-
-The minimum migration harness is a frozen set of examples that can run against the old model and the candidate replacement.
-
-The examples should not be only happy paths. They should include production weirdness: long inputs, partial inputs, messy formatting, adversarial phrasing, policy-adjacent content, ambiguous user intent, stale retrieved context, and examples where the correct answer is to decline or ask for clarification.
-
-For a small feature, this might be twenty examples and a human review sheet. For a serious workflow, it should be a versioned eval suite with slice-level results.
-
-~~~ts
-type ModelMigrationResult = {
-  exampleId: string
-  oldModelAccepted: boolean
-  newModelAccepted: boolean
-  contractPass: boolean
-  changedMeaning: boolean
-  reviewerNote?: string
-}
-~~~
-
-The important field is not a single aggregate score. The important field is the reason a replacement is risky. A one-point quality drop on a low-value slice may be fine. A single regression on permission handling, medical wording, security advice, or financial language may block the rollout.
-
-Model migrations need a baseline because human memory is bad at this. People remember that the old model "worked" until the comparison shows what it actually did.
-
-## rollout should be boring
-
-A model retirement should have the same boring shape as other dependency migrations.
-
-First, run the replacement in shadow mode when the workflow allows it. Keep the old output live, capture the new output, compare the two, and review the deltas. Shadow mode is especially useful for summarization, classification, extraction, routing, and recommendation steps where you can evaluate the candidate without affecting the user.
-
-Second, route a small slice of traffic to the replacement. Watch latency, cost, refusal rate, tool-call rate, schema failures, retry count, and user-visible correction behavior. The metric list depends on the feature, but the point is to observe operational behavior under real inputs.
-
-Third, keep a rollback path until the retirement forces your hand. Sometimes rollback means returning to the old model. Sometimes it means moving to a second candidate. Sometimes it means disabling a noncritical AI feature while a human workflow remains available. The bad version is discovering during the incident that the product has no degraded mode.
-
-The migration plan should name the date when rollback stops being available. That date is often earlier than the provider's retirement date because teams need time to clean up, remove dead branches, and update documentation.
-
-## prompts are part of the migration
-
-Replacing a model without touching the prompt can be the right move, but it should be a decision.
-
-Different models respond differently to the same instruction style. Some need less scaffolding. Some need a stricter schema. Some handle long context better but become worse when the prompt contains stale examples. Some are more literal about policies. Some are better at following a compact tool contract than a long prose instruction.
-
-I do not like prompt rewrites hidden inside model migrations. If the model and prompt both change at once, the team loses the ability to explain the result. A cleaner migration runs at least these comparisons:
-
-- old model with old prompt
-- new model with old prompt
-- new model with revised prompt
-
-That gives you a rough sense of whether the improvement came from the model, the prompt, or the interaction between them.
-
-Prompt versioning becomes useful here. A prompt file with a name and changelog is easier to migrate than text buried in application code. The migration should leave a trail: model version, prompt version, eval version, reviewer, rollout date, and reason for accepting the change.
-
-## cost and latency can move in either direction
-
-The replacement model is not always more expensive. Sometimes a newer small model is better for the workload than the older large one. Sometimes a retirement is the forcing function that finally makes a team separate easy tasks from hard tasks.
-
-That is the healthy version of model maintenance. The team does not merely ask "what is the closest replacement?" It asks whether the old routing still makes sense.
-
-A product might split one model call into three paths:
-
-- a cheap classifier for easy routing
-- a midrange model for normal drafting
-- a stronger model for high-risk or low-confidence cases
-
-That work belongs in a migration only when it reduces risk. A retirement window is a bad time for an architecture science project. But it is a good time to notice that every task had been glued to one model because nobody had a reason to look.
-
-## deprecation dates create ownership
-
-I used to think of model retirement as a vendor concern. Now I think of it as a product ownership test.
-
-If a model call has no owner, no eval set, no inventory entry, no fallback, and no migration notes, the retirement will expose that. The provider did not create the mess. The retirement made the mess visible.
-
-The fix is not a giant governance board. The fix is a small operating habit:
-
-- every production model call has an owner
-- every important model call has representative examples
-- every model version is recorded somewhere searchable
-- every replacement is compared before rollout
-- every migration leaves a receipt
-
-That sounds boring because it is. Boring is the point. AI systems become easier to trust when model changes are routine maintenance instead of surprise archaeology.
-
-Model retirements are useful in that sense. They force the industry to stop pretending that AI applications are prompt files wrapped around permanent endpoints. They are living software systems with dependencies, deadlines, compatibility risks, and cleanup work.
+What I came away with is simple. A retired model is not a vendor drama. It is a maintenance deadline with a visible clock. The teams that handle it well already know their inventory, have representative evals, and can say, in plain language, where the fallback lives.

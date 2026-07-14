@@ -10,58 +10,46 @@ tags: ["claude", "reasoning", "latency"]
 
 Claude 3.7 Sonnet made reasoning feel less like a hidden model trait and more like a product control.
 
-That is the interesting part to me. The release was not only "a smarter model." Anthropic described Claude 3.7 Sonnet as a hybrid reasoning model: it could answer quickly, or it could spend more time working through a problem with visible extended thinking. API users could also control how much thinking budget the model was allowed to spend.
+That is the part I care about. Anthropic did not just ship "a smarter model." They exposed hybrid reasoning: the same model could answer quickly or spend more time on extended thinking, and API users could control how much thinking budget it was allowed to use.
 
-That changes the product question.
+That turns reasoning into a decision the product has to own.
 
-Before reasoning models became a normal part of the menu, latency was mostly treated as a cost of model choice. Use the faster model for quick work. Use the stronger model for harder work. Claude 3.7 made the tradeoff more explicit inside the same model path: should this request get the fast answer, or should the product spend time on deeper reasoning?
+## thinking needs a reason
 
-That is not a cosmetic setting. It is a decision about user experience, cost, reliability, and trust.
+The product should not ask a model to think longer because longer thinking sounds impressive.
 
-## thinking time needs a reason
+Extra reasoning is worth it when the request has enough ambiguity or consequence to justify the delay. A tricky code change may deserve it. A multi-step data analysis may deserve it. A hard debugging problem may deserve it. A quick rewrite of a sentence probably does not.
 
-The product should not ask a model to think longer because thinking sounds impressive.
-
-Longer reasoning is useful when the request has enough ambiguity or consequence to justify the time. A tricky code change may deserve it. A multi-step data analysis may deserve it. A legal or policy comparison may deserve it. A hard debugging problem may deserve it. A casual rewrite of a sentence probably does not.
-
-The interface should have an opinion.
-
-If every request uses extended thinking, the product becomes slow and expensive. If no request uses it, the product leaves quality on the table for the tasks where careful reasoning would help. The useful system is selective.
-
-I would start with task shape:
+I would start with a blunt routing rule:
 
 ```text
 fast path:
-  short answers, formatting, extraction, simple rewrites, low-risk summaries
+  short answers, formatting, extraction, low-risk rewrites, summaries
 
 thinking path:
-  debugging, planning, multi-file code changes, policy comparison, math, tricky tradeoffs
+  debugging, planning, multi-file code changes, policy comparisons, math, messy tradeoffs
 
 ask first:
-  user-visible latency above threshold, expensive batch work, high-cost agent runs
+  user-visible latency above threshold, expensive batch work, long agent runs
 ```
 
-That is crude, but it is better than treating thinking as a magic boost.
+That is not elegant. It is enough to stop thinking from becoming a magic boost that the product applies to everything.
 
-## visible reasoning changes user expectations
+## visible reasoning changes the social contract
 
-Visible thinking creates a different relationship with the user.
+When a model answers instantly, the user judges the answer. When it visibly spends time, the user also judges the process.
 
-When the model answers instantly, the user judges the answer. When the model visibly spends time, the user also judges the process. Did it consider the right cases? Did it get distracted? Did it overcomplicate the problem? Did it spend ten seconds to say something obvious?
+Did it consider the right cases? Did it overcomplicate a simple job? Did it spend ten seconds to say something obvious? That is a different product experience, and it comes with different expectations.
 
-That makes the product responsible for when reasoning appears.
+If a product shows extended thinking for every medium-sized request, users can start treating delay as proof of quality. That is a bad habit. Time spent is not the same thing as correctness. A model can think longer and still be wrong. It can also turn a simple request into a brittle answer by overworking it.
 
-If a product shows extended thinking for every medium-sized request, users may start to treat delay as proof of quality. That is dangerous. Time spent is not the same as correctness. A model can think longer and still be wrong. It can also overthink a simple task into a brittle answer.
-
-The UI should avoid turning reasoning into theater.
-
-I like products that use thinking visibility as a tool, not a performance. Show enough process to explain why a difficult answer took longer. Do not make the user watch a model narrate obvious steps just because the feature exists.
+I like thinking visibility when it explains why a hard answer took longer. I do not like it when the model performs its internal monologue for no useful reason.
 
 ## budgets belong in the route
 
-Thinking budget should be part of routing.
+Thinking budget should live in routing, not in a vague prompt instruction.
 
-A request should carry enough information for the system to decide how much reasoning it can afford:
+A request can carry the kind of information the system actually needs:
 
 ```json
 {
@@ -74,41 +62,31 @@ A request should carry enough information for the system to decide how much reas
 }
 ```
 
-The exact fields do not matter. The habit does.
+The exact keys do not matter. The point is that the choice becomes visible and measurable.
 
-If the product routes reasoning only from prompt text, the decision is hard to inspect. If the product stores reasoning budget as a structured choice, it can measure whether the choice helped.
+If the product only routes from prompt text, the decision is hard to inspect later. If it stores thinking as a structured choice, it can answer useful questions: did extended thinking improve debugging tasks, or just add latency? Did it reduce follow-up questions? Did it waste money on summaries that were already fine? Did the model produce better plans but slower execution?
 
-Did extended thinking improve acceptance rate for debugging tasks? Did it reduce user follow-up questions? Did it increase cost without improving outcomes for summaries? Did users cancel slow requests? Did the model produce better plans but slower final execution?
+Those are product metrics. Model vibes are not enough.
 
-Those are product metrics, not model vibes.
+## the fast path still has to be serious
 
-## the fast path still needs quality
+Hybrid reasoning creates a temptation to treat the fast path as the sloppy path.
 
-Hybrid reasoning creates a temptation to let the fast path become the sloppy path.
+That would be a mistake. Fast should mean low-latency, not low-discipline. The fast path still needs clear instructions, good context, schema checks where appropriate, and an honest refusal when the request is outside scope.
 
-That would be a mistake.
-
-The fast path still needs clear instructions, good context, schema checks where appropriate, and honest refusal when the request is outside scope. It should be fast because the task is simple, not because the product skipped every guardrail.
-
-The distinction I care about is between shallow work and low-latency work. Those are not the same.
+The line I care about is between shallow work and low-latency work. They are not the same thing.
 
 A user asking for a field extraction from a known document may deserve a quick answer with strict schema validation. A user asking for a risky architecture decision may deserve slower reasoning with a reviewable plan. The product should not confuse speed with casualness.
 
-Fast answers can still be serious. Slow answers can still be junk.
+## agent workflows make the choice sharper
 
-## agent workflows make the control sharper
+Claude 3.7 arrived alongside Claude Code, which made the control feel concrete for software work.
 
-Claude 3.7 also arrived alongside Claude Code, which made the reasoning control feel more concrete for software work.
+Coding agents need to pause and plan at the right moments. If the task is "fix typo in README," extended reasoning is probably wasted. If the task is "trace this regression across three packages," spending time on a plan may save much more time later.
 
-Coding agents need to decide when to pause and plan. If the task is "fix typo in README," extended reasoning is probably wasted. If the task is "trace this regression across three packages," spending time on a plan may save far more time later.
+The control should also change during the run. An agent might start fast while it inspects files. It might switch into deeper thinking when the evidence conflicts. It might go back to the fast path for mechanical edits. It might require approval before spending a larger reasoning budget on a long batch of repairs.
 
-The control should also change during the run.
-
-An agent might start on the fast path to inspect files and gather facts. It might switch to a thinking path when it finds conflicting evidence. It might return to a fast path for mechanical edits. It might require explicit approval before spending a large reasoning budget on a long batch of repairs.
-
-That kind of adaptive behavior is much more interesting than a global "think harder" toggle.
-
-The run should record the choice:
+That is more useful than a global "think harder" toggle.
 
 ```text
 step 1: inspect failing test, fast
@@ -118,37 +96,21 @@ step 4: apply focused edit, fast
 step 5: verify failure case, fast
 ```
 
-That record helps debug cost and quality. It also helps the user see that the agent spent time where the problem deserved time.
+That kind of record is boring in the best way. It helps debug cost and quality, and it shows the user that time was spent where the problem actually needed it.
 
-## overthinking is a real failure mode
+## overthinking is real
 
 Reasoning controls need failure modes of their own.
 
-A model can spend too long on a simple request. It can produce a plan that is more elaborate than the task. It can talk itself out of the straightforward answer. It can use extra reasoning to rationalize a wrong assumption. It can make the user wait for something that should have been immediate.
+A model can spend too long on a simple request. It can produce a plan that is more elaborate than the task. It can talk itself out of the straightforward answer. It can use extra reasoning to rationalize a bad assumption. It can make the user wait for something that should have been immediate.
 
-That means "use extended thinking" should not be treated as a universal quality upgrade.
+That is why I would evaluate extended thinking by slice:
 
-I would evaluate it by slice:
-
-- simple tasks where extended thinking should be disabled
-- hard tasks where extended thinking should help
-- ambiguous tasks where the product should ask or choose based on user mode
+- simple tasks where it should stay off
+- hard tasks where it should help
+- ambiguous tasks where the product should ask or choose
 - high-risk tasks where slower reasoning still needs external verification
 
-The last point matters. Longer thinking is not a substitute for tests, policy checks, retrieval quality, or human approval. It is one input into the system.
+Longer thinking is not a substitute for tests, policy checks, retrieval quality, or human approval. It is one input into the system.
 
-## the product owns the tradeoff
-
-Claude 3.7 made the tradeoff visible enough that product teams could not hide from it.
-
-Thinking costs time. It may cost money. It may improve quality. It may annoy users. It may make the system feel more careful. It may make a simple tool feel heavy. The right answer depends on the task, the user, and the product promise.
-
-That is why I like reasoning as a product control. It forces the team to decide where latency belongs.
-
-Some work should be instant.
-
-Some work should be slow because the answer matters.
-
-Some work should be slow only after the user agrees.
-
-The model gave teams a knob. The engineering work is deciding when turning that knob makes the product better.
+Claude 3.7 made that tradeoff visible enough that product teams could not ignore it.

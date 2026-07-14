@@ -14,13 +14,9 @@ That is already weak for normal software. It is worse for agents.
 
 Agents fail in ways that look like partial success. They choose the wrong file but edit it cleanly. They call the right tool with a slightly wrong argument. They summarize stale context with total confidence. They recover from one error by creating a second, quieter error. A runbook that only says "restart the job" or "rerun verification" is not enough.
 
-An agent runbook should include the mistakes the agent is expected to make.
+## show the bad run first
 
-Not as a blame exercise. As training material for the humans and the system around it.
-
-## write down the ugly cases
-
-A useful runbook has examples of failure, not only categories of failure.
+The most useful runbook page is the one that shows the mistake.
 
 "Context error" is a category. It is too broad. A better example is: the agent read the right directory, missed the active branch, and edited a file that existed only because a previous attempt generated it. That is the kind of thing a reviewer can recognize next time.
 
@@ -30,22 +26,13 @@ A useful runbook has examples of failure, not only categories of failure.
 
 The example matters because it preserves shape. It shows the kind of wrongness people should look for.
 
-## agents need runbooks before they need autonomy
+## autonomy comes after recovery
 
 I do not trust an autonomous workflow that has no recovery instructions.
 
 That sounds conservative, but it is mostly practical. The more freedom an agent has, the more important it is to know what to do when it gets stuck halfway through a task. If the runbook starts only after the system is on fire, the team will invent procedures under pressure.
 
-For an agent workflow, I want the runbook to answer:
-
-- what counts as a completed run
-- what evidence the run must leave behind
-- which failures can be retried
-- which failures require human review
-- what state must be reset before retrying
-- how to tell whether the agent used stale context
-- how to roll back a side effect
-- when to stop the agent instead of helping it continue
+For an agent workflow, I want the runbook to answer what counts as a completed run, what evidence the run must leave behind, which failures can be retried, which failures require human review, what state must be reset before retrying, how to tell whether the agent used stale context, how to roll back a side effect, and when to stop the agent instead of helping it continue.
 
 Those are boring questions. That is why they belong in the runbook. The interesting questions get all the attention by default.
 
@@ -55,30 +42,26 @@ Agents make retry logic dangerous because many failures are semantic.
 
 If a database connection drops, retrying may be fine. If the model picked the wrong target, retrying can make the same wrong target look more legitimate. If the agent misunderstood the user request, retrying simply gives the misunderstanding another chance to mutate the workspace.
 
-A runbook should separate mechanical retries from meaning retries.
+I like separating mechanical retries from meaning retries:
 
-Mechanical retry:
-
-~~~text
+```text
+mechanical retry:
 tool timeout
 transient network error
 rate limit with backoff
 temporary file lock
-~~~
 
-Meaning retry:
-
-~~~text
+meaning retry:
 wrong artifact selected
 ambiguous user request
 tool output valid but operationally useless
 verification passed the wrong surface
 approval did not match side effect
-~~~
+```
 
 The second group should slow down. It needs review, a new question to the user, or a narrower scope. If the runbook treats both groups the same, the agent will learn to push through confusion.
 
-## include the receipts
+## keep the receipts close
 
 A runbook also needs to say what evidence survives a run.
 
@@ -88,18 +71,18 @@ The receipt is not paperwork. It is how the next human avoids starting from rumo
 
 I like receipts that are plain enough to read in an incident review:
 
-~~~text
+```text
 request: update the deployment note
 scope: docs/deploy.md
 agent action: edited rollback section
 verification: markdown check passed
 human approval: required before merge
 known risk: did not test production deploy command
-~~~
+```
 
 That last line is the kind of honesty I want. It keeps the runbook from becoming theater.
 
-## the runbook should teach the reviewer
+## teach the reviewer what to distrust
 
 A good runbook changes how a reviewer reads agent output.
 
@@ -107,20 +90,12 @@ It gives them suspicion in the right places. Check whether the agent touched gen
 
 This is not about distrusting every agent action forever. It is about building useful muscle memory. Humans are bad at reviewing plausible output when they do not know what failure looks like. Examples help.
 
-I would rather have a short runbook with five real failure examples than a long runbook full of abstract policy language. The examples will do more work.
+I would rather have a short runbook with five real failure examples than a long runbook full of abstract policy language.
 
 ## keep updating it
 
-Agent runbooks should age. Every weird failure should either improve the system or improve the runbook. Ideally both.
+Agent runbooks age. Every weird failure should either improve the system or improve the runbook. Ideally both.
 
-When an incident happens, I would ask:
-
-- did the runbook predict this class of failure?
-- did the agent leave enough evidence?
-- did the reviewer know where to look?
-- did retry make the situation better or worse?
-- should this become a deterministic check?
+When an incident happens, I would ask whether the runbook predicted this class of failure, whether the agent left enough evidence, whether the reviewer knew where to look, whether retry made the situation better or worse, and whether this should become a deterministic check.
 
 The answer will not always be yes. That is fine. The point is to make the next run less mysterious.
-
-Runbooks are not glamorous. They are not the demo. But once agents start doing real work, the runbook becomes part of the system. It is where the team admits what can go wrong before the agent proves it in production.

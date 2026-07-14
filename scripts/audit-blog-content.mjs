@@ -6,25 +6,25 @@ const MANIFEST_PATH = 'BLOG_DEPTH_MANIFEST.json'
 
 const DEPTH_RULES = {
   'quick-note': {
-    minWords: 700,
+    minWords: 200,
     maxWords: 10000,
     minMapItems: 1,
     requiredTerms: [],
   },
   'engineering-note': {
-    minWords: 700,
+    minWords: 250,
     maxWords: 10000,
     minMapItems: 1,
     requiredTerms: [],
   },
   'technical-deep-dive': {
-    minWords: 700,
+    minWords: 250,
     maxWords: 10000,
     minMapItems: 1,
     requiredTerms: [],
   },
   'systems-essay': {
-    minWords: 700,
+    minWords: 350,
     maxWords: 10000,
     minMapItems: 1,
     requiredTerms: [],

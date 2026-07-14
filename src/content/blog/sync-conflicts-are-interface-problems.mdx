@@ -1,6 +1,6 @@
 ---
 title: "Sync conflicts are interface problems"
-excerpt: "Conflict resolution belongs in the product experience as well as the replication layer."
+excerpt: "Conflict resolution belongs in the product experience as much as in the replication layer."
 publishDate: "2025-06-18T09:00:00Z"
 category: "local-first-software"
 draft: false
@@ -10,19 +10,13 @@ tags: ["sync", "conflicts", "local first"]
 
 Sync conflicts are interface problems as well as storage problems.
 
-The merge algorithm matters, but the user experiences the conflict through the UI: what changed, who changed it, what can be kept, what will be overwritten, and whether recovery is possible.
+The merge algorithm matters, but the user experiences the conflict through the UI: what changed, who changed it, what can be kept, what gets overwritten, and whether recovery is possible. If the interface exposes conflict as raw implementation detail, the product has pushed its problem onto the user.
 
-The boundary is ownership of state. Some fields can merge automatically. Some need a choice. Some should never be silently overwritten.
+## not every conflict is the same
 
-The check I would use is whether the user can make the decision without understanding the sync engine. If the interface exposes conflict as raw implementation detail, the product has moved its problem onto the user.
+Two people editing a title is different from two people editing different checklist items. A queued offline action against a deleted record is different from a stale profile update. A draft conflict is different from a billing change.
 
-## conflict means different things
-
-"Conflict" is too broad.
-
-Two people editing a title is different from two people editing different checklist items. A queued offline action against a deleted record is different from a stale profile update. A draft conflict is different from a billing change. A collaborative note conflict is different from a permission conflict.
-
-The interface should reflect the kind of conflict:
+The UI should reflect the kind of conflict:
 
 - same field changed in two places
 - different fields changed and can merge
@@ -32,23 +26,17 @@ The interface should reflect the kind of conflict:
 - schema changed while the client was offline
 - server rejected a queued action
 
-Those are not one UI state. They are different product problems.
+Those are not one state.
 
-## automatic merge should be boring and visible
+## the product should merge obvious cases
 
 Some conflicts should never reach the user.
 
 If two devices update different fields, merge them. If a checklist item is added on one device and a note is edited on another, keep both. If a counter increments from two places, use a data type or operation that can handle that.
 
-The user should not be asked to approve obvious merges.
+The user should not be asked to approve obvious merges. But automatic merge should still be visible when the result matters. A sync note, activity log, or version history can make the system feel trustworthy without interrupting the workflow.
 
-But automatic merge should still be observable when the result matters. A "synced changes from phone" note, activity log, or version history can make the system feel trustworthy without interrupting the workflow.
-
-Silent merge is fine for low-risk state. For important documents, version history is the safety net.
-
-## user choice needs context
-
-When the user has to choose, the interface should show enough context to make the choice.
+## when the user has to choose, show meaning
 
 Bad:
 
@@ -68,13 +56,11 @@ Remote change, 10:50 AM by Jordan:
 "Q3 database migration notes"
 ~~~
 
-The user can reason about that.
+The user can reason about that. For larger edits, a diff may help. For structured data, field-by-field resolution may be better. For destructive conflicts, the interface may need restore points.
 
-For larger edits, a diff may help. For structured data, field-by-field resolution may be better. For destructive conflicts, the interface may need restore points. The important part is that the user sees meaning, not replication jargon.
+The important part is that the user sees meaning, not replication jargon.
 
-## some conflicts should preserve both versions
-
-The safest resolution is often "keep both."
+## sometimes the right answer is keep both
 
 That is especially true for writing, notes, drafts, and anything where losing a thought is worse than cleaning up a duplicate.
 
@@ -86,15 +72,15 @@ If two versions cannot be merged confidently, preserving both gives the user a r
 - create a conflict folder
 - attach unsynced local edits to the record
 
-This is not elegant, but it is humane. A messy duplicate is better than silent data loss.
+This is not elegant. It is humane.
 
-## field ownership helps
+## ownership should be visible in the model
 
-Some sync conflicts disappear when the data model names ownership.
+Some conflicts disappear when the data model names ownership.
 
-If one field is user-owned and another is server-owned, do not merge them the same way. If a status is authoritative from the server, a local stale status should not overwrite it. If a draft body is user-owned, it should be preserved aggressively. If a computed summary can be regenerated, it can be discarded more easily.
+If one field is user-owned and another is server-owned, do not merge them the same way. If a status is authoritative from the server, a local stale status should not overwrite it. If a draft body is user-owned, preserve it aggressively. If a computed summary can be regenerated, it can be discarded more easily.
 
-Conflict policy should follow field meaning.
+Conflict policy should follow field meaning, not just field type.
 
 ~~~yaml
 fields:
@@ -110,25 +96,17 @@ fields:
     conflict: computed
 ~~~
 
-The UI can then explain the decision in product language.
-
-## offline queues create conflict later
+## delayed conflicts need better context
 
 Offline-first apps often create delayed conflicts.
 
-The user edits locally. The app queues the change. Later, the server says the record changed, disappeared, or became inaccessible. The conflict may appear hours after the user's original action.
+The user edits locally. The app queues the change. Later, the server says the record changed, disappeared, or became inaccessible. The conflict may appear hours after the original action.
 
-That delay changes the UX.
-
-The interface should remind the user what they did and when. "Your offline edit from 9:14 AM conflicts with a newer server version" is better than "sync failed." The queued action needs identity, timestamp, source device, and source record.
+That delay changes the UX. The interface should remind the user what they did and when. "Your offline edit from 9:14 AM conflicts with a newer server version" is better than "sync failed."
 
 Without that context, the user cannot tell whether the conflict is safe to resolve.
 
-I also like keeping the original queued operation visible until resolution finishes. The product does not need to show a raw mutation log, but it should preserve enough of the user's action to answer a basic question: "what was I trying to do when this got stuck?"
-
-## conflict resolution should be testable
-
-Sync conflict behavior should have product tests.
+## conflict behavior needs tests
 
 I would test:
 
@@ -141,25 +119,6 @@ I would test:
 - queued action rejected by server
 - conflict resolved, then app restarted
 
-These tests should inspect both data and UI. Did the right state survive? Did the user see the right explanation? Could they recover?
+The interface fails when the user has to understand vector clocks, CRDTs, replicas, versions, or last-write-wins policy to make a decision. Those concepts matter to the implementation. The interface should translate them into product language.
 
-## the user should not need the sync engine
-
-A conflict UI fails when the user has to understand vector clocks, CRDTs, replicas, versions, or last-write-wins policy to make a decision.
-
-Those concepts matter to the implementation. The interface should translate them into product language:
-
-- your edit
-- Jordan's edit
-- server version
-- deleted remotely
-- permission changed
-- keep both
-- review changes
-- restore local copy
-
-That is the work.
-
-Sync conflicts are interface problems because the merge result becomes part of the user's trust in the product. The algorithm can be correct and the experience can still be hostile.
-
-The product wins when conflict resolution feels like recovering work, not debugging replication.
+Sync conflicts are interface problems because the merge result becomes part of the user's trust in the product. The algorithm can be correct and the experience can still be hostile. The product wins when conflict resolution feels like recovering work, not debugging replication.

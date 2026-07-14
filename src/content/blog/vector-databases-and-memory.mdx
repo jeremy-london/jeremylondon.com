@@ -1,6 +1,6 @@
 ---
 title: "Vector stores need product discipline"
-excerpt: "Vector databases help AI systems remember, but production quality depends on chunks, metadata, permissions, and evals."
+excerpt: "A vector database can store nearest neighbors, but the product still has to decide what memory means."
 publishDate: "2024-07-22T12:00:00Z"
 category: "advance-deep-learning"
 draft: false
@@ -12,11 +12,9 @@ Vector stores help AI systems remember, but memory is a product feature before i
 
 The demo version is easy. Split documents into chunks, embed them, put the vectors in a database, search by similarity, and stuff the top results into a prompt. That can look good in an afternoon.
 
-The production version is pickier. Which chunks are allowed to be retrieved? Which version of a document did they come from? Who can see them? Are they stale? Did the answer use the right source? Did retrieval improve the result or merely make it more confident?
+The production version is pickier.
 
-A vector database can store nearest neighbors. It cannot decide what memory should mean for the product.
-
-## chunks are product decisions
+## chunking decides what can be remembered
 
 Chunking is where a lot of retrieval quality is decided.
 
@@ -39,7 +37,7 @@ I like storing chunk metadata that explains the source shape:
 
 That metadata is not decoration. It gives retrieval a way to filter, cite, expire, and debug.
 
-## metadata does the boring work
+## metadata is control
 
 Vectors are good at similarity. Metadata is good at control.
 
@@ -74,7 +72,7 @@ const results = await vectorStore.search({
 
 Without that filter, semantic search becomes a very confident leak.
 
-## permissions have to travel with the chunk
+## permissions belong before the prompt
 
 Retrieval permissions are easy to get wrong because the interface feels read-only.
 
@@ -82,9 +80,7 @@ The model is "only" retrieving context. But context can contain customer data, i
 
 I would rather duplicate permission metadata into the retrieval index than rely on a fragile join after the fact. The source of truth should still live in the product system, but the vector store needs enough scope information to prevent obviously invalid candidates from entering the prompt.
 
-The final authorization check should happen before prompt assembly. Retrieval should return candidates. The application should decide which candidates can be shown to this actor in this context.
-
-## embedding versions are schema versions
+## embedding versions are migrations
 
 Changing embedding models is a schema migration.
 
@@ -102,15 +98,13 @@ I like storing embedding model version on every record:
 
 Then migration can be staged. Re-embed a sample. Compare retrieval results. Rebuild a shadow index. Run evals. Switch traffic by collection or tenant. Keep rollback possible until the new index has earned trust.
 
-Treating embeddings as invisible derived data is how teams end up with stale memory that nobody wants to rebuild.
-
-## evals need retrieval-level cases
+## evals should ask about recall, not vibes
 
 End-to-end answer quality matters, but retrieval deserves its own evals.
 
 An answer can be wrong because the model ignored the right chunk. It can also be wrong because retrieval never found the right chunk. Those are different failures.
 
-I would keep eval cases that look like this:
+I would keep eval cases like this:
 
 ~~~json
 {
@@ -123,9 +117,7 @@ I would keep eval cases that look like this:
 
 The retrieval score should report recall at K, missed required chunks, stale source usage, permission-filter failures, and hard negative rank. The answer score can sit on top of that.
 
-If retrieval misses the required chunk, changing the prompt is the wrong first fix.
-
-## memory needs deletion
+## deletion is part of memory
 
 Memory that cannot forget is a liability.
 
@@ -139,30 +131,6 @@ The ingestion pipeline should answer:
 - how do we remove data after a retention deadline?
 - how do we prove a deleted document no longer appears in retrieval?
 
-That last question is important. "We sent a delete request" is weaker than "the deleted document no longer appears in scoped retrieval tests."
-
-## memory should be inspectable
-
-When an AI answer uses retrieval, the product should be able to show what it retrieved.
-
-That does not always mean showing raw chunks to the end user. Sometimes citations are enough. Sometimes a support engineer needs the retrieval trace. Sometimes the model should expose the source title and section. The right surface depends on the product.
-
-For debugging, I want the trace:
-
-~~~text
-query: "refund after 30 days in Canada"
-filters: workspace=acme, content_type=policy
-top result: policy-refunds-v3:section-4
-score: 0.82
-used_in_answer: true
-~~~
-
-Without that trace, retrieval bugs turn into prompt superstition. People tweak wording because they cannot see that the wrong chunk was retrieved.
-
-## vector stores are infrastructure with product rules
-
-The database matters. Index choice, latency, recall, cost, scaling behavior, and operational reliability all matter.
-
-But the product discipline around the database matters more than the demo suggests. Chunking decides what can be remembered. Metadata decides what can be filtered. Permissions decide what can be shown. Embedding versions decide how memory migrates. Evals decide whether retrieval actually helps.
+That last question matters. "We sent a delete request" is weaker than "the deleted document no longer appears in scoped retrieval tests."
 
 Vector stores are useful when they are treated like a memory system with rules, not a magical pile of semantic proximity.

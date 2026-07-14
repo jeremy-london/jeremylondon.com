@@ -8,127 +8,21 @@ author: "jeremy-london"
 tags: ["model routing", "systems", "latency"]
 ---
 
-Model routing looks like model selection until it breaks.
+I stopped thinking about model routing as a model choice the first time I saw a support path fail for the wrong reason.
 
-At prototype scale, the whole thing can be one line of configuration. Use the strongest model. Maybe use the cheap model for summaries. Ship it.
+The request itself was ordinary. The bad part was everything around it. The cheap model got the easy classification wrong, the expensive model was never allowed to see restricted data, and the fallback route had no clear owner. That is not a prompt bug. That is a system with a vague control plane.
 
-That works until the product has different users, different latency budgets, different data boundaries, different output contracts, and different consequences for being wrong. Then the question stops being "which model is best?" and becomes "which path should handle this request right now?"
+The route is bigger than the model.
 
-A good router is boring in the way a load balancer is boring. It makes a local decision using explicit inputs. It records the decision. It gives operators enough evidence to understand why the request went where it went. It fails closed when policy says it should. It fails soft when the product can tolerate a lower-quality path.
+Consider three requests:
 
-That makes model routing a systems problem, not a prompt trick.
+1. A customer asks for a refund policy summary.
+2. A developer asks why a CI job is failing.
+3. A security reviewer wants a high-risk policy check.
 
-## the route is bigger than the model
+Those are not three model preferences. They are three different product paths. One can use cached documentation. One may need retrieval and a short answer. One may need a stricter model, logging, and maybe a human review step. The route matters because the consequences are different.
 
-The word "routing" can make this sound like choosing between model names:
-
-~~~text
-if easy:
-  use cheap-model
-else:
-  use strong-model
-~~~
-
-That is rarely enough.
-
-A route is usually a product path. It may include retrieval, context compression, a small classifier, a local model, a hosted frontier model, a tool call, a verifier, a human review step, or a degraded response. Two routes can use the same model and still behave differently because the context, prompt, tools, and acceptance checks are different.
-
-For example, a support product might have at least four routes:
-
-- answer from cached documentation when the question is low risk
-- summarize the ticket history for a human when the customer is upset
-- draft a reply with retrieval when the answer depends on product state
-- escalate when the request touches billing, legal, or account ownership
-
-Those are not model preferences. They are product decisions.
-
-The router needs to understand the request well enough to choose among them.
-
-## classify the request before spending the budget
-
-I like routers that separate cheap classification from expensive generation.
-
-The classifier does not need to solve the user problem. It needs to describe the problem well enough for the rest of the system to choose a path. That means extracting features such as task type, risk, user tier, data sensitivity, context size, expected output shape, and time budget.
-
-~~~ts
-type RouteFeatures = {
-  task:
-    | "summarize"
-    | "extract"
-    | "draft"
-    | "classify"
-    | "answer_with_retrieval"
-    | "plan_tool_work"
-  risk: "low" | "medium" | "high"
-  sensitivity: "public" | "internal" | "restricted"
-  expectedOutput: "text" | "json" | "patch" | "decision"
-  contextTokens: number
-  latencyBudgetMs: number
-  userTier: "free" | "paid" | "internal"
-  requiresFreshData: boolean
-}
-~~~
-
-Some features come from the application. Some come from policy. Some can be inferred with a small model. Some should be deterministic. I would rather have an imperfect explicit feature set than a router prompt that reads the whole conversation and silently decides.
-
-The explicit shape gives you replay. When a customer reports a bad answer, you can ask whether the task was classified correctly, whether the chosen route was allowed, and whether the route itself failed.
-
-## constraints should eliminate routes first
-
-Quality should not be the first filter.
-
-Before asking which model is best, the system should remove routes that are not allowed. Data residency may block a hosted model. A restricted document may block logging. A user tier may block an expensive route. A workflow may require a model that supports tool calling, structured output, long context, or image input. A request may require a human step regardless of model confidence.
-
-That first pass can be plain code:
-
-~~~ts
-function allowedRoutes(features: RouteFeatures, policy: Policy): Route[] {
-  return routeCatalog.filter((route) => {
-    if (!route.modalities.includes(features.expectedOutput)) return false
-    if (features.sensitivity === "restricted" && !route.allowsRestrictedData) return false
-    if (features.contextTokens > route.maxContextTokens) return false
-    if (features.latencyBudgetMs < route.expectedP95Ms) return false
-    if (policy.maxCostCents && route.expectedCostCents > policy.maxCostCents) return false
-    return true
-  })
-}
-~~~
-
-This is the part people skip when routing is hidden in a prompt. The prompt can be told to care about privacy and cost, but the application should enforce those limits outside the model. Policy that matters should be represented as data and code.
-
-After the forbidden routes are gone, the router can make a quality and cost decision among the remaining candidates.
-
-## route quality is measured by outcome, not model reputation
-
-The best model on a public benchmark may be a bad route for a specific product path.
-
-Maybe it is too slow. Maybe it refuses too often. Maybe it produces beautiful prose when the product needs boring JSON. Maybe it is excellent at reasoning but poor at following the house style. Maybe the cheaper model does better because the task is extraction and the prompt is stable.
-
-Routing quality has to be measured against accepted outcomes.
-
-For each route, I would want to know:
-
-- accepted answer rate
-- schema failure rate
-- retry rate
-- human correction rate
-- fallback rate
-- p50 and p95 latency
-- cost per accepted output
-- refusal or policy denial rate
-- slice-level quality by task, language, context length, and risk class
-
-The denominator matters. "Cost per request" can make a cheap route look good while it creates too many retries. "Accuracy" can hide that one user segment gets worse answers. "Latency" can hide that the route is fast because it skipped retrieval.
-
-The metric I care about is cost per useful result under the product's constraints.
-
-## confidence should change the route
-
-Routers become more useful when they can react to uncertainty.
-
-For a classification task, low confidence may trigger a stronger model or a human review. For a retrieval answer, weak retrieval evidence may trigger a clarifying question instead of a hallucinated response. For a code edit, a failed test may send the request to a repair path rather than returning the first patch. For a safety-sensitive decision, low confidence may block automation entirely.
-
-The router should not treat confidence as decoration.
+That is why I like routing logic that trims the candidate list before it gets clever. If a request is restricted, a hosted model may never be eligible. If the output must be JSON, a route without structured output support should drop out. If the latency budget is small, a slower path should never be on the table. The policy should rule out bad routes before quality ranking starts.
 
 ~~~ts
 type RouteDecision = {
@@ -142,80 +36,8 @@ type RouteDecision = {
 }
 ~~~
 
-This decision record is not for aesthetics. It is how you debug the system. When the route changes after a model update, policy change, or traffic shift, you need to see the difference.
+That record matters more than it looks like it should. When the result is bad, I want to know whether the request was misclassified, whether the route was disallowed and still chosen, or whether the route itself failed after it was selected.
 
-I also like retry budgets at the route level. A cheap route that fails once may be allowed to escalate. A high-cost route that fails should probably stop or ask for human input. Infinite retries are how a cost optimization becomes a bill-shaped surprise.
+The route also needs a fallback that makes sense to a human. A cheap model that fails should not quietly retry forever. A high-risk route should not degrade into something unsafe just because it is available. If the route cannot recover cleanly, it should stop and say so.
 
-## learned routing is tempting and risky
-
-Eventually the explicit rules will feel crude.
-
-The logs will show patterns. Certain tasks always escalate. Certain inputs do fine on a smaller model. Certain context shapes need a long-context model. A learned router starts to look obvious.
-
-That can be the right move, but it turns the router itself into a model that needs ownership. Now the system has two AI problems: the model doing the work and the model choosing who does the work.
-
-If I were adding learned routing, I would start with offline recommendation rather than live autonomy. Let the learned router propose decisions against historical traffic. Compare it with the explicit router. Look at disagreements. Build a holdout set where the current rules are known to be weak. Only then let it handle a narrow slice.
-
-The learned router needs its own evals:
-
-- did it choose an allowed route?
-- did it improve cost per accepted output?
-- did it increase failures on high-risk slices?
-- did it overfit to old model prices or latency?
-- did it route too much traffic to the path with the easiest metric?
-
-The last one matters. A learned router will optimize what you teach it to optimize. If the reward is cheap completion, it may learn to avoid expensive routes that were protecting the product.
-
-## outages are routing events
-
-Model routing also changes how outages work.
-
-If the strongest model is unavailable, the product should know which paths can degrade and which should stop. A casual fallback can be worse than an outage if it quietly sends high-risk work to a model that cannot handle it.
-
-Fallbacks need names.
-
-~~~yaml
-routes:
-  contract_review:
-    primary: frontier-long-context
-    fallback: human_review_queue
-    never_fallback_to: [cheap-chat, local-small]
-
-  release_note_draft:
-    primary: midrange-writer
-    fallback: cheap-writer
-    degraded_message: "Draft quality may be lower during provider recovery."
-~~~
-
-That kind of configuration looks mundane, but it captures product judgment. Some workflows can degrade. Some need to pause. Some can ask the user to try again later. Some should go to a queue.
-
-The router is where those choices become executable.
-
-## model routing needs receipts
-
-The most useful router output is a receipt.
-
-For each request, record the features, allowed route set, rejected routes, chosen route, model version, prompt version, retrieval version, fallback behavior, cost, latency, and acceptance result. You do not need to log sensitive content forever, but you do need enough structured data to explain the system.
-
-Without receipts, routing becomes folklore. Somebody says the cheap model is fine. Somebody else says it broke a customer workflow. Nobody can prove which route was used or why.
-
-With receipts, the conversation gets better:
-
-- this task was misclassified
-- this route is too slow for mobile
-- this fallback is firing too often
-- this model retirement affects three routes
-- this prompt change improved schema reliability but raised latency
-- this policy rule is blocking more traffic than expected
-
-That is the texture of an operable AI system.
-
-## where the complexity belongs
-
-I would keep the first router explicit.
-
-Use a catalog of routes. Use deterministic policy filters. Use a small classifier only where deterministic features are insufficient. Log every decision. Run route-level evals. Add learned routing when the logs show a clear reason.
-
-The architecture can get fancy later. The first win is making model choice visible enough to argue about.
-
-Model routing is a systems problem because it sits at the intersection of capability, cost, latency, privacy, reliability, and product judgment. The model is one part of the path. The route is the thing the user actually experiences.
+The longer I work with routing, the more it looks like the other boring infrastructure pieces I trust. A load balancer does not argue with the request. It inspects what matters, applies constraints, logs the decision, and moves on. Model routing should do the same.

@@ -12,11 +12,9 @@ AI can generate a lot of interface very quickly. That is useful, and also exactl
 
 Speed changes the failure mode. When a person hand-builds a screen, inconsistency arrives slowly. A one-off button here, a weird empty state there, a modal with slightly different spacing. Annoying, but usually visible.
 
-With AI-generated UI, inconsistency can arrive in a single afternoon. The model can produce ten plausible components that all look fine in isolation and quietly disagree about spacing, interaction states, copy tone, accessibility, density, and what the product thinks a "primary" action means.
+With AI-generated UI, inconsistency can arrive in one pass. The model can produce ten plausible components that all look fine in isolation and quietly disagree about spacing, interaction states, copy tone, accessibility, density, and what the product thinks a primary action means.
 
-That is not a model problem by itself. It is a boundary problem.
-
-## a design system is a constraint, not a gallery
+## the system is the boundary
 
 The weak version of a design system is a component gallery. Buttons, cards, badges, tabs, maybe a color palette. That is better than nothing, but it is not enough for generated UI.
 
@@ -28,11 +26,9 @@ Those rules sound boring until a model starts inventing alternatives.
 
 If the prompt says "make this polished," the model will reach for whatever it has seen most often: gradients, oversized headings, soft cards, generic empty states, decorative icons, and explanatory text that tells the user how to use the interface instead of making the interface obvious. That can be fine for a landing page. It is usually wrong for an operational tool.
 
-The design system should give the model fewer ways to be charming.
+## state handling is where the drift shows up
 
-## generated components need state discipline
-
-The first thing I check in AI-generated UI is not whether the default state looks nice. The default state almost always looks nice.
+The first thing I check in AI-generated UI is not the default state. The default state almost always looks nice.
 
 I check the states:
 
@@ -51,7 +47,7 @@ Generated UI often skips these because the prompt did not ask for them. A human 
 
 A design system should make those states non-optional. Not as a lecture. As components and patterns that are easier to use than skipping them.
 
-## visual consistency is not enough
+## visual consistency can still be wrong
 
 A screen can match the palette and still be wrong.
 
@@ -69,19 +65,19 @@ For example:
 
 Those rules are not there to make the interface dull. They are there so the product keeps meaning the same thing from screen to screen.
 
-## prompts should reference the system
+## prompts should point at the system
 
 If a team is going to use AI to generate UI, the prompt should point at the design system directly. Not "make it modern." Not "make it clean." Those words are invitations to generic output.
 
 A better prompt says something like:
 
-~~~text
+```text
 Build this as a dense admin workflow.
 Use the existing table, toolbar, dialog, and form patterns.
 Include loading, empty, error, disabled, and permission states.
 Use icon-only buttons for repeated row actions.
 Do not add marketing copy or decorative cards.
-~~~
+```
 
 That kind of prompt is less glamorous. It is also less likely to produce something that looks impressive in a screenshot and falls apart in use.
 
@@ -91,18 +87,11 @@ AI UI review has to be interactive. Screenshots catch layout. They do not catch 
 
 I want to tab through it. Resize it. Load it with long names. Remove all data. Simulate a failed request. Try it with a screen reader. Click the destructive action and see whether I still understand what is about to happen.
 
-The review should ask:
-
-- does the UI use existing components?
-- did it invent a new pattern where an old one would work?
-- are all expected states present?
-- does the copy sound like the product?
-- can the user recover from the scary path?
-- does the layout still work with real data?
+The review should ask whether the UI uses existing components, whether it invented a new pattern where an old one would work, whether all expected states are present, whether the copy sounds like the product, whether the user can recover from the scary path, and whether the layout still works with real data.
 
 This is where generated UI can be very good. It can produce a first pass quickly, and a strong design system can turn that first pass into something usable faster. But the system has to be real. The review has to be real too.
 
-## the point is not to slow it down
+## speed only works if the rules stay visible
 
 I do not want AI-generated UI to be slower. I want it to be less random.
 

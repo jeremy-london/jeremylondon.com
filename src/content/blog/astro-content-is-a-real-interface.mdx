@@ -8,21 +8,17 @@ author: "jeremy-london"
 tags: ["astro", "content", "static sites"]
 ---
 
-Astro content collections are easy to undersell because the source files look simple.
+Astro content collections look simple until you trace what depends on them.
 
-There is a folder. It has Markdown or MDX files. Each file has frontmatter. Astro loads the collection, validates the shape, and turns the entries into pages. For a small site, that can feel like file organization with a nicer API.
+There is a folder of Markdown and MDX files. Each file has frontmatter. Astro reads the collection, validates the shape, and turns the result into routes, feeds, archives, search results, and anything else that wants to talk to the posts. That feels lightweight when the site is small. It is still an interface.
 
-It is more than that.
+The thing that changed my mind was noticing how many other pieces lean on that shape. The archive page leans on it. The RSS feed leans on it. Search indexes lean on it. Related-post logic leans on it. Any script that edits content leans on it too, whether it says so or not.
 
-Content is an interface. The route layer depends on it. The RSS feed depends on it. Search can depend on it. Related-post logic depends on it. The archive page depends on it. Build checks depend on it. Any agent or script that edits posts depends on it, whether it admits that or not.
+## frontmatter is not decoration
 
-Once content has consumers, the schema is not a clerical detail. It is the boundary between writing and the rest of the site.
+The frontmatter at the top of a post looks like metadata. In practice it behaves like application data.
 
-## frontmatter is application data
-
-The frontmatter at the top of a post looks like metadata, but the site treats it like application data.
-
-This repo's blog collection expects fields like `title`, `excerpt`, `category`, `author`, `tags`, `publishDate`, and a couple of optional flags for heavier page behavior:
+This repo’s blog collection expects fields like `title`, `excerpt`, `category`, `author`, `tags`, `publishDate`, and a few optional runtime flags for heavier pages:
 
 ```ts
 z.object({
@@ -39,21 +35,19 @@ z.object({
 })
 ```
 
-That shape is doing real work. It tells the site what a post is allowed to be. It keeps draft state from becoming a magic string. It keeps tags as arrays instead of comma-separated improvisation. It lets heavier runtime features be opt-in instead of accidentally loaded everywhere.
+That schema is quietly doing a lot of work. It keeps draft state from turning into a magic string. It keeps tags structured instead of comma-separated noise. It keeps heavy runtime features opt-in. It keeps the site from assuming that every post is the same kind of page.
 
-The useful habit is to treat every field as a product decision.
+The useful habit is to treat each field as something the rest of the site actually consumes.
 
-`excerpt` is not filler. It is the promise shown on an archive page or feed reader. `category` is not decoration. It controls grouping and reader expectations. `publishDate` is not merely a timestamp. It decides ordering and gives the post historical context. Optional runtime flags are especially important because they change the page payload. A post that loads Pyodide or MathJax should do so because the article needs it, not because a copied frontmatter block dragged the flag along.
+`excerpt` is the promise shown in the archive and feed reader. `category` is how readers and scripts group posts. `publishDate` controls ordering and gives the piece a place in the record. `load_pyodide` and `load_mathjax` are not style choices; they change the page payload. If a post needs those runtimes, it should ask for them on purpose.
 
-## names become routes
+## the slug is part of the product
 
-File names are part of the interface too.
+A filename is not just a filesystem detail.
 
-A slug like `astro-content-is-a-real-interface` is doing several jobs at once. It gives the generated route a readable path. It makes the article easier to grep. It gives editors and agents a stable handle. It shows up in links, feeds, search results, analytics, and sometimes screenshots.
+`astro-content-is-a-real-interface.mdx` becomes a route, a search key, a link target, and a stable identifier for editors and agents. It will show up in browser history, analytics, feeds, and maybe screenshots. If the slug is vague or clever in the wrong way, every one of those surfaces gets a little harder to use.
 
-Bad names age badly. So do clever names that require the title for context.
-
-I like slugs that are boring enough to survive:
+I prefer filenames that survive long enough to be boring:
 
 ```text
 approval-buttons-need-context.mdx
@@ -61,39 +55,37 @@ queues-make-ai-workflows-calmer.mdx
 small-sites-need-smoke-tests-too.mdx
 ```
 
-They are not trying to be funny. They are durable identifiers. If a future cleanup script, search index, or agent workflow has to touch the post, the path gives it a fighting chance.
+They are not trying to win anything. They are just durable names. If a future cleanup script or content agent has to touch the post, a clear slug keeps it from wandering around the archive like it forgot why it opened the file.
 
-That matters more in a personal site than it seems. Personal sites are long-lived junk drawers unless somebody keeps the drawers labeled. The route is one of the labels.
+That matters because personal sites age into archives quickly. The route is one of the few labels that keeps the archive navigable.
 
-## mdx makes the contract wider
+## mdx widens the contract
 
-Plain Markdown has a small surface area. MDX is more powerful, which means it can fail in more interesting ways.
+Markdown is pretty small. MDX is not.
 
-An MDX post may import a component, mount a React island, require a runtime flag, or depend on a client-only library. That turns the article into a little application. The content schema still validates the frontmatter, but it does not prove the interactive piece is correct, accessible, fast, or even visible.
+Once a post can import a component, mount an island, require a runtime flag, or depend on a client-only library, the article stops being plain prose and starts behaving like a small app. The frontmatter schema still validates the shape of the post, but it does not prove that the interactive part is correct, visible, accessible, or fast.
 
-This is why I do not like treating MDX as "Markdown, but with widgets." It is source code living in the content folder.
+That is why I do not like treating MDX as “Markdown with widgets.” It is source code living inside the content folder.
 
-If a post imports an interactive component, the post should make the dependency obvious. If it needs MathJax, the flag should be present. If it uses Pyodide, the reader should get enough value from the executable example to justify the heavier page. If an island breaks, the article should not collapse into a blank section with no explanation.
+If a post imports an interactive component, the dependency should be obvious. If it needs MathJax, the flag should be present. If it uses Pyodide, the article should justify the heavier page with something the reader can actually do. If an island breaks, the page should not collapse into a blank section with no explanation.
 
-The content interface has to cover the boring parts around the widget:
+The contract around a post has to include the boring things:
 
-- what the article needs to load
-- whether the component has stable props
+- what the article loads
+- whether the component props are stable
 - what happens if the component fails
 - whether the page still builds in production
 - whether the example still matches the prose
 
-That is a lot of responsibility for something sitting next to paragraphs.
+That is a lot of responsibility for a content file, which is exactly why it matters.
 
-## build checks are editorial tools
+## the checks should fail early
 
-I like build checks for content because they catch mistakes before they turn into archaeology.
+Build checks are editorial tools. I want them to catch mistakes while the change is still cheap.
 
-A missing frontmatter field is not a runtime mystery if the schema rejects it. A malformed date should fail before the archive silently sorts wrong. A broken MDX import should fail before the page deploys. Markdown lint can catch small consistency issues that are annoying to find later.
+A missing frontmatter field should fail before the archive quietly sorts wrong. A malformed date should fail before the post appears in the wrong place. A renamed MDX import should fail before deploy. Markdown lint should catch the small consistency problems that are annoying to discover after the fact.
 
-The point is not to make writing feel like a compliance workflow. The point is to keep the feedback close to the edit.
-
-Content breaks in boring ways:
+The site breaks in ordinary ways:
 
 - title copied from another post
 - excerpt left generic
@@ -101,54 +93,11 @@ Content breaks in boring ways:
 - category typo creates a new bucket
 - date string parses differently than expected
 - imported component renamed
-- link moved
 - code fence left unclosed
 - image path works locally by accident
 
-None of those failures are glamorous. They are exactly the kind of failures a static site can catch cheaply.
+None of that is dramatic. All of it is easy to catch if the content system treats the schema as a real interface.
 
-The moment an agent edits content, these checks become even more important. A model can produce plausible frontmatter that looks right and is subtly wrong. The schema is the first reviewer that does not care how confident the prose sounds.
+That becomes more important the moment an agent edits the files. A model can generate frontmatter that looks reasonable and is quietly wrong. The schema is the first reviewer that does not care how confident the prose sounds.
 
-## content changes need review like code
-
-I do not mean every paragraph needs a pull request ceremony. I mean content changes should be reviewed against the systems they touch.
-
-A post rewrite changes more than the body text. It can change archive balance, tags, search behavior, reading time, internal links, and whether a page needs a client runtime. A title change can break external expectations even when the slug stays fixed. A category change can move a post away from related work. An excerpt change can make the archive sound repetitive.
-
-That is why "it builds" is necessary but not complete.
-
-For content-heavy sites, I want a review pass that asks:
-
-- does the frontmatter match the article?
-- does the excerpt say something specific?
-- are tags useful for navigation?
-- does the slug still match the piece?
-- did the post import anything new?
-- does the article add a new runtime requirement?
-- does it duplicate a nearby post?
-
-Those are interface questions. They decide how the post behaves inside the site.
-
-## the schema should stay boring
-
-There is a temptation to solve every editorial problem with a new field.
-
-Reading depth. Series. Canonical URL. Featured state. Topic cluster. Related posts. Hero image. Social image. Language. Revision date. Confidence. Review status.
-
-Some of those fields may be useful. Many become clutter. Every new field creates a maintenance obligation for old posts and every future post. If the field is optional, it can become meaningless. If it is required, it can become busywork.
-
-I prefer adding fields only when a real consumer exists.
-
-If the archive needs `category`, keep it. If the build needs `load_mathjax`, keep it. If no page, feed, script, or review process uses `reviewStatus`, do not add it because it sounds mature.
-
-A content schema should make the site more reliable, not turn writing into data entry.
-
-## static does not mean informal
-
-The nice thing about Astro is that the content can stay close to the filesystem. The dangerous thing is that close-to-filesystem work can feel informal until it breaks.
-
-A static content site still has contracts. The schema is a contract. The slug is a contract. The optional MDX runtime flags are contracts. The build command is a contract. The archive and feed are consumers. Readers are consumers too.
-
-Treating content as an interface does not make the site heavier. It makes the quiet assumptions visible.
-
-That is the version of Astro I like best: plain files, strong enough boundaries, and boring checks that let the writing stay fast without letting the site become sloppy.
+This is why I like Astro’s content layer so much. It keeps the writing close to the filesystem, but it refuses to pretend that the files are inert. The files have consumers. The consumers need a contract. The contract should stay boring enough to hold up when the site gets bigger than the person writing it.

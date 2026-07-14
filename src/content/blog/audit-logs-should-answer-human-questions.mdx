@@ -10,81 +10,19 @@ tags: ["audit logs", "security", "operations"]
 
 Most audit logs are technically present and practically hostile.
 
-They have timestamps. They have event names. They have IDs. They may even have a JSON blob with enough raw material to reconstruct the story if the person reading it already knows the system, the database schema, the permission model, and the exact failure they are looking for.
+They have timestamps, event names, IDs, and enough JSON to reconstruct the story if the reader already knows the system, the schema, the permission model, and the exact failure they are chasing. That is still a bad audit log.
 
-That is not good enough.
+The log should answer human questions under pressure. What happened? Who did it? What changed? Was it allowed? Can we undo it? Do we need to tell somebody? Those are not abstract requirements. They are the questions support, security, operations, and future-you ask when something is already on fire.
 
-An audit log is supposed to answer human questions under pressure. What happened? Who did it? What changed? What was the target? Was it allowed? What did the system know at the time? Can we undo it? Do we need to tell somebody?
+## the support person opens the log
 
-If the log does not help with those questions, it is mostly a compliance-shaped archive.
+The first reader I keep in mind is not a forensics specialist. It is a support person trying to explain why a customer lost access or why a setting changed at the wrong time.
 
-## start with the reader
+That person does not want event trivia. They want a path through the mess. The event should use human nouns: actor, action, target, previous state, new state, source, authorization decision, correlation id, and a plain reason when there is one. If the event name itself is opaque, the reader has already lost time before they open the details.
 
-The reader of an audit log is rarely a calm engineer browsing events for fun.
+`update_success` and `mutation_applied` are code language. `workspace.member_removed`, `api_key.created`, `policy.exception_granted`, `file.permission_revoked`, and `agent.tool_approved` tell the reader what changed in a way they can scan quickly.
 
-It is a support person trying to explain why a customer lost access. It is a security analyst checking whether a credential was abused. It is an admin reviewing a suspicious change. It is an engineer debugging a permission bug after a deploy. It is future you, tired, trying to remember why a setting changed three weeks ago.
-
-Those readers do not want event trivia. They want a path through the mess.
-
-A log entry should be written for somebody who has the question before they have the context. That means the event has to include enough human-facing nouns to orient them:
-
-- actor
-- action
-- target
-- previous state
-- new state
-- source of the request
-- authorization decision
-- correlation id
-- user-facing reason when one exists
-
-IDs still matter. Machines need stable identifiers. But IDs without names force the reader into lookup mode before they even understand the event.
-
-## event names should say what changed
-
-I have seen too many audit events named like internal implementation details.
-
-`update_success`
-
-`mutation_applied`
-
-`settings_changed`
-
-`operation_complete`
-
-Those names make sense to the code that emitted them. They do not answer the human question.
-
-Better event names are boring and specific:
-
-```text
-user.role_changed
-workspace.member_removed
-api_key.created
-policy.exception_granted
-file.permission_revoked
-agent.tool_approved
-```
-
-The name should tell the reader what category of thing changed before they open the details. It should not require a product archaeologist.
-
-The event body can carry nuance, but the name is still part of the interface. If every meaningful change gets logged as `settings.updated`, the system has chosen storage convenience over review quality.
-
-## before and after are not optional for state changes
-
-For mutations, I want before and after values.
-
-Not always the full object. Sensitive data may need redaction. Large payloads may need summaries. But the log should show what changed in the fields that matter.
-
-This is the difference between:
-
-```json
-{
-  "event": "workspace.settings_updated",
-  "workspaceId": "ws_123"
-}
-```
-
-and:
+For state changes, I want before and after values for the field that matters. Not always the full object. Sensitive data may need redaction. Large payloads may need summaries. But the log should still show the actual change.
 
 ```json
 {
@@ -107,29 +45,15 @@ and:
 }
 ```
 
-The second event answers the obvious questions. The first event makes the reader go hunting.
+That answers the obvious questions immediately. It also reduces blame fog. If the risky value was already present before the current action, the event should make that visible.
 
-Before and after values also reduce blame fog. If a setting was already wrong before the current action, the event should make that clear. If the current action introduced the risky value, that should be clear too.
+## authority belongs in the record
 
-## authorization belongs in the event
+“Who did it?” is often more complicated than a user id.
 
-Audit logs should record more than the fact that an action occurred. They should explain why the system allowed it.
+An admin may act directly. A service account may act on behalf of a workflow. An agent may use a delegated credential. A support user may impersonate a customer account. A scheduled job may apply a policy that a human created weeks earlier. If the log flattens all of that into a single `actor`, the person reading it loses the thread.
 
-That does not mean dumping the whole policy engine into every entry. It means preserving the key authorization facts:
-
-- which actor identity was used
-- which role, group, or grant allowed the action
-- whether the action happened through impersonation or delegation
-- which policy version evaluated the request
-- whether an approval or exception was involved
-
-This matters because "who did it?" is often more complicated than a user id.
-
-An admin may act directly. A service account may act on behalf of a workflow. An agent may use a delegated credential. A support user may impersonate a customer account. A scheduled job may apply a policy created by a human weeks earlier.
-
-If the log flattens all of that into one actor field, it hides the part investigators care about.
-
-I like separating initiator, executor, and authority when the system has that distinction:
+I prefer to separate initiator, executor, and authority when the system has that distinction:
 
 ```text
 initiator: jeremy@example.com
@@ -137,36 +61,19 @@ executor: agent-runner-prod
 authority: delegated github write grant, expires at 2026-07-13T18:30:00Z
 ```
 
-That tells a much clearer story than "actor: agent-runner-prod."
+That tells the story much better than `actor: agent-runner-prod`.
 
-## failed attempts count
+Authorization context should also include the policy version or grant that allowed the action, and whether an approval or exception was involved. I do not mean dumping the whole policy engine into each row. I mean preserving enough context that the reviewer can tell whether this was a direct action, a delegation, or a special case.
 
-Audit logs often get better at recording success than refusal.
+## denials count
 
-That is backwards for security work. Denied actions are signal. Repeated denials may show probing. A single denial may explain why a user could not complete a workflow. A denied action after a role change may reveal a policy regression.
+Audit logs often get better at recording success than refusal, and that is backwards for security work.
 
-A good audit trail records meaningful denials with the same care as successful changes:
+Repeated denials can show probing. A single denial can explain why a user could not complete a workflow. A denial after a role change can reveal a bad policy rollout. A rejected approval attempt can show a user pushed back on a risky step. Those events matter.
 
-- actor
-- target
-- attempted action
-- reason for denial
-- policy or permission that blocked it
-- request source
+The log should capture meaningful denials with the same care as successful changes: actor, target, attempted action, reason for denial, policy or permission that blocked it, and request source. Not every validation error belongs here. A typo in a form is usually product telemetry. A denied access attempt is not.
 
-The trick is avoiding noise. Not every validation error belongs in the audit stream. A typo in a form is usually product telemetry, not audit history. But denied access to a resource, failed privilege escalation, blocked external write, and rejected approval attempts belong in the record.
-
-The audit log should be able to answer: did the system prevent the thing we hoped it would prevent?
-
-## search is part of the log design
-
-An audit event is only as useful as the questions it can be searched by.
-
-If support searches by email, store the email. If security searches by IP, store the IP or a normalized network field where appropriate. If admins search by workspace name, include the workspace name alongside the ID. If engineers debug by request id, carry it through every event in the chain.
-
-This sounds obvious. It is often missed because logging is added from inside the code path rather than designed from the review path.
-
-Start with the queries:
+The log also has to support the searches people actually run:
 
 - show me everything this user changed yesterday
 - show me who touched this resource
@@ -175,17 +82,13 @@ Start with the queries:
 - show me actions approved by this admin
 - show me events tied to this incident id
 
-Then make sure the event shape supports them without a join across six systems and one prayer.
+If the event shape does not support those queries without a join across six systems and one prayer, it is not serving the people who need it.
 
-## redact with intent
+## redaction should still explain itself
 
-Audit logs have a privacy problem. They need enough detail to explain sensitive actions, but they should not become a second database full of secrets.
+Redaction needs intent.
 
-The answer is not "log everything." It is also not "log nothing useful."
-
-For sensitive values, log the kind of change, a safe summary, and a stable reference when possible. For secrets, log creation, rotation, scope, and last-used metadata, never the secret. For document changes, log the document id and fields changed rather than dumping private content. For AI prompts or tool inputs, be deliberate about what is retained and who can see it.
-
-Redaction should be predictable. If every team invents its own redaction style, reviewers learn to distrust the log. Some entries hide too much. Others leak too much. Neither is acceptable.
+Audit logs have to explain sensitive actions without becoming a second database full of secrets. For secrets, log creation, rotation, scope, and last-used metadata, never the secret. For documents, log the document id and fields changed rather than dumping private content. For AI prompts or tool inputs, be deliberate about what is retained and who can see it.
 
 The log should say when a value was redacted and why.
 
@@ -195,26 +98,12 @@ change.after: redacted, contains secret material
 change.summary: api key scope changed from read to write
 ```
 
-That is much more useful than an empty object.
+That is much better than an empty object, and much better than pretending the sensitive thing never existed.
 
-## the best audit log reads like a timeline
+The best audit log reads like a timeline. Correlation ids, request ids, run ids, session ids, and incident ids all exist to keep related events together. Use them. Preserve ordering. Make the timeline view readable. Do not make the reviewer bounce between raw logs, database rows, and product screens to understand one action chain.
 
-When something goes wrong, people build a timeline.
-
-The audit system should help them do that. Correlation ids, request ids, run ids, session ids, and incident ids all exist to keep related events together. Use them. Preserve ordering. Make the timeline view readable. Do not make the reviewer bounce between raw logs, database rows, and product screens just to understand a single action chain.
-
-For AI and automation-heavy systems, this becomes even more important because one user request may trigger several steps: retrieve data, propose action, approve action, execute tool, verify result, notify user. Those events should be connected without requiring the reviewer to guess.
-
-The audit log does not need to tell a story in prose. It needs to provide the pieces in order.
-
-## logs are product surfaces too
-
-Audit logs are often built late because they are treated as backend plumbing.
-
-That shows.
-
-A good audit log is a product surface for admins, support, security, and engineering. It should use product language where humans read it and stable identifiers where machines need them. It should show state changes, authorization context, denials, redaction, and correlation. It should be searchable by the questions people actually ask.
+For AI and automation-heavy systems, that becomes even more important because one request can trigger several steps: retrieve data, propose action, approve action, execute tool, verify result, notify user. Those events should stay connected.
 
 The test I keep coming back to is simple: can a tired person answer what happened without becoming a detective?
 
-If not, the log may exist, but it is not doing its job yet.
+If not, the log exists, but it is not doing its job yet.

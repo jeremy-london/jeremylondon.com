@@ -19,127 +19,74 @@ import HiddenLayers from "@components/blog/HiddenLayers.jsx";
   outputRows={32}
 />
 
-Hidden layers are just intermediate guesses.
+Hidden layers are where a network learns to stop staring at raw input and start building a useful representation.
 
-The word "hidden" makes them sound stranger than they are. In a small network, a hidden layer is simply a layer whose output is not the final answer. It sits between the input and the output, transforming the input into a new set of values that the next layer can use.
+The word hidden makes them sound secretive. They are not. In a small network, the hidden layer is just the layer between input and output. Its values are not shown as the final answer, but they are easy to inspect. The point is not mystery. The point is that the network gets to rewrite the input before the last layer has to make a decision.
 
-That is it.
+That rewrite is the whole game.
 
-The values are hidden from the final user-facing output, not hidden from us. In this lesson, they are right there in the grid: hidden `Z`, hidden `A`, output `Z`, output `A`.
+## what the first layer is really doing
 
-The useful question is not "what mysterious thing is the hidden layer doing?"
+The input here starts as three numbers. The first layer turns those three numbers into four raw scores, one per neuron. ReLU then turns those raw scores into four activations. The output layer reads those activations instead of the original input.
 
-The useful question is:
+That means the hidden layer is not just "another layer." It is a place where the model can change the coordinate system.
 
-~~~text
-what intermediate signals did the first layer create for the second layer?
-~~~
+If one neuron reacts strongly to one pattern in the input and another neuron reacts to a different pattern, the second layer can combine those reactions instead of rebuilding the pattern from scratch. That is why the layer matters even in a tiny example. It creates a set of intermediate signals the output layer can use.
 
-## the first layer rewrites the input
+## raw scores are not a footnote
 
-The input starts as three numbers.
+The `Z` column and the `A` column tell you two different things.
 
-The first layer has four neurons. Each one sees the same input and produces its own raw score. Those raw scores are the hidden `Z` values. ReLU then turns them into hidden `A` values.
+`Z` is the weighted sum before the activation function. `A` is the value after ReLU. If `Z` is negative, `A` becomes zero. That looks like a simple gate, but the raw score is still useful because it tells you how far the neuron was from turning on.
 
-That means the network has converted three input numbers into four activated hidden values.
+Two hidden units can both output zero and still be in different states. One might be barely negative. Another might be deep in the negative range. Those are different internal conditions, even though the visible activation is the same.
 
-This is the first important idea: the hidden layer changes the representation.
+That is why debugging with only the post-activation numbers can be misleading. The raw values show the boundary. The activations show what actually moved forward.
 
-The output layer does not see the original input directly in this example. It sees the hidden activations. The first layer has already filtered, shifted, and gated the input into a different shape.
+## why the output layer feels different
 
-That is why hidden layers help. They create intermediate features the next layer can combine.
+The second layer does not see the original input directly. It sees the hidden activations.
 
-## z and a keep the story readable
+That matters because the last layer is now combining internal signals, not raw features. In this example, one output weight might depend heavily on the first hidden activation while another mostly uses the third. If a hidden activation is zero, it contributes nothing for that input. If it is large, it can dominate the final score.
 
-The `Z` and `A` split matters.
-
-`Z` is the raw weighted sum before activation. `A` is the value after ReLU. In the hidden layer, that means each neuron first produces a raw score, then ReLU decides whether that score moves forward.
-
-If a hidden `Z` value is negative, the hidden `A` becomes zero. The output layer receives zero from that hidden unit for this input.
-
-That does not mean the hidden unit is useless. It means it is off for this example.
-
-Keeping both columns visible helps because ReLU can hide distance. A hidden `Z` of `-1` and a hidden `Z` of `-20` both become activation `0`, but they are not equally close to turning on.
-
-The raw value tells you where the boundary is. The activation tells you what signal actually moved forward.
-
-## the output layer combines hidden signals
-
-The second layer takes the hidden activations as its input.
-
-This is the part that makes hidden layers feel useful. The output layer is not starting from raw input features. It is combining the intermediate signals produced by the hidden layer.
-
-If the hidden layer creates four activations, the output layer can give each of those activations different weights. One output neuron might rely heavily on the first hidden signal. Another might mostly use the third. If a hidden activation is zero, that signal contributes nothing for this input.
-
-The network is building a small chain of transformations:
+So the network is not doing one big calculation. It is doing a small chain of calculations:
 
 ~~~text
-input
-  -> hidden raw scores
-  -> hidden activations
-  -> output raw scores
-  -> output activations
+input -> hidden scores -> hidden activations -> output scores -> output activations
 ~~~
 
-That chain is the mental model worth keeping.
+The hidden layer is the place where the chain gets its first real shape.
 
-## hidden does not mean unknowable
+## the useful experiment
 
-Beginners sometimes hear "hidden layer" and assume the layer is beyond interpretation.
+The easiest way to understand this is to change one thing at a time.
 
-It is not unknowable. It is just internal.
+Edit a weight in the first layer and watch the hidden `Z` values move. Then watch which hidden activations survive ReLU. Finally check whether the output changed because the output layer received a different set of signals.
 
-In a tiny network, you can inspect every number. You can change a first-layer weight and see hidden `Z` move. You can watch hidden `A` turn on or off. You can then watch the output layer respond because its input changed.
+Then do the opposite. Change a weight in the output layer. The hidden values should stay the same, but the final answer should move because the readout changed.
 
-That is a complete causal path.
+Those two experiments separate "the network built a different representation" from "the network read the same representation differently."
 
-The path gets harder to inspect in large networks because there are many layers and many activations. But the basic idea does not change. Hidden layers create intermediate values, and later layers use those values.
+That is the useful distinction.
 
-The mystery comes from scale, not from the concept.
+## why the name sounds bigger than the idea
 
-## change the first layer, then the second
+Beginners often hear "hidden layer" and imagine a sealed box where the model keeps its reasoning. That is not quite right.
 
-Use the module in two passes.
+The layer is hidden only in the sense that its values are not the final result. You can still print them, inspect them, and perturb them. In a tiny network, the causal chain is easy to follow. An input value affects a weight sum, the weight sum affects ReLU, and the activation affects the next layer.
 
-First, change a weight or bias in Layer 1. Before running the code, predict which hidden `Z` value should move. Then watch whether the corresponding hidden `A` changes after ReLU. Finally, check whether the output values changed.
+The concept gets harder only when scale adds many more layers, many more neurons, and many more ways for one signal to travel. The basic idea stays simple even then. The model keeps making intermediate guesses and passing them along.
 
-That shows how an early weight can affect the final output indirectly.
+## what to remember when the example gets larger
 
-Then change a weight in Layer 2. This time the hidden values should stay the same, but the output values should move. That shows the difference between changing the representation and changing how the representation is read.
+When the network grows, do not stop asking the same boring questions:
 
-Those two experiments are the whole lesson:
+- what did this layer receive?
+- what did it produce?
+- which values went to zero?
+- which values stayed alive?
+- what changed when the earlier weight moved?
 
-- Layer 1 changes the hidden signals.
-- Layer 2 changes how those signals become output.
+Those questions are enough to keep you oriented.
 
-## why more layers help
-
-One layer can draw only simple boundaries around the input.
-
-Adding a hidden layer lets the model build intermediate signals first. Those signals can make the final decision easier. A hidden unit might activate for one pattern in the input. Another might activate for another pattern. The output layer can combine those signals instead of working from the raw input alone.
-
-This is the beginning of representation learning.
-
-That phrase can sound bigger than it needs to. In this small example, it just means the network creates a new set of numbers that may be more useful than the original input for the next step.
-
-The hidden layer is not a magic reasoning chamber. It is a transformation stage.
-
-## the useful habit
-
-When you look at a network with hidden layers, trace the values in order.
-
-Do not jump straight from input to output. Ask what each layer produced and what the next layer received.
-
-For this example:
-
-- input has three values
-- hidden layer creates four raw scores
-- ReLU turns those into four hidden activations
-- output layer combines those activations
-- final ReLU produces the output activations
-
-That path is small enough to debug.
-
-Once you can follow it here, deeper networks become less strange. They are longer chains of the same idea: transform, activate, pass forward.
-
-Hidden layers are intermediate guesses. The network learns to make those guesses useful.
+Hidden layers are not magic. They are the part of the model where one representation becomes another representation, so the next layer has something more useful to work with.

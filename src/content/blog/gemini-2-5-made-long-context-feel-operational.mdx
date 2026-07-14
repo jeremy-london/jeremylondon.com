@@ -8,50 +8,21 @@ author: "jeremy-london"
 tags: ["gemini", "long context", "reasoning"]
 ---
 
-[Gemini 2.5 Pro](https://blog.google/innovation-and-ai/models-and-research/google-deepmind/gemini-model-thinking-updates-march-2025/) made long context feel less like a lab stunt and more like something a product team could plan around.
+[Gemini 2.5 Pro](https://blog.google/innovation-and-ai/models-and-research/google-deepmind/gemini-model-thinking-updates-march-2025/) made long context feel operational.
 
-Gemini 1.5 made the long-context headline unavoidable. Gemini 2.5 made the operational question sharper: what do you do when a thinking model can take a million-token context window, handle mixed inputs, and reason across large code repositories or document sets?
+## the prompt is now a working set
 
-The answer is not "send everything." That answer gets expensive and sloppy. The useful answer is more like: decide when preserving the original material beats retrieval, build a context plan, and evaluate whether the model actually used the extra material.
+The step from "this model can take a huge prompt" to "a product team can actually plan around this" is bigger than it sounds.
 
-That is the shift. Long context stopped being only capacity. It became routing behavior.
+Gemini 2.5 moved the conversation from novelty to routing: what should be included, what should stay out, how much reasoning effort to spend, and when retrieval still wins.
 
-## repositories are a good stress test
+Repositories are the easiest way to see it. A codebase is noisy by default, which means the interesting problem is not raw capacity. It is deciding which files, tests, docs, and dependencies belong together in one working set.
 
-Code repositories show why this matters.
-
-Small-context coding agents have to guess what matters. They read a file, search for a symbol, inspect a test, then maybe miss the configuration or helper that explains the bug. Retrieval helps, but retrieval can select the wrong neighbor. Summaries help, but summaries can flatten the weird detail that matters.
-
-Large context lets the system carry more of the repository at once: the target file, tests, route definitions, package config, docs, and a handful of related modules. That does not make the model omniscient. It does reduce the number of brittle handoffs between search, summarization, and reasoning.
-
-For planning work, that can be useful:
-
-~~~text
-task: update auth callback behavior
-context:
-  - src/routes/auth/callback.ts
-  - src/lib/session.ts
-  - src/lib/oauth/*
-  - tests/auth/*
-  - docs/auth-flow.md
-  - package.json
-goal:
-  identify files likely to change and tests likely to fail
-~~~
-
-The context is still curated. The difference is that the curated set can be larger and more coherent.
-
-## context planning becomes a feature
-
-Once long context is practical, the context builder becomes a product component.
-
-It should know what kind of task is being attempted. A code review needs diffs, nearby tests, owners, and relevant docs. A contract review needs the contract, amendments, policies, and a question-specific section map. A support investigation needs the ticket, account state, recent incidents, and product docs. A video analysis task needs source video, transcript, timestamps, and any user-selected region.
-
-I would represent that plan explicitly:
+For a planning task, I would want something like this:
 
 ~~~json
 {
-  "task_type": "repository_planning",
+  "task": "update auth callback behavior",
   "context_strategy": "large_curated_context",
   "sources": [
     { "path": "src/routes/auth/callback.ts", "role": "target" },
@@ -66,106 +37,30 @@ I would represent that plan explicitly:
 }
 ~~~
 
-That plan is a receipt. It tells the user and the system what the model saw and what it intentionally did not see.
+That is the part I mean by operational. The model should not just receive tokens. It should receive a source manifest, a permission boundary, and a reason for why this slice of the world deserves to be in front of it.
 
-Without a plan, long context becomes a junk drawer with a larger token budget.
+The manifest is also what keeps the omission visible. If the answer is wrong, I can inspect the slice and ask whether the callback file, the session helper, the tests, or the docs were missing. Without that, the model just saw "a lot of code" and the reviewer gets to guess why the result feels thin.
 
-## retrieval still earns its keep
-
-I would still use retrieval with Gemini 2.5-style long context.
-
-The difference is where retrieval sits. Instead of retrieving three tiny chunks and hoping they are enough, retrieval can assemble a source set. Then long context lets the model inspect larger pieces of that set with less pre-compression.
-
-This is a better division of labor:
+For a real repo task, I want the slice to be small but complete:
 
 ~~~text
-permissions decide what can be used
-retrieval proposes candidate sources
-context planning chooses coherent source units
-long context preserves enough original material
-reasoning produces an answer with citations or actions
-verification checks the result against the sources
+target: src/routes/auth/callback.ts
+dependencies: src/lib/session.ts, src/lib/oauth/*
+verification: tests/auth/callback.test.ts
+domain context: docs/auth-flow.md
+excluded: dist/, .env, generated files
 ~~~
 
-The permission step is important. Large context makes it easier to over-share. A model that can read an entire repository should not automatically receive secrets, generated files, unrelated customer records, or documents outside the user's scope.
+That is not a giant context dump. It is a working set that explains itself.
 
-Context size is not authorization.
+## a planner should know when to say no
 
-## thinking budget and context budget interact
+The long-context win, in other words, is not "send everything." It is "make the system smarter about what is worth carrying."
 
-Gemini 2.5 also pushed the "thinking model" framing. That matters because long context and reasoning budget compound each other.
+If I am deciding whether to keep a repo slice whole or fetch pieces on demand, I still care about freshness, permissions, and cost. Long context is the right tool when the question depends on keeping the source together. Retrieval is the right tool when the source is too large, too stale, or too sensitive to carry whole.
 
-A model asked to reason over a huge input may need more time. More time may improve the answer. It may also make the product feel slow or too expensive. If the system adds a large context window and high reasoning effort to every ambiguous request, the cost curve gets ugly fast.
+I also want the planner to refuse junk. If the model can hold more, that does not mean it should hold everything. A good planner can say "this log directory adds noise" or "that generated bundle does not belong in the working set" without needing a human to trim it by hand.
 
-The router needs to decide two budgets:
+That is the part that makes 2.5 feel operational instead of theatrical. The window is bigger, but the real win is that the system can start treating context as a budget with structure instead of a blob with a token count.
 
-- how much source material to include
-- how much reasoning effort to spend
-
-Those choices should be related but not identical. A simple extraction from a long document may need a lot of context and modest reasoning. A hard debugging task may need moderate context and high reasoning. A quick classification may need neither.
-
-I would log both:
-
-~~~text
-case: auth-callback-plan-018
-context_tokens: 214000
-thinking: medium
-result: accepted
-review_note: missed one test file, otherwise useful
-~~~
-
-That lets the team learn whether the extra context or the extra reasoning did the work.
-
-## operational long context needs compression points
-
-Large context does not remove summarization. It moves summarization to better places.
-
-During a long workflow, the system may read a lot of material, make a plan, inspect files, run tools, and revise the plan. It cannot keep appending everything forever. Even with a million tokens, the useful question is what should remain live.
-
-I like compression points that produce named artifacts:
-
-~~~text
-repository map
-source manifest
-risk list
-open questions
-test plan
-decision log
-~~~
-
-Those artifacts can be reviewed. They can also be reused without carrying the entire raw context into every later step.
-
-The mistake is invisible compression: the model silently summarizes and the next step treats the summary as the source. If a later decision depends on a compressed artifact, the artifact should say what it omitted or link back to source material.
-
-## evals should test use, not capacity
-
-A million-token window is impressive. It is not an eval.
-
-The eval should ask whether the system used the long context well. For repository tasks, that might mean:
-
-- identifies the right files to edit
-- avoids generated or unrelated files
-- finds tests that cover the changed behavior
-- detects config or dependency constraints
-- cites source files accurately
-- handles conflicts between docs and code
-
-For document tasks:
-
-- finds clauses across long documents
-- detects contradictions
-- preserves page or section citations
-- resists irrelevant repeated language
-- explains uncertainty when evidence conflicts
-
-The point is to test the workflow, not the theoretical window size. A model can accept the context and still ignore the key source.
-
-## what felt operational
-
-Gemini 2.5 made long context feel operational because it combined the pieces product teams actually care about: large context, multimodal inputs, stronger reasoning, developer availability, and enough performance that the question moved from "is this possible?" to "where should this route be used?"
-
-That is a practical shift.
-
-The hard part is no longer imagining a model reading a giant input. The hard part is deciding which giant input it should read, what it is allowed to see, how much reasoning budget it gets, how the answer cites evidence, and when a smaller route would have been better.
-
-Long context is most useful when it is treated like infrastructure. It needs budgets, manifests, permissions, evals, and reviewable compression. Without those, it is a very large prompt with a very large hiding place for mistakes.
+The better system is the one that can do both without pretending they are the same thing.

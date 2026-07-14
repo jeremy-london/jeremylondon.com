@@ -8,149 +8,30 @@ author: "jeremy-london"
 tags: ["gpt-4o", "multimodal", "product"]
 ---
 
-[GPT-4o](https://openai.com/index/hello-gpt-4o/) made multimodal product work feel less like stitching demos together.
+[GPT-4o](https://openai.com/index/hello-gpt-4o/) made multimodal product work feel real.
 
-Before that launch, a lot of multimodal systems still felt like pipelines wearing a chat interface. Speech-to-text here. OCR there. Vision captioning somewhere else. A text model at the end trying to reason over whatever survived the conversions. It worked for some things, but the seams were obvious.
+Before that launch, multimodal often meant a chain of conversions with a chat box on top. Speech to text. OCR. Vision captioning. Then a language model reasoning over the leftovers. GPT-4o changed the expectation by making text, vision, and audio feel like one surface.
 
-GPT-4o changed the product expectation. OpenAI described a model trained across text, vision, and audio, with faster interaction and lower API cost than the previous flagship path. The demo energy was voice and vision. The engineering implication was broader: multimodal input was becoming one surface.
+The product lesson was not subtle. The input surface is part of the model contract. The system has to know what was captured, what the model actually saw, and how the result can be reviewed later.
 
-That creates better product possibilities and sharper product obligations.
-
-## input capture becomes part of the model interface
-
-In a text-only product, the input box is the interface.
-
-In a multimodal product, the input surface is a small operating system. It has to capture audio, images, screenshots, files, camera frames, screen state, and text. It has to decide what is sent, when it is sent, what is retained, and what the user can inspect afterward.
-
-That matters because multimodal prompts are not self-explanatory.
-
-A user might ask, "What is wrong here?" while pointing the camera at an error message. The model needs the frame. The product needs to preserve which frame. A user might ask about a chart in a screenshot. The answer should be anchored to the chart, not to a vague visual impression. A user might talk over a screen recording. The system needs timing.
-
-The input record should look more like this:
+One practical shape looks like this:
 
 ~~~json
 {
-  "turn_id": "t-184",
-  "text": "Why is this build failing?",
-  "attachments": [
-    {
-      "type": "screenshot",
-      "source": "ci-log.png",
-      "captured_at": "2024-05-20T13:42:11Z"
-    },
-    {
-      "type": "audio",
-      "source": "user-question.wav",
-      "duration_ms": 8200
-    }
-  ]
+  "requestId": "bug-4821",
+  "inputs": [
+    { "kind": "screenshot", "assetId": "shot-1", "region": "submit-button" },
+    { "kind": "audio", "assetId": "call-4", "timeRange": "00:42-01:05" },
+    { "kind": "text", "source": "user-note" }
+  ],
+  "receipts": ["screenshot:shot-1", "audio:call-4@00:42-01:05"]
 }
 ~~~
 
-The model can reason across inputs. The product still has to record what those inputs were.
+That is the part that matters to me. Once the input is multimodal, the app has to keep anchors, timestamps, regions, and receipts around or the answer turns into blind trust. If the UI cannot point back to the exact crop or the exact second, the model has done perception work but the product has not done its job.
 
-## evidence needs anchors
+The launch made that work feel less theoretical and more like normal product plumbing. That's the useful shift. Multimodal stopped being a demo and started being a workflow with evidence.
 
-Text answers can cite paragraphs. Multimodal answers need richer anchors.
+I think the simplest implementation pattern is to treat every multimodal request as a small record, not a blob. Store the source asset IDs, the visible region or timestamp, the model version, and the review link next to the result. That way a later bug report can answer a basic question: did the model miss the thing, or did the product lose the anchor after the fact?
 
-For images, the anchor might be a region. For audio, a timestamp. For video, a frame range. For a screenshot, a UI element. For a PDF page, a page number and bounding box. Without those anchors, the user cannot tell whether the model actually looked at the right thing.
-
-This is especially important when the model is wrong. A bad text answer can often be debugged by reading the source document. A bad visual answer needs to reveal what the model thought it saw.
-
-I want product affordances like:
-
-- highlight the screenshot region used in the answer
-- jump to the audio timestamp
-- show the video frame range
-- preserve the original image next to the generated explanation
-- let the user correct a misread label or object
-
-Multimodal output should leave handles for review. Otherwise it becomes a confident caption with better branding.
-
-## turn-taking is a systems problem
-
-Voice makes latency visceral.
-
-In a text chat, a slow response is annoying. In a voice interface, bad turn-taking feels broken. The system has to decide when the user is done, when to interrupt, when to listen, when to speak, and how to recover when speech recognition or model reasoning gets the wrong intent.
-
-GPT-4o's low-latency direction made this more realistic, but product design still matters. A voice assistant that talks over the user, misses a correction, or answers before the relevant visual frame is captured will feel worse than a slower text assistant.
-
-The interaction loop needs state:
-
-~~~text
-listening
-detecting_end_of_turn
-processing_audio_and_visual_context
-speaking
-interrupted
-repairing
-~~~
-
-Those states are product states, not demo details. They determine whether the assistant feels conversational or chaotic.
-
-## multimodal failures are different
-
-Text failures are familiar: hallucinated facts, bad citations, weak reasoning, missing context.
-
-Multimodal failures add new varieties:
-
-- the model reads text from an image incorrectly
-- the model misses a small visual detail
-- the model describes the wrong object
-- the audio transcript drops a negation
-- timing between speech and screen state is misaligned
-- the model answers from a stale frame
-- the product sends a compressed image that loses the important detail
-
-The fix depends on the failure. Better prompting will not repair a product that sent the wrong frame. A stronger model may not help if the screenshot was too low resolution. A better transcript may not help if the user was pointing at something the camera did not capture.
-
-Multimodal products need failure UI. The user should be able to say, "No, this part," and select the region. Or "I meant the second chart." Or "listen to the part after I say build step." Repair has to be multimodal too.
-
-## evals need real artifacts
-
-Multimodal evals cannot be only written prompts pretending to reference media.
-
-The eval set should include the actual images, audio clips, screenshots, PDFs, or videos the product expects. It should measure whether the model identifies the right evidence, not only whether the final answer sounds plausible.
-
-For screenshot analysis, I would test:
-
-- small text
-- overlapping UI elements
-- dark mode and light mode
-- cropped error messages
-- visually similar buttons
-- charts with misleading labels
-- screenshots with irrelevant surrounding content
-
-For audio:
-
-- interruptions
-- background noise
-- corrections mid-sentence
-- names and technical terms
-- negations
-- timing-sensitive references to visual context
-
-The grader should know the evidence location. A correct answer with the wrong anchor is suspect. A plausible answer without an anchor is weaker than it looks.
-
-## privacy gets more physical
-
-Multimodal input often contains more accidental data than text.
-
-A screenshot can include tabs, emails, names, tokens, notifications, or customer records. Audio can include other people. A camera frame can include a room. A screen recording can capture more than the task.
-
-The product has to help users understand what is being sent. It should crop, redact, preview, or scope inputs when possible. It should avoid turning "ask about this chart" into "upload my whole desktop." It should make retention rules clear.
-
-This is one reason local or on-device pre-processing matters. Even when the main reasoning model is remote, the product can often crop, redact, sample, or warn before sending.
-
-Multimodal power increases the privacy surface.
-
-## what became real
-
-GPT-4o made multimodal work feel real because it connected capability, latency, and product interaction. It was no longer only "the model can see an image" or "the model can transcribe audio." It was closer to one assistant working across the inputs a user naturally has.
-
-That is a big product shift.
-
-It also raises the bar. The product has to capture inputs well, preserve evidence anchors, handle turn-taking, expose repair paths, evaluate against real media, and protect accidental data.
-
-Multimodal AI is not text chat with attachments. It is a different interaction model. GPT-4o made that harder to ignore.
+That sounds mundane, which is exactly why it works. The app becomes easier to debug when the sightline from input to answer stays intact.

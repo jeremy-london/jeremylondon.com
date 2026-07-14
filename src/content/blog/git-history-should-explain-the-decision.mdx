@@ -8,149 +8,54 @@ author: "jeremy-london"
 tags: ["git", "commits", "workflow"]
 ---
 
-Git history is one of the cheapest places to preserve engineering memory.
+Git history should explain the decision, not just the diff.
 
-I do not mean every commit needs to become a diary entry. Most do not. But a commit message should usually answer the question future-you will ask when something breaks: why did this change happen?
+## the diff is the what
 
-The diff already shows what changed. The message should explain the decision.
+The diff already shows what changed. The commit message should tell future-me why it changed at all.
 
-That distinction matters because debugging often starts in the past. A test starts failing. A dependency behaves differently. A feature flag has a strange default. A helper has a weird branch that nobody wants to touch. You run `git blame`, find the commit, and hope the message says more than `fix stuff`.
+That matters because the first person to read old history is usually annoyed and debugging something. They want the decision, not a vibe.
 
-When it does, you save time. When it does not, the codebase makes you re-litigate an old decision with less context.
-
-## the subject line is a label
-
-The first line should be a useful label, not a complete explanation.
-
-I like subjects that name the area and the action:
+I like messages that carry a small amount of structure:
 
 ~~~text
 auth: preserve invite token through callback
-blog: remove generated prose from model-watch posts
-forms: add idempotency key to project creation
-evals: split policy failures by refusal type
+
+callback retries were dropping the invite token, which made the last step
+look like a fresh session. keep the token in the redirect so the invite can
+finish after login.
+
+verified with:
+  pnpm test tests/auth/invite-callback.test.ts
 ~~~
 
-That makes scanning history easier. It also makes `git log --oneline` useful when the repository has moved on.
-
-The subject should not carry too much ceremony. If the change is a small typo fix, `docs: fix typo in install step` is enough. If the change alters behavior, the body should earn its keep.
-
-## the body should capture the decision
-
-The body is where the useful context lives.
-
-A good commit body answers a few boring questions:
-
-- What problem did this solve?
-- Why this approach?
-- What alternatives were rejected?
-- What risk remains?
-- How was it verified?
-
-It does not need all five every time. The point is to preserve the context that will disappear from memory.
-
-Example:
-
-~~~text
-forms: add idempotency key to project creation
-
-Project creation could duplicate records when the client retried after a
-timeout. The UI already disables the button while submitting, but that does
-not protect against refreshes, network retries, or repeated requests from an
-old tab.
-
-Use a client-generated idempotency key and store it with the creation attempt.
-This keeps legitimate second projects possible because the key is scoped to
-one submit intent, not the project name.
-
-Verified with the invite retry regression test and the existing project
-creation suite.
-~~~
-
-That message is longer than the diff summary. Good. The diff cannot tell you why the key is scoped to submit intent instead of project name.
-
-## bad messages create archaeology
-
-Some commit messages are actively expensive:
+Bad commit messages do the opposite:
 
 ~~~text
 fix
 updates
 wip
-refactor
 cleanup
-address comments
-changes
 ~~~
 
-Those subjects might be honest in the moment, but they are almost useless later. They force the reader to open the diff for every clue. Worse, they erase the decision boundary. Was this cleanup required for the feature, or was it opportunistic? Was the refactor behavior-preserving? Were comments addressed by changing code, tests, docs, or all of the above?
+Those are not explanations. They are placeholders that make future archaeology slower.
 
-Even a slightly better message helps:
+## a commit body i can actually use
 
-~~~text
-parser: preserve quoted commas in csv import
-~~~
+That is enough to explain the point without turning git history into a diary.
 
-Now the future reader knows what to look for.
+It is also enough to keep the next person from reopening an old argument. If the change was a workaround, say that. If it was a deliberate product choice, say that too.
 
-## commits should be shaped for review
+I want the body to answer three plain questions: what broke, why this patch shape, and what still needs watching. If I cannot get those out of the commit, I probably do not understand the change well enough yet.
 
-Good history starts before the commit message. It starts with commit shape.
+That usually produces better history than a pile of tiny `fix` commits. A single commit with a short reason and a real rollback path is easier to read six months later than five commits that all say the same thing with different verbs.
 
-A commit that changes formatting, rewrites helpers, updates tests, and fixes behavior is hard to explain because it is several decisions. Sometimes that is unavoidable. Usually it is a sign the work should be split.
+It also makes agent-written history less painful. A generated diff without a message is hard to recover. A diff with a plain reason and a test note gives the human a place to start when they need to understand why the change exists.
 
-I want commits that answer one review question at a time:
+## when the author was an agent
 
-~~~text
-test: add duplicate-submit regression coverage
-forms: add idempotency key to project creation
-ui: show retry state after project creation timeout
-~~~
+This matters more when the author was an agent or a script. The diff can be mechanically correct and still be useless for the human who has to recover the intent. If the agent changed a redirect, a validation rule, or a rollback path, I want the commit to say which assumption changed and what broke when that assumption was wrong.
 
-That sequence tells a story. The test captures the bug. The backend fix prevents duplication. The UI fix improves recovery. If one part has to revert, the boundary is visible.
+That is the difference between history that explains the work and history that only records that the work happened.
 
-Clean history is not about making the graph pretty. It is about making review, revert, and blame less miserable.
-
-## generated work needs better receipts
-
-Agent-written code makes commit messages more important, not less.
-
-Agents can produce large diffs quickly. They can also mix real fixes with accidental edits, generated artifacts, stale assumptions, or broad cleanup that was never requested. A commit message is one of the places where the human can reassert intent.
-
-For agent-assisted work, I want the message to say what was verified:
-
-~~~text
-blog: rewrite fine-tuning post from recovered outline
-
-Replace the generated agent-control prose with a topic-specific article about
-baselines, datasets, splits, checkpoints, and regressions. Preserve frontmatter.
-
-Verification:
-- pnpm markdown:check src/content/blog/fine-tuning-is-not-a-shortcut.mdx
-- banned phrase scan
-- lowercase heading scan
-~~~
-
-That receipt is useful because the diff alone may look like a wall of prose. The message tells the next reviewer what constraints mattered.
-
-## do not put everything in git history
-
-Git history is not the only place for decisions.
-
-Architecture decisions, product requirements, incident findings, and release notes often deserve their own documents. A commit message can point to them. It should not pretend to replace them when the decision is large.
-
-The sweet spot is local context: why this implementation, why this migration order, why this default, why this fallback, why this test exists.
-
-If the explanation is longer than the patch, that may still be fine. If the explanation describes a company-wide direction, write an ADR or design note and link it.
-
-## the future reader is probably annoyed
-
-The person reading old git history is rarely relaxed. They are probably debugging something, preparing a revert, trying to understand a regression, or figuring out why a weird choice exists.
-
-Write for that person.
-
-They do not need a perfect essay. They need the missing reason. They need to know whether the change was a workaround, a migration step, a product decision, a security fix, or a temporary compromise that nobody removed.
-
-A commit message is cheap when the work is fresh. It is expensive to reconstruct later.
-
-That is enough reason to write the decision down.
+Good history makes blame, revert, and archaeology less miserable. It also helps when the change was made by an agent and the human needs to recover the intent from a pile of generated text.

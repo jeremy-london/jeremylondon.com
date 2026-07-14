@@ -12,19 +12,19 @@ ChatGPT Work matters because it makes the chat tab feel like the wrong container
 
 Once an assistant can see files, browser state, application context, and prior work, it stops being a conversational sidecar. It becomes a work surface. The user is no longer asking for an answer beside the work. They are asking the system to participate in the work.
 
-That shift sounds like product positioning until you ask what has to be true for the work to be trusted.
+That sounds like product positioning until you ask what has to be true for the work to be trusted.
 
-A chat assistant can be useful with a transcript and a send button. A desktop agent needs more structure than that. It needs scoped access, visible state, approvals with real context, verifiers that can disagree with the agent, and records that survive after the conversation scrolls away.
+A chat assistant can get by with a transcript and a send button. A desktop agent needs more structure than that. It needs scoped access, visible state, approvals with real context, verifiers that can disagree with the agent, and records that survive after the conversation scrolls away.
 
 The interesting part is not that an agent can move across apps and files. The interesting part is deciding how it is allowed to move.
 
-## the run is the object
+## a run is the thing you can inspect
 
 The message is the wrong unit of work for a desktop agent.
 
 Messages are good for conversation. Runs are better for work. A run has a request, a scope, a context snapshot, proposed actions, tool calls, approvals, verification, and final evidence. It is the thing you can inspect, pause, resume, replay, or hand to another reviewer.
 
-I want the agent platform to think in objects like this:
+I want the platform to think in objects like this:
 
 ```json
 {
@@ -48,7 +48,9 @@ What did the agent see? What was it allowed to touch? Which files were in scope?
 
 A transcript can describe those things after the fact. A run object can enforce them while the work is happening.
 
-## desktop context is sensitive by default
+That is the part I care about. The product is not "chat with tools." The product is a structured work session with a beginning, a boundary, and an exit.
+
+## desktop context is personal before it is productive
 
 Desktop agents sit near the messy part of a person's life.
 
@@ -66,7 +68,7 @@ The grants need to be smaller:
 - never read secrets
 - expire when the run ends
 
-The user should be able to see those grants without opening a policy document. More importantly, the agent runtime should enforce them without relying on the model to remember the rules.
+The user should be able to see those grants without opening a policy document. More importantly, the runtime should enforce them without relying on the model to remember the rules.
 
 Desktop context is powerful because it is local and personal. That is exactly why it needs hard edges.
 
@@ -99,7 +101,7 @@ The approval surface should show the target, the side effect, the evidence, and 
 
 The goal is not to make every step painful. The goal is to make meaningful steps legible.
 
-## verifiers need a different job than generators
+## the verifier should not share the generator's job
 
 The annoying part of desktop agents is not getting them to call tools. The annoying part is deciding whether the work that came back is usable.
 
@@ -127,7 +129,7 @@ Those semantic checks may involve another model, but the job should be framed di
 
 That distinction matters. A desktop agent that verifies itself with the same context, same incentives, and same blind spots will miss exactly the failures the user needed help catching.
 
-## receipts are how work becomes inspectable
+## receipts are how runs stay inspectable
 
 When a desktop agent finishes, I do not want a victory paragraph.
 
@@ -155,7 +157,7 @@ needs review:
 
 That last line is important. Good receipts do not pretend uncertainty disappeared.
 
-## the product metric is trust over time
+## the metric is trust over time
 
 Desktop agents will be judged by more than task completion.
 
@@ -177,8 +179,6 @@ None of those metrics is perfect. Together they are better than pretending the o
 The product has to learn where friction helps and where it only annoys. Too much approval turns the agent into a form with a personality. Too little approval turns the agent into a smooth path for unclear work. The right balance will vary by task, user, and environment.
 
 My bias is to start explicit and earn convenience later.
-
-## why this feels inevitable
 
 Desktop agents feel inevitable because the work is already on the desktop.
 

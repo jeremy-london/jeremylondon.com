@@ -1,6 +1,6 @@
 ---
 title: "Vector search needed product questions in 2023"
-excerpt: "The vector database rush made semantic search easy to demo and surprisingly easy to ship without product discipline."
+excerpt: "The vector database boom made semantic search easy to demo and easy to ship without asking what the product should actually do."
 publishDate: "2023-09-26T14:00:00Z"
 category: "advance-deep-learning"
 draft: false
@@ -10,11 +10,11 @@ tags: ["vector search", "retrieval", "product"]
 
 The vector database rush in 2023 made semantic search easy to demo and surprisingly easy to ship without product discipline.
 
-That year had a very specific smell: take a pile of docs, embed the chunks, ask a question, get a plausible answer, declare retrieval solved. The demo felt like magic because keyword search had been annoying for so long. Suddenly "I do not remember the exact words" was a solvable problem.
+That year had a very specific smell: take a pile of docs, embed the chunks, ask a question, get a plausible answer, declare retrieval solved. The demo felt like magic because keyword search had been annoying for so long.
 
-I still think that was a real step forward. I also think a lot of teams skipped the product questions because the prototype looked too good.
+The prototype was real progress. It also let a lot of teams skip the product questions.
 
-## similar to what
+## what kind of likeness should win
 
 Vector search answers a similarity question. The product has to define what similarity should mean.
 
@@ -24,16 +24,7 @@ Those are different products.
 
 If the product does not choose, the embedding model chooses. That can work for a demo because the examples are friendly. It gets weird when users bring their actual language, half-remembered terms, product nicknames, acronyms, screenshots, and questions that mix two jobs.
 
-The first product question should be:
-
-~~~text
-When the user says "find the thing like this", what kind of likeness
-should win?
-~~~
-
-That question is more important than the database choice.
-
-## search or answer
+## search and answering are different surfaces
 
 A lot of 2023 retrieval demos quietly changed the product from search to answering.
 
@@ -52,9 +43,7 @@ That means the product has to decide which surface it is building:
 
 Each one needs different ranking, citation, filtering, and evaluation.
 
-I wish more vector-search conversations in 2023 had started there. "We have embeddings" is not a product requirement.
-
-## ranking still exists
+## similarity is only one signal
 
 Vector search did not delete ranking. It made ranking easier to ignore.
 
@@ -70,15 +59,11 @@ score =
 
 That toy score is not the point. The point is that "nearest vector wins" is rarely the whole product.
 
-A stale policy document can be very similar and still wrong. A draft runbook can be close to the query and still less useful than the approved runbook. A private document can be the best match and still unavailable to the user.
+## empty results are part of quality
 
-Ranking has to know what the product values.
+Semantic search makes it tempting to always return something. That is dangerous.
 
-## the empty result matters
-
-Semantic search makes it tempting to always return something.
-
-That is dangerous. A vector index will find nearest neighbors even when none of them answer the question. The top result may be "closest" in a mathematical sense and useless in a product sense.
+A vector index will find nearest neighbors even when none of them answer the question. The top result may be "closest" in a mathematical sense and useless in a product sense.
 
 The product needs an empty-result strategy:
 
@@ -97,21 +82,21 @@ The closest match is the standard refund policy.
 
 That distinction matters. "Related" and "answers the question" are not the same label.
 
-Thresholds are hard, but pretending every query deserves an answer is worse.
+## permissions and citations are part of the interface
 
-## permissions are part of relevance
+Real products are scoped by workspace, team, account, document permission, retention policy, and sometimes legal boundary.
 
-In 2023, a lot of vector demos treated data as if it were one friendly pile.
+A search system that retrieves a chunk the user cannot read has already failed, even if the UI hides it later. Permissions affect relevance because unavailable documents should not compete. The system should search inside the user's allowed space, or at least filter before anything reaches the model.
 
-Real products do not work that way. Search results are scoped by workspace, team, account, document permission, retention policy, and sometimes legal boundary. A search system that retrieves a chunk the user cannot read has already failed, even if the UI hides it later.
+Once retrieval feeds an AI answer, citations become part of the product, not a compliance garnish.
 
-Permissions affect relevance because unavailable documents should not compete. The system should search inside the user's allowed space, or at least filter before anything reaches the model.
+~~~text
+Source: Refund policy v3, "regional exceptions", updated 2023-09-14
+~~~
 
-The awkward part is that permissions change. A vector index built yesterday may contain chunks that are no longer visible today. Product-quality vector search needs a story for permission updates, document deletion, and stale chunks.
+That is enough for a human to judge the answer.
 
-That is not glamorous. It is the difference between semantic search and semantic leakage.
-
-## demos need adversarial queries
+## the hard cases are the near misses
 
 Friendly demos prove almost nothing.
 
@@ -125,32 +110,4 @@ If the docs contain "reset your password" and the query is "how do I reset my pa
 
 Those pairs tell you whether the product understands the user's job or merely finds nearby language.
 
-I would rather test twenty ugly queries than two hundred friendly ones.
-
-## citations are interface design
-
-Once retrieval feeds an AI answer, citations become part of the product, not a compliance garnish.
-
-A citation should help the user inspect the answer. That means source title, section, date, and sometimes the exact snippet. If the source is stale, the citation should reveal that. If the answer combines multiple sources, the interface should not pretend one link proves the whole paragraph.
-
-Bad citation:
-
-~~~text
-Source: policy.pdf
-~~~
-
-Better:
-
-~~~text
-Source: Refund policy v3, "regional exceptions", updated 2023-09-14
-~~~
-
-The second one lets a human judge the answer.
-
-## 2023 made the tool feel solved
-
-The vector-search boom was useful because it made semantic retrieval accessible. That changed what small teams could build.
-
-But the product work did not disappear. Teams still had to define relevance, separate search from answering, rank with product signals, handle empty results, enforce permissions, test hard queries, and show evidence.
-
-The demo made retrieval feel solved. The product questions were the part that decided whether it should ship.
+The vector-search boom was useful because it made semantic retrieval accessible. The product questions were the part that decided whether it should ship.

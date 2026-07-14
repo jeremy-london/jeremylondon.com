@@ -10,11 +10,11 @@ tags: ["mcp", "tooling", "agents"]
 
 I like small agent tools because they are easier to reason about when the agent gets weird.
 
-Small tools are easier to permission, easier to review, and harder for an agent to misuse quietly. They do one job with a clear input shape and a result that can be inspected. That sounds modest. It is also one of the most useful design constraints in agent systems.
+Small tools are easier to permission, easier to review, and harder for an agent to misuse quietly. They do one job with a clear input shape and a result that can be inspected.
+
+## broad tools hide policy
 
 The tempting move is to give the agent a powerful tool and trust the prompt to keep it polite. I do not like that bargain. Prompts are useful, but they are not permission boundaries.
-
-## broad tools hide too much policy
 
 Consider a tool named `manage_files`.
 
@@ -26,7 +26,9 @@ type ManageFilesArgs = {
 }
 ~~~
 
-That tool is convenient. It is also doing too many jobs. The permission model now depends on action, path, caller, file type, workspace, intent, and maybe whether the write came after a review step. All of that policy has to be checked somewhere.
+That tool is convenient. It is also doing too many jobs. The permission model now depends on action, path, caller, file type, workspace, intent, and maybe whether the write came after a review step.
+
+## narrow tools are easier to approve
 
 I would rather split it:
 
@@ -48,26 +50,9 @@ type DeleteGeneratedArtifactArgs = {
 
 The smaller tools are less elegant as an API list. They are much easier to permission.
 
-## small tools make approval clearer
+Human approval works better when the action is specific. Approving `manage_files` is awkward because the user has to understand what the agent intends to do inside a broad capability. Approving `write_blog_post_draft` or `delete_generated_artifact` is cleaner.
 
-Human approval works better when the action is specific.
-
-Approving `manage_files` is awkward because the user has to understand what the agent intends to do inside a broad capability. Approving `write_blog_post_draft` or `delete_generated_artifact` is cleaner. The approval can show the exact arguments and the consequence.
-
-~~~json
-{
-  "tool": "write_blog_post_draft",
-  "path": "src/content/blog/example.mdx",
-  "word_count": 1280,
-  "overwrites_existing": false
-}
-~~~
-
-That approval surface is reviewable. A user can say yes or no without reverse-engineering a general-purpose tool.
-
-Small tools also make denial more useful. If the system refuses `delete_generated_artifact`, the agent can choose a safer next step. If the system refuses a giant file-management tool, the agent may have no idea which part crossed the line.
-
-## composition beats hidden branching
+## composition beats hidden authority
 
 Small tools do not mean small workflows.
 
@@ -83,72 +68,9 @@ summarize result
 
 That sequence is better than one tool called `rewrite_blog_post` if the hidden tool performs all five steps internally and returns a blob of prose. The composed version exposes the intermediate state. Each tool call can be logged, denied, retried, or inspected.
 
-There are times when a higher-level tool is the right abstraction. If a workflow is stable, safe, and frequently repeated, wrapping it can reduce noise. But I want that wrapper to preserve the receipt. It should still report what it read, what it wrote, and which checks ran.
+There are times when a higher-level tool is the right abstraction. If a workflow is stable, safe, and frequently repeated, wrapping it can reduce noise. But I want that wrapper to preserve the receipt.
 
-The problem is not abstraction. The problem is hidden authority.
-
-## small tools fail in smaller ways
-
-Agent mistakes are easier to recover from when the tool is narrow.
-
-If an agent calls `search_docs` with a bad query, the result is probably irrelevant context. If it calls `send_customer_email` with a bad payload, the result may be a real-world mistake. If it calls `run_shell` with broad access, the failure surface is enormous.
-
-Small tools limit blast radius:
-
-- read-only search tools can be retried freely
-- scoped write tools can validate paths
-- generated-artifact tools can avoid user-authored files
-- ticket tools can create drafts instead of publishing
-- deployment tools can default to preview environments
-
-The tool shape should match the risk.
-
-I do not want every agent tool to become a tiny wrapper around one line of code. I want side effects to be explicit enough that the system can reason about them.
-
-## naming is part of the guardrail
-
-Tool names guide model behavior.
-
-`run_command` invites improvisation. `run_project_check` invites a narrower action. `query_database` is broad. `count_open_incidents` is narrow. `update_issue` is broad. `add_issue_comment` is narrower.
-
-Names do not enforce policy by themselves, but they help the model choose correctly and help reviewers spot a mismatch.
-
-The description should be equally plain:
-
-~~~text
-Read a markdown file inside the workspace. This tool cannot read files
-outside the workspace and cannot modify files.
-~~~
-
-That description tells the agent what the tool is for and tells the system what to enforce.
-
-## fewer arguments is not always safer
-
-A small tool is about narrow authority, not argument count.
-
-~~~ts
-type DangerousArgs = {
-  command: string
-}
-~~~
-
-That is one argument and a huge capability.
-
-A better tool may have more fields because the fields name the boundary:
-
-~~~ts
-type RunMarkdownCheckArgs = {
-  workspaceRoot: string
-  targetPath: string
-  maxDurationMs: number
-}
-~~~
-
-This is more verbose and safer. The tool knows what command it runs. The caller supplies only the file and limits. The implementation can reject paths outside the workspace and cap runtime.
-
-Small means narrow authority, not short JSON.
-
-## audit logs get easier
+## logs get easier to read
 
 Small tools make logs readable.
 
@@ -168,22 +90,33 @@ result: ok
 
 The second log may hide ten actions. It might be fine for a human-facing summary, but it is weak as an audit record.
 
-When an agent runs for a while, the log becomes the only way to understand what happened. Small tools produce logs that can be skimmed by another engineer.
+## the tool shape should match the risk
 
-## the cost is more tool design
+Small tools limit blast radius:
 
-Small tools are not free.
+- read-only search tools can be retried freely
+- scoped write tools can validate paths
+- generated-artifact tools can avoid user-authored files
+- ticket tools can create drafts instead of publishing
+- deployment tools can default to preview environments
 
-They require more naming work. They can create a longer tool list. The agent may need to compose multiple calls for a simple task. Tool discovery can get worse if every tiny operation becomes its own public capability.
+The tool shape should match the risk. I do not want every agent tool to become a tiny wrapper around one line of code. I want side effects to be explicit enough that the system can reason about them.
 
-That means the tool catalog needs curation. Group related tools. Hide tools the agent does not need. Prefer small side-effecting tools and allow broader read-only tools when the risk is low. Retire tools that exist only because nobody wanted to design the right one.
+## names matter
 
-The goal is not maximum tool count. The goal is minimum surprising authority.
+Tool names guide model behavior.
 
-## small tools make agents less magical
+`run_command` invites improvisation. `run_project_check` invites a narrower action. `query_database` is broad. `count_open_incidents` is narrow. `update_issue` is broad. `add_issue_comment` is narrower.
 
-That is why I like them.
+Names do not enforce policy by themselves, but they help the model choose correctly and help reviewers spot a mismatch.
 
-Small tools make the agent feel less like a mysterious actor and more like a process calling visible functions. The model can still be smart. It can still plan, summarize, and adapt. But when it reaches into the world, the tool boundary should be boring enough to inspect.
+The description should be equally plain:
 
-Agent systems get safer when power is split into pieces that can be named, scoped, approved, logged, and revoked.
+~~~text
+Read a markdown file inside the workspace. This tool cannot read files
+outside the workspace and cannot modify files.
+~~~
+
+Small tools are about narrow authority, not argument count.
+
+That is the reason I keep reaching for them. Agent systems get safer when power is split into pieces that can be named, scoped, approved, logged, and revoked.

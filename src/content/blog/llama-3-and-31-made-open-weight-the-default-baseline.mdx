@@ -10,122 +10,23 @@ tags: ["meta", "llama", "open weights"]
 
 [Llama 3](https://ai.meta.com/blog/meta-llama-3/) and [Llama 3.1](https://ai.meta.com/blog/meta-llama-3-1/) changed the default baseline conversation.
 
-Before 2024, testing open-weight models often felt like a special track. Useful, interesting, sometimes surprisingly strong, but still something teams had to justify against hosted frontier APIs. Llama 3 made that harder to ignore with 8B and 70B models that were broadly usable. Llama 3.1 pushed further with upgraded 8B and 70B models plus a 405B model, 128K context, multilingual improvements, and stronger tool-use positioning.
+Before 2024, open weights felt like a special track. Llama 3 and 3.1 made them the thing you compare against by default.
 
-After that, the question shifted.
+That matters because open weights are not only about quality. They give you a real baseline, a deployment choice, and a way to decide what belongs in your own stack.
 
-It was no longer "should we test open weights?" It was "where do open weights fit in the stack, and what do they beat in our workflow?"
-
-## baseline means something practical
-
-A baseline is not a moral position. It is a comparison point.
-
-For AI systems, I want an open-weight baseline because it gives the team a model they can inspect, host, fine-tune, quantize, route, and benchmark without treating the provider API as the only possible shape. The hosted model may still win. Often it will. But it should win against a real baseline, not against a vague assumption that open models are too weak.
-
-The baseline should be tied to a task:
+I think of the baseline as a test matrix instead of a slogan:
 
 ~~~text
-task: support ticket routing
-open baseline: llama-3.1-8b-instruct
-hosted baseline: current small hosted route
-metric: macro f1, latency, cost per 1k tickets
-fallback: unknown routes to larger model
+hosted frontier
+open weight self-hosted
+quantized self-hosted
+small local fallback
 ~~~
 
-That is more useful than arguing about the model category. Run the task. Compare the route. Decide.
+Once the open route is strong enough, you have to explain why you skipped it. Maybe the latency budget is wrong. Maybe the operating cost is too high. Maybe the product needs a provider-managed update path. Maybe the local deployment cannot meet the hardware or privacy constraints. That is a better conversation than pretending hosted is the only serious option.
 
-## open weights change ownership
+The shift is practical, not ideological. Llama 3 and 3.1 made open weights the default thing to test, which is the real change.
 
-Open weights give you control and hand you work.
+That baseline matters when you are deciding where a workflow lives. A routing service can compare hosted, open, quantized, and local fallback routes against the same examples. If the open route is good enough, the team has to explain why they are paying for the hosted one. If it is not, the failure is visible instead of assumed. That is a better starting point than treating open weights like a side quest.
 
-You can run the model where you want. You can tune serving parameters. You can quantize. You can pin a version. You can keep sensitive workloads in your own environment. You can evaluate behavior without waiting for an API provider to expose every knob.
-
-You also own the deployment.
-
-That means hardware, batching, autoscaling, memory, model files, security patches, prompt templates, tokenizer behavior, observability, and rollback. A hosted API hides a lot of that. Open weights make it visible.
-
-The right question is not whether ownership is good or bad. It is whether the workload deserves that ownership.
-
-For some internal tools, yes. For regulated or private data, maybe. For high-volume narrow tasks, often. For a small team building a broad assistant with no platform staff, maybe not.
-
-## 8b, 70b, and 405b are different products
-
-The Llama 3.1 family also made it obvious that "open model" is too broad.
-
-An 8B model can be local, cheap, fast, and useful for narrow tasks. A 70B model may be a serious self-hosted route for many application workloads. A 405B model is a different operational beast, closer to a frontier comparison point than a laptop experiment.
-
-Those sizes imply different roles:
-
-~~~text
-8B:
-  local classification, routing, extraction, offline helpers
-
-70B:
-  self-hosted assistant work, heavier summarization, coding support, domain tasks
-
-405B:
-  frontier-style comparison, synthetic data generation, distillation teacher, hard eval cases
-~~~
-
-The exact roles depend on hardware and quality requirements, but the family gives teams a ladder inside the open-weight world. That matters because routing does not have to be open versus closed. It can be open small, open large, hosted small, hosted frontier, and task-specific fine-tune.
-
-## evals should include operational cost
-
-Open-weight evals should include more than answer quality.
-
-A self-hosted model has different costs: GPU time, engineer time, deployment complexity, cold start, throughput, failure recovery, and model update work. A hosted model has vendor cost, data boundary questions, rate limits, provider behavior changes, and less control.
-
-The eval should make that trade visible:
-
-~~~text
-route                  pass_rate   p95_ms   cost_shape        owner
-llama-3.1-8b-local       0.86       120      device/runtime    app
-llama-3.1-70b-hosted     0.91       900      gpu/platform      platform
-hosted-frontier          0.94      1400      api/provider      vendor
-~~~
-
-That table is not universal. It is the kind of table I want for a real decision.
-
-Sometimes the hosted frontier route wins because it is better enough. Sometimes the open route wins because it is good enough and fits the data boundary. Sometimes the local small model handles 80 percent of cases and escalates the rest.
-
-Without operational metrics, the comparison is incomplete.
-
-## open baselines improve closed-model use too
-
-Testing an open-weight baseline can improve a hosted-model system even when the hosted model wins.
-
-It forces the team to define the task. It makes evals concrete. It reveals whether the prompt is doing real work or compensating for a weak route. It shows which slices require frontier capability and which slices do not. It provides a fallback strategy if API pricing, latency, or availability changes.
-
-It also gives the team a distillation or synthetic-data path. A larger open model can serve as a teacher for narrow internal tasks. A smaller one can become a cheap verifier. A local route can pre-process or redact before sending a smaller, safer request to a hosted model.
-
-The open baseline creates options.
-
-## license and policy are part of the architecture
-
-Open weights do not mean no rules.
-
-Model licenses, acceptable-use terms, redistribution limits, attribution requirements, and enterprise policy all matter. A team should read the license before building a product path around a model. It should also track which model version and license terms apply to each deployment.
-
-That belongs in the model registry:
-
-~~~text
-model: llama-3.1-70b-instruct
-source: Meta
-license: Llama 3.1 Community License
-use: internal support summarization
-deployment: self-hosted GPU pool
-review: legal approved 2024-07-30
-rollback: hosted route support-summary-v4
-~~~
-
-That record prevents "open" from becoming a hand-wave.
-
-## why it became the default baseline
-
-Llama 3 and 3.1 made open-weight testing feel like normal engineering due diligence.
-
-If a model is strong enough, available enough, and deployable enough, it deserves a line in the comparison. That does not mean it always wins. It means skipping it needs a reason.
-
-For me, that is the default-baseline shift. Open weights became part of the practical model-routing conversation: local, self-hosted, provider-hosted, fine-tuned, distilled, or escalated.
-
-That is a healthier architecture than pretending every task starts and ends with the newest hosted model.
+In practice, that means the open route belongs in the first eval pass, not the optional one. The team can still choose hosted for support, policy, or capability reasons, but the choice has to be made after looking at the local baseline instead of before it.

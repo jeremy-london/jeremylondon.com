@@ -1,6 +1,6 @@
 ---
 title: "SQLite in the browser changes the default"
-excerpt: "When local databases become easy to ship, small tools can keep more state close to the user."
+excerpt: "When local databases become practical in the browser, small tools can keep state close to the user without becoming backend projects first."
 publishDate: "2024-05-08T12:00:00Z"
 category: "local-first-software"
 draft: false
@@ -10,21 +10,19 @@ tags: ["sqlite", "browser", "local first"]
 
 SQLite in the browser changes the default for small tools.
 
-The old default was simple: if the app needs real state, put the state on a server. The browser can hold preferences, cache, drafts, maybe some IndexedDB records if the team is feeling brave. The source of truth lives elsewhere.
+The old default was simple: if the app needs real state, put the state on a server. The browser can keep preferences, cache, maybe a few IndexedDB records if the team is willing to live with the shape of that API. The source of truth lives elsewhere.
 
-That is still the right answer for many products.
+That is still right for many products.
 
-But when SQLite becomes practical to ship in the browser through WebAssembly-backed runtimes and local persistence layers, a different class of tool gets easier to imagine. Small tools can keep more state close to the user without immediately becoming a backend project.
-
-That matters for personal tools, internal utilities, offline workflows, exploratory data apps, and AI-adjacent notebooks that need local memory without a server round trip.
+But once SQLite becomes practical to ship in the browser through WebAssembly-backed runtimes and local persistence layers, a different class of tool gets easier to imagine.
 
 ## local state can be structured
 
 Browser storage often starts as a key-value drawer.
 
-That is fine for tiny state. It gets messy when the tool grows: notes, tasks, runs, artifacts, settings, indexes, drafts, imports, exports, and sync status all end up as blobs with conventions nobody wrote down.
+That works until the tool grows. Then notes, tasks, runs, artifacts, settings, indexes, drafts, imports, exports, and sync status all end up as blobs with conventions nobody wrote down.
 
-SQLite changes the feel because it gives the client a real relational shape:
+SQLite changes the feel because the client gets a real relational shape:
 
 ~~~sql
 create table runs (
@@ -46,35 +44,31 @@ create table artifacts (
 
 That schema is a design artifact. It says what the tool remembers.
 
-For small apps, that can be enough to avoid inventing a backend before the workflow deserves one.
-
 ## offline becomes a real path
 
 Local databases make offline behavior less fake.
 
-The app can create records, update drafts, store imported data, queue changes, and let the user inspect history without waiting for a network. The product can say "saved locally" and mean something more durable than an in-memory object.
+The app can create records, update drafts, store imported data, queue changes, and let the user inspect history without waiting on the network. The product can say "saved locally" and mean something more durable than an in-memory object.
 
-That does not make sync easy. It makes the offline side more honest.
+That does not make sync easy. It does make the offline side honest.
 
-A browser SQLite app still needs to decide:
+The app still has to decide:
 
 - what is stored locally
 - what syncs
 - what stays private
 - how conflicts resolve
-- how schema migrations run
+- how migrations run
 - how backups and exports work
 - what happens when storage is cleared
 
-Those decisions are product decisions. The database only gives them a place to live.
+Those are product decisions. The database gives them a place to live.
 
-## migrations come to the client
+## migrations arrive in the client
 
 Once the browser has a schema, the browser has migrations.
 
-That is the part people underestimate.
-
-A client database can be old. The user may not open the app for months. They may have unsynced local state. They may be on a different browser. They may have a partial migration from a crashed tab.
+That is the part people underestimate. A client database can be old. The user may not open the app for months. They may have unsynced local state. They may be on another browser. They may have a partial migration from a crashed tab.
 
 The app needs a migration story:
 
@@ -87,7 +81,7 @@ open database
   -> fail with recovery path
 ~~~
 
-For small tools, this can stay simple. But it cannot be ignored. A local-first app that loses local data during an upgrade breaks the core promise.
+For small tools, that can stay simple. But it cannot be skipped.
 
 ## export keeps the user in control
 
@@ -97,8 +91,6 @@ If the data lives near the user, the product should give the user a way to take 
 
 Export is not an afterthought. It is part of trust.
 
-If the tool is a personal notebook, local analysis app, or AI workflow tracker, the user should not feel trapped inside a browser origin. Local state should have a door.
-
 ## ai tools need run history
 
 Local AI tools often need more than preferences.
@@ -107,29 +99,15 @@ They need prompts, runs, source references, generated artifacts, review notes, e
 
 The model output is only one artifact. The local record around it is what makes the work inspectable later.
 
-## sync should be optional by design
-
-SQLite in the browser does not remove the need for servers.
-
-It lets the server become optional for more workflows.
-
-A small tool can start local. Later, if the product needs multi-device sync, collaboration, account backup, or team sharing, the sync layer can be added around a real local data model.
-
-That order is interesting. Instead of starting with backend tables and treating the client as a cache, the tool can start with client tables and treat the server as replication, backup, or collaboration.
-
-That is not always simpler. Sync is hard. Conflict resolution is hard. Permissions are hard. But the architecture can match the product's maturity.
-
 ## browser storage still has limits
 
 This is not magic.
 
 Browser storage can be cleared. Quotas exist. Private browsing behaves differently. Persistence APIs vary. Large databases can make backup and migration awkward. WebAssembly startup cost matters. Multi-tab access needs care. Security boundaries still depend on the origin.
 
-Those limits are manageable when the product names them.
+That means a serious local tool should make the limits visible:
 
-For a serious local tool, I would want:
-
-- visible local save state
+- local save state
 - export or backup
 - schema versioning
 - migration tests
@@ -138,12 +116,4 @@ For a serious local tool, I would want:
 - sync status if sync exists
 - user-facing recovery instructions
 
-## the default changes for small tools
-
-SQLite in the browser is exciting because it makes serious local state feel ordinary.
-
-Not every small app needs an account, database server, auth layer, API, and deployment pipeline on day one. Some need a local database, a good export path, and enough care around migrations and storage.
-
-That changes the default.
-
-The browser stops being a thin shell around a server and becomes a place where small, durable tools can actually live.
+SQLite in the browser is useful because it makes serious local state feel ordinary. It lets some small apps start local instead of starting as a backend project with a browser attached.

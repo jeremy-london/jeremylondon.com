@@ -1,6 +1,6 @@
 ---
 title: "SWE-bench stopped being enough"
-excerpt: "When a benchmark stops separating frontier coding systems, teams need local evals more, not less."
+excerpt: "When a benchmark stops separating frontier coding systems, the repo needs local evals more, not less."
 publishDate: "2026-04-08T11:00:00Z"
 category: "developer-tools"
 draft: false
@@ -10,35 +10,27 @@ tags: ["benchmarks", "coding agents", "evals"]
 
 SWE-bench was useful because it made coding models answer to code.
 
-That was a big improvement over vibes. A model could talk a good game in chat and still fail to patch a real issue. SWE-bench forced the question into a repository with tests and a target behavior. That mattered.
+That was a big step up from vibes. A model could talk a good game in chat and still fail to patch a real issue. SWE-bench forced the question into a repository with tests and a target behavior.
 
-But every useful benchmark eventually becomes less useful as a separator.
+The problem is that every useful benchmark eventually becomes less useful as a separator.
 
-When frontier coding systems cluster near the top, the public benchmark stops answering the question teams actually have: which system works for our code, our tests, our review style, and our risk tolerance?
-
-That is when local evals matter more, not less.
-
-## benchmark saturation is a success state
+## saturation is a success state
 
 A benchmark getting saturated is not a failure of the benchmark.
 
-It means the benchmark shaped the field. Models got better at the thing it measured. Tooling adapted. Agents learned to patch more realistic issues. The leaderboard became crowded because the task became part of the training and evaluation culture.
+It means the field got better at the thing it measured. Models improved. Tooling adapted. Agents learned to patch more realistic issues. The leaderboard got crowded because the task became part of the evaluation culture.
 
-That is useful progress.
+That is progress.
 
 The mistake is treating the benchmark as a permanent oracle.
 
-Once several systems score well, small differences may not predict local usefulness. A model that wins a public benchmark by a few points may still be worse in your repo because it edits too broadly, misses generated code, mishandles flaky tests, or ignores project conventions.
-
-The benchmark told you the category got serious. It did not finish your evaluation work.
+Once several systems score well, the small differences may not predict local usefulness. A model that wins by a few points may still be worse in your repo because it edits too broadly, ignores conventions, or handles flaky tests badly.
 
 ## local repos have local weirdness
 
-Every serious codebase has local texture.
+Every serious codebase has texture.
 
-There are naming conventions, test patterns, migration habits, generated files, feature flags, service boundaries, lint rules, deployment assumptions, and areas of code nobody touches without asking the right person.
-
-A coding agent needs to navigate that texture.
+There are naming conventions, generated files, service boundaries, lint rules, migration habits, and commands nobody runs casually. A coding agent has to navigate that texture.
 
 Public benchmarks rarely know:
 
@@ -46,12 +38,11 @@ Public benchmarks rarely know:
 - which generated files should not be edited
 - which directories are owned by another team
 - which migrations need rollback
-- which lint failures are preexisting
 - which helper APIs should be used
 - which style choices reviewers care about
 - which commands are too expensive to run casually
 
-Those details decide whether an agent feels helpful or reckless.
+Those details decide whether the agent feels helpful or reckless.
 
 ## local evals should use real tasks
 
@@ -64,31 +55,18 @@ For each task, capture:
 - starting commit
 - task prompt
 - allowed tools
-- expected files or behavior
+- expected behavior
 - required checks
 - known pitfalls
 - reviewer rubric
-- accepted solution or acceptance criteria
 
 The goal is not to recreate SWE-bench badly. The goal is to measure local usefulness.
 
-## passing tests is necessary and insufficient
+## tests pass is necessary and insufficient
 
 Tests matter. If the agent cannot get the test green, that is a clear signal.
 
-But "tests pass" is not the whole review.
-
-A coding agent can pass tests and still:
-
-- touch too many files
-- introduce unnecessary abstraction
-- ignore existing helpers
-- make the code harder to read
-- hide a behavior change inside a cleanup
-- skip a relevant manual check
-- create a patch nobody wants to maintain
-
-Local evals should grade the patch as a reviewer would.
+But "tests pass" is not the whole review. A coding agent can still touch too many files, introduce unnecessary abstraction, ignore existing helpers, or hide a behavior change inside a cleanup.
 
 I would score:
 
@@ -101,39 +79,15 @@ I would score:
 - failure recovery
 - reviewer cleanup required
 
-That last metric is underrated. If the agent saves twenty minutes of typing and creates thirty minutes of cleanup, the benchmark pass is not the product result.
+That last one is underrated. If the agent saves twenty minutes of typing and creates thirty minutes of cleanup, the benchmark pass is not the product result.
 
-## traces are part of the eval
+## traces belong in the eval
 
 For coding agents, evaluate the run as well as the final diff.
 
 Did the agent read the right files? Did it inspect failing tests? Did it run a targeted check before a broad one? Did it notice a command failure? Did it keep trying the same broken path? Did it ask for missing context? Did it stop when the task was done?
 
 The trace shows whether the system is operable.
-
-A final patch can hide a messy process. Sometimes that is fine. Sometimes the messy process matters because it burned tokens, ran risky commands, or made changes that were later reverted.
-
-Local evals should keep command logs, file touches, test output, and final diff together.
-
-## local evals also drift
-
-Local evals need maintenance too.
-
-A task that was useful six months ago may become stale after the codebase changes. A test may be deleted. A dependency may move. A convention may change. The accepted solution may no longer be the best solution.
-
-That is fine. Treat the eval set like a product artifact.
-
-Review failures. Retire stale tasks. Add new tasks from real misses. Keep a small stable core for trend lines, and let another slice rotate with current work. The eval should stay close enough to the repo that it remains annoying in the same way the repo is annoying.
-
-## public benchmarks still matter
-
-I do not want to throw away SWE-bench or similar benchmarks.
-
-They are useful for broad signal. They show field movement. They pressure vendors. They make claims less squishy. They help teams decide which systems deserve local testing.
-
-But once a benchmark stops separating the systems you are considering, it becomes an entry filter rather than a decision rule.
-
-The decision should come from your tasks.
 
 ## the local eval is the product eval
 
@@ -143,4 +97,4 @@ That means local evals should include the boring parts: setup, commands, flaky t
 
 SWE-bench made coding models more serious. The next step is making evaluation closer to the work.
 
-When the public benchmark stops being enough, that is not a reason to trust vibes again. It is a reason to build the eval harness your repo deserved anyway.
+When the public benchmark stops being enough, that is not a reason to trust vibes again. It is a reason to build the eval harness the repo already needed.

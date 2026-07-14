@@ -8,25 +8,19 @@ author: "jeremy-london"
 tags: ["evals", "testing", "ai systems"]
 ---
 
-Evals are where AI work stops being vibes.
+Evals are the part of AI work that keeps me from trusting my first impression too much.
 
-That sounds harsher than I mean it, but only slightly. A team can spend a surprising amount of time arguing from screenshots. One prompt feels better. One model sounds cleaner. One retrieval tweak looks promising in the five examples everyone keeps reusing. Then the change ships and a user finds the failure case in ten minutes.
+That is the whole point. A model can sound better, a prompt can read cleaner, and a demo can look calmer while the underlying system gets worse. You only notice that after users hit the edge cases you forgot to keep in the room.
 
-The answer is not to stop using judgment. Judgment is still required. The answer is to give judgment something repeatable to push against.
+The mistake is treating evals like a scoreboard. They are more useful as a file cabinet. They hold the cases that matter, the ones that already failed once, and the ones the team keeps promising to remember later.
 
-An eval is a feedback loop. It takes examples the team cares about, runs the system against them, grades the result, and makes regressions visible before users become the test harness.
+## start with the failure you care about
 
-## pick the unit first
+The first eval question is not which model won. It is what behavior the product actually depends on.
 
-The first eval question is not "which metric?" It is "what is the unit?"
+For a support assistant, that might mean refusing to promise a refund and asking for account verification before giving billing details. For a retrieval system, it might mean returning the right source rather than a fluent guess. For an agent, it might mean editing the correct file, leaving the right audit trail, and stopping when the task is done.
 
-For a chat assistant, the unit might be one turn, a whole conversation, or a task completed across several tool calls. For a classifier, it might be one input and one label. For retrieval, it might be one query and a set of expected documents. For an agent, it might be an entire run with intermediate steps, final output, and side effects.
-
-Choosing the wrong unit makes the eval lie.
-
-If the product promise is "the agent updates the issue and leaves a useful comment," grading only the final text is too narrow. The agent might write a good summary while editing the wrong file. If the promise is "find the right source document," grading only the generated answer hides retrieval failure. The model may guess correctly once and fail when the wording changes.
-
-I like writing the unit down in a shape close to the system:
+If the unit is wrong, the eval will lie. Grading only the final message can miss a file edit gone bad. Grading only the answer can hide a bad retrieval path. Grading only the tool call can miss a system that technically did the thing and still left a mess behind.
 
 ~~~ts
 type EvalCase = {
@@ -40,17 +34,15 @@ type EvalCase = {
 }
 ~~~
 
-That is intentionally plain. The value is not in the type definition. The value is forcing the team to say what the case is testing before the model runs.
+I like this kind of boring type because it forces the team to name the behavior before the model runs. That is already a win. A lot of AI work gets fuzzy because nobody wants to write down the thing they are actually testing.
 
-## baselines beat impressions
+## use a baseline that people can argue with
 
-Every eval needs a baseline. Without one, a score is a floating number.
+Every eval needs a reference point. Without one, a score is just a number that makes a dashboard feel busy.
 
-The baseline might be the current production prompt, the current model, a rule-based system, a human-written answer set, or a previous checkpoint. The baseline gives the team a reference point for a change. Did the candidate improve the target behavior? Did it regress something boring but important? Did it buy quality by spending too much latency or cost?
+The baseline can be the current production prompt, a previous model checkpoint, a rule-based system, or a human-written answer set. What matters is that the team can compare a candidate against something concrete and say, "This got better here and worse there."
 
-The baseline also keeps the team from grading against memory. People remember the dramatic failures and the impressive wins. They forget the ordinary cases. A baseline run is less emotional.
-
-For a prompt change, I want to see:
+For prompt work, I want the comparison written out plainly:
 
 ~~~text
 baseline: support-answer-prod-2024-08-01
@@ -60,11 +52,11 @@ expected improvement: fewer unsupported refund answers
 watch: more refusals on ordinary billing questions
 ~~~
 
-Now the eval has a theory. The candidate is not "better" in the abstract. It is supposed to improve one behavior without damaging another.
+Now the model change has a job. It is not "better" in the abstract. It is supposed to improve one behavior without wrecking another. That framing keeps the team honest when the results are mixed, which they usually are.
 
-## rubrics should be boring and specific
+## make the rubric tighter than your intuition
 
-LLM output is messy enough already. The rubric should not add poetry.
+LLM output is messy enough already. The rubric should not add extra fog.
 
 Bad rubric:
 
@@ -82,21 +74,17 @@ Pass only if:
 - the answer asks for account verification before discussing billing details
 ~~~
 
-The better rubric is more annoying to write. That is why it works. It names the product behavior.
+The second version is harder to write. That is the point. It names the behavior that the product depends on instead of letting the judge freestyle.
 
-Some evals can be deterministic. JSON schema validity, required fields, exact labels, forbidden strings, citation presence, and tool argument shape should not need an LLM judge. Use deterministic checks when the requirement is deterministic.
+Some checks should never involve an LLM. JSON schema validity, required fields, forbidden strings, citation presence, and tool argument shape are deterministic. If the requirement is deterministic, the test should be deterministic too. Use an LLM judge when the thing you are grading is semantic, not because it feels fancy.
 
-LLM judges are useful when the requirement is semantic: faithfulness, tone, completeness, or whether a response actually answered the question. But the judge still needs a tight rubric, sampled calibration, and human review for disputed cases. Otherwise the team starts optimizing for the judge's taste.
+## tag the slices that actually fail
 
-## slices matter more than averages
+AI systems do not usually regress everywhere at once. They break in slices.
 
-The average score is usually where the meeting starts. It should not be where the decision ends.
+Long inputs. Short inputs. Old documents. Non-English text. Mixed intent. Rare labels. Sarcasm. Logs in the prompt. A tool failure halfway through a run. The same request copied from another system with the context stripped out.
 
-AI systems regress in slices. Long inputs. Short inputs. Old documents. Non-English text. Mixed intent. Rare labels. Tool failures. Users who ask indirectly. Inputs with logs. Inputs with sarcasm. Inputs copied from another system.
-
-If those slices are not labeled, the eval cannot protect them.
-
-I like tagging cases with the reason they exist:
+If the suite does not label those slices, it cannot protect them.
 
 ~~~json
 {
@@ -107,34 +95,30 @@ I like tagging cases with the reason they exist:
 }
 ~~~
 
-That `high-risk` tag is doing work. If the model improves the overall suite while regressing high-risk billing cases, the release should slow down. The aggregate score can be green and the decision can still be no.
+That `high-risk` tag is not decoration. If the aggregate score goes up while billing safety gets worse, the release should slow down. A green dashboard does not matter if the wrong slice is bleeding.
 
-## examples should come from production pain
+## let real failures feed the suite
 
-Synthetic cases are useful, but the best eval suites usually start with real failures.
+Synthetic cases help, but the best evals usually start from something that already broke.
 
-A user asked something the system mishandled. A reviewer rejected a generated answer. A tool call used the wrong argument. A retrieval result pointed at stale docs. An agent made a plausible change and missed the required cleanup. Those examples are gold because they already proved the system can fail there.
+A user asked something the system mishandled. A reviewer rejected a generated answer. A retrieval result pointed at stale docs. An agent edited the wrong file and still managed to sound confident about it. Those are the examples worth keeping because they already proved the system can fail there.
 
-When a bug happens, the fix should include an eval case if the behavior might come back. This is normal software testing discipline, applied to AI systems. A regression test should survive the incident.
+When a bug happens, I want the fix to include an eval case if the behavior might come back. That is just regression testing with a different wrapper.
 
-The workflow can be small:
+1. capture the failed input and context
+2. strip private data
+3. write the expected behavior
+4. add tags that explain the risk
+5. compare baseline and candidate
+6. keep the case until it is clearly obsolete
 
-1. Capture the failed input and relevant context.
-2. Remove private data.
-3. Write the expected behavior.
-4. Add tags that explain why the case matters.
-5. Run the baseline and candidate.
-6. Keep the case in the suite unless it becomes obsolete.
+That is how the suite becomes institutional memory instead of a pile of pretty examples.
 
-This is how the eval suite becomes institutional memory. It remembers the weird things users actually did instead of only the examples the team imagined.
+## keep the gate explicit
 
-## evals should enter the release path
+The right amount of automation depends on the risk. A small internal helper can live behind a smoke suite in CI. A customer-facing support assistant may need critical slices to pass before rollout. An agent that can mutate files or trigger workflows may need replay tests, sandbox runs, and human approval before new capability lands.
 
-An eval that runs only when someone remembers is a notebook, not a guardrail.
-
-The right amount of automation depends on the risk. A small prompt tweak for an internal helper might run a fast smoke suite in CI and a larger suite before deploy. A customer-facing support assistant might require passing critical slices before rollout. An agent that can mutate files or trigger workflows may need replay tests, sandbox runs, and human approval for new capability.
-
-The gate should be explicit:
+The gate should be written down, not implied:
 
 ~~~text
 block release if:
@@ -147,24 +131,16 @@ warn if:
 - judge disagreement rises above 10 percent
 ~~~
 
-Those numbers are examples, not universal truth. The useful part is the shape. The eval decides what blocks, what warns, and what needs review.
+Those numbers are not universal truth. The useful part is that the team knows what blocks, what warns, and what needs a second look. That stops the familiar meeting where everybody can see a regression but nobody wants to say whether it matters enough to halt the release.
 
-That prevents a common failure: everyone sees a regression, but nobody knows whether it is severe enough to stop the release.
+## keep the suite alive
 
-## evals need maintenance
+Eval suites rot fast if nobody watches them.
 
-An eval suite can rot.
+Docs change. Policies change. User behavior changes. Old cases become trivial. Other cases start encoding a product rule that no longer exists. The suite can also get too large, too slow, or too expensive to run often enough to be useful.
 
-Docs change. Policies change. User behavior changes. Models learn around old examples. A case that used to be hard becomes trivial. A case that used to be valid now encodes an outdated product rule. The suite can also become too large, too slow, or too expensive to run often.
+Maintenance is part of the job. Delete obsolete cases. Add new failures. Split slow suites from smoke suites. Watch flaky grader results. Review slices that never fail, because sometimes that means the test stopped testing anything real.
 
-Maintenance is part of the work. Delete obsolete cases. Add new failures. Split slow suites from smoke suites. Track flaky grader results. Review slices that never fail because they may no longer be testing anything meaningful.
+I would rather have a smaller suite people trust than a giant one everyone ignores.
 
-I would rather have a smaller eval suite that people trust than a giant suite everyone ignores.
-
-## the feedback loop changes behavior
-
-The point of evals is not the score. The point is how the team behaves because the score exists.
-
-Good evals make engineers write narrower prompts because vague prompts fail specific cases. They make product decisions more concrete because rubrics need expected behavior. They make model upgrades less superstitious because candidates are compared against baselines. They make incidents more useful because failures become regression tests. They make demos less misleading because there is a pile of ugly examples waiting behind the happy path.
-
-That is why evals keep AI teams honest. They do not remove judgment. They make judgment answer to evidence.
+That is the real reason evals matter. They do not remove judgment. They force judgment to answer to evidence instead of memory, mood, or whatever looked good in the last demo.

@@ -1,6 +1,6 @@
 ---
 title: "Tooling should make the safe path short"
-excerpt: "If the careful workflow takes five commands and the risky workflow takes one, the risky workflow wins."
+excerpt: "If the careful workflow takes five commands and the risky workflow takes one, the risky workflow will win."
 publishDate: "2026-03-22T14:00:00Z"
 category: "developer-tools"
 draft: false
@@ -14,9 +14,7 @@ That sounds obvious until you watch a team under pressure.
 
 If the careful workflow takes five commands and the risky workflow takes one, people will use the risky workflow. They will mean well. They will know better. They will tell themselves this change is tiny. Then the one-command path becomes the real process and the documented careful path becomes theater.
 
-Good tooling does not rely on everyone having extra discipline at the exact moment they are tired.
-
-## the shortest path becomes policy
+## command length is policy
 
 Every repo has an unofficial policy encoded in command length.
 
@@ -24,7 +22,9 @@ If `pnpm build` is fast and `pnpm check` is slow, developers will build more oft
 
 The tool path becomes the culture.
 
-This is why I like boring scripts:
+## boring scripts beat heroic memory
+
+I like boring scripts because they turn the careful thing into one handle.
 
 ~~~json
 {
@@ -38,7 +38,7 @@ This is why I like boring scripts:
 
 Those names are not clever. They give people a short handle for the careful thing.
 
-## safety should be the default mode
+## safety should be the default branch
 
 Dangerous operations should require extra intent. Safe operations should be cheap.
 
@@ -52,11 +52,9 @@ deploy --prod --yes -> production without prompt
 
 The flags tell a story. Production is possible, but it is not the accidental path.
 
-The same principle applies to database tools, migration runners, file cleanup scripts, AI agents, and local reset commands. If a command can destroy state, cross a permission boundary, spend money, or publish externally, it should be harder to run by accident than the harmless version.
+The same principle applies to database tools, migration runners, file cleanup scripts, AI agents, and local reset commands.
 
-This is not about wrapping everything in confirmation prompts. Confirmation prompts become wallpaper. The better fix is usually narrowing the command and making the default operation reversible.
-
-## one command can still leave evidence
+## receipts matter
 
 A short safe path should not be invisible.
 
@@ -73,62 +71,17 @@ preflight
 
 That output is small, but it gives the next person a receipt.
 
-I do not want tools that spray logs forever. I want tools that answer the questions people ask when something breaks: what ran, against what input, with which version, and what changed?
-
-## scripts should compose the boring work
-
-Teams often leave the boring work as instructions because each step is simple.
-
-~~~text
-1. run tests
-2. run lint
-3. build
-4. check generated files
-5. paste summary into the PR
-~~~
-
-Each step is simple. The sequence is still easy to skip.
-
-The script should do the sequence and stop on failure:
-
-~~~bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-pnpm check
-pnpm build
-git diff --check
-~~~
-
-That script is not sophisticated. It is useful because it makes the careful path one command.
-
-The trick is keeping scripts understandable. A safety script that nobody can debug will eventually get bypassed. I prefer small commands with boring names over one giant automation wrapper that owns the whole repo.
-
-## recovery is part of safety
-
-Safe tooling includes a way back.
+## the recovery path is part of safety
 
 It is not enough to prevent mistakes. Tools should help recover from ordinary ones: stale dev servers, stuck ports, failed migrations, half-written generated files, dirty build artifacts, abandoned branches, broken caches.
 
-Local development is full of these.
-
-~~~text
-pnpm stop
-pnpm reset
-pnpm dev
-~~~
-
-That sequence is fine until someone has to remember it. A `pnpm dev:clean` command can encode the recovery path.
-
-The same applies to production operations. A deploy tool should know the last good version. A migration tool should say whether rollback exists. A feature flag tool should make disabling the risky path faster than debugging it live.
+`pnpm dev:clean` is a better command than making everyone remember a sequence of stop, reset, and start steps. The same logic applies to production: a deploy tool should know the last good version, and a migration tool should say whether rollback exists.
 
 Safety without recovery becomes anxiety.
 
-## fast checks beat perfect checks that nobody runs
+## cheap checks belong near the change
 
 A check that takes twenty minutes has a different job than a check that takes ten seconds.
-
-The ten-second check belongs in the developer loop. The twenty-minute check belongs in CI or a release gate. Problems start when teams pretend one check can serve both places.
 
 I like layered checks:
 
@@ -140,32 +93,8 @@ ci:        full test and build matrix
 release:   smoke deployed artifact
 ~~~
 
-The shape matters more than the exact names. Put the cheap signal close to the person making the change. Put the expensive signal where it can run without blocking every thought.
+Put the cheap signal close to the person making the change. Put the expensive signal where it can run without blocking every thought.
 
 If the only safe path is slow, people will invent a faster unsafe path.
 
-## ai agents need the same ergonomics
-
-This applies hard to agent workflows.
-
-If asking the agent to edit a file is one sentence and asking it to verify the change requires a long prompt, verification will be skipped. If approving broad filesystem access is easier than granting a narrow tool, broad access becomes the default. If the agent can say "done" without running the project check, the workflow has trained itself to accept confidence as evidence.
-
-The safe path for agents should be short:
-
-~~~text
-/spec   write the goal
-/work   implement against the goal
-/verify run adversarial review and project checks
-~~~
-
-The names can differ. The idea is that the careful loop should be easier to invoke than the sloppy loop.
-
-## good tools remove decisions at the right layer
-
-Tooling should not remove judgment. It should remove repeated tiny decisions that distract from judgment.
-
-A developer should decide whether the migration is safe. They should not have to remember the exact command that runs schema diff, tests rollback, and prints the changed tables. A reviewer should decide whether the change is good. They should not have to ask whether the author remembered markdown checks. An operator should decide whether to deploy. They should not have to assemble the same preflight checklist from memory.
-
-Short safe paths are how teams keep discipline when the work gets boring.
-
-That is the real test of tooling. It should make the careful thing easy enough that people use it when nobody is watching.
+That applies hard to agent workflows too. If asking the agent to verify the change is harder than asking it to edit the file, verification will be skipped. The safe path should be the short one.

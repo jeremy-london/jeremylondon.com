@@ -10,62 +10,43 @@ tags: ["data cleaning", "datasets", "machine learning"]
 
 Data cleaning is model work.
 
-That sounds obvious when the project is a traditional ML pipeline. It gets weirdly easy to forget in LLM systems because the model feels separate from the data. The prompt is visible. The response is visible. The messy dataset, retrieval index, labeled examples, or evaluation fixture sits one layer back, quietly deciding how much the model has to fight.
+That is easy to forget once the prompt becomes the visible part of the system. The model answer is on screen. The dataset, retrieval index, labels, and eval fixtures sit one layer back, quietly deciding how much work the model has to do to compensate for bad input.
 
-Better data often improves an AI system more than another round of prompt tweaking.
-
-Prompt changes can hide data problems for a while. They can ask the model to be careful, ignore bad rows, prefer recent examples, deduplicate entities, handle missing fields, and infer labels from inconsistent text. Sometimes that is good enough. Often it is the system asking the most expensive component to compensate for the cheapest part to fix.
-
-If the input data is confused, the model will spend capability on confusion.
+If the input is confused, the model spends capability on confusion.
 
 ## duplicates teach the wrong frequency
 
 Duplicates are not harmless.
 
-If a dataset contains repeated examples, the model or evaluator sees those examples as more common than they are. In retrieval, duplicates can crowd out better sources. In classification, repeated rows can make a label look more stable than it is. In evals, duplicates can make a score look better because the system memorizes the common shape.
+Repeated examples make a pattern look more common than it is. In retrieval, they crowd out better sources. In classification, they make a label feel more stable than it is. In evals, they can make a score look better because the system memorizes the common shape.
 
-The duplicate problem is especially annoying when the duplicates are near-duplicates.
+Near-duplicates are the annoying version. One support ticket becomes an incident note, then a knowledge article, then a training row. A document appears as OCR, raw HTML, and Markdown. A security alert lands in several slightly different forms. Cleaning has to decide whether those are separate examples or one event with multiple views.
 
-One support ticket gets copied into an incident note, then summarized into a knowledge article, then pasted into a training set. A document appears as PDF text, OCR text, and extracted Markdown. A security alert lands in raw form, enriched form, and analyst-comment form. They are not byte-identical, but they describe the same event.
+That decision changes what the model thinks reality looks like.
 
-Cleaning has to decide whether those are separate examples or one example with multiple views.
+## labels are part of the product
 
-That decision changes the model's world. If the same incident appears five times, the system learns that pattern five times. If the duplicates cross train and eval splits, the evaluation gets dishonest.
+Bad labels become model behavior.
 
-## labels are part of the system
+If `urgent` means customer impact in one slice and executive visibility in another, the model learns the conflict. If two reviewers disagree and nobody resolves it, the model learns disagreement as noise. If synthetic labels are produced by the same prompt that shaped the eval set, the system can learn the generator's habits instead of the task.
 
-Bad labels are model behavior waiting to happen.
-
-If "urgent" means customer impact in one part of the dataset and executive visibility in another, the model will learn the conflict. If two reviewers label the same alert differently and nobody resolves it, the model learns disagreement as noise. If synthetic labels come from a prompt that also shaped the eval set, the system may learn the generator's habits instead of the task.
-
-Cleaning labels is not clerical work. It is deciding what the product means.
-
-For a classification task, I want to know:
+For a classification task, I want the label system to answer a few plain questions:
 
 - what each label means
-- what examples sit near the boundary
+- which examples are near the boundary
 - where reviewers disagree
 - which labels are underrepresented
-- which labels are too broad
-- whether the label taxonomy changed over time
+- whether the taxonomy changed over time
 
-The boundary examples are the most useful. They show where the model will struggle and where the product needs a rule, a new label, or a human review path.
+Boundary examples are the best ones. They show where the model will struggle and where the product needs a rule, a new label, or a human review path.
 
-If the team cannot explain the labels, the model will not rescue them.
+## nulls are not empty by default
 
-## nulls have meaning
+Missing data usually has a meaning attached to it.
 
-Missing data is rarely just missing.
+A null can mean unknown, unavailable, not applicable, redacted, not collected yet, or accidentally dropped. Downstream systems often treat all of those as the same hole. That is how a blank `closed_at` timestamp turns into "still open" in one place and "missing data" in another.
 
-A null field can mean the value was unknown, unavailable, not applicable, redacted, not collected yet, or accidentally dropped. Those are different states. Models and downstream features often treat them as the same empty hole.
-
-That matters.
-
-A blank `closed_at` timestamp may mean a ticket is still open. A missing `owner_id` may mean unassigned, deleted owner, imported legacy record, or permission redaction. A missing `severity` may mean low severity by default in one source and incomplete triage in another.
-
-Cleaning data should preserve that difference when the difference changes behavior.
-
-Sometimes the fix is a richer field:
+I want richer states when the difference changes behavior:
 
 ~~~text
 owner_state:
@@ -76,19 +57,15 @@ owner_state:
   unknown
 ~~~
 
-That kind of field makes the model's job easier because the ambiguity is represented before inference begins.
+That makes the ambiguity explicit before the model sees the row.
 
-## source drift beats clever prompts
+## source drift beats clever prompting
 
-Data sources change.
+Data sources change under the model.
 
-A vendor adds a field. A product changes event names. A logging pipeline starts truncating messages. A support team updates the way it writes summaries. A crawler starts extracting navigation text into document chunks. A database migration changes null behavior. Nobody tells the AI feature because the feature is downstream and still technically working.
+A vendor adds a field. A logger truncates messages. A support team rewrites summaries. A crawler starts pulling navigation text into chunks. A migration changes null behavior. Nothing in the prompt changed, but the input shape did.
 
-Then model quality drifts.
-
-The prompt did not change. The model did not change. The input shape did.
-
-That is why data cleaning should include source checks:
+That is why source checks matter:
 
 ~~~text
 source: support_tickets
@@ -99,52 +76,32 @@ average_body_length: 1400 chars -> 520 chars
 duplicate_rate: 4 percent -> 22 percent
 ~~~
 
-Those are model-quality signals. They tell you the world the model sees has changed.
+Those are model-quality signals, not just data-quality trivia.
 
 ## leakage makes evals lie
 
-Data cleaning is also how evals stay honest.
+Cleaning is also how evals stay honest.
 
-Leakage can be obvious, like the exact answer appearing in the prompt. More often it is subtle. The same customer issue appears in both train and holdout. A synthetic generator creates examples for training and evaluation with the same phrasing. Retrieval indexes include documents that were created after the supposed evaluation date. A benchmark answer is embedded in a source chunk.
+Leakage is sometimes obvious. More often it is subtle. The same issue appears in train and holdout. A synthetic generator creates training and eval examples with the same phrasing. Retrieval indexes include documents from after the evaluation date. A benchmark answer gets embedded inside a source chunk.
 
-When leakage happens, the system looks smarter than it is.
+The question is not only whether rows were split. The real question is whether the underlying situations were split.
 
-The check is not only "did we split the rows?" It is "did we split the underlying situations?"
+For AI systems, that usually means grouping by incident, customer, document, repository, time window, or source object before splitting. It also means keeping generated examples out of the holdout unless the eval is specifically about generated examples.
 
-For many AI systems, that means grouping by incident, customer, document, repository, time window, or source object before splitting. It also means keeping generated examples out of the holdout unless the eval is specifically testing generated examples.
+## cleaning deserves a changelog
 
-Clean eval data is not glamorous. It is the only reason the score means anything.
-
-## cleaning should leave a changelog
-
-Data cleaning changes model behavior, so the cleaning steps should be recorded.
+If cleaning changes model behavior, the cleaning should be recorded.
 
 I want to know what changed between dataset versions:
 
 - removed exact duplicates
-- merged near-duplicate incident groups
+- merged near-duplicate incidents
 - normalized label names
 - split `unknown` from `not_applicable`
-- removed examples after cutoff date
+- removed rows after a cutoff date
 - excluded rows with missing source permissions
-- fixed broken document extraction
+- fixed broken extraction
 
-That changelog helps explain score movement. If recall improved after merging duplicate positives, maybe the model got better. If precision dropped after adding boundary cases, maybe the eval got more honest. Without the changelog, every metric movement turns into guessing.
+That changelog is the difference between understanding a metric shift and guessing at one.
 
-Data versioning does not have to be elaborate at first. A dataset id, source snapshot, cleaning script version, and notes file can be enough.
-
-The important part is that the cleaned dataset is treated as an artifact, not an invisible side effect.
-
-## the model learns the mess
-
-AI systems are good at absorbing mess and making it look fluent.
-
-That is part of the appeal. It is also why data problems can survive too long. The model will produce an answer even when the labels are inconsistent, the retrieval chunks are duplicated, the nulls are ambiguous, and the eval set leaked.
-
-The output may still look reasonable.
-
-This is why I do not separate data cleaning from model work. Cleaning changes what the model sees, what the evaluator measures, what retrieval returns, and what the product can safely claim.
-
-Sometimes the best model improvement is deleting duplicate examples. Sometimes it is renaming a label. Sometimes it is separating null states. Sometimes it is fixing a parser that polluted chunks with sidebar text.
-
-Those changes feel small until the model stops fighting the data.
+The model learns the mess if nobody cleans the mess first. That is why cleaning is model work. It changes what the model sees, what the evaluator measures, and what the product can honestly claim.

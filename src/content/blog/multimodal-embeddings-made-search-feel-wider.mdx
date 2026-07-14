@@ -8,145 +8,36 @@ author: "jeremy-london"
 tags: ["embeddings", "multimodal", "search"]
 ---
 
-Text search assumes the thing you want can be turned into words before retrieval starts.
+Text search assumes the useful thing can be turned into words before retrieval starts. That is fine right up until the thing someone remembers is a slide layout, a chart shape, a screenshot with one red banner, or the part of a video where the terminal finally failed.
 
-That assumption is fine for a lot of product work. It is also weirdly limiting. People remember things visually. They remember a chart shape, a screenshot with a red banner, a slide that had three boxes, the part of a video where someone opened a terminal, or the audio clip where a customer said the product name wrong. If the search system only indexes text, all of that memory has to be translated before the machine can help.
+Multimodal embeddings widened the search surface. Once a PDF page, image crop, frame cluster, audio window, or table snippet can become a vector, the system can look for the thing the user actually remembers instead of forcing everything through text first.
 
-Multimodal embeddings widened the retrieval surface. A PDF page, image region, frame sequence, waveform window, table, diagram, or screenshot can become something the index understands.
+### the retrieval unit is the real decision
 
-That sounds magical until you build the retrieval system. Then it becomes familiar engineering: segmentation, metadata, normalization, permission filtering, ranking, evaluation, and the deeply annoying question of what a similarity score actually means.
+The most important choice is usually not the embedding model. It is the unit you embed.
 
-## search starts before the vector
+For PDFs, I want section chunks, page chunks, and sometimes figure crops. For video, I want a sampled window or scene boundary, not the whole file. For images, a full-image vector is often too coarse if the query is about one object in the corner. The segmentation step decides whether the index can ever find the right evidence.
 
-The important decision is often not the embedding model. It is the unit being embedded.
+### scores need calibration
 
-Text has trained us to think in chunks: paragraphs, sections, pages, documents. Multimodal content makes that decision more visible. A whole image embedding may find the right photo, but it may miss the small object in the corner. A PDF-page embedding may find the page with the diagram, but it may not distinguish the caption from the table. A video embedding across a five-minute window may catch the topic and lose the exact moment the user wanted.
+Cross-modal scores look interchangeable until you compare them.
 
-The retrieval unit needs to match the way the result will be used.
-
-For PDFs, I usually think in layers:
-
-- document-level embedding for broad discovery
-- page-level embedding for navigation
-- block-level embedding for text, tables, figures, and captions
-- image crop embedding for diagrams and screenshots
-- extracted text embedding for exact language
-
-For video, the unit might be a scene, a sampled frame cluster, a transcript segment, or a time window around an action. For audio, it might be transcript text, acoustic features, speaker turns, or fixed windows. Each choice changes what the system can retrieve.
-
-The vector is downstream of that decision. If the segmentation is wrong, the index can be technically healthy and still useless.
-
-## shared space is useful, not neutral
-
-Most multimodal retrieval systems project different inputs into a shared vector space. Text goes through one encoder path. Images may go through another. Audio and video may be represented through specialist encoders, transcripts, sampled frames, or model-specific fusion layers. The system then compares vectors with cosine similarity, dot product, or another distance measure.
-
-The useful promise is cross-modal retrieval:
-
-- text query finds an image
-- screenshot finds a support article
-- chart image finds the source PDF
-- spoken phrase finds a video segment
-- error dialog finds similar bug reports
-
-The trap is assuming every score means the same thing.
-
-Text-to-text similarity, text-to-image similarity, image-to-image similarity, and transcript-to-video similarity can have different score distributions. A `0.78` in one path may be strong while a `0.78` in another is weak. Mixing them in one ranked list without calibration can make the product feel random.
-
-That is where retrieval stops being a model demo. The ranking layer needs to know which modality produced the candidate, how the query was encoded, whether the score has been normalized, and whether another reranker should compare the top results with richer context.
-
-## metadata keeps search honest
-
-~~~json
-{
-  "assetId": "incident-review-2026-03",
-  "modality": "video",
-  "segment": {
-    "startMs": 42000,
-    "endMs": 51000
-  },
-  "representation": "frame_cluster",
-  "embeddingModel": "multimodal-encoder-v2",
-  "sourceUri": "s3://internal-review/video.mp4",
-  "permissions": ["team:security-research"],
-  "createdAt": "2026-03-14T10:08:00Z",
-  "derivedFrom": ["transcript:segment-31", "frame:000843"]
-}
-~~~
-
-The metadata is as important as the vector.
-
-The vector tells the index where to search. The metadata tells the product whether the result can be shown, where it came from, what time range it covers, which model produced it, which permissions apply, and how to explain it to the user.
-
-This matters more when the index mixes modalities. A text result can usually be quoted. A video result needs a timestamp. A PDF figure needs page number and maybe a crop. A chart result needs the source document, not merely a thumbnail. An audio result may need a transcript window so the user can inspect the match without replaying minutes of sound.
-
-Permissions also have to run before ranking leaks information. If a user searches for "layoff plan" and the system returns a redacted title from a restricted document, the retrieval layer already leaked too much. Metadata filters should narrow the candidate set before nearest-neighbor results become user-visible.
-
-## indexing has more than one path
-
-I would not build one giant undifferentiated vector bucket and hope the distance metric figures it out.
-
-There are cases where a single approximate-nearest-neighbor index is fine. There are also cases where separate indexes by modality, permission class, tenant, or representation make the system easier to operate. A product may keep text chunks in one index, image regions in another, and video frame clusters in a third, then merge candidates after retrieval.
-
-The merge step is where calibration gets real. The system might retrieve top candidates from each modality, apply metadata filters, rerank with a cross-encoder or multimodal judge, then produce a mixed result list with citations.
+A text-to-text score, an image-to-text score, and a video-to-text score can sit on different distributions. A `0.78` in one lane may be strong and weak in another. If the ranking layer ignores that, the result list feels random even when the embeddings are technically doing their job.
 
 ~~~text
-query
-  -> encode query as text vector
-  -> retrieve text candidates
-  -> retrieve image candidates
-  -> retrieve video candidates
-  -> apply permission filters
-  -> rerank top candidates with richer context
-  -> return cited results with modality-specific previews
+query -> encode -> retrieve text
+      -> retrieve image
+      -> retrieve video
+      -> apply permission filters
+      -> rerank mixed candidates
 ~~~
 
-The preview is part of relevance. A user needs to know why a result matched. For text, a highlighted passage may be enough. For an image, maybe the crop matters. For video, the timestamp and nearby transcript matter. For a PDF, the page thumbnail, extracted text, and document title all work together.
+That rerank step is where the product becomes honest. The system can say, "this is the best screenshot match" or "this is the best page match," instead of pretending every vector belongs to one universal scale.
 
-## hard negatives are where the system grows up
+### hard negatives make the index grow up
 
-Multimodal retrieval needs hard negatives.
+The useful eval cases are the ones that look close and mean something else.
 
-The easy positive example is "find the slide with the architecture diagram" when there is only one architecture diagram. The useful eval set contains close mistakes:
+A red error banner versus a red success banner. A slide with the right title and the wrong chart. Two video clips with the same person doing different things. A PDF page with the phrase in the footer instead of the body. Those are the examples that tell you whether the system understands semantics or just color and shape.
 
-- a red error dialog versus a red success banner
-- a phishing training slide versus a real phishing email screenshot
-- two charts with the same shape but different axes
-- a dashboard screenshot before and after a deployment
-- two video segments with the same person doing different actions
-- an audio clip with the same phrase used sarcastically and literally
-- a PDF page with the term in a footer rather than the body
-
-These examples teach you whether the system is retrieving semantics or surface resemblance.
-
-I would track Recall@K and nDCG, but I would also keep a review set that humans inspect. Multimodal failures are often obvious to a person and hard to describe with one number. The top result may be visually close and semantically wrong. The correct result may be ranked fifth because the image encoder loved the colors in another candidate.
-
-For a product search surface, I care about:
-
-- whether the right asset appears in the top results
-- whether the correct segment or region is returned
-- whether the explanation points to the right evidence
-- whether restricted assets are absent
-- whether common queries behave consistently across modalities
-- whether adding a new modality makes old text search worse
-
-That last one is easy to miss. A wider index should not make ordinary text search feel worse.
-
-## multimodal retrieval is not automatically grounded
-
-A multimodal index can make search feel richer, but it can also make hallucination look better dressed.
-
-If a generation step uses retrieved images, clips, or pages, it should cite them in a way the user can inspect. "Based on the video" is weak. "Based on 00:42 to 00:51, where the terminal shows the failed migration command" is better. The user needs a path back to the source.
-
-Grounding is also about refusing weak matches. If the nearest neighbors are all mediocre, the product should say that. A forced answer with a pretty thumbnail is still a forced answer.
-
-I like retrieval systems that expose uncertainty in the interface. Show the matched page. Show the timestamp. Show the crop. Let the user open the source. Let them correct the result. Those corrections become eval material later.
-
-## what changed
-
-The interesting shift is that search moved closer to how people remember work.
-
-People do not always remember filenames, exact phrases, or document titles. They remember a screenshot, a chart, a voice, a scene, a rough layout, or a visual state. Multimodal embeddings give systems a way to meet that memory halfway.
-
-The engineering work remains stubbornly practical. Choose the retrieval unit. Keep metadata attached. Filter by permission early. Calibrate scores. Use modality-aware previews. Build hard-negative evals. Watch for regressions when the index expands.
-
-The model widens the map. The product still has to make the map readable.
+I like multimodal embeddings because they match how people remember work. We do not always remember filenames. We remember a screenshot, a rough layout, a clip, a diagram, or the exact page where a thing looked wrong. The engineering is still all the usual work. Pick the segment. Keep the metadata. Filter permissions early. Calibrate the scores. Test the close failures. The model widens the map, but the map only works if the product keeps it readable.

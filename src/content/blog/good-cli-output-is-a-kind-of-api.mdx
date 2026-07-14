@@ -8,186 +8,26 @@ author: "jeremy-london"
 tags: ["cli", "developer tools", "dx"]
 ---
 
-Good CLI output is a contract.
+Good CLI output is an API.
 
-That contract has more readers than people admit. A human reads it while debugging. A shell script reads the exit code. CI reads the log. An agent reads the last 200 lines and tries to decide what happened. Six months later, somebody reads a pasted failure in an issue and tries to reconstruct the machine state from crumbs.
+The reader is not only a person at a terminal. A shell script reads stdout. CI reads the exit code and whatever the command wrote before failing. An agent may read the tail of the log and try to infer whether it should retry, stop, or ask for help. Later, somebody pastes the failure into an issue and tries to reconstruct the machine state from whatever survived.
 
-If the output only works for the happy path demo, the CLI is underbuilt.
-
-The best command-line tools make the next step obvious. They tell you what happened, what changed, what failed, and what to do with the result. They do this without turning every run into a wall of decorative noise.
-
-## stdout and stderr are part of the interface
-
-The split between stdout and stderr still matters.
-
-Stdout is for the command's intended output. Stderr is for diagnostics, progress, warnings, and errors. If a command emits JSON for another tool to consume, progress bars and friendly commentary do not belong in stdout. They break the caller.
-
-That sounds obvious until a CLI tries to be helpful:
+That means the command has to be predictable in a few boring ways. stdout should stay clean when another tool needs to parse it. stderr should carry diagnostics. exit codes should mean the same thing every time. If the command offers structured output, that shape should stay stable across releases.
 
 ~~~text
-Fetching projects...
-{"projects":[{"id":"p1","name":"demo"}]}
-Done!
+good:
+  stdout: machine-readable result
+  stderr: progress and warnings
+  exit code: 0 success, nonzero failure
+
+bad:
+  stdout: mixed status text and JSON
+  stderr: silent
+  exit code: 0 even when the command failed
 ~~~
 
-That output is friendly to a person and hostile to a script. The better shape is mode-aware:
+That is the difference between a command somebody can compose and a command that only works in a demo. The user should not have to guess whether `jq` will parse the result or whether a CI step will misread a warning as data.
 
-~~~bash
-tool projects list --json
-~~~
+I also care about failure messages because they become part of the interface. "Permission denied" is fine if that is the whole story. "Permission denied while reading `./secrets.json`; run with `--scope repo` or move the file under the workspace" is better because it tells the next step. A good CLI does not just fail. It makes the next move obvious.
 
-stdout:
-
-~~~json
-{"projects":[{"id":"p1","name":"demo"}]}
-~~~
-
-stderr:
-
-~~~text
-Fetched 1 project.
-~~~
-
-Now both readers get what they need.
-
-## exit codes should be boring
-
-Exit codes are the smallest API surface and one of the easiest to get wrong.
-
-Zero means success. Non-zero means failure. Different non-zero codes can be useful when callers can act on them, but most tools should start by being consistent rather than clever.
-
-The frustrating case is a command that prints an error and exits zero. CI moves on. A script assumes success. An agent reports completion because the shell said the command passed.
-
-Another frustrating case is a command that exits non-zero for a partial result without explaining whether the partial result is usable. If a linter found violations, non-zero is correct. If a search command found no matches, maybe non-zero is expected. The output should make that distinction clear.
-
-I want failure output to answer:
-
-~~~text
-what failed
-where it failed
-whether anything changed
-whether retry is safe
-what command or file to inspect next
-~~~
-
-That is not a lot to ask. It is the difference between a useful CLI and a puzzle box.
-
-## progress should not bury the result
-
-Progress output is useful when work takes time. It is irritating when it buries the only line that mattered.
-
-Long-running commands need a rhythm:
-
-- start line
-- meaningful progress when phases change
-- warnings close to the phase that produced them
-- final summary
-- path to detailed logs when the output is too large
-
-For example:
-
-~~~text
-Building site...
-  content: 138 posts checked
-  assets: 42 images optimized
-  routes: 19 pages generated
-
-Build failed.
-  file: src/content/blog/example.mdx
-  error: markdown fence style must use tildes
-  next: run pnpm markdown:check src/content/blog/example.mdx
-~~~
-
-That is much better than 400 lines ending with `Error: failed`.
-
-The final summary should survive log truncation. CI systems and agents often keep the tail. Put the result there.
-
-## warnings need thresholds
-
-Warnings are tricky because they can become wallpaper.
-
-If a command prints the same harmless warning every run, users learn to ignore all warnings. If a command hides warnings unless verbose mode is enabled, users miss early signs of bad state. The tool needs a stance.
-
-I like warnings that include enough specificity to become actionable:
-
-~~~text
-warning: 3 generated files are older than their sources
-  run: pnpm generate
-  files:
-    src/generated/routes.ts
-    src/generated/schema.ts
-    src/generated/content.ts
-~~~
-
-Bad warning:
-
-~~~text
-warning: generated files may be stale
-~~~
-
-The first warning gives the user something to do. The second creates anxiety.
-
-Warnings should also escalate when the condition becomes unsafe. A stale generated file might be a warning locally and a failure in CI. That policy should be explicit.
-
-## structured output is not optional anymore
-
-Human-readable output is great. Machine-readable output is also necessary.
-
-Any CLI likely to be used in scripts, CI, or agent workflows should expose structured output. JSON is boring and fine. The structured mode should be stable enough that callers can depend on it.
-
-The contract should include:
-
-- stable field names
-- explicit status
-- arrays instead of formatted tables
-- paths as strings
-- durations and counts as numbers
-- error codes or categories when useful
-
-Example:
-
-~~~json
-{
-  "status": "failed",
-  "checked": 138,
-  "errors": [
-    {
-      "file": "src/content/blog/example.mdx",
-      "line": 42,
-      "code": "markdown-fence-style",
-      "message": "Use tilde fences in MDX files."
-    }
-  ]
-}
-~~~
-
-That output gives scripts and agents something safer than regexing prose.
-
-## agent-readable output is human-readable output with receipts
-
-Agents make CLI output quality more important.
-
-An agent reading command output needs to decide what happened, what to fix, and whether it can claim success. Vague logs encourage bad claims. Clear logs create better behavior.
-
-The agent-friendly output is the same output I want at 11 p.m.:
-
-- clear success or failure
-- exact file and line when available
-- command suggestions that are safe to run
-- distinction between errors and warnings
-- final summary at the end
-- no decorative noise around structured output
-
-This is not special treatment for agents. It is good developer experience finally being tested by an impatient reader with limited context.
-
-## output is maintenance
-
-CLI output ages.
-
-New flags get added. Warnings change. JSON fields drift. A command that used to do one thing starts doing three. The output becomes a museum of old assumptions unless somebody treats it as part of the API.
-
-I would review CLI output when behavior changes, the same way I would review function signatures. Does the success path still tell the truth? Does the failure path name the new failure mode? Does structured output stay stable? Does CI get enough detail? Does the human still know the next step?
-
-Good output is not polish. It is the interface the tool presents when someone needs it most.
-
-That is why it deserves API-level care.
+The same rule applies to progress output. A command that prints one line per phase, or a `--json` mode that keeps machine output stable, gives scripts something to depend on. A release tool can parse `{"status":"done","path":"dist/app.tar.gz"}`. A human can still use the plain-text mode. The command is better when both can live with it.

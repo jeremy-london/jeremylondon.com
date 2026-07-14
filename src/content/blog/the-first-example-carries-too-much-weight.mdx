@@ -1,6 +1,6 @@
 ---
 title: "The first example carries too much weight"
-excerpt: "Readers build their mental model from the first runnable example, so that example has to be honest."
+excerpt: "Readers copy the shape of the first runnable example, so that example has to be honest."
 publishDate: "2025-05-31T09:00:00Z"
 category: "learning-lab"
 draft: false
@@ -14,9 +14,7 @@ Readers build their mental model from it. They copy its naming. They infer which
 
 That is why the first example has to be honest.
 
-It can be small. It can be incomplete. It can skip production concerns that would distract from the point. But it should not teach the wrong shape.
-
-## the first example becomes the interface
+## start with the real boundary
 
 A first example explains the idea and quietly designs the interface.
 
@@ -26,7 +24,7 @@ If a library starts with this:
 const result = await run(input)
 ~~~
 
-the reader assumes the tool is simple, stateless, and probably safe to call anywhere. That may be true. It may also hide authentication, retries, cancellation, streaming, rate limits, and a bunch of state that will appear in chapter three.
+the reader assumes the tool is simple, stateless, and probably safe to call anywhere. That may be true. It may also hide authentication, retries, cancellation, streaming, rate limits, and a bunch of state that will appear later.
 
 If the real shape is closer to this:
 
@@ -38,46 +36,17 @@ const result = await client.run({
 })
 ~~~
 
-then the first example should probably show a little of that shape. The extra lines tell the reader that execution has a boundary. The call can take time. It can be canceled. It may fail in a way the caller owns.
+then the first example should probably show a little of that shape. The extra lines tell the reader that execution has a boundary.
 
-The point is not to make every opening example complete. The point is to avoid opening with a lie.
+## names teach harder than people think
 
-## toy code should reveal the real constraint
-
-Toy examples are fine when they preserve the important constraint.
-
-For a queue tutorial, this example is too clean:
-
-~~~ts
-await queue.add({ userId })
-~~~
-
-The real lesson in queues is usually not "put a thing in a queue." It is job identity, retries, idempotency, and what happens when a worker dies halfway through.
-
-A still-small example can show that:
-
-~~~ts
-await queue.add({
-  id: `send-welcome-email:${userId}`,
-  kind: "send_welcome_email",
-  userId,
-  attempts: 0,
-})
-~~~
-
-Now the reader sees a job as a durable unit of work. They may not understand the whole queue yet, but their first mental model includes identity and retry behavior.
-
-That matters because the first example becomes the default shape they reach for later.
-
-## names teach more than comments
-
-Variable names in first examples carry a lot of teaching weight.
+Variable names in first examples carry a lot of weight.
 
 ~~~ts
 const data = await fetchData()
 ~~~
 
-This tells me almost nothing. `data` could be raw JSON, parsed records, trusted input, cached state, or a response object. The reader has to guess.
+That tells me almost nothing. `data` could be raw JSON, parsed records, trusted input, cached state, or a response object. The reader has to guess.
 
 ~~~ts
 const rawProfileResponse = await fetchProfile(userId)
@@ -88,15 +57,11 @@ That is not beautiful code, but it teaches the boundary between response and par
 
 The same is true in AI examples. `prompt`, `context`, and `result` are often too vague. If the article is about retrieval, call the value `retrievedPolicyChunks`. If it is about evals, call the value `expectedToolCall`. If it is about embeddings, call the value `normalizedQueryVector`.
 
-Good names reduce the amount of prose needed to explain the example.
-
-## the missing error path becomes doctrine
+## include the error path that defines the subject
 
 Readers notice which errors the first example ignores.
 
 If a tutorial starts with a database call and no missing-record handling, readers infer that the missing case is unimportant. If an agent tool example has no permission check, readers infer that tool identity is somebody else's problem. If a file upload example has no size limit, readers infer that validation can wait.
-
-The first example does not need every guardrail, but it should include the error path that defines the subject.
 
 For a tool-calling article, that may be schema validation:
 
@@ -118,13 +83,11 @@ if (!path.startsWith(workspaceRoot)) {
 
 For a form article, it may be the empty state after submission fails.
 
-The right error path depends on the topic. Leaving it out should be a decision, not a habit.
-
-## first examples should avoid fake scale
+## keep the unit small
 
 Some examples fail because they are too tiny. Others fail because they pretend to be architecture.
 
-I do not want an opening example that introduces a `PipelineManager`, `ExecutionCoordinator`, `ResultEnvelope`, and `ObservabilityAdapter` before the reader knows the problem. That teaches ceremony. It also gives the article an inflated shape.
+I do not want an opening example that introduces a `PipelineManager`, `ExecutionCoordinator`, `ResultEnvelope`, and `ObservabilityAdapter` before the reader knows the problem. That teaches ceremony.
 
 A better first example starts with the smallest unit that carries the real idea.
 
@@ -142,34 +105,7 @@ For an evals article, that unit might be one case:
 
 For an embeddings article, it might be one query and two candidates. For a cache article, it might be one key and one invalidation rule. For a sync article, it might be one local edit and one remote edit.
 
-Start at the unit of understanding. Scale can come later.
-
-## runnable does not always mean honest
-
-I have a soft spot for examples that run quickly. They respect the reader's time.
-
-But runnable is not the same as honest. A runnable example can still hide the production behavior that makes the topic worth learning.
-
-~~~ts
-const embedding = await embed("quarterly revenue")
-const results = await db.search(embedding)
-~~~
-
-That runs. It also skips chunking, normalization, metadata filters, permissions, and evaluation. If the article is about the first taste of vector search, fine. If the article is about production vector stores, the example is lying by omission.
-
-The fix is not to turn the first example into a complete system. The fix is to include one visible seam:
-
-~~~ts
-const results = await searchDocuments({
-  query: "quarterly revenue",
-  filters: { workspaceId, allowedDocumentIds },
-  topK: 8,
-})
-~~~
-
-Now the reader sees that search is scoped. That one detail changes the mental model.
-
-## the first example should survive chapter two
+## the first example is a promise
 
 A good first example should still make sense after the article gets deeper.
 
@@ -183,14 +119,6 @@ Before publishing, I like asking:
 - what would I regret teaching here?
 - does the next section contradict this shape?
 
-Those questions catch a lot of problems.
-
-## the example is part of the argument
-
-Technical writing often treats examples as proof that the prose is correct. I think examples are more active than that. They are part of the argument.
-
 The first example tells the reader what the article values: speed, safety, minimal syntax, explicit state, readable names, production realism, or conceptual clarity. You cannot value all of those equally in one snippet. The tradeoff shows up in the code.
-
-That is why first examples carry too much weight. They are small, but readers build on them.
 
 Pick the first example like it will become somebody's starting point, because it probably will.

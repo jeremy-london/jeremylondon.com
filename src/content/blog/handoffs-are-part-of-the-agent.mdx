@@ -10,137 +10,19 @@ tags: ["agents", "handoffs", "process"]
 
 A handoff is part of the agent, not paperwork around the agent.
 
-That distinction matters when work spans more than one run. Agents run out of context. Humans step away. Tools fail. A browser session disappears. A test takes longer than expected. The next run starts with a vague memory and a dirty working tree.
+That is the part that matters when work spans more than one run. The next session should not have to rediscover state by poking around.
 
-If the previous agent leaves no usable handoff, the next agent has to rediscover the project state by poking around. That is slow. Worse, it is risky. The next agent may repeat failed work, miss a constraint, trust a stale assumption, or mark something complete because it does not know what remained unresolved.
+The useful handoff is small and concrete:
 
-A good handoff is an interface for resuming work.
+- last verified file
+- next file
+- current constraints
+- one unfinished thing that still matters
 
-## summaries are too soft
+I like handoffs that read like operator notes instead of summaries. "Checked `src/routes/billing.ts` and the diff is clean. Next file is `src/routes/invoices.ts`. Remaining issue: confirm the redirect path after login." That is enough to keep the next run moving without forcing it to re-derive the last hour.
 
-The handoff cannot be only a paragraph that says "made progress on the blog rewrite."
+The other thing I want in a handoff is a clear stop point. If the last run hit a blocked assumption, say that. If a file still needs verification, say that. If a decision was made and should not be revisited, say that too. A handoff should preserve momentum, not just memory.
 
-That kind of summary is better than nothing, but it lacks the operational details a new run needs. What files changed? Which checks passed? Which checks failed? What was the next exact file? What should not be touched? Did the previous run use a script, a manual edit, a source link, or a generated artifact? Was the working tree dirty before the run started?
+A good handoff also leaves one concrete verification step for the next run. For example, "run the migration test after the patch lands" is more useful than "check it later." The next agent should be able to pick up the thread without rebuilding the whole mental model from scratch.
 
-The next agent needs state, not vibes.
-
-I like a handoff shaped around decisions and evidence:
-
-~~~text
-current goal:
-  Rewrite blog posts manually from IMPLEMENTATION_PLAN.md, one file at a time.
-
-last completed:
-  guardrails-are-product-decisions.mdx
-
-verified:
-  wc -w
-  pnpm markdown:check
-  banned phrase scan
-  lowercase heading scan
-
-next file:
-  handoffs-are-part-of-the-agent.mdx
-
-constraints:
-  Preserve frontmatter unless validation requires a wording fix.
-  Do not run the old rewrite scripts.
-  Use apply_patch for edits.
-~~~
-
-That is not fancy. It lets the next run start in the right place.
-
-## the handoff should name unfinished work
-
-Unfinished work is the most important part of a handoff.
-
-Completed work can often be verified from files and commits. Unfinished work hides in the previous agent's head. That is where mistakes happen.
-
-The handoff should say:
-
-- what is currently in progress
-- what has been edited but not verified
-- what command was running
-- what failed and why
-- what assumption still needs checking
-- what the user most recently corrected
-
-For example:
-
-~~~text
-in progress:
-  design-tokens-need-owners.mdx was rewritten but verification output was truncated.
-
-resume by:
-  rerun wc, markdown:check, banned phrase scan, and heading scan.
-  mark IMPLEMENTATION_PLAN.md only if all pass.
-~~~
-
-That is exactly the kind of detail a fresh run cannot infer safely. It prevents the agent from skipping a half-finished step.
-
-## receipts beat confidence
-
-Agents are very good at sounding done.
-
-A handoff should resist that. It should include receipts: commands, files, outputs, links, decisions, and known gaps. The next agent should not have to trust the previous agent's confidence.
-
-For code work, receipts might be test commands and changed files. For writing work, receipts might be word counts, lint checks, source links, and scans for banned phrases. For research work, receipts might be URLs, publication dates, and which claims were inferred rather than sourced.
-
-A useful handoff line looks like this:
-
-~~~text
-verified src/content/blog/fine-tuning-is-not-a-shortcut.mdx:
-  1712 words
-  pnpm markdown:check passed
-  banned residue scan returned no matches
-  headings are lowercase
-~~~
-
-That lets the next agent audit or continue. "Looks good" does not.
-
-## handoffs should preserve constraints
-
-Constraints decay fast across sessions.
-
-The user says, "do not touch `.agents`," or "headers should be lowercase," or "do not use scripts anymore," and the current agent follows it. The next agent may not see the whole conversation. If the constraint is not in a handoff or plan, it can get lost.
-
-This is especially important when the constraint exists because of a previous failure. "Do not use the rewrite script" is not arbitrary. It exists because the script generated templated prose and damaged the archive. That context should survive.
-
-The handoff does not need to reprint the entire conversation. It needs to preserve the constraints that would be expensive to violate.
-
-## resumability is a product feature
-
-Agent workflows should be designed for interruption.
-
-That means the work should have checkpoints. A plan file. A progress marker. A test command. A next item. A way to tell whether the last step was completed. Long-running autonomous work without resumability is asking for confusion.
-
-The handoff is one part of that system. The rest is how the project is organized:
-
-- task list on disk
-- per-item verification
-- clean file boundaries
-- explicit "never touch" paths
-- progress notes that mention the next action
-- checks that can be rerun independently
-
-The point is not process for its own sake. The point is that a fresh agent should be able to resume without guessing.
-
-## bad handoffs create duplicate work
-
-The most obvious cost of a bad handoff is wasted time. The next run rereads files, reruns commands, and repeats decisions.
-
-The worse cost is subtle inconsistency. One run writes in one style. The next run assumes a different target. One run preserves a source. The next overwrites it. One run treats a warning as unrelated. The next calls the project clean.
-
-This is how long agent tasks drift.
-
-A handoff reduces drift by carrying the current standard forward. It says what "done" meant in the last step and what should happen next.
-
-## the handoff is part of the work
-
-I do not want handoffs for everything. Tiny tasks can finish and stop. But when an agent is doing multi-step work across files, sessions, or tools, the handoff is part of the implementation.
-
-The work is not only the diff. It is the diff plus the state needed to continue safely.
-
-That is why I think handoffs belong inside agent design. They are memory with accountability. They make the next run less dependent on luck, less tempted to invent context, and less likely to repeat the same mistake.
-
-The agent that cannot hand off its work is not really doing long-running work. It is doing one long guess.
+I usually keep the handoff in plain prose with a tiny checklist, because that is easy to scan at the beginning of the next run. If the last pass found one risky assumption and two safe files, say so directly. The point is to make the next agent useful faster, not to write a ceremony that sounds complete.

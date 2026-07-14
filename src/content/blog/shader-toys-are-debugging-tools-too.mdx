@@ -1,6 +1,6 @@
 ---
 title: "Shader toys are debugging tools too"
-excerpt: "Small visual programs can be toys and debugging tools because they make math and state visible."
+excerpt: "A small visual program can be playful and still be the fastest way to see what math and state are doing."
 publishDate: "2025-04-09T11:00:00Z"
 category: "creative-coding"
 draft: false
@@ -8,23 +8,19 @@ author: "jeremy-london"
 tags: ["shaders", "webgpu", "visualization"]
 ---
 
-Shader toys are easy to dismiss because they look playful.
+Shader toys look playful because they are small.
 
-A little fragment shader. A gradient. A field of particles. A signed-distance function. A noise pattern that moves when the mouse moves. None of that looks like serious engineering if you judge it by business output.
+That is usually the part people misread. A little fragment shader, a gradient, a field of particles, a noise pattern, a signed-distance function, a mouse-controlled distortion. It does not look like enterprise software, so it gets sorted into the toy bucket.
 
-I think that misses the useful part.
+I think that misses what the toy is for. A tiny visual program is often the fastest debugger for a system that has invisible state.
 
-Small visual programs are debugging tools because they make invisible state visible. They turn math into something you can inspect with your eyes.
+## the screen is an instrument
 
-## pixels are cheap instrumentation
+The moment a value becomes color, bugs get easier to see.
 
-When a value becomes color, a lot of bugs get less abstract.
+You can spot a flipped axis, a bad normalization, a coordinate-space mismatch, an unstable threshold, or a value that clips to white. You can see time as motion. You can see discontinuity as a hard edge. The loop from edit to observation is short enough that the bug stops being abstract.
 
-You can see discontinuities. You can see wrapping errors. You can see coordinate systems flipped. You can see a normalization bug because the whole screen clips to white. You can see a smoothing function because the edge changes shape. You can see time because the pattern drifts.
-
-That feedback is fast.
-
-A shader toy is often a tiny lab:
+That is why even a tiny shader sketch is useful:
 
 ~~~glsl
 vec2 uv = fragCoord.xy / iResolution.xy;
@@ -33,107 +29,64 @@ vec3 color = vec3(smoothstep(0.3, 0.31, d));
 fragColor = vec4(color, 1.0);
 ~~~
 
-Change the threshold. Change the coordinate space. Add time. The result moves immediately.
+Move one number and the shape changes immediately. The screen tells you whether the math is behaving.
 
-That immediacy is why it works as debugging. The loop is shorter than logging ten intermediate values and trying to imagine the shape.
+## coordinate mistakes do not hide for long
 
-## coordinate bugs become obvious
+Graphics work is full of coordinate bugs.
 
-Graphics programming is full of coordinate mistakes.
+Pixel space versus normalized space. Center origin versus top-left origin. Aspect ratio correction. Clip space. Texture coordinates. Matrix order. A formula can be right in one coordinate system and nonsense in another.
 
-Pixel space versus normalized space. Center origin versus top-left origin. Aspect ratio correction. Clip space. Texture coordinates. Device pixel ratio. Matrix order. The math may be correct in one coordinate system and nonsense in another.
+Visualizing it makes the mistake obvious:
 
-A visual program exposes that quickly.
+- circle becomes ellipse -> aspect ratio bug
+- motion goes the wrong way -> axis flipped
+- texture swims -> unstable coordinates
+- pattern changes with resolution -> normalization bug
 
-If a circle becomes an ellipse, aspect ratio is wrong. If motion goes the wrong way, an axis is flipped. If a texture swims, coordinates are not stable. If a pattern changes with resolution, normalization is wrong.
-
-That kind of bug is easier to see than to reason about from code alone.
+That is easier to inspect than to reason through from code alone.
 
 ## state fields are easier to trust when drawn
 
-This is not limited to pretty graphics.
+This is not only about pretty graphics.
 
-Any system with a field can benefit from visualization:
+Any field benefits from visualization:
 
 - heat maps
-- distance fields
 - vector fields
-- masks
 - confidence maps
+- masks
 - simulation grids
 - attention-like weights
-- collision volumes
 - signed distance functions
 - particle velocities
 
-In AI and data systems, I keep coming back to this. Embeddings, attention, classifications, saliency, cluster membership, uncertainty, and time-series drift are all easier to debug when some slice becomes visual.
+In AI and data systems, the same habit helps with embeddings, uncertainty, cluster membership, time-series drift, and classification boundaries. If some piece of the state is hard to explain, drawing it usually helps.
 
-A shader toy is a low-cost way to practice that habit. What does the state look like? Where does it change? Where is it discontinuous? Where does it saturate?
+The question becomes simple: what does the state look like, and where does it change?
 
-## toys lower the cost of experiments
+## the toy keeps the stakes low
 
-The word "toy" is useful when it means the stakes are low.
+The word toy is useful when it means the cost of being wrong is low.
 
-A toy shader can be wrong without wasting a sprint. It can test one idea: noise, interpolation, easing, ray marching, field composition, palette mapping, temporal feedback. If the idea works, bring the intuition back to the real system. If it fails, throw it away.
+A shader sketch can be bad and still be worth the hour. It can answer one question about interpolation, noise, easing, ray marching, palette mapping, or feedback. If the idea works, carry the intuition back to the real system. If it does not, throw it away.
 
-That is how I like using small visual programs. They are not mini-products. They are sketches.
+I like that because it keeps exploration cheap.
 
-The sketch can answer questions:
+## webgpu makes the habit easier to keep
 
-- what does this easing function feel like?
-- how does this noise combine across octaves?
-- what happens when the field wraps?
-- where does this threshold become unstable?
-- how does precision loss appear visually?
+WebGPU makes the browser feel like a practical graphics and compute surface.
 
-Those are debugging questions with a nicer interface.
+It does not remove the need for simple tools. It does make the browser a better place to do more serious experiments: compute passes, buffers, textures, simulations, image processing, and visual explanations that used to feel awkward in web land.
 
-## webgpu makes the habit more practical
+That matters because the browser is where the experiment can live beside prose, controls, and source. A shader toy embedded in an explanation becomes more than a toy. It becomes a small learning object.
 
-WebGPU makes browser graphics feel closer to serious compute, but the habit does not require a giant stack.
+## the useful question is shape, not value
 
-You can learn a lot from fragment shaders, Canvas, WebGL, WebGPU, or even a small Python image script. The important part is the feedback loop: write a tiny program, expose state visually, mutate inputs, and see the bug.
+Logs ask what value happened.
 
-WebGPU matters because it makes more of that work feel native to the browser. Compute passes, buffers, textures, and GPU-side state become things you can experiment with without leaving the page.
+Visual debugging asks what shape the values made.
 
-That is useful for teaching, debugging, and intuition building.
+That question is better for systems with spatial state, time, thresholds, interpolation, or fields. I want at least one visual handle for those. Shader toys are a good place to build the instinct because they are immediate and honest. The math either works or it does not.
 
-## precision problems have a look
-
-Shader sketches also teach the feel of precision problems.
-
-Banding, flicker, aliasing, z-fighting, unstable edges, and sudden color jumps are all visual symptoms of numerical behavior. Sometimes the fix is more precision. Sometimes it is a different mapping. Sometimes it is smoothing, clamping, dithering, or changing the coordinate space.
-
-Seeing the artifact helps you build a memory for it.
-
-That memory transfers. A ranking score that saturates too early, a classifier threshold that flips near a boundary, or a time-series chart that jitters because of sampling noise all have similar debugging shape. The screen teaches you to ask where the value became unstable.
-
-## a tiny debugger can be enough
-
-The useful shader toy does not need a polished UI.
-
-I usually want a few controls:
-
-- time on or off
-- mouse position
-- one or two numeric sliders
-- a way to freeze a frame
-- a way to display intermediate values as color
-
-That is enough to answer many questions. If a field is wrong, draw the field. If a mask is wrong, draw the mask. If a value is out of range, map it to color and make the bad range loud.
-
-The habit is the tool.
-
-## visual debugging changes the question
-
-Logs ask: what value happened?
-
-Visual debugging asks: what shape did the values make?
-
-Both are useful. The shape often reveals the bug faster.
-
-When a system has spatial state, temporal state, probability, thresholds, interpolation, or fields, I want at least one visual handle. Shader toys are a good way to build that instinct.
-
-They are playful, yes. That is part of the point. Play makes it cheap to notice what the math is doing.
-
-Cheap noticing is underrated engineering practice. Make state visible first.
+Cheap noticing is underrated engineering practice. If the state is visible, the bug has less room to hide.

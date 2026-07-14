@@ -14,17 +14,15 @@ The agent reads the request, calls a tool, edits a file, opens a browser, finish
 
 Production does not care that the demo worked.
 
-The real system has a messier question: what was the agent allowed to touch, and how would we know if it crossed the line?
+The real question is duller and harder: what was the agent allowed to touch, and how would we know if it crossed the line?
 
-That is why agents need boring boundaries. Not clever boundaries. Not a policy paragraph hidden in a prompt. Boring ones. Boundaries that can be named in the UI, enforced in code, logged at the application edge, and explained to a human who is trying to decide whether to trust the next action.
-
-## scope should be concrete
+## scope should read like a contract
 
 "Let the agent use my files" is not a scope. It is a warning label.
 
 A useful scope is specific enough that the user and the system can both reason about it:
 
-~~~json
+```json
 {
   "files": ["src/content/blog"],
   "network": "localhost-only",
@@ -32,7 +30,7 @@ A useful scope is specific enough that the user and the system can both reason a
   "secrets": "none",
   "duration": "this run"
 }
-~~~
+```
 
 That is the kind of grant I want. The agent can do useful work, but the permission is not pretending to be universal. It has a directory, a network rule, a command list, a credential rule, and a lifetime.
 
@@ -40,7 +38,7 @@ The exact shape will vary by product. A coding agent needs workspace boundaries.
 
 The important part is that the boundary exists outside the model's goodwill.
 
-## credentials are different
+## credentials should never be vague
 
 File access is one thing. Credentials are another.
 
@@ -52,7 +50,7 @@ This is not only about security. It is about debugging.
 
 When something goes wrong, "the agent had my token" is not enough information. I want to know which credential was used, which tool accepted it, which resource was targeted, and which user-facing approval preceded the action.
 
-## tool boundaries should match side effects
+## side effects belong in separate buckets
 
 MCP makes tool access feel nicely composable. That is useful, but it also makes tool boundaries more important because the tool list can grow faster than the user understands.
 
@@ -73,7 +71,7 @@ Then the approval model can be boring too. Read-only tools may run automatically
 
 The model does not get to decide that a deploy is "probably fine" because the prompt sounded confident.
 
-## time matters
+## time is part of the grant
 
 Permissions should expire.
 
@@ -91,13 +89,13 @@ If the agent asks, "Can I continue?", the user is approving a mood. If the agent
 
 That approval should leave a receipt:
 
-~~~text
+```text
 approved action: edit local file
 target: src/content/blog/agents-need-boring-boundaries.mdx
 visible evidence: proposed diff
 allowed follow-up: markdown check only
 expires: end of run
-~~~
+```
 
 This is the difference between permission as a ceremony and permission as an operating surface. The receipt lets a human replay what happened. It also lets the system reject later actions that were never approved.
 

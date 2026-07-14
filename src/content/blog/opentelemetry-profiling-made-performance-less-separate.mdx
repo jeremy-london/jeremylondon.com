@@ -8,138 +8,31 @@ author: "jeremy-london"
 tags: ["opentelemetry", "profiling", "observability"]
 ---
 
-Profiling used to feel like a side quest.
+Profiling used to feel separate from the rest of observability.
 
-The main observability stack had logs, metrics, and traces. When something got slow or expensive, you jumped into a different tool, captured a profile, stared at flame graphs, and tried to line that evidence back up with the incident timeline.
+Logs told you what happened. Metrics told you how the system behaved over time. Traces told you where a request went. Profiling was the side quest where you opened another tool, captured a flame graph, and hoped you could line it back up with the incident.
 
-That separation was always awkward.
+OpenTelemetry profiling matters because it makes that detour less awkward.
 
-Performance problems rarely live in a separate universe. They show up as request latency, queue backlog, CPU saturation, memory growth, garbage collection, lock contention, or cloud spend. Those are operational symptoms. Profiling tells you which code is consuming the resources behind those symptoms.
+### four questions, four signals
 
-OpenTelemetry profiling matters because it brings that question closer to the same observability conversation.
+- logs: what happened
+- metrics: how often or how much
+- traces: where the request went
+- profiles: which code paid the bill
 
-## each signal answers a different question
+The profile is the one people reach for too late. A trace can show that a request spent 900ms in a service. A metric can show CPU climbed. A log can show a timeout. The profile can show that the hot path was serialization, regex work, compression, allocation churn, or a dependency call nobody suspected.
 
-Logs answer: what happened?
+### sampling makes it practical
 
-Metrics answer: what is the system doing over time?
+Production profiling has to be cheap enough to keep around or easy enough to turn on during an incident. Sampling-based profilers do that by collecting stacks at intervals instead of demanding a manual debugging session every time something feels slow.
 
-Traces answer: where did this request go?
+That does not remove the tradeoffs. Short-lived behavior can be missed. Symbolization can be annoying. Native stacks and stripped binaries add friction. Still, the workflow is much better when the profile can travel through the same telemetry path as the rest of the data.
 
-Profiles answer: which code consumed the CPU, memory, locks, or other resources?
+### resource context keeps the story honest
 
-That last question is the one teams often reach for too late.
+The useful profile is the one with service version, region, host, deployment, tenant class, and feature flag context attached. Otherwise the team ends up staring at averages and guessing.
 
-A trace can show that a request spent 900ms in a service. A metric can show that CPU was high. A log can show a timeout. A profile can show that a serialization path, regex, compression step, JSON parser, image transform, allocation-heavy loop, or dependency call was eating the process.
+Maybe the slowdown only exists on the new version. Maybe it only hits one customer. Maybe one node class is worse. Maybe the deploy changed input size. The profile should help answer those questions instead of floating above them.
 
-The signals are better together. A profile without request context can tell you hot code. A trace without a profile can tell you slow spans. A linked profile and trace can tell you which code was hot during the slow request on the resource that handled it.
-
-That is the practical win.
-
-## sampling makes profiling operational
-
-Production profiling has to be cheap enough to leave on or easy enough to enable during an incident.
-
-Sampling-based profilers work by periodically observing program state and collecting stack traces. For CPU, that might mean sampling stacks at a fixed interval. For memory, it might mean sampling allocations. For lock contention, it might capture blocked stacks. Some environments can use eBPF to collect profiles with low overhead and little or no application instrumentation.
-
-The exact mechanism matters less than the operating property: the team gets resource evidence from real workloads without turning every incident into a manual profiling session.
-
-That does not remove tradeoffs. Sampling can miss short-lived behavior. Overhead still matters. Symbolization can be painful. Native stacks, containers, stripped binaries, and language runtimes all add detail. But the workflow is much better when profiles can flow through the same telemetry pipeline and correlate with the same resource attributes.
-
-## resource context is the glue
-
-The profile is useful because it carries context.
-
-Which service? Which version? Which pod? Which host? Which region? Which deployment? Which runtime? Which tenant class? Which feature flag?
-
-Those labels are not decoration. They keep the performance investigation from drifting into averages.
-
-Maybe CPU is high only on the new version. Maybe memory growth appears only in one worker pool. Maybe a slow path appears only for a large customer. Maybe one Kubernetes node class has worse behavior. Maybe the issue is tied to a feature flag that changed payload shape.
-
-If profiles share resource context with metrics and traces, the investigation can move more directly:
-
-~~~text
-p95 latency increased
-  -> trace shows slow span in renderer
-  -> profile on same service version shows CPU in markdown sanitizer
-  -> deployment diff changed sanitizer input size
-  -> fix targets the hot path instead of guessing
-~~~
-
-That is a different workflow from "CPU is high, somebody go profile the app."
-
-## flame graphs need product context
-
-Flame graphs are excellent and also easy to misuse.
-
-A hot function is not automatically a bug. It may be doing the work the product asked for. The useful question is whether the resource use matches the value and expectation of the workflow.
-
-An image-processing route should spend time processing images. A search route should spend time ranking. A code-analysis worker should parse code. The problem is excess: unnecessary work, repeated work, expensive work on the wrong path, or work happening at the wrong time.
-
-That is why profiles need to sit next to request and product context.
-
-I want to know:
-
-- which endpoint or job produced the profile
-- which input size or customer slice was involved
-- whether the hot path is expected
-- whether caching should have prevented it
-- whether a dependency changed
-- whether this is new after a deploy
-- whether reducing it would improve user-visible latency or cost
-
-Performance work gets better when it starts from user pain or operating cost, then uses profiles to find the code. Starting from the hottest function alone can lead to elegant optimizations nobody needed.
-
-## profiles can become regression tests
-
-The best performance investigations leave behind a guardrail.
-
-If a route got slow because a function allocated too much, record that. If a worker burned CPU parsing the same payload repeatedly, record that. If a model-serving process spent surprising time in tokenization, record that. The fix should not disappear into memory.
-
-Profiles are not usually tests by themselves, but they can inform tests and budgets:
-
-- allocation budget for a hot path
-- benchmark for a parser
-- p95 latency guard for a route
-- CPU budget for a background job
-- regression alert for a known function family
-- load test that reproduces the old profile shape
-
-This is especially useful in AI systems, where the expensive path may be outside the model call. Prompt assembly, retrieval, reranking, image preprocessing, PDF parsing, token counting, JSON validation, and logging can all become surprisingly expensive.
-
-The model bill gets attention. The local CPU bill often hides until profiles make it visible.
-
-## the collector story matters
-
-OpenTelemetry's value has always been partly social: a common way to instrument and move telemetry without making every team marry one vendor.
-
-Profiles becoming part of that conversation means performance data can follow the same broad path as the other signals:
-
-~~~text
-application or agent
-  -> profile data model
-  -> OTLP export
-  -> collector processing
-  -> backend storage and visualization
-  -> correlation with logs, metrics, and traces
-~~~
-
-The exact maturity varies by language and toolchain, and teams should check the status before betting production workflows on a specific profile signal. But the direction is useful. Performance evidence belongs in the main stack.
-
-## less separate is the point
-
-I do not want profiling to become another dashboard everyone ignores.
-
-I want it to be available when the system says something is wrong. High CPU should lead to the code path. A slow trace should lead to the hot stack. A deployment regression should show which resource use changed. A cost spike should become a concrete function, job, query, or transform.
-
-That is what "profiling in OpenTelemetry" represents to me: fewer walls between operations and performance engineering.
-
-The system is slow.
-
-The trace shows where.
-
-The metric shows how often.
-
-The log shows what happened.
-
-The profile shows what code paid the bill.
+I like the direction because it removes one more excuse to treat performance as a separate discipline. A slow route should lead to the code path, the hot stack, and the deploy that changed it. If OpenTelemetry can make profiling feel like part of the main stack, that is enough.

@@ -1,6 +1,6 @@
 ---
 title: "Tool calling is a contract"
-excerpt: "Tool calling works best when the model, tool schema, identity, and application agree on a clear contract."
+excerpt: "Tool calling works when the model, schema, identity, and application all agree on the boundaries."
 publishDate: "2026-02-27T09:00:00Z"
 category: "deep-learning-principals"
 draft: false
@@ -12,15 +12,13 @@ Tool calling is a contract between a model and a system that has consequences.
 
 The model can propose an action. The application has to decide whether the proposal is valid, authorized, scoped, idempotent, useful, and reviewable. That decision cannot live in vibes. It has to live in a contract the code can enforce.
 
-A syntactically valid tool call can still be wrong. The tool name may be correct while the arguments point at the wrong resource. The JSON may validate while the requested action exceeds the user's permission. The tool may return success while the system changed nothing useful. The retry may succeed by duplicating state.
+## narrow authority is the first rule
 
-That is why I think tool calling belongs closer to API design than prompt design.
+A syntactically valid tool call can still be wrong. The tool name may be correct while the arguments point at the wrong resource. The JSON may validate while the requested action exceeds the user's permission. The tool may return success while the system changed nothing useful.
 
-## the schema is the first policy layer
+That is why I want narrow authority.
 
-The schema should do more than tell the model which keys exist.
-
-It should make illegal states hard to express. If a tool can only create low, medium, or high severity tickets, the schema should say that. If a tool needs a workspace ID, make it required. If a tool accepts a date range, define the format. If an action needs a reason, require one.
+`rename_document` is easier to reason about than `manage_document`. `delete_generated_artifact` is easier to trust than `deleteFile`. A narrow tool may require more application code, but it gives the model less room to improvise and the reviewer something concrete to inspect.
 
 ~~~ts
 type CreateTicketArgs = {
@@ -32,15 +30,13 @@ type CreateTicketArgs = {
 }
 ~~~
 
-That type is still incomplete, but it is already better than `args: Record<string, unknown>`. The model has fewer places to hide ambiguity.
+That type is still incomplete, but it is already better than `args: Record<string, unknown>`.
 
-I also like making dangerous tools narrower than feels convenient. `deleteFile(path)` is a scary tool. `deleteGeneratedArtifact({ artifactId })` is easier to reason about. The narrow tool may require more application code, but it gives the model less room to improvise.
-
-## identity belongs in the call path
+## identity belongs in the call
 
 A tool call without identity is a background job wearing a mask.
 
-The system should know who requested the action, which session produced it, what resource scope was available, and whether the model was acting as a user, assistant, automation rule, or delegated workflow.
+The system should know who requested the action, which session produced it, what scope was available, and whether the model was acting as a user, assistant, automation rule, or delegated workflow. The model does not get to invent that information.
 
 ~~~ts
 type ToolInvocation = {
@@ -58,17 +54,13 @@ type ToolInvocation = {
 }
 ~~~
 
-The model does not get to invent this identity. The application supplies it. That distinction matters because authorization has to be checked against trusted state, not against text the model produced.
+Authorization has to be checked against trusted state, not against text the model produced.
 
-This is where a lot of demos quietly cheat. The tool works because it has broad credentials behind it. The model asks for something plausible, and the tool does it. That is fun until the first confused-deputy problem appears.
+## retries need idempotency
 
-## idempotency is not optional for side effects
+Side effects need idempotency.
 
-Any tool with side effects needs an idempotency story.
-
-If the model creates a ticket and the network times out after the ticket is created, what happens when the agent retries? If the tool sends an email and the caller does not receive the result, does the retry send a second email? If the model updates a CRM record twice, which update should count?
-
-The contract needs an idempotency key that reflects the intended action.
+If the model creates a ticket and the network times out after the ticket is created, what happens when the agent retries? If the tool sends an email and the caller does not receive the result, does the retry send a second email? If the model updates a CRM record twice, which update counts?
 
 ~~~ts
 type SideEffectToolCall<TArgs> = {
@@ -79,15 +71,11 @@ type SideEffectToolCall<TArgs> = {
 }
 ~~~
 
-The key should come from the application or a deterministic action plan, not from a fresh random value on every retry. Otherwise the retry protection is fake.
+The key should come from the application or a deterministic action plan, not from a fresh random value on every retry.
 
-For read-only tools, idempotency is less dramatic. For writes, it is the difference between a recoverable timeout and a duplicate operation.
+## results should explain what happened
 
-## result shapes should explain what happened
-
-Returning free-form text from a tool is tempting because the model can read it. It is also where contracts go soft.
-
-I would rather return structured results and give the model text as one field among several.
+Free-form text is tempting because the model can read it, but it is where contracts go soft.
 
 ~~~ts
 type ToolResult<T> =
@@ -111,43 +99,9 @@ type ToolResult<T> =
 
 That shape lets the application make decisions without parsing prose. The model can still summarize the result, but it does not own the result semantics.
 
-The `retryable` field is important. A validation failure and a timeout should not trigger the same behavior. Permission denial should not be solved by asking the model to try harder.
+## approval should attach to the action
 
-## tool names should be boring and specific
-
-Tool names are part of the model's interface.
-
-`manage_document` is too broad. It invites the model to decide which operation belongs inside the verb. `rename_document`, `archive_document`, and `create_document_comment` are easier to reason about.
-
-The same is true for descriptions. A tool description should say what the tool does, what it refuses to do, and which identifiers it expects.
-
-Bad:
-
-~~~text
-Use this tool to update a project.
-~~~
-
-Better:
-
-~~~text
-Rename an existing project in the current workspace. The caller must provide
-the project ID and the new display name. This tool does not create projects,
-move projects, or change permissions.
-~~~
-
-That description gives the model a smaller target. It also gives reviewers a way to spot misuse.
-
-## approval should attach to the planned action
-
-Approval buttons are weak when they approve a sentence.
-
-~~~text
-The assistant wants to update the project.
-~~~
-
-That does not tell the user enough. Which project? What field? What old value? What new value? Can it be undone?
-
-The approval surface should attach to the tool contract:
+`The assistant wants to update the project` does not tell the user enough. Which project? What field? What old value? What new value? Can it be undone?
 
 ~~~json
 {
@@ -161,35 +115,12 @@ The approval surface should attach to the tool contract:
 
 Now the user is approving an action, not a vague intent.
 
-Some tools should never require approval because they are safe reads. Some should always require approval because they mutate external state. Some should require approval only when scope or risk crosses a threshold. The important part is that approval policy is attached to the tool and action shape, not improvised after the model speaks.
+## logs are where the contract becomes visible
 
-## logs should reconstruct the contract
+I want to see the proposed tool name, validated arguments, actor identity, resource scope, policy decision, idempotency key, tool version, result status, retry count, and approval record when one existed.
 
-When a tool call goes wrong, the log should let another engineer reconstruct the decision.
+That is not because every tool call is a courtroom exhibit. It is because agent failures are slippery otherwise.
 
-I want to see:
-
-- proposed tool name
-- validated arguments
-- actor identity
-- resource scope
-- policy decision
-- idempotency key
-- tool version
-- result status
-- retry count
-- approval record when one existed
-
-That is not because every tool call is a courtroom exhibit. It is because agent failures are otherwise slippery. The model said something plausible. The tool did something concrete. The gap between those two things is where most debugging happens.
-
-## the model proposes, the contract decides
-
-Tool calling works when the model is good at intent and the application is good at boundaries.
-
-The model can choose a likely tool, fill an argument shape, and explain why it wants to act. The application validates the schema, checks identity, applies policy, executes the narrow operation, and returns a structured result.
-
-That split keeps the system honest. If the model can bypass the contract through prose, the contract is decorative. If the application ignores the model's context entirely, the tool call becomes a brittle command form.
-
-The useful version is somewhere in the middle: language proposes, code constrains, tools act, results come back with enough structure to decide the next step.
+The useful version is simple: language proposes, code constrains, tools act, and results come back with enough structure to decide the next step. If the model can bypass the contract through prose, the contract is decorative. If the application ignores the model's context entirely, the tool call becomes a brittle command form.
 
 That is a contract. Treat it like one.

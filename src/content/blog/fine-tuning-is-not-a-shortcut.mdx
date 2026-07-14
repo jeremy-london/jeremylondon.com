@@ -8,206 +8,92 @@ author: "jeremy-london"
 tags: ["fine-tuning", "training", "datasets"]
 ---
 
-Fine-tuning is useful when the team already knows what behavior it wants.
+Fine-tuning is the part people reach for when the decision already exists and they want the model to absorb it.
 
-It is a mess when the team is hoping training will discover the product requirement for them.
+## decide the task first
 
-That distinction sounds small, but it changes the whole project. A fine-tune can make a narrow task cheaper, faster, more consistent, or less dependent on a long prompt. It can help a model emit a stable schema, classify a domain-specific label set, follow a house style, extract entities in a particular format, or handle a recurring task that the base model almost understands.
+If the team is still arguing about what the task is, training will not settle that argument. It will just encode the argument badly.
 
-What it cannot do is rescue a vague objective. If the instruction is "make the assistant better," the model will still learn something. The problem is that nobody can say whether it learned the intended thing.
+That is why I want the boring parts frozen first: the base model, the prompt, the retrieval path if there is one, the eval set, the scoring rule, and the failures we already know about.
 
-## freeze the baseline first
+The useful question is not whether the checkpoint is "better." It is what should change.
 
-The first step is not training. It is freezing the baseline.
+Maybe the model should stop missing security escalations. Maybe it should normalize messy entities. Maybe it should produce valid JSON without a repair loop. Maybe it should replace a huge prompt that exists only because the workflow never got cleaned up.
 
-Before touching a dataset, I want a record of the current system: model, prompt, retrieval path, tool constraints if any, eval set, grading method, and known failure slices. Without that, the fine-tune has no honest comparison. It can feel better because the examples are friendlier, the prompt changed, the grader got looser, or the eval leaked into training.
+The moment you can write down the target behavior in one sentence, you can start checking whether training is the right lever at all. If the sentence is still mushy, the model will not rescue you from that. It will only make the mushy part harder to unwind later.
 
-A baseline record can be small:
+I also want a baseline that stays boring on purpose. A frozen prompt, a fixed retrieval path, and a named evaluation slice tell me what fine-tuning is trying to beat. Without that, the checkpoint comparison is just theater.
+
+## let the data teach one thing
+
+That choice determines the data.
+
+A narrow classifier wants ugly negatives and explicit label definitions. A formatter wants valid and invalid examples. A style model wants real examples of the style, not generic professionalism. Synthetic data can help, but only if it stays out of the holdout and does not teach the model the generator's accent.
+
+For a support router, I want the training set to look like the thing the model will actually see:
+
+~~~text
+security_high: 420
+security_medium: 610
+billing_escalation: 980
+product_bug: 740
+unknown: 300
+~~~
+
+That table says more than a paragraph of optimism. It tells me where the model will get lazy. It tells me whether the rare class is rare enough to need a weighting trick or a better label definition.
+
+For a task like support escalation routing, I want the training rows to expose the edge, not just the happy path:
+
+~~~text
+task: classify support escalations
+base model: frontier-small-2026-05
+prompt version: escalation-v4
+train set: reviewed production tickets + hard negatives
+holdout: later tickets + hand-written edge cases
+primary metric: macro f1
+guardrails: no regression on billing, vip, or ambiguous policy
+~~~
+
+Then I want a small eval table that can actually surprise me:
+
+~~~text
+slice                  baseline   ckpt_a   ckpt_b
+security_high_recall      0.82      0.88     0.91
+billing_precision         0.90      0.87     0.79
+ambiguous_policy_f1       0.64      0.63     0.56
+json_validity             0.93      0.97     0.98
+out_of_domain_f1          0.71      0.69     0.60
+~~~
+
+Checkpoint B looks nice if you only care about the headline slice. It is a bad pick if billing noise or ambiguous policy matters to the product.
+
+One concrete example helps here. If the model is supposed to create a ticket, I want the record to carry the exact output shape and not just a vague natural-language instruction:
 
 ~~~json
 {
-  "task": "classify customer escalation risk",
-  "baseline_model": "frontier-base-2026-05",
-  "prompt_version": "escalation-risk-v3",
-  "retrieval": "none",
-  "eval_set": "escalation-holdout-042",
-  "primary_metric": "macro_f1",
-  "must_not_regress": ["security", "ambiguous_policy", "vip_customer"],
-  "latency_budget_ms": 150
+  "task": "create_ticket",
+  "args": {
+    "title": "Parser fails on quoted commas",
+    "priority": "high",
+    "owner": "platform"
+  }
 }
 ~~~
 
-The important part is that the baseline is reproducible. If the tuned checkpoint improves the target slice by 4 points but the prompt also changed, the result is muddy. If the baseline eval was never saved, the comparison becomes a memory exercise.
+That kind of example teaches the structure and the behavior together. If the model can only guess at the shape, the team still needs repair code. If the model can output the shape but not the class, the label set is wrong.
 
-Fine-tuning already has enough ways to fool you. Do not start by moving the measuring stick.
+## where it usually breaks
 
-## name the behavioral delta
+This is where fine-tunes usually go wrong. The target slice improves, then the adjacent slice gets weird. Or the output looks polished while losing caution. Or the model starts mirroring the label language instead of the task itself.
 
-"Better" is not a training objective.
+That is why I keep adjacent checks around. Not because they are elegant. Because they catch the model when it has learned the wrong lesson.
 
-A useful fine-tuning objective names the behavioral delta:
+One concrete failure mode is the model that learns the naming pattern but not the decision boundary. A support router can look excellent on "security" versus "billing" and still fail on the tickets that mention both. The metric goes up while the product gets harder to trust.
 
-- reduce false negatives for security escalations
-- normalize messy vendor names into a fixed entity schema
-- emit shorter support summaries without dropping required fields
-- classify internal documents into a stable taxonomy
-- produce JSON that matches a schema without repeated repair passes
-- follow a specific editing style for one kind of document
+If the fine-tune works, the payoff is simplification: less prompt, less repair, less latency, less ceremony.
 
-Each of those goals implies a different dataset. The security-escalation model needs hard negatives and ambiguous policy cases. The entity model needs label definitions and disagreement review. The JSON-formatting model needs examples of valid output and ugly input. The style model needs before-and-after pairs from the actual style, not generic "write professionally" examples.
+If the team is training because labels are fuzzy or the behavior is disputed, the checkpoint will not fix that. It will just store the confusion in weights.
 
-The delta also tells you what should not change. If the fine-tune improves escalation recall but floods billing with false positives, maybe it failed. If it writes in the right style but invents missing facts more often, it failed. If it outputs perfect JSON only on examples shaped like the training set, it failed outside the demo.
+The thing I watch next is calibration. A checkpoint can be right and still be annoying if it becomes too eager to sound certain in the exact places where the workflow wants a second look. That usually means the model learned the naming pattern but not the product boundary.
 
-Fine-tuning should change a defined behavior, not the whole personality of the system.
-
-## the dataset is the product work
-
-The dataset is where the real arguments happen.
-
-Labels need definitions. Edge cases need decisions. Duplicate examples need removal. Synthetic examples need inspection. Real examples need privacy handling. Class imbalance needs a plan. Ambiguous examples need either a label, an `unknown` class, or exclusion with a note explaining why.
-
-If the dataset is sloppy, the model learns the slop.
-
-For a classifier, I would want a dataset summary before training:
-
-~~~text
-class                 train   validation   holdout
-security_high          420       80          120
-security_medium        610      100          140
-billing_escalation     980      160          220
-product_bug            740      120          180
-unknown                300       60          100
-~~~
-
-The counts are only the start. I also want to know where the examples came from. Production tickets? Synthetic generation? Human-authored fixtures? Historical labels? If synthetic data exists, which prompt created it? Were synthetic examples kept out of the adversarial holdout? Did labelers disagree? Were labels reviewed by someone who understands the product?
-
-Label disagreement is not a nuisance to hide. It is a signal. If two reviewers disagree on whether a ticket is security-high or security-medium, the model may learn whichever label happened to win the spreadsheet. The better move might be to clarify the label policy or add an ambiguity class.
-
-The training run cannot fix a taxonomy that the team has not defined.
-
-## keep the holdout away from the generator
-
-Synthetic data can be useful. It can fill rare slices, produce adversarial phrasing, and cover cases that production has not produced yet. It can also contaminate the eval in subtle ways.
-
-If the same teacher model, prompt style, or generation recipe creates the training data and the holdout, the tuned model can look stronger than it is. It learns the generator's accent. Then real users arrive with different wording, broken grammar, pasted logs, mixed intents, and context the synthetic prompt never imagined.
-
-I would separate the sets by source:
-
-~~~text
-training:
-  - reviewed production examples
-  - synthetic rare-class examples
-  - cleaned historical labels
-
-validation:
-  - production examples from a separate time window
-  - reviewed synthetic examples from a different prompt recipe
-
-adversarial holdout:
-  - real failures
-  - label-disagreement cases
-  - hand-authored edge cases
-  - examples from documents the generator never saw
-~~~
-
-The holdout should make the team nervous. If every case looks like the training set, it is a rehearsal, not an exam.
-
-## checkpoints deserve suspicion
-
-The final checkpoint is not automatically the best checkpoint.
-
-Fine-tuning can overfit fast, especially on narrow tasks and small datasets. A later checkpoint may score better on training loss while getting worse on adversarial cases. The model may learn to imitate label phrasing, output length, or formatting quirks instead of the task itself.
-
-I want checkpoint comparison by slice:
-
-~~~text
-slice                  baseline   ckpt_1   ckpt_2   ckpt_3
-security_high_recall     0.82     0.86     0.90     0.91
-billing_precision        0.88     0.87     0.84     0.79
-ambiguous_policy_f1      0.63     0.65     0.61     0.55
-out_of_domain_f1         0.74     0.73     0.68     0.60
-schema_validity          0.91     0.96     0.98     0.98
-~~~
-
-Checkpoint 3 looks great if the only story is security recall and schema validity. It looks worse if the product cannot afford billing false positives or ambiguous-policy regressions. Checkpoint 1 may be the better product choice, even though it is less impressive on the headline metric.
-
-This is also where a prompted baseline matters. If a careful prompt and a schema validator get you most of the benefit with no training job, that might be the better system. Fine-tuning has to beat the strong boring option.
-
-## regressions outside the task still count
-
-A fine-tune narrows behavior. That is the point. It can also damage behavior the team assumed would stay intact.
-
-A model tuned for terse summaries might stop preserving uncertainty. A model tuned for JSON might become worse at explaining why a field is missing. A model tuned for a support taxonomy might overroute unusual but legitimate requests into the nearest known label. A style fine-tune might make the output sound right while weakening factual caution.
-
-Those regressions count even when the target metric improves.
-
-I would always keep some out-of-domain and adjacent-domain checks. They do not need to be huge. They need to catch the obvious "we trained the model into a corner" failures.
-
-For example:
-
-~~~text
-target task:
-  classify escalation risk
-
-adjacent checks:
-  normal billing request should remain low risk
-  vague security mention should ask for clarification
-  pasted stack trace should not become a policy escalation
-  unsupported refund claim should stay unsupported
-  multilingual short message should not default to high risk
-~~~
-
-The fine-tune earns trust by improving the target behavior without breaking the neighbors.
-
-## fine-tuning can simplify the product
-
-The best reason to fine-tune is usually simplification.
-
-Maybe the prompt shrinks from 2,000 tokens to 200. Maybe the model stops needing a repair loop for schema output. Maybe latency drops because a smaller tuned model can replace a larger prompted one. Maybe the system stops carrying twenty few-shot examples in every request. Maybe the output becomes consistent enough that downstream code gets simpler.
-
-That is a real architectural win.
-
-The bad reason is impatience. The team does not want to define labels, so it trains. The prompt is a mess, so it trains. The eval is weak, so it trains. The product behavior is disputed, so it trains. That route usually produces a checkpoint that encodes confusion in a harder-to-debug form.
-
-Before fine-tuning, I would ask:
-
-- Is the task stable enough to train against?
-- Do we have labels we trust?
-- Does a strong prompted baseline already solve it?
-- What behavior should change?
-- What behavior must stay unchanged?
-- What will own rollback and versioning?
-- How will we know the checkpoint has drifted?
-
-If those answers are vague, training is early.
-
-## the checkpoint becomes infrastructure
-
-Once the checkpoint ships, it is part of the system.
-
-It needs a version. It needs a dataset lineage. It needs an eval record. It needs a rollback plan. It needs ownership for future data. It needs monitoring for changes in input distribution. It needs a way to compare new checkpoints against the current one.
-
-That sounds heavy, but it is the cost of making model behavior a dependency.
-
-A small release note might say:
-
-~~~text
-checkpoint: escalation-risk-ft-2026-05-19
-base: frontier-base-2026-05
-dataset: escalation-train-017
-selected checkpoint: epoch 2
-reason: best tradeoff between security recall and billing precision
-known weakness: ambiguous policy language remains below target
-rollback: route to prompted baseline risk-v3
-next data work: review 100 ambiguous-policy cases
-~~~
-
-That note is more useful than "fine-tuned the model." It tells the next person what decision was made and where to look when it starts failing.
-
-## where i land
-
-Fine-tuning is not a shortcut around product thinking. It is a way to compress product thinking into weights after the team has done the harder work in examples, labels, evals, and baselines.
-
-When the task is stable and the dataset is good, it can be excellent. It can make a system faster, cheaper, more consistent, and easier to operate. When the task is vague, it mostly hides the vagueness.
-
-The model will learn something. Make sure it is the thing you meant to teach.
+Once it ships, treat it like a versioned dependency. Record the lineage. Keep the rollback. Note why this checkpoint won. Otherwise the next person is left guessing why the model suddenly got a little different.

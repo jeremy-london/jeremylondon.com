@@ -10,113 +10,11 @@ tags: ["interactive essays", "visualization", "teaching"]
 
 Interactive essays are good when the reader can change the system.
 
-A screenshot can explain an outcome. It cannot teach the relationship that produced the outcome. It freezes the one case the author chose. That is fine for documentation when the state is incidental. It is weaker for technical writing where the point is behavior.
+A screenshot shows one answer. State shows the thing that produced it.
 
-If the topic is an algorithm, a model, a layout rule, a simulation, or a data transformation, the reader should be able to poke it. Change an input. Move a slider. Toggle an assumption. Break it a little. See whether the explanation still holds.
+That is why interactive essays work: the reader can change the input, see the system respond, and check whether the explanation still holds. The controls should be few and tied to the concept, and the current state should be visible enough to inspect.
 
-That is where interactive essays earn their space.
-
-## state is the teaching surface
-
-The important part of an interactive essay is not animation. It is state.
-
-State is what the reader can change and what the system can reveal. A sorting visualization with no controls is a movie. A sorting visualization with array size, algorithm choice, speed, and comparison count becomes a small lab. A neural-network explainer with a fixed diagram is a picture. One with weights, activation functions, inputs, and loss displayed as state lets the reader build an intuition.
-
-The essay should expose the variables that carry the idea:
-
-~~~text
-topic: gradient descent
-reader controls:
-  learning rate
-  starting point
-  loss surface
-visible state:
-  current position
-  gradient
-  step size
-  loss value
-  iteration count
-~~~
-
-The controls are not decoration. They are the argument.
-
-If changing a control does not teach anything, the control probably should not be there.
-
-## screenshots hide the edge cases
-
-Screenshots are attractive because they show the clean result.
-
-They also hide the edge cases: the unstable learning rate, the cache miss, the broken layout at a narrow width, the search query with no good match, the physics simulation that explodes when a parameter crosses a threshold.
-
-Interactive state makes those edge cases available. The reader can find the failure instead of trusting the author to mention it.
-
-That is especially useful for AI and systems writing. A static diagram of a retrieval pipeline can show the happy path. An interactive version can let the reader change chunk size, query wording, similarity threshold, and reranker behavior. Then the failure becomes visible: wrong chunks rise, citations disappear, or the answer changes because one threshold moved.
-
-That teaches more than another polished diagram.
-
-## controls should match the concept
-
-Bad interactive essays add controls because controls look impressive.
-
-Good ones expose the smallest set of variables that explain the system.
-
-For a cache article, useful controls might be TTL, key shape, invalidation event, and request sequence. For a queue article, they might be worker count, visibility timeout, retry limit, and failure rate. For an embedding article, they might be query text, distance metric, top K, and metadata filter.
-
-I would avoid generic controls unless they teach the point. Speed sliders are fine for animations, but they rarely explain the system by themselves. Theme toggles are often irrelevant. Randomize buttons can be useful when variation matters and noise when it does not.
-
-The reader should understand why each control exists without reading a manual.
-
-## the state should be inspectable
-
-If an essay simulates a system, the internal state should be visible enough to verify.
-
-For example, a queue visualization should not only show jobs moving. It should show job IDs, attempts, lease expiration, retry count, and dead-letter state. A model-routing demo should show route choice, cost estimate, latency, and fallback reason. A layout demo should show container width, applied rule, and overflow state.
-
-Interactive writing becomes much stronger when the reader can compare the visual behavior to the underlying data:
-
-~~~json
-{
-  "job": "email-184",
-  "state": "leased",
-  "attempt": 2,
-  "lease_expires_in_ms": 18400,
-  "next_action": "worker_ack_or_timeout"
-}
-~~~
-
-That little state panel is not glamorous. It prevents the animation from becoming theater.
-
-## reproducibility matters
-
-An interactive essay should let the reader return to an interesting state.
-
-That might mean URL parameters, a copyable config, saved presets, or a small "reset" button that returns to the article's default example. Without that, the interaction becomes ephemeral. The reader finds a weird state and cannot share it. The author cannot cite a state in the prose. The demo cannot be tested.
-
-I like URL-addressable examples:
-
-~~~text
-/essays/queues?workers=3&retry=2&failure=0.15
-~~~
-
-Now the essay can link to a specific failure mode. The reader can change it and come back. Tests can load it. The example becomes part of the writing instead of an isolated toy.
-
-## progressive disclosure still matters
-
-Interactive essays can overwhelm people fast.
-
-The answer is not to hide the complexity forever. It is to stage it. Start with the simplest useful state. Add controls as the concept needs them. Let the reader inspect more detail when they are ready.
-
-A good sequence might be:
-
-1. show the basic behavior
-2. let the reader change one variable
-3. reveal the state that explains the change
-4. introduce the failure mode
-5. add the second variable that controls the failure
-
-That is teaching structure. The interaction follows the argument.
-
-If all controls appear at once, the reader may treat the essay like a control panel instead of a guided explanation.
+If the essay cannot return to an interesting state later, it is probably pretending to be interactive instead of teaching through interaction.
 
 ## maintenance is part of the choice
 

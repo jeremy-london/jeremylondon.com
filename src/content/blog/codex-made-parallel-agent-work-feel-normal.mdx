@@ -8,135 +8,77 @@ author: "jeremy-london"
 tags: ["codex", "software agents", "openai"]
 ---
 
-The Codex research preview made parallel agent work feel less strange.
+Codex made parallel agent work feel like a normal software move.
 
-That was the important shift for me. Not "an agent can write code." We already had plenty of demos in that direction. The more interesting idea was that software agents could work in separate sandboxes instead of all living inside one long chat thread.
+The thing I cared about was not "the model can write code." That part was already obvious. The useful change was subtler: multiple agent runs could live in separate sandboxes instead of one long, overloaded thread. Once that becomes normal, the user stops acting like someone chatting with a single assistant and starts acting like a dispatcher.
 
-Parallelism changes the mental model.
+That is a better shape for engineering work.
 
-One agent can investigate a failing test. Another can draft a migration. Another can update docs. Another can try a refactor that might be thrown away. The user becomes less like a person typing into a single assistant and more like someone dispatching bounded work into separate workspaces.
+## one thread is the wrong container
 
-That is powerful if the boundaries are real.
+A single chat thread is a poor place to hold several unrelated tasks.
 
-## one thread is a bottleneck
+It accumulates old context. It keeps side quests alive longer than they deserve. It makes the user supervise one stream even when the work is naturally separable. Real engineering work is already parallel. A test runs while a fix is being thought through. Documentation can move while a bug gets investigated. A branch can be abandoned without poisoning the rest of the day.
 
-A single chat thread is a bad shape for many engineering tasks.
+The agent should fit that rhythm instead of flattening it.
 
-It mixes unrelated context. It makes the model carry old decisions that no longer matter. It turns every side quest into another layer of conversation history. It gives the user one stream of work to supervise, even when the tasks are independent.
+## isolation is what makes the pattern useful
 
-Engineering work is already parallel in practice. We investigate one thing while a test runs. We sketch a fix while waiting for a build. We ask a teammate to look at a separate bug. We try a branch and throw it away if the idea is bad.
+Parallel work only helps if each run has a clear boundary.
 
-Agents should fit that rhythm.
-
-Parallel agents only help if each run has a clear task and isolated state. Otherwise the user just gets several messy chats instead of one.
-
-## isolation is the feature
-
-The useful part of parallel agent work is isolation.
-
-Each agent should have its own workspace, branch or worktree, command history, run log, and diff. It should not quietly share mutable state with another run. If two agents touch the same file, the system should make that visible before the user has to untangle a conflict.
-
-This is the shape I want:
+I want each run to own its workspace, branch or worktree, logs, diff, and command history. If two runs touch the same file, that should be visible before the merge step. If one run goes off the rails, the rest should survive without cleanup drama.
 
 ~~~text
 agent a
   task: fix markdown lint in three posts
   workspace: worktree-a
   allowed: src/content/blog
-  output: focused diff
 
 agent b
   task: investigate rss build failure
   workspace: worktree-b
   allowed: src/pages, src/lib
-  output: findings, no edits yet
 ~~~
 
-That separation lets the user compare work instead of reconstructing it.
+That is more useful than one conversation that keeps revising itself.
 
-Isolation also makes failure cheaper. If an agent goes down a bad path, throw away that workspace. The rest of the work survives.
+## small tasks survive parallelism better
 
-## task size matters more in parallel
+The shape of the task matters more than the number of agents.
 
-Parallelism rewards small tasks.
+Five vague tasks produce five vague diffs. That is not parallelism, that is just faster ambiguity. Good delegation starts with slicing the work into pieces that have distinct outputs.
 
-If the user gives five agents five vague tasks, the result is five vague diffs. The review burden goes up. The merge story gets worse. The user now has to decide which version of ambiguity they prefer.
+I would rather assign:
 
-Good parallel delegation starts with task slicing.
+- report repeated phrases in the archive
+- rewrite one post and preserve frontmatter
+- verify markdown and build checks
+- inspect RSS output for malformed excerpts
 
-Instead of:
+Those tasks can be compared without forcing the user to reconstruct intent from a giant transcript. One run reports. One edits. One verifies. One inspects.
 
-~~~text
-clean up the blog
-~~~
-
-use:
-
-~~~text
-agent 1: find posts with generated repeated phrases, report only
-agent 2: rewrite the caching post, preserve frontmatter
-agent 3: verify markdown and build errors after recent edits
-agent 4: inspect RSS output for malformed excerpts
-~~~
-
-Those tasks can run separately because they have different outputs. One reports. One edits. One verifies. One inspects generated output.
-
-The user should not have to merge five agents all trying to solve the same poorly defined problem.
-
-## review becomes the central workflow
+## review becomes the main interface
 
 Parallel agents move the bottleneck from generation to review.
 
-That is not bad. It is just honest.
+That is fine. It is also the truth. If four agents work at once, the user still needs to decide what lands, what conflicts, and what to rerun. The product should make that review cheap: changed files, commands run, checks passed, assumptions, and conflicts with other runs.
 
-If four agents produce useful work at the same time, the user still has to inspect the diffs, decide what to keep, resolve conflicts, and verify the combined result. The product should treat review as the main interface, not as an afterthought.
+Without that surface, parallel work turns into a pile of output. A pile of output is not throughput.
 
-I want each run to end with:
+## duplicate effort is okay when it is visible
 
-- changed files
-- commands run
-- checks passed
-- checks skipped
-- assumptions
-- conflicts with other runs
-- recommended next action
+There is nothing wrong with two agents exploring the same bug if the overlap is intentional.
 
-Then I want the review surface to compare those runs without making me open four transcripts.
+One can make the minimal fix. Another can trace the deeper cause. A third can write the test. Humans do this too, but agents make the duplication cheaper. The trick is to label the experiment so accidental overlap does not look like progress.
 
-Parallel work without review design becomes a pile of output. A pile of output is not productivity. It is inventory.
+If two runs are competing, say so. If one run is speculative, keep it away from the mainline until it is reviewed. Parallelism is useful when it creates options. It is wasteful when it creates hidden collisions.
 
-## duplicate effort is acceptable if it is cheap
+## the merge step tells the truth
 
-One nice thing about agents is that duplicate exploration can be useful.
+A local success is not the same as integrated success.
 
-Two agents can try different approaches to the same bug. One can produce a minimal patch. Another can investigate the deeper cause. A third can write a test. Humans do this too, but we are usually too expensive to duplicate casually.
+One agent can pass its checks and still conflict with another accepted diff. A doc update can describe code that another run just changed. A migration can look fine in one workspace while a dependency bump changes the setup in another.
 
-The trick is labeling the experiment.
+That is why the final checks have to run on the combined state. The agents can propose. The owner decides what lands.
 
-If two agents are intentionally competing, say that. If they are accidentally overlapping, stop one. If one run is speculative, keep it away from the mainline until review.
-
-Parallelism is useful when it creates options. It is wasteful when it creates hidden collisions.
-
-## merging is where the truth shows up
-
-The final system state matters more than any single agent result.
-
-An agent can pass its local checks and still produce a diff that conflicts with another accepted change. A documentation update can describe code that another agent just changed. A migration can pass in one workspace while a dependency update in another workspace changes the setup.
-
-The merge step needs its own verification.
-
-After accepting agent work, run the checks on the combined state. That sounds obvious, but it is easy to skip when every individual agent already reported success. Individual success does not prove integrated success.
-
-This is why parallel agent work needs a final owner. The agents can produce candidate work. The owner decides what lands.
-
-## why codex made it feel normal
-
-Codex made parallel agent work feel normal because it put the agent in a shape software teams already understand: separate workspaces, task boundaries, diffs, and review.
-
-That is much easier to reason about than one assistant accumulating every task in a single chat.
-
-The long-term version of this is not "replace the team with a swarm." It is more practical than that. Give agents bounded jobs. Let them work in isolation. Review their outputs. Keep the good diffs. Throw away the bad ones. Verify the integrated result.
-
-That is recognizably software work.
-
-The agent part is new. The workflow discipline is not.
+Codex made that workflow feel normal because it matched software's real shape: bounded jobs, isolated workspaces, diffs, review, and a final merge check. That is ordinary engineering discipline, just with better parallelism.

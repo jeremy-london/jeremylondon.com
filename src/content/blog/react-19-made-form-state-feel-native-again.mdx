@@ -10,21 +10,11 @@ tags: ["react", "forms", "frontend"]
 
 React 19 made form state feel native again.
 
-That is a small sentence for a large amount of deleted plumbing.
+That sounds small until you remember how much plumbing forms used to need. Submit state, error state, optimistic state, reset behavior, server rejection, duplicate-submit protection, and loading indicators all used to get rebuilt a little differently in every component.
 
-Forms are where frontend architecture gets exposed. The user types. The app validates. The request starts. The button disables. The optimistic state appears. The server rejects something. The UI keeps the input. The error lands near the field. The user tries again. A successful submit resets part of the page and preserves another part.
+### submission finally has a place to live
 
-Before React's newer form and action APIs settled in, a lot of this work lived in handmade state machines. `isSubmitting`, `error`, `result`, `dirty`, `disabled`, `optimisticItem`, `lastSubmittedValue`, `serverError`, `resetKey`. None of those are bad by themselves. The problem is that every form rebuilt the same lifecycle differently.
-
-React 19 did not make forms easy. It made the async shape feel more like application code and less like wiring.
-
-## actions gave submission a place to live
-
-The useful idea is that a form action can be the thing that handles submission.
-
-Instead of treating the submit event as a local ceremony that eventually calls some async function, the action becomes the boundary. The UI can submit to it. React can track pending state around it. The component can receive state back from it.
-
-That sounds subtle, but it changes the component shape.
+`useActionState` gives the submit flow a boundary. The form can submit to an action, React can track the pending state, and the component can receive the returned state without threading a pile of local flags through the tree.
 
 ~~~tsx
 const [state, formAction, isPending] = useActionState(saveProfile, {
@@ -40,116 +30,16 @@ return (
 )
 ~~~
 
-The component is still responsible for product behavior. React is not deciding the error copy or success state. But the async lifecycle has a clearer home.
+### pending belongs near the button
 
-## pending state should be local to the form
+`useFormStatus` removes one more bit of awkward prop drilling. A submit button can read the surrounding form's pending state directly and show the right label without the parent form carrying a separate mirror state.
 
-`useFormStatus` is one of those APIs that feels boring in the right way.
+### server errors are normal state
 
-A submit button often needs to know whether the surrounding form is pending. Before, that pending state might get threaded through props or duplicated in component state. With `useFormStatus`, a child can read the form submission status from context.
+Forms fail on the server for ordinary reasons: validation, permissions, conflicts, and stale data. The action can return a structured state instead of forcing everything into client-side validation or a generic toast that disappears before the user can act on it.
 
-That fits the mental model. The button belongs to the form. Its disabled state and label should follow the form's pending state.
+### optimistic UI still needs rollback
 
-~~~tsx
-function SubmitButton() {
-  const { pending } = useFormStatus()
+`useOptimistic` is useful because the interface should respond before the server finishes in some cases. But optimism is a promise. The spec has to say what happens when the server rejects the action, what stays editable, and how the user sees the rollback.
 
-  return (
-    <button disabled={pending}>
-      {pending ? "Saving..." : "Save"}
-    </button>
-  )
-}
-~~~
-
-This is the kind of small API that removes a daily tax.
-
-The product still needs to decide what pending means. Is the whole form disabled? Can the user keep typing? Does a second submit cancel the first? Does the UI show progress? Does navigation warn about unsaved changes?
-
-React gives the state a place to be read. The product still owns the behavior.
-
-## progressive enhancement stopped feeling bolted on
-
-The form APIs also made progressive enhancement feel less like a separate architecture.
-
-A form can have an action. It can submit. It can carry state through the action result. Frameworks can build server-action behavior around that model. Client JavaScript can improve the experience with pending UI and optimistic updates without turning the form into a fully custom protocol.
-
-That matters for boring reasons. Forms are often the most important reliability surface in an app. They should degrade more gracefully than a bespoke click handler wired to five local state variables.
-
-## server errors are part of the state
-
-The other useful piece is returning state from the action.
-
-For forms, server errors are normal. The username is taken. The file is too large. The permission changed. The record was edited elsewhere. The validation rule changed since the page loaded.
-
-The form should be able to show those outcomes without pretending everything is a client-side validation problem.
-
-~~~tsx
-async function saveProfile(previousState, formData) {
-  const displayName = formData.get("displayName")
-
-  if (typeof displayName !== "string" || displayName.length < 2) {
-    return { status: "error", message: "Use at least two characters." }
-  }
-
-  const result = await saveDisplayName(displayName)
-
-  if (!result.ok) {
-    return { status: "error", message: result.message }
-  }
-
-  return { status: "saved" }
-}
-~~~
-
-That shape keeps the form lifecycle close to the form. It also makes review easier: what states can this form return?
-
-## optimistic state needs rollback
-
-`useOptimistic` is useful because many interfaces should respond before the server confirms.
-
-Add a comment. Mark a task done. Reorder an item. Save a draft. The UI can show the user's intent immediately while the server catches up.
-
-Optimism is a product promise, though. If the server rejects the action, the UI has to recover without making the user wonder whether the app is lying.
-
-For optimistic UI, the spec needs to name:
-
-- what appears immediately
-- what is marked pending
-- what can still be edited
-- what happens on failure
-- whether the failed action can retry
-- whether the server response replaces local state
-
-React's API helps express optimism. It does not remove the need for rollback behavior.
-
-## less plumbing does not mean less design
-
-The best thing about React 19's form story is that it removes some incidental complexity.
-
-That should make the real complexity more visible.
-
-Forms still need:
-
-- accessible labels
-- field-level errors
-- focus management
-- loading states
-- disabled reasons
-- optimistic rollback
-- duplicate-submit protection
-- server validation
-- unsaved-change behavior
-- success states that do not erase useful context
-
-When the async wiring gets simpler, teams have fewer excuses to skip those states.
-
-## why it felt native
-
-HTML forms already have a strong model: fields, submit, action, result.
-
-React 19 moved closer to that model instead of forcing every app to reinvent a local submit state machine. The APIs give form submission, pending state, returned action state, and optimistic updates a clearer place in the component tree.
-
-That is why it felt native to me.
-
-Not because React made forms automatic. Because it made the boring states easier to represent where they belong.
+React did not make forms automatic. It made the async shape feel like application code instead of hand-built state machine glue. That is enough. The boring states finally have a home that looks like the rest of the component.

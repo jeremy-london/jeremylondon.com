@@ -1,6 +1,6 @@
 ---
 title: "TypeScript 5.5 cut some friction from filter code"
-excerpt: "Inferred type predicates were not flashy, but they removed a small daily tax from TypeScript code."
+excerpt: "Inferred type predicates removed a small daily tax from array pipelines."
 publishDate: "2024-07-10T10:00:00Z"
 category: "developer-tools"
 draft: false
@@ -10,7 +10,9 @@ tags: ["typescript", "developer tools", "types"]
 
 TypeScript 5.5 cut a small daily annoyance out of filter code.
 
-The feature was inferred type predicates. That name sounds like release-note furniture, but the practical change is simple: TypeScript got better at understanding that a filter callback removed `undefined`, `null`, or another excluded value.
+The feature was inferred type predicates. The practical change is simple: TypeScript got better at understanding that a filter callback removed `undefined`, `null`, or another excluded value.
+
+## the old workaround had a tax
 
 Before 5.5, code like this often needed help:
 
@@ -24,13 +26,7 @@ const average = scores.reduce((sum, score) => sum + score, 0) / scores.length
 
 Humans can see that `scores` contains numbers after the filter. Older TypeScript versions often kept the type as `(number | undefined)[]`, which meant the next line still had to defend against `undefined`.
 
-TypeScript 5.5 understands this common pattern. The filtered array narrows to `number[]`.
-
-That is not flashy. It is exactly the kind of improvement that makes a typed codebase feel less fussy.
-
-## the old workaround taught bad habits
-
-The old workaround was usually a helper:
+The usual workaround was a helper:
 
 ~~~ts
 function isDefined<T>(value: T | undefined): value is T {
@@ -42,13 +38,9 @@ const scores = studentIds
   .filter(isDefined)
 ~~~
 
-That helper is fine. I have written it plenty of times.
+That helper is fine. The problem is that codebases accumulated a small museum of these helpers.
 
-The problem is that codebases accumulated a small museum of these helpers: `isDefined`, `nonNullable`, `exists`, `isPresent`, `truthy`, `compact`, and whatever somebody copied from Stack Overflow three years earlier. Some were correct. Some quietly removed valid values. Some were too broad. Some were type assertions wearing a function costume.
-
-When the compiler understands the obvious local case, teams can delete a surprising amount of noise.
-
-## truthiness is still a trap
+## precise checks beat clever truthiness
 
 The useful limitation is that TypeScript cannot treat every truthiness filter as safe.
 
@@ -56,7 +48,7 @@ The useful limitation is that TypeScript cannot treat every truthiness filter as
 const scores = [0, 82, 91, undefined].filter((score) => !!score)
 ~~~
 
-That removes `undefined`, but it also removes `0`. If `0` is a valid score, the runtime behavior is wrong. TypeScript is right to be skeptical.
+That removes `undefined`, but it also removes `0`. If `0` is a valid score, the runtime behavior is wrong.
 
 The better version says what it means:
 
@@ -66,19 +58,9 @@ const scores = [0, 82, 91, undefined].filter(
 )
 ~~~
 
-This is the kind of type-system behavior I like. It rewards precise code instead of rewarding clever code.
+This is the kind of type-system behavior I like. It rewards precise code instead of clever code.
 
-Truthiness still works well for object values where falsey ambiguity is not the issue:
-
-~~~ts
-const users = userIds
-  .map((id) => usersById.get(id))
-  .filter((user) => user)
-~~~
-
-Even there, I usually prefer the explicit comparison because it documents the shape of the missing value.
-
-## better narrowing means fewer assertions
+## the compiler should carry the ordinary case
 
 Type assertions are useful when the programmer knows something the compiler cannot know. They get dangerous when they become the default way to end an argument.
 
@@ -88,7 +70,7 @@ const scores = studentIds
   .filter((score) => score !== undefined) as number[]
 ~~~
 
-That assertion used to feel understandable. It also made the filter line less trustworthy. If the callback changed later, the assertion could keep lying.
+That assertion used to feel understandable. It also made the filter line less trustworthy.
 
 With 5.5, the normal code can carry the normal type:
 
@@ -100,30 +82,7 @@ const scores = studentIds
 
 That is the win. The type comes from the code instead of from an override.
 
-## explicit annotations still have a job
-
-More precise inference can surprise code that expected a wider type.
-
-~~~ts
-const nums = [1, 2, 3, null].filter((value) => value !== null)
-nums.push(null)
-~~~
-
-In newer TypeScript, `nums` is inferred as `number[]`, so pushing `null` is an error. That is usually correct. If the code intentionally wants `(number | null)[]`, say so:
-
-~~~ts
-const nums: (number | null)[] = [1, 2, 3, null].filter(
-  (value) => value !== null,
-)
-
-nums.push(null)
-~~~
-
-That annotation is not noise. It records intent.
-
-The distinction matters. The compiler should infer the common case, and developers should annotate the unusual case. That is a healthy division of labor.
-
-## arrays are where small friction compounds
+## array pipelines get calmer
 
 Array helpers are everywhere in TypeScript code.
 
@@ -150,9 +109,9 @@ const validRows = rows
   .map((row) => row.value)
 ~~~
 
-The exact narrowing depends on the shape, but the general point holds: when TypeScript tracks the array pipeline correctly, the rest of the code gets calmer.
+When TypeScript tracks the array pipeline correctly, the rest of the code gets calmer.
 
-## predicates should stay honest
+## domain predicates still matter
 
 Inferred predicates do not remove the need to write honest predicate functions.
 
@@ -165,7 +124,7 @@ const activeUsers = users.filter((user) => {
 })
 ~~~
 
-That may work, but it mixes filtering and side effects. The type system cannot make that a good idea.
+That may work, but it mixes filtering and side effects.
 
 The best filter predicates are boring:
 
@@ -173,20 +132,4 @@ The best filter predicates are boring:
 const activeUsers = users.filter((user) => user.deletedAt === undefined)
 ~~~
 
-Small feature, same old discipline.
-
-I would still keep named predicate helpers when the predicate is a domain rule instead of a null check.
-
-~~~ts
-const billableEvents = events.filter(isBillableUsageEvent)
-~~~
-
-That name can carry product meaning. The 5.5 improvement mostly removes helpers whose only job was explaining `undefined` to the compiler. It does not replace the value of naming a business rule.
-
-## this is what good language maintenance feels like
-
-I like TypeScript changes that remove pressure from ordinary code.
-
-Inferred type predicates do not change how I architect an application. They do make a lot of tiny array pipelines read the way they should have read already. They reduce helper clutter, reduce assertions, and make precise checks pay off.
-
-That is a good kind of language improvement. It does not ask for a new style. It makes the existing style less annoying.
+Small feature, same old discipline. The compiler should infer the common case, and developers should annotate the unusual case.

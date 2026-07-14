@@ -10,167 +10,33 @@ tags: ["observability", "ai apps", "debugging"]
 
 AI apps need boring observability.
 
-That sounds less exciting than better prompts, bigger context windows, or a new model release. It is also the difference between a demo and a system people can operate.
+That sounds less exciting than prompts or model releases, but it is the difference between a demo and a system people can actually run. If a normal app fails, you want logs, traces, request IDs, and enough context to reproduce the bug. An AI app needs that plus prompt versions, model versions, retrieval records, tool calls, output state, and the examples that turn into evals later.
 
-When a normal web app fails, you want logs, traces, metrics, request IDs, error boundaries, and enough context to reproduce the problem. AI apps need all of that, plus the evidence that shaped the model's behavior: prompt versions, model versions, retrieval records, tool calls, generated outputs, refusals, reviewer corrections, and examples that can become evals.
+The hard part is that the user report is usually too thin to debug on its own.
 
-The model is probabilistic. The surrounding system does not get to be vague.
+> It gave a bad answer.
 
-## the bug report is usually incomplete
+> It missed the document.
 
-User reports for AI features tend to be frustratingly thin.
+> It hallucinated.
 
-"It gave a bad answer."
-
-"It missed the document."
-
-"It hallucinated."
-
-"The agent did something weird."
-
-Those reports are real, but they are not enough to debug. The bad behavior may come from the prompt, model, retrieved context, missing permissions, stale data, a tool result, user input, output parser, retry policy, or a downstream rendering bug.
-
-If the system did not record the run, the team starts guessing.
-
-A useful run record answers:
-
-- what did the user ask?
-- which model handled it?
-- which prompt version was used?
-- which retrieval query ran?
-- which documents were returned?
-- which tools were called?
-- what did the model output before parsing?
-- what did the application accept or reject?
-- what did the user do after seeing it?
-
-You do not always need to store raw sensitive content forever. You do need enough structured evidence to debug behavior without reconstructing the run from memory.
-
-## prompts are deployable artifacts
-
-Prompt text should not be invisible runtime mist.
-
-If a prompt change ships, it should have a version. If an AI feature regresses, the team should be able to compare the prompt version that produced the good output with the one that produced the bad output. The same is true for system instructions, few-shot examples, schema descriptions, tool definitions, and safety instructions.
-
-I would record a compact prompt manifest with each run:
+That is real feedback, just not enough feedback. The useful run record needs the model, the prompt version, the retrieval query, the documents that came back, the tools that ran, the parsed output, and the result the product accepted.
 
 ~~~json
 {
   "runId": "run_01J9",
   "feature": "support_summary",
   "model": "provider/model-version",
-  "prompt": {
-    "systemVersion": "support-summary-system@8",
-    "templateVersion": "ticket-summary@14",
-    "schemaVersion": "summary-json@3"
-  },
-  "retrieval": {
-    "indexVersion": "docs-2025-01-22",
-    "queryId": "qry_8831",
-    "topK": 8
-  }
+  "promptVersion": "support-summary-system@8",
+  "retrievalQueryId": "qry_8831",
+  "toolCount": 2
 }
 ~~~
 
-That record does not need to be beautiful. It needs to make regressions explainable.
+Retrieval deserves its own trace because retrieval failures look like model failures from the outside. Maybe the wrong chunk came back. Maybe the right chunk never made it into context. Maybe permissions trimmed the useful document. Maybe the reranker buried the important source below a similar one. Without the retrieval trail, all of that gets blamed on the model.
 
-The worst prompt bugs are the ones that look like model drift because nobody knows which prompt produced which output.
+Tool calls deserve the same treatment. Name the tool. Record the arguments. Log the permission check. Measure the duration. Capture the result or the failure. Otherwise agent bugs turn into ghost stories and nobody can tell whether the tool was wrong, the model was wrong, or the application hid the evidence.
 
-## retrieval needs its own trace
+The useful metrics are sliced, not averaged away. I want to know what changed for long inputs, specific routes, specific model versions, specific user tiers, and the slices that carry policy risk. When production examples get reviewed, they should become fixtures. That is how the system improves without pretending production traffic is training data.
 
-Retrieval-augmented systems fail in ways that look like model failures.
-
-The answer is wrong because the model ignored context. Or the answer is wrong because the right context was never retrieved. Or the answer is wrong because the index was stale. Or the answer is wrong because the permission filter removed the relevant document. Or the answer is wrong because the reranker buried the useful result below a similar but irrelevant one.
-
-Without a retrieval trace, those all collapse into "the model hallucinated."
-
-For each retrieval step, I want to see:
-
-- query text or query vector reference
-- filters applied
-- index version
-- top candidates
-- candidate scores
-- reranker output
-- permission decisions
-- chunks passed to the model
-- source links shown to the user
-
-The chunks passed to the model matter more than the documents in the index. A document can exist and still be absent from the model's actual context.
-
-This is also where privacy shows up. Some teams should store full chunks. Some should store hashes, IDs, and short redacted previews. The right answer depends on the data. The wrong answer is storing nothing and calling the system observable.
-
-## tool calls are spans
-
-Agentic apps should treat tool calls like spans in a trace.
-
-The model decided to call a tool. The application validated the arguments. The tool executed or failed. The result returned. The model interpreted that result. Each step can fail differently.
-
-A tool trace should include:
-
-- tool name
-- argument schema version
-- validated arguments
-- permission check result
-- execution duration
-- tool output summary
-- error class
-- retry count
-- model response after the tool result
-
-This is how you distinguish "the model chose the wrong tool" from "the tool returned stale data" from "the application hid the tool error" from "the model ignored the result."
-
-I do not want tool traces because I enjoy traces. I want them because agent bugs otherwise become ghost stories.
-
-## metrics need slices
-
-Global AI metrics lie politely.
-
-An average answer-quality score may improve while the product gets worse for long documents. Cost may go down while escalation goes up. Latency may improve because retrieval silently returned fewer chunks. Refusal rate may look stable while one policy category regresses.
-
-The useful metrics are sliced:
-
-- by feature
-- by model
-- by prompt version
-- by route
-- by user tier
-- by input length
-- by language
-- by retrieval hit quality
-- by tool path
-- by reviewer outcome
-
-For production, I care about operational metrics and quality metrics together. Latency without accepted-output rate is incomplete. Cost without retry rate is incomplete. Refusal rate without policy category is incomplete. User thumbs-up without task type is mostly decorative.
-
-## logs should feed evals
-
-The best eval examples often start as production misses.
-
-A user corrects a summary. A reviewer rejects an extraction. A support agent edits a draft. A code agent fails a test. A retrieval result is clicked and immediately abandoned. Those are signals. The observability system should make it easy to turn them into eval cases.
-
-The flow can be simple:
-
-~~~text
-bad run
-  -> reviewed failure
-  -> redacted fixture
-  -> eval example
-  -> regression test for prompt, model, or route
-~~~
-
-This is how AI systems learn operationally without pretending production traffic is training data.
-
-The eval fixture should preserve the thing that mattered: input shape, relevant context, expected behavior, and failure label. It should also record the run that produced it so future reviewers can understand why the example exists.
-
-## boring is the point
-
-AI observability should feel a little dull.
-
-Run IDs. Prompt versions. Model versions. Retrieval traces. Tool spans. Reviewer labels. Latency. Cost. Failure slices. Eval fixtures. Redaction rules. Retention policies.
-
-That is not the flashy part of AI work. It is the part that lets a team answer the first useful question after something goes wrong:
-
-What actually happened?
-
-If the system cannot answer that, the team is not operating an AI application. It is operating a hope machine with logs around the edges.
+The whole thing is boring on purpose. If the AI system cannot answer "what actually happened?" it is not observable enough to trust.
