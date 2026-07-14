@@ -6,6 +6,9 @@ dist/
 .astro/*
 .rumdl_cache/
 
+# test coverage
+coverage/
+
 # dependencies
 node_modules/
 

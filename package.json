@@ -16,7 +16,8 @@
     "lint:fix": "biome lint --fix",
     "markdown:check": "rumdl check .",
     "markdown:fix": "rumdl check --fix .",
-    "blog:audit": "node scripts/audit-blog-content.mjs",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
     "check": "biome check",
     "check:fix": "biome check --write",
     "rulesync": "npx -y rulesync generate"
@@ -49,8 +50,10 @@
     "@iconify-json/heroicons-outline": "^1.2.1",
     "@iconify-json/uil": "^1.2.3",
     "@tailwindcss/typography": "^0.5.20",
+    "@vitest/coverage-v8": "^4.1.10",
     "rumdl": "^0.2.31",
     "sharp": "^0.35.3",
+    "vitest": "^4.1.10",
     "zod": "^4.4.3"
   }
 }

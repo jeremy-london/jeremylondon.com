@@ -10,10 +10,6 @@ export const getFormattedDate = (date) =>
 
 /** Check if an Image Path is Relative or Absolute */
 export const checkImageUrl = (image, url) => {
-  try {
-    new URL(image)
-    return image
-  } catch (_error) {
-    return new URL(image, url).toString()
-  }
+  if (URL.canParse(image)) return image
+  return new URL(image, url).toString()
 }
