@@ -175,6 +175,7 @@ pre,
   --orbit-y: 0px;
   --tilt-x: 0deg;
   --tilt-y: 0deg;
+  --profile-image-inset: clamp(0.45rem, 2.2%, 0.7rem);
   --profile-orbit-blue: rgba(59, 130, 246, 0.42);
   --profile-orbit-blue-soft: rgba(59, 130, 246, 0.22);
   --profile-orbit-amber: rgba(249, 115, 22, 0.36);
@@ -268,9 +269,11 @@ pre,
 }
 
 .cool-profile__image {
+  block-size: calc(100% - (var(--profile-image-inset) * 2));
   object-fit: cover;
-  inset: clamp(0.45rem, 2.2%, 0.7rem);
+  inset: var(--profile-image-inset);
   object-position: 50% 47%;
+  inline-size: calc(100% - (var(--profile-image-inset) * 2));
   transform:
     translate3d(
       calc(var(--orbit-x) * 0.12),
@@ -290,6 +293,34 @@ pre,
   box-shadow:
     0 14px 34px var(--profile-image-shadow);
   animation: portrait-loop 6400ms linear infinite;
+}
+
+@media (max-width: 40rem) {
+  .cool-profile {
+    --profile-image-inset: clamp(0.7rem, 4.4%, 0.95rem);
+    width: min(70vw, 15.75rem);
+  }
+
+  .cool-profile__orbit--back {
+    animation-name: orbit-mobile-loop;
+    filter: blur(8px) saturate(1.2);
+    transform: translate3d(0, 0, -1px) scale(1.04);
+  }
+
+  .cool-profile__orbit--front {
+    animation-name: orbit-mobile-loop;
+    opacity: 0.5;
+    transform: translate3d(0, 0, 0) scale(0.98);
+  }
+
+  .cool-profile:hover .cool-profile__orbit--back,
+  .cool-profile.is-active .cool-profile__orbit--back,
+  .cool-profile:hover .cool-profile__orbit--front,
+  .cool-profile.is-active .cool-profile__orbit--front,
+  .cool-profile.intro-anim .cool-profile__orbit--back,
+  .cool-profile.intro-anim .cool-profile__orbit--front {
+    animation-name: orbit-mobile-loop;
+  }
 }
 
 .cool-profile:hover .cool-profile__orbit--back,
@@ -334,6 +365,22 @@ pre,
   transition:
     opacity 360ms var(--ease-out-quart),
     transform 360ms var(--ease-out-quart);
+}
+
+@media (max-width: 40rem) {
+  .cool-profile:hover .cool-profile__orbit--back,
+  .cool-profile.is-active .cool-profile__orbit--back,
+  .cool-profile.intro-anim .cool-profile__orbit--back,
+  .cool-profile__orbit--back {
+    animation-name: orbit-mobile-loop;
+  }
+
+  .cool-profile:hover .cool-profile__orbit--front,
+  .cool-profile.is-active .cool-profile__orbit--front,
+  .cool-profile.intro-anim .cool-profile__orbit--front,
+  .cool-profile__orbit--front {
+    animation-name: orbit-mobile-loop;
+  }
 }
 
 @keyframes profile-float-in {
@@ -469,6 +516,21 @@ pre,
   }
   100% {
     transform: translate3d(-2px, -3px, 0) scale(1) rotate(180deg);
+    opacity: 0.68;
+  }
+}
+
+@keyframes orbit-mobile-loop {
+  0% {
+    transform: translate3d(0, 0, 0) scale(0.99);
+    opacity: 0.62;
+  }
+  50% {
+    transform: translate3d(0, -2px, 0) scale(1.03);
+    opacity: 0.76;
+  }
+  100% {
+    transform: translate3d(0, 1px, 0) scale(1);
     opacity: 0.68;
   }
 }
