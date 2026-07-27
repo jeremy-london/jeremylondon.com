@@ -19,6 +19,8 @@ This repo is Jeremy London's personal website, blog, and agent-workflow sandbox.
 
 Keep site changes focused and editorially quiet. Copy should sound like Jeremy in a technical conversation: direct, specific, and not promotional.
 
+Active blog posts must not be future-dated. When adding or editing an active post, set `publishDate` to today or an earlier date; if the intended publish date is in the future, keep `draft: true` until that date.
+
 ## Agent System
 
 `.rulesync/` is the source of truth for every agent-facing artifact. Generated folders such as `.claude/`, `.codex/`, `.agents/`, and `.github/` are outputs, not long-term editing surfaces.
