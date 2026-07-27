@@ -1,0 +1,85 @@
+---
+title: "Claude Opus 5 made the default model a routing decision"
+excerpt: "Opus 5 is interesting less as a flagship than as a price, effort, and fallback shape teams can actually operate."
+publishDate: "2026-07-24T14:00:00Z"
+category: "model-watch"
+draft: false
+author: "jeremy-london"
+tags: ["anthropic", "claude-opus-5", "model-routing", "agents"]
+---
+
+Claude Opus 5 is the kind of launch that makes the word "best" less useful.
+
+The [model table](https://platform.claude.com/docs/en/about-claude/models/overview) says the important part plainly: Opus 5 is aimed at complex agentic coding and enterprise work, with a 1M-token context window, 128k max output, adaptive thinking, and $5 / $25 per million input and output tokens. It is not priced like a toy. It is also not priced like the one model you only call when everything else has failed.
+
+That is the interesting shape. Opus 5 looks less like a trophy model and more like a default candidate for serious agent loops.
+
+## the default got more expensive to define
+
+Most teams still talk about model choice as a ladder. Fast model, normal model, strong model, emergency model.
+
+Opus 5 makes that ladder feel too blunt. The question is not whether it is strong. The question is whether it should sit at the first serious branch in the router.
+
+For a coding agent, that branch is not "hard prompt." It is a mix of signals:
+
+- the task touches multiple files
+- the repo has unfamiliar conventions
+- the change needs tests, not just generation
+- the model has to hold a long plan without drifting
+- the cost of a wrong edit is higher than the cost of a stronger first pass
+
+If those are true, starting cheaper can be fake discipline. The bill just moves into retries, verifier passes, and human cleanup.
+
+## effort is now part of the product contract
+
+Opus 5 also makes effort harder to hide.
+
+Anthropic documents Opus 5 with adaptive thinking and high default effort in Claude Code and the Claude API. That matters because effort is not just a model setting. It is a product decision.
+
+When effort goes up, latency and cost follow. Sometimes that is exactly right. A migration plan, an unfamiliar bug, or a security-sensitive code path deserves more thinking budget. But a router that silently escalates every awkward request will look smart in demos and ugly in usage.
+
+I would want the system to record why it spent the extra budget:
+
+- ambiguous requirements
+- failed cheap-route check
+- cross-file dependency
+- policy-sensitive action
+- verifier disagreement
+- long-context retrieval
+
+That record is boring. It is also how you find out whether Opus 5 is solving hard work or covering for a weak workflow.
+
+## speed is not the same product as quality
+
+The [Fast mode documentation](https://platform.claude.com/docs/en/build-with-claude/fast-mode) is a useful reminder that speed is now another route, not a free upgrade. Opus 5 can trade premium pricing for higher output tokens per second while keeping the same model weights and behavior.
+
+That distinction matters.
+
+If the user is waiting on a visible answer, output speed can change the product feel. If the model is running in the background, speed may matter less than total task cost or verifier quality. If the workflow is tool-heavy, the bottleneck may not be model generation at all.
+
+So I would not make "fast Opus" the blanket answer. I would route it to surfaces where the user is watching and where the answer is long enough for output speed to matter.
+
+## cloud placement became an eval variable
+
+The [AWS launch note](https://aws.amazon.com/blogs/machine-learning/introducing-claude-opus-5-on-aws-anthropics-most-capable-opus-model/) matters for a different reason: enterprise model choice is also a deployment choice.
+
+Teams do not just pick a model. They pick where prompts go, what logging exists, how data retention works, what approvals are needed, which regions are available, and which vendor contract absorbs the risk.
+
+That changes the eval. A model that wins in a direct API test may lose inside a production constraint if the surrounding platform makes it harder to audit, govern, or route. A slightly weaker path with cleaner data controls can be the right answer for the workflow.
+
+## what i would test first
+
+I would not test Opus 5 with clever riddles.
+
+I would test it where the old route is most expensive in practice:
+
+- long-running code edits that need multiple checks
+- agent tasks with stale or partial context
+- repository migrations where one early assumption can poison the diff
+- visual reasoning mixed with implementation
+- policy-adjacent enterprise workflows
+- high-value support work where a confident wrong answer costs more than latency
+
+The comparison should be workflow-level. Cost per completed task. Human review time. Retry count. Pass-to-fail regressions. How often the model asks a useful question instead of charging ahead.
+
+Opus 5 may be the right default for a lot of serious work. But the word "default" has to earn its keep now. It should mean the route that produces the cleanest completed workflow, not the model with the newest name.
