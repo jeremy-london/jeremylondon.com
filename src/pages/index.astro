@@ -79,15 +79,7 @@ const outsideWork = [
   },
 ]
 
-const featuredPostIds = [
-  'model-routing-is-a-systems-problem',
-  'agents-need-boring-boundaries',
-  'forms-deserve-the-boring-states',
-]
-
-const featuredPosts = featuredPostIds
-  .map((id) => latestPosts.find((post) => post.id === id))
-  .filter(Boolean)
+const featuredPosts = latestPosts.slice(0, 3)
 
 const readingPaths = [
   {
@@ -339,7 +331,7 @@ const readingPaths = [
                 Worth reading first
               </h2>
               <p class="mt-2 text-gray-600 dark:text-gray-400">
-                A few useful entry points before you open the full archive.
+                The latest three notes before you open the full archive.
               </p>
             </div>
             <Link href="/blog" style="underline" size="unset">
