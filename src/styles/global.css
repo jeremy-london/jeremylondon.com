@@ -205,8 +205,8 @@ pre,
   --profile-orbit-blue-soft: rgba(29, 78, 216, 0.16);
   --profile-orbit-amber: rgba(194, 65, 12, 0.32);
   --profile-orbit-amber-soft: rgba(194, 65, 12, 0.12);
-  --profile-ring-soft: rgba(15, 23, 42, 0.12);
-  --profile-image-shadow: rgba(15, 23, 42, 0.16);
+  --profile-ring-soft: rgba(15, 23, 42, 0.08);
+  --profile-image-shadow: rgba(15, 23, 42, 0.13);
   --profile-image-glow-blue: rgba(29, 78, 216, 0.16);
   --profile-image-glow-amber: rgba(194, 65, 12, 0.1);
 }
@@ -269,7 +269,8 @@ pre,
 
 .cool-profile__image {
   object-fit: cover;
-  inset: 0;
+  inset: clamp(0.45rem, 2.2%, 0.7rem);
+  object-position: 50% 47%;
   transform:
     translate3d(
       calc(var(--orbit-x) * 0.12),
@@ -287,8 +288,7 @@ pre,
   will-change: transform;
   z-index: 3;
   box-shadow:
-    0 10px 30px var(--profile-image-shadow),
-    0 0 0 1px var(--profile-ring-soft);
+    0 14px 34px var(--profile-image-shadow);
   animation: portrait-loop 6400ms linear infinite;
 }
 
@@ -310,7 +310,6 @@ pre,
   animation: portrait-hover 3000ms var(--ease-out-quart) infinite alternate;
   box-shadow:
     0 18px 50px var(--profile-image-shadow),
-    0 0 0 1px var(--profile-ring-soft),
     0 0 46px var(--profile-image-glow-blue),
     0 0 16px var(--profile-image-glow-amber);
 }
