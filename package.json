@@ -51,7 +51,7 @@
     "@iconify-json/uil": "^1.2.3",
     "@tailwindcss/typography": "^0.5.20",
     "@vitest/coverage-v8": "^5.0.0",
-    "rumdl": "^0.2.66",
+    "rumdl": "0.2.31",
     "sharp": "^0.35.4",
     "vitest": "^5.0.0",
     "zod": "^4.5.4"
