@@ -8,17 +8,11 @@ author: "jeremy-london"
 tags: ["structured outputs", "schemas", "openai"]
 ---
 
-Structured Outputs made prompts less magical in the best way.
+Structured Outputs moved a common integration problem from prompt superstition into schema work.
 
-Before schema-constrained output became a first-class API feature, a lot of teams were doing the same awkward dance: ask for JSON, beg for valid JSON, add examples, parse the result, watch it fail on one weird input, and then add a retry or repair prompt when the parser complained.
+Before constrained output, teams asked for JSON, added examples, parsed the answer, and repaired the failures with another prompt. It worked often enough to ship and failed often enough to become infrastructure.
 
-That worked often enough to be tempting and failed often enough to become infrastructure.
-
-## a schema is the contract
-
-A schema is not only a parser convenience. It is a product contract.
-
-If the workflow needs a priority, define a priority. If the UI needs sections, define the sections. If a tool needs arguments, define the arguments. If a decision needs a review flag, define the review flag.
+A schema is the contract:
 
 ~~~json
 {
@@ -40,32 +34,11 @@ If the workflow needs a priority, define a priority. If the UI needs sections, d
 }
 ~~~
 
-That shape says what the rest of the system can rely on. It also forces decisions that used to hide in prompt prose.
+The schema says what downstream code can rely on. It also forces decisions about fields, enums, review flags, optionality, nulls, and empty arrays.
 
-## valid is not the same as correct
+Valid shape is not valid meaning. Separate schema validity from domain validity, policy validity, evidence support, review routing, and side effects.
 
-Structured output solves one class of problem. It does not solve the whole problem.
-
-A valid object can still be wrong. The model can choose the wrong enum, extract the wrong date, set a review flag incorrectly, or summarize badly while still returning a perfect schema.
-
-I split the checks this way:
-
-- schema validity
-- domain validity
-- policy validity
-- evidence support
-- review routing
-- downstream side effects
-
-The schema makes the output machine-readable. The application still has to decide whether the content is usable.
-
-## optional fields need actual decisions
-
-Schemas force uncomfortable choices about optionality.
-
-Sometimes a field is truly optional. Sometimes the product is avoiding a decision. Sometimes the model should return `null`. Sometimes it should return an empty array. Sometimes the request should fail validation because the workflow cannot continue without the field.
-
-That is why I like explicit nullability:
+Explicit nullability can distinguish an absent source value from an omitted output:
 
 ~~~json
 {
@@ -84,31 +57,9 @@ That is why I like explicit nullability:
 }
 ~~~
 
-The schema can now distinguish "the key is missing" from "the source did not contain a due date."
+Strict tool schemas reduce invented arguments and missing fields, but the application still validates identity, permissions, business rules, rate limits, and side effects.
 
-## tool calls get less squishy
-
-Structured Outputs fit tool calling naturally.
-
-Tool arguments should be boring. The model should not invent an argument name, omit a required field, or pass a string where the tool expects a number. If the tool schema is strict, the model has less room to wander.
-
-That does not make tool use safe by itself. The application still has to validate identity, permissions, business rules, rate limits, and side effects. But the tool boundary gets much clearer.
-
-~~~text
-model proposes structured arguments
-  -> schema constraint shapes arguments
-  -> application validates authority and policy
-  -> tool executes or refuses
-  -> result returns to model or user
-~~~
-
-## schemas need versioning
-
-Once structured output feeds a workflow, the schema becomes a versioned contract.
-
-Changing an enum value, adding a required field, renaming a property, or changing null behavior can break consumers. The model call may still succeed while the application starts interpreting the result differently.
-
-I like recording schema version with each run:
+Once output feeds a workflow, the schema is versioned:
 
 ~~~json
 {
@@ -118,28 +69,6 @@ I like recording schema version with each run:
 }
 ~~~
 
-That record makes migrations and incident reviews easier.
+Evaluate both shape and meaning. Check JSON, required fields, extra properties, enums, extracted values, uncertainty routing, citations, and allowed tool arguments.
 
-## evals should test shape and meaning
-
-Structured output evals need both.
-
-Shape:
-
-- valid JSON
-- required fields present
-- no extra properties
-- enums valid
-- arrays within expected bounds
-
-Meaning:
-
-- extracted values match source
-- uncertainty is routed correctly
-- review flags appear when needed
-- citations support fields
-- tool arguments are allowed
-
-If shape passes and meaning fails, the schema did its job and the task logic needs work.
-
-That is the point. Structured Outputs did not make language models deterministic databases. They made a common integration boundary less squishy. The prompt still matters. The model still matters. The data still matters. The output shape just stopped being a superstition and started being an interface.
+Structured output does not turn a model into a database. It makes the integration boundary explicit.

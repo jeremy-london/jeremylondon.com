@@ -8,19 +8,11 @@ author: "jeremy-london"
 tags: ["evals", "dashboards", "model quality"]
 ---
 
-An eval dashboard should make it harder to argue with vibes.
+An eval dashboard should make it harder to argue from vibes.
 
-That is the job. Not to impress people with a leaderboard. Not to make the eval program look mature. The point is to let somebody ask, "Did this change make the product better?" and get closer to an answer without opening eight notebooks, three CSVs, and a Slack thread full of screenshots.
+A top-line score is useful for scanning. It is not enough for deciding whether a change improved the product. A card showing 91.4% should lead quickly to the suite, case count, model and prompt versions, changed slices, and examples that flipped.
 
-## the score is only the door
-
-I still want a top-line score. It is useful for scanning. It just should not pretend to be the whole story.
-
-A dashboard card that says `pass rate: 91.4%` ought to answer the next questions quickly: which suite produced it, how many cases ran, what version of the model or prompt changed, which slices improved, which slices regressed, and which examples actually flipped.
-
-If the dashboard cannot answer those questions, the score is decorative.
-
-The unit of inspection should be the eval case. A case needs an input, expected behavior, observed output, grader result, model metadata, cost, latency, and enough context to debug what happened. The dashboard can summarize, but the row has to be there.
+The underlying row needs enough context to debug:
 
 ~~~ts
 type EvalCaseResult = {
@@ -42,39 +34,22 @@ type EvalCaseResult = {
 }
 ~~~
 
-That shape is not the dashboard design. It is the data shape that keeps the dashboard honest.
+The dashboard summarizes this data. It should not replace it.
 
-## slices are where the truth leaks out
+Aggregate scores hide regressions. A support assistant can improve overall while getting worse on refund policy. A code agent can pass more benchmark tasks and fail more dependency updates. Slices such as product area, language, risk, route, source, prompt family, input length, and model family make those changes visible.
 
-Aggregate scores are useful until they hide the thing you care about.
-
-A support assistant might have a strong overall score and still fail refund-policy questions at twice the previous rate. A code agent might improve benchmark tasks while getting worse on dependency updates. A classifier can look stable because one dominant class covers a regression in a smaller but more expensive class.
-
-The dashboard should make slicing cheap. Product area, language, customer tier, risk level, route, document source, prompt family, tool used, input length, and model family can all become useful slices depending on the system.
-
-I do not want every dashboard to show every slice all the time. That becomes visual soup. I want the dashboard to make the important slice visible when something moves. If the total score rose by 1.2 points and a critical slice dropped by 8, the slice should shout louder than the celebration.
-
-Sometimes a boring table beats a chart:
+A small table is often enough:
 
 ~~~text
-slice                      cases   current   previous   delta
-refund_policy                82     0.841      0.927   -0.086
-login_recovery              144     0.965      0.951   +0.014
-mixed_intent                 39     0.692      0.718   -0.026
-spanish_support              57     0.912      0.895   +0.017
+slice             cases   current   previous   delta
+refund_policy       82     0.841      0.927   -0.086
+login_recovery     144     0.965      0.951   +0.014
+mixed_intent        39     0.692      0.718   -0.026
 ~~~
 
-That table does not solve the problem. It points to the examples worth reading.
+Failures need neighborhoods. A list of hundreds of failed cases is transparent and hard to use. Cluster likely causes such as missing retrieval, stale source, schema failure, bad tool arguments, timeout, refusal, rubric disagreement, or vague output. Deterministic validators can label some clusters; human labels are still useful for the rest.
 
-## failures need neighborhoods
-
-A dashboard that lists 300 failed cases is technically transparent and practically useless.
-
-Failures need clustering. Not because clustering is fashionable, but because nobody can reason about hundreds of rows at once. Group failures by likely cause: missing retrieval, stale source, formatting violation, hallucinated claim, bad tool argument, refusal, timeout, rubric disagreement, or output that was too vague to act on.
-
-Some of those clusters can be assigned automatically. Deterministic validators can identify schema failures, missing citations, bad JSON, and timeouts. Other clusters need human labels. That is fine. The point is to keep the label around so the next run can show whether the cluster shrank.
-
-I like dashboards that let a reviewer mark a failure with a short reason:
+A failure can become work:
 
 ~~~text
 case: refund-042
@@ -84,73 +59,12 @@ owner: docs
 action: update retrieval freshness filter
 ~~~
 
-Now the eval result can become work. Without that handoff, the dashboard becomes a place where failures go to be admired.
+Treat eval runs like release artifacts. Compare a candidate to a named production baseline and show pass-to-fail flips, fail-to-pass flips, changed output with the same grade, changed grade with the same output, and skipped or newly added cases.
 
-## compare runs like deployments
+Quality, latency, and cost belong in the same view. A one-point quality gain that doubles latency may be wrong for the product. A cheaper route that moves failures into high-risk cases is not a win. Useful distributions include p50, p95, and p99 latency, cost per accepted case, retry count, timeout rate, token use, and quality by latency bucket.
 
-An eval run is a release artifact. Treat it that way.
+Grader disagreement is evidence, not noise. Show grader type and version, rubric version, human overrides, repeated-judge variance for sampled cases, and examples where graders disagree. If reviewers cannot agree on whether a case passed, the expected behavior may need clarification before the prompt needs another revision.
 
-When a model, prompt, retriever, dataset, tool schema, or grader changes, the dashboard should compare the new run against a named baseline. "Previous run" is sometimes useful, but named baselines are safer. The previous run might be an experiment. The baseline should be the current production behavior or the last approved candidate.
+The dashboard is useful when it ends with a next action: open the examples, assign the failure cluster, inspect the route, revise the rubric, or promote the candidate with a watch list.
 
-The comparison should show case flips:
-
-- pass to fail
-- fail to pass
-- changed output but same grade
-- same output but changed grade
-- skipped or newly added cases
-
-Those flips are where the review gets real. A pass-rate delta tells you that something moved. Flips show what moved.
-
-I also want a short deployment note attached to promoted runs:
-
-~~~text
-candidate: support-router-2026-03-10
-baseline: support-router-prod-2026-02-28
-decision: promote to 10 percent shadow traffic
-reason: improves billing and cancellation slices, no regression in high-risk policy slice
-watch: mixed-intent route, p95 latency
-~~~
-
-That note is small, but it turns the dashboard from a report into part of the release process.
-
-## quality, latency, and cost belong together
-
-Quality alone is not enough. A model change that improves pass rate by one point and doubles latency may still be wrong for the product. A routing change that saves cost but moves failures into high-risk cases is not a win. A retriever that adds better context while making p95 unpredictable can make the interface feel worse even when the answer is better.
-
-The dashboard should show quality, latency, and cost together because users experience them together.
-
-The useful view is rarely one number. I want distributions:
-
-- p50, p95, and p99 latency by route
-- cost per successful case
-- retry count by model
-- timeout rate by tool
-- token usage by prompt version
-- quality score by latency bucket
-
-That last one matters more than people expect. Sometimes the slow path is also the bad path. Long context retrieval may bring in too much noise. Tool retries may correlate with poor final answers. Very large prompts may hide uncertainty instead of resolving it.
-
-If the dashboard separates operational metrics from quality metrics, those connections get missed.
-
-## grader disagreement is not noise
-
-LLM-as-judge results should not be treated like gravity.
-
-They are useful, especially for qualitative tasks, but they have variance, bias, and prompt sensitivity. The dashboard should show when the grader is uncertain or when graders disagree. A deterministic check failing is different from a judge model giving a 0.62 on helpfulness. A human reviewer overturning the judge is different again.
-
-For important evals, I want to see grader type, grader version, rubric version, judge confidence if available, repeated-judge variance for sampled cases, human override rate, and examples where graders disagree.
-
-Disagreement is a signal. If reviewers cannot agree whether a case passed, the product may need a clearer expected behavior before the model needs another prompt.
-
-It also protects the team from optimizing against a weak judge. A model can improve on the dashboard by learning the judge's preferences instead of improving the product. The dashboard should make that failure visible.
-
-## review should finish with a next step
-
-The best eval dashboard does not ask every engineer to become an eval researcher. It makes the next review action obvious.
-
-If a slice regressed, open the examples. If a failure cluster grew, assign an owner. If latency moved, inspect routes and tool calls. If graders disagree, review the rubric. If a candidate improves the important slices and stays within budget, promote it with a watch list.
-
-That is the level of feedback I want. Not "the model is better." Better where? Worse where? Cheaper for which route? Slower for which users? More faithful to which sources? More brittle under which inputs?
-
-A real dashboard keeps asking those questions with evidence attached. It is less flattering than a leaderboard, which is exactly why it is useful.
+The point is not to declare that the model is better. It is to show better where, worse where, cheaper for which route, and more brittle under which inputs.

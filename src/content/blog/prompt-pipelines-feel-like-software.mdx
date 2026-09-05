@@ -8,9 +8,7 @@ author: "jeremy-london"
 tags: ["prompts", "pipelines", "workflow"]
 ---
 
-Prompts become more reliable when teams stop treating them like private notes.
-
-I think of a production prompt as one stage in a pipeline, not as a magic string. The input is assembled, the model runs, the output gets parsed, checks run, and the product either accepts the result or sends it somewhere else.
+A production prompt is one stage in a pipeline, not a private note:
 
 ~~~text
 user input
@@ -22,22 +20,12 @@ user input
   -> product action
 ~~~
 
-That sequence matters because a regression can come from any step in the chain. A prompt edit might be fine. A retrieval change might not be. A parser might be hiding the failure. A model upgrade might have shifted behavior under the same template.
+A regression can enter at any stage. The template may be fine while retrieval changes, the parser hides malformed output, or a model upgrade shifts behavior under the same prompt.
 
-### every prompt needs an owner
+Every prompt needs an owner who reviews changes, maintains fixtures, watches failures, and decides when the prompt is obsolete. Without ownership, prompt behavior becomes folklore: one patch adds policy, another changes the schema, and nobody can explain the combined result.
 
-Someone has to be responsible for the prompt. Not in a mystical prompt-whisperer sense. In a plain, boring sense: who reviews changes, who owns the fixtures, who watches failures, who decides the prompt is obsolete?
+Fixtures should cover real failures: long inputs, missing fields, hostile phrasing, stale retrieval, low-quality documents, partial tool output, and edge cases near the schema boundary. If a prompt change fixes a production failure, keep that case.
 
-Without an owner, prompt behavior becomes folklore. People tweak wording because one example failed. Somebody else adds a policy paragraph. A third person changes the schema. The result is usually a prompt that looks stable and behaves like a patchwork.
+Use deterministic checks first. Parse the output, validate required fields and enums, check citations, and reject forbidden fields before spending judge-model or human review time on meaning.
 
-### fixtures should cover the ugly cases
-
-I want prompt reviews to include the cases production actually produces: long inputs, missing fields, hostile phrasing, stale retrieval, low-quality documents, partial tool output, and edge cases that barely fit the schema.
-
-If a prompt change fixes one failure, that failure should become a fixture. Otherwise the same regression comes back later with a different face.
-
-### not every check needs a judge model
-
-Some checks are deterministic. Does the output parse? Are the required fields present? Are the enums valid? Do citations point at the provided sources? Are forbidden fields absent? The semantic checks can come after that. I like failing fast on shape before spending review time on meaning.
-
-Prompt work gets easier when the pipeline is visible. Version the prompt, version the examples, record the model, and keep a rollback path. That is not ceremony. That is how you stop a production prompt from becoming a hidden dependency nobody remembers to test.
+Version the prompt, examples, model, and output contract. Keep a rollback path. That is how a prompt stays a maintained dependency instead of becoming a hidden production assumption.

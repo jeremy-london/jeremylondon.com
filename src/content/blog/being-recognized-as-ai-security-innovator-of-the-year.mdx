@@ -8,109 +8,27 @@ author: "jeremy-london"
 tags: ["ai security", "keeper", "awards"]
 ---
 
-I was recognized as AI Security Innovator of the Year in the 2026 Cybersecurity Stars Awards from The Hacker News.
+I was recognized as AI Security Innovator of the Year in [The Hacker News Cybersecurity Stars Awards](https://awards.thehackernews.com/winners/2026/keeper-ai-threat-detection/).
 
-That is a nice sentence to write. I am not going to pretend otherwise. Recognition feels good, especially when the work has involved a lot of unglamorous security engineering around AI systems, agent access, privileged sessions, and credentials.
+That is a nice sentence to write. I am not going to pretend otherwise.
 
-The award page lists me as Director of Engineering, AI and Threat Analytics at Keeper Security. That title is less interesting than the work it points to: AI-native threat detection, AI agent governance, and keeping credentials out of developer chat workflows.
+The award points at work I have been building at Keeper around AI-native threat detection, agent governance, privileged sessions, and keeping credentials out of developer workflows. The title matters less to me than the engineering problems underneath it.
 
-That is the category I have been trying to make real.
+AI security gets real when it changes the system:
 
-The useful version of AI security is not a slogan. It changes the shape of the system. It decides what an agent can touch, how a privileged session gets inspected, where a secret is resolved, what a human approves, and what evidence survives afterward.
+- what an agent can see
+- what it can change
+- whose authority it uses
+- where secrets are resolved
+- when a person approves a step
+- what evidence survives afterward
 
-## what the award is pointing at
+Those questions show up in live session monitoring, MCP integrations, agent tooling, and developer workflows. They are different surfaces with the same pressure: a conversational interface can make broad authority feel casual.
 
-The page called out KeeperAI, Keeper's Model Context Protocol integration, and the Keeper Agent Kit.
+The safer pattern is fairly plain. Give agents scoped grants. Keep credentials in hardened storage instead of chat. Record the initiator, executor, authority, and side effect. Watch privileged behavior while the session is alive rather than treating detection as an after-action report. Give analysts a way to understand why a signal appeared and what the system missed.
 
-Those are different surfaces, but the same pressure runs through all of them: AI does not get a pass on security architecture because the interface feels conversational.
+The controls have to fit the workflow. If the safe path is too slow, people route around it. If approval copy is vague, people click through it. If logs are unreadable, incident review becomes archaeology. If secret handling is painful, somebody pastes the key into the prompt.
 
-If an AI system touches privileged systems, credentials, session data, or enterprise workflows, it needs the same discipline we expect from other sensitive automation. Probably more. AI tools are very good at making broad authority feel casual. A chat box can make a dangerous operation look like a helpful suggestion.
+That is the work I want to keep building: safer defaults that still let people get their jobs done.
 
-The questions are boring in the best way:
-
-- what can the system see?
-- what can it change?
-- whose authority is it using?
-- where are secrets resolved?
-- when does a human approve the step?
-- what does the log preserve?
-- can security teams review the behavior after the fact?
-
-That is where AI security stops being a talking point and starts being product architecture.
-
-## live session work needs live attention
-
-KeeperAI is the most direct example of the threat-detection side.
-
-Privileged session monitoring has a coverage problem. The important activity is buried in long sessions, repeated commands, and the ordinary noise of operations. Analysts cannot manually review everything. The session that matters later may be the one nobody had time to inspect closely while it was happening.
-
-Moving AI closer to the live session changes the shape of that work.
-
-The goal is not just a better after-action report. The goal is to evaluate behavior while it is still useful to know. Which commands are unusual for this account? Which sequence looks like normal administration, and which sequence starts to look like discovery, staging, or abuse? Which event deserves an analyst's attention before the session becomes a historical artifact?
-
-A detector has to earn trust. If it is noisy, it becomes a tax on the analysts it is supposed to help. If it has thin coverage, it gives everyone false comfort. If it cannot explain what it saw, it becomes another black box in a stack already full of them.
-
-The number I care about most in this category is coverage. If a system only watches the comfortable slice of privileged activity, the rest of the environment is running on hope. Better models help, but the architecture around the model matters just as much: what events are captured, how context is assembled, how decisions are explained, and how analysts review the signal after the fact.
-
-## agent access should look like a grant
-
-The MCP work points at a newer pressure.
-
-Agents are becoming part of enterprise workflows. They read context, call tools, summarize systems, create tickets, inspect code, and act across applications. That is useful. It also means tool access cannot be vague.
-
-An agent should not inherit broad authority because it sounds helpful. It should get scoped access. It should use identity deliberately. Sensitive operations should require confirmation. The audit trail should say what the agent requested, what the human approved, which tool executed, and what changed.
-
-MCP is interesting because it gives tool access a shared shape. That makes integration easier, but it also makes governance questions harder to dodge. Once tools can be exposed to agents in a consistent way, teams need to decide which tools belong in which trust bucket.
-
-Read-only context tools are different from external write tools. A file lookup is different from a shell command. A ticket comment is different from a deploy. A secret lookup is different from exposing the secret to the model.
-
-The safe version is not "block agents." The safe version is "make authority legible."
-
-I want agent access to read like a grant with a scope, a purpose, a duration, and a record. That is not glamorous, but it is the difference between a useful assistant and a confused deputy with a friendly voice.
-
-## credentials should never need to be pasted
-
-The Keeper Agent Kit attacks a leak that is easy to understand if you have watched developers work with coding agents.
-
-The fastest path is often the worst habit.
-
-Paste the API key. Paste the database credential. Paste the thing that gets the agent unstuck. The model needs context, the developer wants momentum, and the chat box is right there. The problem is that credentials do not become less sensitive because the workflow is modern.
-
-I care a lot about systems that remove that temptation.
-
-The better pattern is runtime secret resolution. The agent or tool gets the capability it needs without raw secrets becoming chat content. The credential stays in hardened storage. Access is scoped. The action is logged. The user does not have to choose between productivity and leaking a key into a transcript.
-
-That is the kind of AI security work I find satisfying because it changes the default behavior. It does not rely on every developer being perfectly disciplined at the worst possible moment. It gives them a safer path that is still short enough to use.
-
-## governance has to survive the real workflow
-
-AI governance gets vague fast if it lives only in policy language.
-
-I care about the enforceable version:
-
-- least privilege for agents and tools
-- human approval where the side effect deserves it
-- secret resolution outside the prompt transcript
-- audit trails that security teams can read
-- threat detection close enough to the session to matter
-- review paths for false positives and missed signals
-
-That list is an engineering checklist.
-
-The difficult part is making these controls fit into real workflows. If the safe path is too slow, people route around it. If approvals are too vague, people click through them. If logs are unreadable, reviews turn into archaeology. If secret handling is painful, credentials end up in the place they should never have gone.
-
-Security architecture has to respect the fact that people are trying to get work done.
-
-That is the bar I want AI security products to meet: safer defaults without making the useful path miserable.
-
-The award page is here: [AI Security Innovator of the Year](https://awards.thehackernews.com/winners/2026/keeper-ai-threat-detection/).
-
-I am grateful for the recognition. Awards are snapshots. The work keeps moving. Agents are getting more capable. Developer workflows are changing quickly. Enterprise AI adoption is turning theoretical governance questions into daily operational decisions.
-
-That is why this category matters to me.
-
-AI is becoming part of the security surface. It is reading sensitive data, operating tools, summarizing incidents, helping developers, and watching privileged behavior. The answer cannot be a pile of fear or a pile of hype. It has to be architecture.
-
-Make the access narrow. Keep credentials out of chat. Watch the session while it is alive. Require approval where it matters. Leave evidence a human can understand.
-
-That is the work I want to keep building.
+Awards are snapshots. The systems keep changing. Agents are becoming part of the security surface, and the useful answer is not hype or fear. It is architecture that makes access narrow, credentials private, approvals meaningful, and evidence readable.

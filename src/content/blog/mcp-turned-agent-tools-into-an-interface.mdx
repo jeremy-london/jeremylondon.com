@@ -8,13 +8,11 @@ author: "jeremy-london"
 tags: ["mcp", "agents", "tools"]
 ---
 
-[MCP](https://modelcontextprotocol.io/docs/getting-started/intro) is the first tool protocol I have seen that made agent plumbing look like a product surface instead of a pile of custom adapters.
+[MCP](https://modelcontextprotocol.io/docs/getting-started/intro) made agent plumbing look more like a product surface than a collection of adapters.
 
-The model side did not suddenly get safer. The useful shift was simpler: the seams showed up. Once a server advertises a tool, the name, schema, error shape, side effects, and approval story become part of the interface. That is the part people used to bury inside integration code and hope nobody asked about later.
+The model did not become safer by itself. The useful change was that tool seams became visible: name, schema, error shape, side effects, and approval story.
 
-I keep thinking about one line in the spec because it does more work than most tool descriptions I see in the wild: "Does not send it to the customer." That is not garnish. That is the contract.
-
-The same thing applies to the split between resources and tools. A resource is something the agent reads. A tool is something that changes the world. If those two are mixed up, the user ends up approving a read when the system is really asking for write access, and the model starts treating side effects like they are harmless metadata.
+The resource/tool distinction does a lot of work. A resource is something the agent reads. A tool changes the world. Confusing the two can turn a read approval into an unrecognized write permission.
 
 ~~~text
 resource:
@@ -27,10 +25,17 @@ tool:
   can be reversed by an operator
 ~~~
 
-That little distinction is the entire game. The host decides what is visible, the schema narrows what can happen, the approval explains the consequence, and the receipt makes the action reviewable after the fact.
+The host controls visibility, the schema narrows possible actions, approval explains consequence, and the receipt makes the action reviewable later.
 
-The more I use MCP-shaped tools, the more I want the descriptions to sound like operator notes rather than help copy. "Search support articles by keyword and product area" is useful. "Unlock helpful answers with our rich knowledge base" is not. The model needs a purpose, a boundary, and a clue about what not to do.
+Tool descriptions should read like operator notes. "Search support articles by keyword and product area" gives a purpose and boundary. Marketing copy does not help a model decide what the call is for or what it should avoid.
 
-Once the tools become explicit, governance has somewhere to live. The questions are not abstract anymore. Which server is trusted? Which tool needs approval? Which resource is sensitive? Which output can feed another tool? Which calls are safe in CI and which ones should never leave a sandbox? That is why MCP feels bigger than a connector format. It puts the risk where people can inspect it.
+Once tools are explicit, governance has somewhere to live:
 
-I do not think MCP solved agent safety. It did something more practical. It made the contract visible enough that we can argue about it, tighten it, and leave a record when it changes.
+- which server is trusted?
+- which tools need approval?
+- which resources are sensitive?
+- which outputs may feed another tool?
+- which calls are safe in CI?
+- which actions stay inside a sandbox?
+
+MCP did not solve agent safety. It made the contract visible enough to inspect, tighten, and version.

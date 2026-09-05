@@ -19,17 +19,13 @@ import SingleNeuron from "@components/blog/SingleNeuron.jsx";
   outputRows={32}
 />
 
-A single neuron is less mysterious when you run the numbers.
+The useful thing about a single neuron is that nothing has time to become mysterious.
 
-That is the reason to start this small. Neural networks get introduced with enough terminology that the first calculation can disappear behind the words. A neuron sounds like a metaphor. A model sounds like a black box. ReLU sounds like something you are supposed to accept before you can use it.
+There are inputs, weights, and a bias. The neuron multiplies each input by its weight, adds the products and the bias, then passes the raw score through an activation function. The whole calculation is small enough to check by hand.
 
-This version is tiny enough to inspect by hand.
+## start with the raw score
 
-There are inputs, weights, and a bias. The neuron multiplies the inputs by the weights, adds the results, adds the bias, and sends the raw value through an activation function. That is enough to draw, run, and debug without guessing.
-
-## the raw score is the part worth seeing
-
-Think of the neuron as asking one weighted question about the input.
+Treat the neuron as one weighted question about the input.
 
 The example input is:
 
@@ -56,27 +52,19 @@ which gives:
 z = -1
 ~~~
 
-Nothing hidden happened there. Each input was scaled by a weight. The bias shifted the total. `Z` is just the neuron's raw answer before any activation function changes it.
+Nothing hidden happened. Each input was scaled by a weight, and the bias shifted the total. `Z` is the raw answer before an activation function changes it.
 
-I like calling it a question because the weights decide what the neuron pays attention to. A positive weight pushes the score up when that input is large. A negative weight pushes it down. A zero weight ignores that input for this neuron.
+The signs tell you which direction each input pulls. A positive weight pushes the score up as its input grows. A negative weight pulls it down. A zero weight has no effect for this neuron.
 
-## the sign matters more than the size at first
+The sign is easier to reason about than the size at first. Increase the first input and `Z` rises because its weight is positive. Increase the second input and `Z` falls because its weight is negative. Change a weight attached to an input of zero and this particular calculation does not move.
 
-A weight is not just a number. It has direction.
+That last case is worth testing in the module. A parameter can matter to the model while having no effect on one selected input.
 
-If the first input increases and its weight is positive, `Z` goes up. If the second input has a negative weight, increasing that input can push `Z` down. If an input is zero, changing its weight does nothing for this specific example.
+## bias moves the baseline
 
-That last case is easy to miss early on. A weight can matter in the model and still have no effect on one input. The interactive module makes that obvious if you change one value at a time instead of nudging the whole table.
+Bias is not a spare term. It shifts the weighted sum before the activation function sees it.
 
-If you expected `Z` to move up and it moved down, the mistake is usually in the sign of the weight or the input you paired it with. That is a useful mistake. It means the arithmetic is still visible enough to fix.
-
-## bias moves the threshold
-
-Bias is the easiest part to dismiss as an extra term.
-
-It is not extra. It is the neuron's baseline shift.
-
-Weights make the output depend on the input. Bias lets the neuron move its threshold without needing every input to cooperate. In this example, the weighted input sum is:
+Here the weighted input sum is:
 
 ~~~text
 2 * 1 + 1 * -1 + 3 * 1 = 4
@@ -90,11 +78,11 @@ Change the bias to `-3` and the same inputs and weights produce:
 z = 1
 ~~~
 
-That one change can flip the neuron from inactive to active after ReLU. The bias belongs to the neuron. It is part of the rule, not part of the input.
+That one change crosses zero and flips the ReLU output from inactive to active. The bias belongs to the neuron. It is part of the rule, not part of the input.
 
-## relu is a gate, not a mystery
+## relu clips the negative side
 
-ReLU is short for rectified linear unit, which is a terrible phrase to meet before coffee.
+ReLU is short for rectified linear unit. The name is less useful than the rule:
 
 The rule is simple:
 
@@ -105,15 +93,9 @@ if z <= 0, output 0
 
 In the module, `A` is the value after ReLU. If `Z` is `-1`, `A` becomes `0`. If `Z` is `3`, `A` stays `3`.
 
-That is all it does. The reason it matters is that it gives the neuron a non-linear step. Without activations, stacked layers would collapse into another linear transformation. You do not need the whole argument yet. For now, it is enough to know that ReLU lets the neuron stay silent for some inputs and active for others.
+The rule is small, but it gives the neuron a non-linear step. Without activations, stacked layers would collapse into another linear transformation. For this example, the practical interpretation is enough: the neuron can stay silent for some inputs and pass a positive value for others.
 
-## what this tiny model teaches
-
-This single neuron is not impressive as a model.
-
-That is the point. Impressive would get in the way.
-
-The useful part is the structure:
+The model is not impressive. It is inspectable. Its structure is:
 
 - inputs feed the neuron
 - weights scale the inputs
@@ -121,16 +103,8 @@ The useful part is the structure:
 - `Z` shows the raw score
 - ReLU turns `Z` into `A`
 
-Once that feels normal, four neurons are just four rows doing the same thing. A hidden layer is a group of these calculations. Matrix multiplication is the same pattern written compactly. Backpropagation is the part that decides how the weights should move after the output is wrong.
+Four neurons are four versions of the same calculation. A hidden layer is a group of them. Matrix multiplication is the compact form. Backpropagation is what later adjusts the weights when the result is wrong.
 
-The whole stack gets bigger, but this small calculation keeps showing up.
+Start the module by changing the bias until `Z` crosses zero. Then change one weight and predict the direction of movement before running the calculation. Change one input and identify the weight that controls its effect.
 
-## try changing the bias first
-
-Start with the bias.
-
-Move it until `Z` crosses zero and watch `A` flip from `0` to a positive value. Then change one weight and predict whether `Z` should move up or down before you run the code. Then change one input and ask which weight makes that input matter.
-
-Use the module like a debugger, not a demo.
-
-The point is not to admire the result. The point is to make the arithmetic feel ordinary enough that the next layer has somewhere to attach.
+The useful result is not a dramatic output. It is being able to look at the numbers and know what should happen next.

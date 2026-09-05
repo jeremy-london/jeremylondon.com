@@ -8,17 +8,15 @@ author: "jeremy-london"
 tags: ["writing", "teaching", "debugging"]
 ---
 
-Technical writing gets better when it leaves room for wrong guesses.
+Technical writing is not only a path to the answer. It is also a map of the wrong turns that make the answer necessary.
 
-A lot of tutorials are written as if the reader will walk the same clean path the author walked in the final draft. Install the dependency. Create the file. Paste the code. Run the command. See the expected output. Real readers do not experience tutorials that way.
+A polished tutorial often removes every trace of uncertainty. Install the dependency. Create the file. Run the command. See the expected output. That sequence is tidy, but readers bring different versions, directories, assumptions, and partially completed projects to it.
 
-They miss a step. They use a different version. They paste into the wrong file. They already have a port running. They skim the one sentence that matters.
+The useful question is not whether the happy path works on the author's machine. It is which mistake the reader is likely to make next, and whether the page gives them a way to recognize it.
 
-## the mistake is part of the explanation
+## put the misconception beside the rule
 
-When I write or read technical material, I care less about whether the happy path works on the author's machine and more about whether the article understands the mistake I am about to make.
-
-For example, a beginner learning matrix multiplication often guesses that matching the total number of values is enough. It is not. The inner dimensions have to match. A good explanation names that wrong guess before the reader falls into it.
+A beginner learning matrix multiplication may guess that the total number of values only needs to match. The actual constraint is narrower: the inner dimensions must match.
 
 ~~~text
 This works:
@@ -30,24 +28,22 @@ This does not:
 (2 x 3) dot (2 x 4)
 ~~~
 
-That small failure case saves a lot of confusion. It tells the reader what rule they were probably using and why it is wrong.
+The failed case does more work than another paragraph of definition. It names the rule the reader was about to invent, then gives that rule a boundary.
 
-## the example should fail in the right way
+## choose failures that explain the boundary
 
-The same pattern applies to software tutorials.
+Software examples have the same job.
 
-If a command depends on the current directory, show what failure looks like from the wrong directory. If a package requires Node 22, show the version check before the install. If an API returns a shape that changed between versions, show the mismatch.
-
-Clean examples are useful. They can also hide the thing the reader needs to learn.
+If a command depends on the current directory, show the error from the wrong directory. If a package requires Node 22, put the version check near the install. If an API changed its response shape, show the mismatch rather than silently using only the newest shape.
 
 ~~~ts
 const user = await getUser(id)
 return user.name
 ~~~
 
-That example teaches the shape of an async call, but it does not teach the boundary. Can `getUser` return `null`? Can it throw? Is the caller authorized to read the user? Is this code running on the server or in a client component?
+This teaches the syntax of an asynchronous call. It leaves the boundary unresolved. What happens when the user is missing? Does the function throw? Is the caller allowed to read this record? Is this running on the server or in a client component?
 
-The wrong guesses are where the real learning is.
+A slightly less elegant example can teach those questions without turning the lesson into a production architecture lecture.
 
 ~~~ts
 const user = await getUser(id)
@@ -59,21 +55,11 @@ if (!user) {
 return user.name
 ~~~
 
-This is less pretty. It is also more honest.
+The point is not to add every possible guard. It is to include the guard that changes what the example means.
 
-## diagnosis is a teaching tool
+## diagnosis belongs in the article
 
-A tutorial does not need every production concern. That would bury the idea. But it should include the failure that changes the meaning of the example.
-
-Readers need more than the answer. They need the move that found the answer.
-
-Bad:
-
-~~~text
-If this fails, check your configuration.
-~~~
-
-Better:
+“Check your configuration” is not a diagnosis. It is a signpost with no road.
 
 ~~~text
 If the command says "module not found", first run `pwd` and make sure
@@ -81,24 +67,26 @@ you are in the project root. Then run `ls` and confirm that `package.json`
 is in the same directory.
 ~~~
 
-That is not glamorous writing. It is useful writing.
+That fragment gives the reader an observation, a likely cause, and a next action. It also models a debugging habit: inspect the boundary before changing code.
 
-## version changes should be named
+Readers do not only need the fix. They need the move that distinguishes one class of failure from another.
 
-Technical writing ages badly when it pretends tools do not change.
+## version assumptions should be visible
 
-I do not want every tutorial to become a changelog. But if a topic is version-sensitive, the article should say what assumption it is making.
+Technical writing ages faster when it hides its assumptions.
+
+A version note does not need to become a changelog. It only needs to explain why a reader following the same words may see different syntax.
 
 ~~~text
 This example uses Tailwind CSS v4 syntax with `@import "tailwindcss"`.
 If you are on v3, you will still see the older `@tailwind` directives.
 ~~~
 
-That sentence gives the reader a way to explain the mismatch. Without it, the reader may think they copied something wrong when the real issue is that they are reading across versions.
+That one note turns a mysterious mismatch into a version difference. It keeps the reader from debugging an error that the article could have named in advance.
 
-## examples should be specific enough to fail
+## output gives the reader a test
 
-If the reader cannot tell whether the example worked, the example is decoration.
+An example is easier to use when success has a visible shape.
 
 ~~~text
 Run the script and look for this line:
@@ -107,21 +95,21 @@ loaded 12 markdown files
 generated 12 route entries
 ~~~
 
-That gives the reader a target. If they see `loaded 0 markdown files`, they know the bug is probably file discovery, not rendering.
+If the reader sees loaded 0 markdown files, they have a useful first hypothesis: file discovery. They do not have to guess whether the renderer, parser, or route generator failed.
 
-## editing should not remove the wrong turn
+Expected output is a small contract between the article and the person following it.
 
-Every good tutorial is edited. That is fine.
+## preserve the wrong turn that carries judgment
 
-What bothers me is when the editing removes every trace of uncertainty. The final article can make it sound like the author knew the shape of the solution from the beginning, when the real work involved dead ends and bad assumptions.
+Editing should remove noise. It should not remove every clue that the problem had a shape.
 
-I do not need a diary of every mistake. I do want the article to preserve the important wrong turn.
+I do not need a transcript of every failed attempt. I do want the wrong turn that teaches where to look.
 
 ~~~text
 I originally tried to solve this in the component, but the bug was in the
 data loader. The component rendered exactly what it received.
 ~~~
 
-That sentence teaches debugging judgment. It also makes the article sound like a person wrote it after touching the system.
+That sentence contains a debugging lesson: inspect the data boundary before blaming the display. It also distinguishes a useful experience from a generic claim. The reader gets a reusable question rather than a performance of certainty.
 
-Wrong guesses are not clutter. They are the shape of learning.
+A technical article becomes more trustworthy when it leaves room for the reader's wrong guess, names the boundary it crosses, and provides a route back.

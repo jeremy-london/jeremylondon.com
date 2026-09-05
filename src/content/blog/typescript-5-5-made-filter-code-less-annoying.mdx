@@ -8,13 +8,9 @@ author: "jeremy-london"
 tags: ["typescript", "developer tools", "types"]
 ---
 
-TypeScript 5.5 cut a small daily annoyance out of filter code.
+TypeScript 5.5 made common filter pipelines less noisy through inferred type predicates.
 
-The feature was inferred type predicates. The practical change is simple: TypeScript got better at understanding that a filter callback removed `undefined`, `null`, or another excluded value.
-
-## the old workaround had a tax
-
-Before 5.5, code like this often needed help:
+Older versions often needed a helper after mapping optional values:
 
 ~~~ts
 const scores = studentIds
@@ -24,33 +20,21 @@ const scores = studentIds
 const average = scores.reduce((sum, score) => sum + score, 0) / scores.length
 ~~~
 
-Humans can see that `scores` contains numbers after the filter. Older TypeScript versions often kept the type as `(number | undefined)[]`, which meant the next line still had to defend against `undefined`.
-
-The usual workaround was a helper:
+A reusable predicate worked:
 
 ~~~ts
 function isDefined<T>(value: T | undefined): value is T {
   return value !== undefined
 }
-
-const scores = studentIds
-  .map((id) => scoreByStudent.get(id))
-  .filter(isDefined)
 ~~~
 
-That helper is fine. The problem is that codebases accumulated a small museum of these helpers.
-
-## precise checks beat clever truthiness
-
-The useful limitation is that TypeScript cannot treat every truthiness filter as safe.
+The improvement is not permission to write vague filters. Truthiness can remove valid zeroes:
 
 ~~~ts
 const scores = [0, 82, 91, undefined].filter((score) => !!score)
 ~~~
 
-That removes `undefined`, but it also removes `0`. If `0` is a valid score, the runtime behavior is wrong.
-
-The better version says what it means:
+Use the condition that expresses the actual boundary:
 
 ~~~ts
 const scores = [0, 82, 91, undefined].filter(
@@ -58,39 +42,9 @@ const scores = [0, 82, 91, undefined].filter(
 )
 ~~~
 
-This is the kind of type-system behavior I like. It rewards precise code instead of clever code.
-
-## the compiler should carry the ordinary case
-
-Type assertions are useful when the programmer knows something the compiler cannot know. They get dangerous when they become the default way to end an argument.
+The compiler can now carry more of the ordinary case without an assertion:
 
 ~~~ts
-const scores = studentIds
-  .map((id) => scoreByStudent.get(id))
-  .filter((score) => score !== undefined) as number[]
-~~~
-
-That assertion used to feel understandable. It also made the filter line less trustworthy.
-
-With 5.5, the normal code can carry the normal type:
-
-~~~ts
-const scores = studentIds
-  .map((id) => scoreByStudent.get(id))
-  .filter((score) => score !== undefined)
-~~~
-
-That is the win. The type comes from the code instead of from an override.
-
-## array pipelines get calmer
-
-Array helpers are everywhere in TypeScript code.
-
-The common path is usually some version of map, filter, transform, group, render. If the type checker loses track of the value halfway through, every downstream line gets noisier.
-
-React code hits this constantly:
-
-~~~tsx
 const visibleItems = items
   .map((item) => item.details)
   .filter((details) => details !== undefined)
@@ -100,36 +54,6 @@ return visibleItems.map((details) => (
 ))
 ~~~
 
-Data loading code hits it too:
+Inferred predicates do not excuse side effects or unclear domain logic inside filters. Keep predicates small and truthful.
 
-~~~ts
-const validRows = rows
-  .map(parseRow)
-  .filter((row) => row.ok)
-  .map((row) => row.value)
-~~~
-
-When TypeScript tracks the array pipeline correctly, the rest of the code gets calmer.
-
-## domain predicates still matter
-
-Inferred predicates do not remove the need to write honest predicate functions.
-
-If a predicate mutates state, depends on external context, or returns a boolean for reasons unrelated to the value's type, I do not want to rely on clever narrowing.
-
-~~~ts
-const activeUsers = users.filter((user) => {
-  audit(user.id)
-  return user.deletedAt === undefined
-})
-~~~
-
-That may work, but it mixes filtering and side effects.
-
-The best filter predicates are boring:
-
-~~~ts
-const activeUsers = users.filter((user) => user.deletedAt === undefined)
-~~~
-
-Small feature, same old discipline. The compiler should infer the common case, and developers should annotate the unusual case.
+The feature is modest. Its value is cumulative: fewer helper functions, fewer assertions, and calmer array pipelines.

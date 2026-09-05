@@ -8,17 +8,11 @@ author: "jeremy-london"
 tags: ["postgres", "json", "data"]
 ---
 
-Postgres 17 was a reminder that JSON is table work too.
+JSON lets messy data move before its final schema is known. Webhooks, model outputs, preferences, telemetry, and vendor payloads often arrive that way.
 
-Application teams like JSON because it lets messy data move before the schema is fully understood. Product events, webhook payloads, model outputs, user preferences, telemetry envelopes, and third-party responses often arrive before anyone knows the final relational shape. That is fine. The mistake is pretending the blob is the end of the modeling work.
+The mistake is treating the blob as the end of modeling. Producers organize data around their own APIs. Analysis wants rows, columns, joins, filters, null semantics, and stable names.
 
-### document shape is not analysis shape
-
-JSON usually mirrors the producer. A webhook payload mirrors a vendor API. A model output mirrors a prompt schema. A UI settings blob mirrors a screen. Analysis wants something else: rows, columns, joins, filters, null handling, and stable names.
-
-### the bridge is the useful part
-
-`JSON_TABLE` lets you project JSON into a table source inside SQL.
+JSON_TABLE can form the bridge:
 
 ~~~sql
 SELECT item.sku, item.qty
@@ -33,15 +27,11 @@ JSON_TABLE(
 ) AS item;
 ~~~
 
-That is the right shape for a query because it makes the nested array behave like rows. You can join it, aggregate it, compare it with a products table, and catch bad payloads without reimplementing the same extraction logic in application code.
+Now the nested array can be joined, aggregated, and checked like rows rather than extracted repeatedly in application code.
 
-### nulls need decisions
+Nulls need an explicit policy. Missing fields, JSON null, empty strings, wrong types, path failures, and omitted model keys are different states. The query layer should decide which states are accepted, rejected, or surfaced.
 
-JSON gives you several different "nothing" cases: missing field, JSON null, empty string, wrong type, path failure, or a model that omitted a key because the prompt was vague. Those are not the same thing, and the SQL layer should force a choice about what each one means.
-
-### keep the raw blob, expose the contract
-
-I like raw JSON plus stable relational projections. A view, generated column, or materialized view can give analysts the shape they need while keeping the original payload around for replay and drift checks.
+I prefer raw JSON plus stable projections:
 
 ~~~sql
 CREATE VIEW extracted_invoice_fields AS
@@ -54,4 +44,4 @@ FROM model_runs
 WHERE task = 'invoice_extraction';
 ~~~
 
-That is the part I keep coming back to. If the product depends on a JSON field, that field is already part of the schema. Postgres just makes it harder to keep pretending otherwise.
+Keep the original payload for replay and drift checks. If the product depends on a JSON field, that field is already part of the schema. SQL just makes the contract visible.

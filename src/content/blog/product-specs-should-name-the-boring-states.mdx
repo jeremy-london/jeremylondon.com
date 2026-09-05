@@ -8,11 +8,9 @@ author: "jeremy-london"
 tags: ["product specs", "states", "quality"]
 ---
 
-The easiest way to ship a half-finished product is to stop the spec at success.
+A spec that stops at success is not finished.
 
-The happy path is usually the first thing everyone can describe. The user clicks a button, the system does the thing, and the screen changes. The product quality shows up everywhere around that moment.
-
-I want specs to name the boring states explicitly:
+Name the states around the happy path:
 
 - loading
 - empty
@@ -24,26 +22,14 @@ I want specs to name the boring states explicitly:
 - retrying
 - rollback
 
-Those are not edge decorations. They are the states that decide whether the feature feels trustworthy.
+Loading should say what is happening, whether the user can cancel, whether input is preserved, and whether a refresh keeps the operation alive.
 
-### loading is a promise
+Empty needs a reason and a next step. No records yet, no search results, no access, and data still syncing are different states.
 
-A spinner is not enough. The spec should say what kind of wait this is. Is the app fetching data, saving changes, running a model, uploading a file, or waiting for a background job? Can the user cancel? Does input stay preserved? Does refresh keep the pending work alive?
+Disabled controls need an explanation. Missing fields, permission, locked records, quotas, and background saves require different recovery.
 
-### empty needs a next step
+Errors should preserve work. Keep form input, preserve an attached file when possible, and make optimistic rollback visible. "Show toast" is not a recovery plan.
 
-An empty state is not the same as a no-results state. Sometimes the user has not created anything yet. Sometimes the filter is too narrow. Sometimes the account lacks access. Sometimes data is still syncing. The spec should say why the page is empty and what the user should do next.
+Stale data should be labeled when freshness affects a decision. A cached page, delayed sync, and eventually consistent result are different truths.
 
-### disabled controls need a reason
-
-If a button is disabled, the user should not have to guess why. Missing fields, permission problems, locked records, quotas, and background saves all need different copy and different recovery.
-
-### errors should keep work intact
-
-If a submission fails, the user's input should still be there. If a file upload fails, the file should still be attached if possible. If the server rejects an optimistic change, the rollback should be obvious. "Show toast" is not a recovery plan.
-
-### stale data should be labeled
-
-Cached pages, sync-delayed records, and eventually consistent results are normal. The spec should say when freshness matters enough to surface a timestamp or a cached label.
-
-If the unhappy path is not in the spec, somebody will invent it in the pull request and the product will end up owning that decision by accident.
+If the unhappy path is absent from the spec, the pull request will invent it. The product will own that accidental decision afterward.

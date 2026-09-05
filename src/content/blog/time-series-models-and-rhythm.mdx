@@ -8,23 +8,11 @@ author: "jeremy-london"
 tags: ["time series", "forecasting", "sequence models"]
 ---
 
-Threat analytics is time series work more often than teams admit.
+A security event is often only half a sentence. Timing finishes it.
 
-Security data is full of categories: user, host, process, IP, domain, rule, severity, tactic, technique. Those labels matter. But a lot of the signal lives in time: how often something happens, when it happens, how fast it changes, what usually comes before it, and whether the current rhythm belongs in the environment.
+One login failure is ordinary. A burst against dormant accounts at 2:13 AM is different. A PowerShell command may be normal on a build host and strange on an executive laptop.
 
-## the timestamp finishes the sentence
-
-A single login failure is boring. A burst of failures against dormant accounts at 2:13 AM is different. A PowerShell command is boring in some places and strange in others. A new cloud region may be normal during a deployment window and suspicious on a quiet weekend.
-
-The event is only half the sentence.
-
-## local baselines beat one big baseline
-
-The first mistake in time-based security analytics is treating the whole environment as one population.
-
-Different users have different rhythms. So do service accounts, build agents, laptops, domain controllers, Kubernetes nodes, and cloud workloads. A backup job that moves gigabytes every night is normal. The same transfer pattern from an executive laptop is not.
-
-I would rather start with local baselines:
+Local baselines beat one global baseline. Users, service accounts, build agents, laptops, Kubernetes nodes, and cloud workloads have different rhythms:
 
 ~~~text
 entity: user:jlondon
@@ -35,33 +23,9 @@ current: 18
 expected: 0-2
 ~~~
 
-The hour-of-week part matters. Monday morning is not Saturday night.
+The window is a product decision. One minute catches bursts. A day catches slow guessing. Distinct countries over a week may show travel or credential sharing. Alerts should expose the window that produced them.
 
-## the window is the product decision
-
-Time windows are product decisions disguised as math.
-
-Count failed logins over one minute and you catch bursts. Count them over one day and you catch slow guessing. Count distinct countries over seven days and you may find travel or credential sharing. Count process launches over five seconds and you may find script behavior that disappears in hourly aggregation.
-
-~~~text
-window=1m   failed_logins=4    likely noise
-window=15m  failed_logins=39   spray pattern
-window=24h  failed_logins=41   one burst, not sustained
-~~~
-
-That is why I dislike analytics that hide the window. An alert should say what shape it saw.
-
-## rhythms change and drift matters
-
-Security systems inherit business rhythms.
-
-People log in during work hours. CI systems run on merge patterns. Finance systems spike near close. Retail systems move differently during holidays. Developers do strange things late at night before a launch.
-
-Seasonality does not mean an event is safe. It means the model needs context before it calls the event weird.
-
-Patterns also change. Teams adopt a new VPN. Companies migrate identity providers. Deployments move regions. Help desk scripts change process names. Attackers also create drift by moving slowly enough that the new baseline absorbs them.
-
-That makes drift review important.
+Seasonality is context, not safety. Business rhythms can explain a spike while attackers slowly change the baseline. Track drift with annotations:
 
 ~~~text
 feature: outbound_bytes_to_new_domains
@@ -72,30 +36,9 @@ change: +340%
 annotation: new telemetry exporter rollout began 2025-05-01
 ~~~
 
-The annotation is doing real work.
+Sequences matter too. A new-device login followed by a privilege check and mailbox-rule creation within 20 minutes is a different signal from any event alone.
 
-## sequences matter more than single alerts
-
-Some security stories are sequences.
-
-A suspicious login followed by a password reset followed by mailbox rule creation is different from any one of those events alone. A container image pull followed by a new outbound connection followed by a secret read deserves a different score than the same events spread across unrelated hosts over several weeks.
-
-~~~text
-login_success(new_device)
-  -> privilege_check
-  -> mailbox_rule_created
-  within 20 minutes
-~~~
-
-That is not forecasting. It is temporal pattern matching.
-
-## late data changes the design
-
-Threat analytics systems live with late data.
-
-Logs arrive out of order. Endpoint agents buffer events. Cloud APIs lag. Network sensors drop packets. A batch job lands after the alert already fired.
-
-If the system assumes perfect ordering, the analytic will be brittle. A better design records event time and ingest time separately.
+Late data means event time and ingest time need separate fields:
 
 ~~~json
 {
@@ -107,26 +50,6 @@ If the system assumes perfect ordering, the analytic will be brittle. A better d
 }
 ~~~
 
-That distinction matters for investigation and for training data.
+Measure detection latency, ingest latency, alert volume, analyst reopen rate, false positives by entity group, missed incidents turned into regression tests, and drift annotations.
 
-## what the team should measure
-
-Accuracy is not enough for security analytics.
-
-A detection that finds credential abuse six hours late may be technically correct and operationally weak. A detection that fires in one minute with no context may be fast and useless.
-
-I would track:
-
-- detection latency from event time
-- ingest latency by source
-- alert volume by hour
-- analyst reopen rate
-- false positives by entity group
-- missed incidents promoted into regression tests
-- drift annotations added per week
-
-Those metrics tell you whether the analytic fits the way the security team works.
-
-The useful question is rarely "did this event happen?" It is closer to "does this event belong here, at this time, after these other events, for this entity, given what normally happens?"
-
-That is a time-series question with security consequences.
+The question is not whether an event happened. It is whether it belongs here, at this time, after these events, for this entity.

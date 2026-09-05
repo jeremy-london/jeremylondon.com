@@ -8,21 +8,32 @@ author: "jeremy-london"
 tags: ["agents", "handoffs", "process"]
 ---
 
-A handoff is part of the agent, not paperwork around the agent.
+A handoff is part of the agent, not paperwork around it.
 
-That is the part that matters when work spans more than one run. The next session should not have to rediscover state by poking around.
-
-The useful handoff is small and concrete:
+When work spans runs, the next session should not have to rediscover state by poking around. The useful handoff is small:
 
 - last verified file
 - next file
 - current constraints
-- one unfinished thing that still matters
+- one unfinished issue
+- one concrete verification step
 
-I like handoffs that read like operator notes instead of summaries. "Checked `src/routes/billing.ts` and the diff is clean. Next file is `src/routes/invoices.ts`. Remaining issue: confirm the redirect path after login." That is enough to keep the next run moving without forcing it to re-derive the last hour.
+For example:
 
-The other thing I want in a handoff is a clear stop point. If the last run hit a blocked assumption, say that. If a file still needs verification, say that. If a decision was made and should not be revisited, say that too. A handoff should preserve momentum, not just memory.
+~~~text
+checked:
+  src/routes/billing.ts
 
-A good handoff also leaves one concrete verification step for the next run. For example, "run the migration test after the patch lands" is more useful than "check it later." The next agent should be able to pick up the thread without rebuilding the whole mental model from scratch.
+next:
+  src/routes/invoices.ts
 
-I usually keep the handoff in plain prose with a tiny checklist, because that is easy to scan at the beginning of the next run. If the last pass found one risky assumption and two safe files, say so directly. The point is to make the next agent useful faster, not to write a ceremony that sounds complete.
+remaining:
+  confirm redirect path after login
+
+verify:
+  run the migration test after the patch lands
+~~~
+
+A handoff should also name the stop point. If the run hit a blocked assumption, say so. If a file still needs verification, say so. If a decision is settled and should not be reopened, record that too.
+
+Operator notes are better than polished summaries because they preserve what the next run needs to do. The goal is not to document the whole session. It is to make the next agent useful without rebuilding the previous hour.

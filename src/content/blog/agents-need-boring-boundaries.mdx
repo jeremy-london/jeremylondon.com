@@ -8,21 +8,11 @@ author: "jeremy-london"
 tags: ["agents", "tools", "automation"]
 ---
 
-The first agent demos are usually too smooth.
+"Let the agent use my files" is not a permission model.
 
-The agent reads the request, calls a tool, edits a file, opens a browser, finishes the task, and writes a tidy summary. Everyone nods because the path looks obvious in hindsight. Of course the agent needed the file. Of course it needed the browser. Of course it needed the token. The demo worked.
+A useful grant names the surface, the identity, the side effect, and the lifetime:
 
-Production does not care that the demo worked.
-
-The real question is duller and harder: what was the agent allowed to touch, and how would we know if it crossed the line?
-
-## scope should read like a contract
-
-"Let the agent use my files" is not a scope. It is a warning label.
-
-A useful scope is specific enough that the user and the system can both reason about it:
-
-```json
+~~~json
 {
   "files": ["src/content/blog"],
   "network": "localhost-only",
@@ -30,85 +20,39 @@ A useful scope is specific enough that the user and the system can both reason a
   "secrets": "none",
   "duration": "this run"
 }
-```
+~~~
 
-That is the kind of grant I want. The agent can do useful work, but the permission is not pretending to be universal. It has a directory, a network rule, a command list, a credential rule, and a lifetime.
+The exact schema will change by product. The boundary should still be legible to both the user and the runtime.
 
-The exact shape will vary by product. A coding agent needs workspace boundaries. A browser agent needs origin and account boundaries. A document agent needs file and sharing boundaries. An MCP tool runner needs tool-level grants because every tool is a different kind of side effect.
+A coding agent needs a workspace limit. A browser agent needs origin and account limits. A document agent needs file and sharing limits. An MCP runner needs tool-level limits because a search tool and a migration tool are not the same kind of action.
 
-The important part is that the boundary exists outside the model's goodwill.
+The model's goodwill is not where the boundary belongs.
 
-## credentials should never be vague
+Credentials make this sharper. A valid token proves that the action can happen. It does not prove that the action matches the user's intent. When an agent uses a credential, I want to know which identity it used, which resource it touched, and which approval covered the action.
 
-File access is one thing. Credentials are another.
+I also want side effects in separate buckets:
 
-An agent with a token can become a confused deputy very quickly. The user asks for one thing. The agent has authority to do another thing. A tool accepts the request because the credential is valid, not because the action matches the user's intent.
+- read-only context
+- local edits
+- external writes
+- shell commands
+- credentialed calls
+- irreversible actions
 
-That is where I want narrow grants and visible delegation. If an agent needs to read a GitHub issue, give it read access to that issue or repository for the run. If it needs to open a pull request, show the diff and ask. If it needs to post a comment, show the exact comment and target before it sends anything.
+A read-only lookup can usually run inside scope. A local edit can produce a diff. An external write needs explicit approval. An irreversible action may not belong in the agent at all.
 
-This is not only about security. It is about debugging.
+Permissions should expire with the run. A grant that survives forever is a different product decision from a grant that exists to finish one task. The interface should say which one the user is making.
 
-When something goes wrong, "the agent had my token" is not enough information. I want to know which credential was used, which tool accepted it, which resource was targeted, and which user-facing approval preceded the action.
+An approval is useful only when it names the work:
 
-## side effects belong in separate buckets
-
-MCP makes tool access feel nicely composable. That is useful, but it also makes tool boundaries more important because the tool list can grow faster than the user understands.
-
-Not every tool belongs in the same trust bucket.
-
-A search tool is not the same as a write tool. A local file reader is not the same as a shell command. A formatter is not the same as a deploy command. A database read is not the same as a database migration. Putting all of those behind one generic "tools enabled" switch is asking for trouble.
-
-I would rather make the categories boring:
-
-- read-only context tools
-- local edit tools
-- external write tools
-- shell tools
-- credentialed tools
-- irreversible tools
-
-Then the approval model can be boring too. Read-only tools may run automatically inside scope. Local edits produce a diff. External writes need explicit approval. Irreversible tools require a stronger confirmation or should not be available to the agent at all.
-
-The model does not get to decide that a deploy is "probably fine" because the prompt sounded confident.
-
-## time is part of the grant
-
-Permissions should expire.
-
-This is one of the easiest rules to skip in prototypes. The agent gets a grant, the grant lives somewhere, and suddenly a future run inherits authority from a past run. That is convenient right up until it is confusing.
-
-I like run-scoped permissions as the default. The user approves a task. The agent gets the minimum access needed for that task. The grant ends when the run ends. If the agent needs access again later, it asks again with current context.
-
-There are cases where longer-lived grants make sense, but they should be named as such. "Always allow this agent to read this folder" is a different product decision than "allow this run to edit this file." The UI should not blur those together.
-
-## approval needs a receipt
-
-An approval without context is mostly a liability.
-
-If the agent asks, "Can I continue?", the user is approving a mood. If the agent asks, "Can I replace these three paragraphs in `foo.mdx` and then run `pnpm markdown:check`?", the user is approving work.
-
-That approval should leave a receipt:
-
-```text
+~~~text
 approved action: edit local file
 target: src/content/blog/agents-need-boring-boundaries.mdx
 visible evidence: proposed diff
 allowed follow-up: markdown check only
 expires: end of run
-```
+~~~
 
-This is the difference between permission as a ceremony and permission as an operating surface. The receipt lets a human replay what happened. It also lets the system reject later actions that were never approved.
+That record gives the system something to enforce and the human something to review.
 
-## boring is the point
-
-I keep using the word boring because the safe version of agent boundaries should not require a philosophical debate every time the model wants to act.
-
-The boundary should be inspectable. The grant should be narrow. The approval should show the side effect. The credential should be scoped. The run should leave evidence. The permission should expire.
-
-None of that makes a good demo. It does make a system easier to trust.
-
-Agents are going to keep getting better at using tools. That makes the boundary problem more important, not less. The more capable the agent is, the less I want the safety model to depend on everyone remembering what the prompt was supposed to mean.
-
-Give the agent useful tools. Give it real context. Let it do work.
-
-Then put boring walls around the work so the rest of us can see where it is allowed to go.
+Agents will keep improving at tool use. I want the walls around that tool use to stay deliberately uninteresting: narrow scope, explicit identity, visible side effects, expiring grants, and receipts.

@@ -8,31 +8,31 @@ author: "jeremy-london"
 tags: ["opentelemetry", "profiling", "observability"]
 ---
 
-Profiling used to feel separate from the rest of observability.
+Performance investigations get harder when their evidence lives somewhere else.
 
-Logs told you what happened. Metrics told you how the system behaved over time. Traces told you where a request went. Profiling was the side quest where you opened another tool, captured a flame graph, and hoped you could line it back up with the incident.
+A trace may show that a request spent 900ms in a service. A metric may show CPU rising. A log may record the timeout. None of those, by themselves, tells you which code path consumed the time. That is the job of a profile: connect the expensive outcome to the stack that paid for it.
 
-OpenTelemetry profiling matters because it makes that detour less awkward.
+OpenTelemetry profiling is interesting because it puts that answer closer to the rest of the observability workflow.
 
-### four questions, four signals
+### four signals, different questions
 
 - logs: what happened
-- metrics: how often or how much
+- metrics: how much or how often
 - traces: where the request went
-- profiles: which code paid the bill
+- profiles: which code did the work
 
-The profile is the one people reach for too late. A trace can show that a request spent 900ms in a service. A metric can show CPU climbed. A log can show a timeout. The profile can show that the hot path was serialization, regex work, compression, allocation churn, or a dependency call nobody suspected.
+The distinction is useful during an incident. Serialization, regular expressions, compression, allocation churn, or an unexpected dependency call can all hide behind the same high-level symptom: a slow route. The trace locates the service. The profile narrows the search inside it.
 
-### sampling makes it practical
+### sampling is the operating constraint
 
-Production profiling has to be cheap enough to keep around or easy enough to turn on during an incident. Sampling-based profilers do that by collecting stacks at intervals instead of demanding a manual debugging session every time something feels slow.
+A production profiler has to be inexpensive enough to leave available, or simple enough to enable when an incident starts. Sampling helps by collecting stacks at intervals instead of requiring a separate debugging session for every performance question.
 
-That does not remove the tradeoffs. Short-lived behavior can be missed. Symbolization can be annoying. Native stacks and stripped binaries add friction. Still, the workflow is much better when the profile can travel through the same telemetry path as the rest of the data.
+It also leaves real gaps. Short-lived behavior can be missed. Symbolization can add friction. Native stacks and stripped binaries are not magically easy. The trade still looks better when the resulting data can travel through the same telemetry path as traces, metrics, and logs.
 
-### resource context keeps the story honest
+### context turns a profile into evidence
 
-The useful profile is the one with service version, region, host, deployment, tenant class, and feature flag context attached. Otherwise the team ends up staring at averages and guessing.
+A profile without its resource context invites guessing. Service version, region, host, deployment, tenant class, and feature flags can explain why two apparently similar requests have different costs.
 
-Maybe the slowdown only exists on the new version. Maybe it only hits one customer. Maybe one node class is worse. Maybe the deploy changed input size. The profile should help answer those questions instead of floating above them.
+The slowdown might exist only on the newest version. It might affect one node class or one customer segment. It might follow a deploy that changed input size. Those are not details to reconstruct later; they are part of the performance story.
 
-I like the direction because it removes one more excuse to treat performance as a separate discipline. A slow route should lead to the code path, the hot stack, and the deploy that changed it. If OpenTelemetry can make profiling feel like part of the main stack, that is enough.
+The practical promise is modest and useful: a slow request should lead to the service, the hot stack, and the change that made the stack expensive. Profiling becomes less of a side investigation when it shares the same coordinates as the rest of the system.

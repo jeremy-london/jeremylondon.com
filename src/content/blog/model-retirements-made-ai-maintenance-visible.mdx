@@ -8,26 +8,26 @@ author: "jeremy-london"
 tags: ["models", "maintenance", "migration"]
 ---
 
-Model retirements were the moment AI stopped pretending it was static infrastructure.
+Model retirements made AI applications look more like maintained software.
 
-Once providers started publishing deprecation dates, replacement guidance, and fuller model menus, the maintenance work showed up in the open. A model name is closer to a runtime version or an API contract than a permanent setting. It can drift, disappear, get cheaper, get stricter, or stop being the right tool for the job.
+A model name is a runtime version and an API contract, not a permanent setting. It can drift, disappear, change price, become stricter, or stop being right for the task.
 
-I like thinking about that as inventory work. You cannot migrate what you have not listed.
+Start with inventory:
 
 ~~~yaml
 - surface: support-draft-summarizer
   owner: support-platform
   model: provider/model-name
-  purpose: summarize long ticket history before human reply
+  purpose: summarize ticket history before human reply
   fallback_model: provider/alternate-model
   eval_suite: evals/support-summary.yml
   last_reviewed: 2026-02-10
 ~~~
 
-That kind of record is useful because the retirement question is never just "what is the new model?" It is "where does the old one live, who owns it, what behavior matters, and what happens if the replacement is a little worse on the slice the product cares about?"
+The migration question is not only what replaces the old model. It is where the old route lives, who owns it, which behavior matters, and what happens if the replacement regresses on an important slice.
 
-I want the migration harness to include boring, ugly examples: long inputs, malformed inputs, policy edge cases, prompt overflow, stale retrieved context, and the cases where the right answer is to decline. Shadow runs help. Canary traffic helps. A rollback path helps more than people admit.
+Use ugly representative cases: long and malformed inputs, policy edges, prompt overflow, stale retrieval, and requests where refusal is correct. Shadow runs and canaries help. A tested rollback path helps more.
 
-The other thing retirements expose is prompt coupling. If the prompt and model both change at once, nobody can explain the result. I prefer to compare old prompt against new model before I touch the prompt at all. That usually tells you whether the problem is the model, the instructions, or the way the app assembled context in the first place.
+Prompt coupling needs its own comparison. Test the old prompt with the new model before changing the prompt too. That separates model behavior from instruction changes and context assembly.
 
-What I came away with is simple. A retired model is not a vendor drama. It is a maintenance deadline with a visible clock. The teams that handle it well already know their inventory, have representative evals, and can say, in plain language, where the fallback lives.
+A retirement date is a maintenance deadline with a visible clock. Teams handle it well when they know their inventory, have representative evals, and can explain where the fallback lives.

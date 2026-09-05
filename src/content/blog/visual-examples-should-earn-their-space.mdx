@@ -8,31 +8,11 @@ author: "jeremy-london"
 tags: ["teaching", "visualization", "learning"]
 ---
 
-Visual examples should earn their space.
+A visual earns its space when it lets the reader predict the next step.
 
-A diagram helps when it lets the reader predict the next step. It wastes space when it decorates the page, repeats the paragraph beside it, or makes a concept look more finished than it is.
+For matrix multiplication, the reader should predict which dimensions match. For backpropagation, which value flows backward. For a state machine, which transition is legal. For an agent workflow, where approval blocks action.
 
-I like visual explanations. I use them when teaching neural networks, matrix multiplication, attention, embeddings, and UI state. But visuals have a cost. They take screen space. They attract attention. They can make a shaky explanation feel authoritative.
-
-## a visual should change what the reader can do
-
-The test is simple: after looking at the visual, can the reader do something they could not do before?
-
-For matrix multiplication, the visual should help the reader predict which dimensions must match. For backpropagation, it should show which value flows backward and why the local derivative matters. For a state machine, it should help the reader know which transition is legal. For an agent workflow, it should make the point where human approval happens impossible to miss.
-
-If the diagram only says "data flows through the system" with arrows between boxes, it probably has not earned the space.
-
-## labels carry the load
-
-Bad diagram idea:
-
-~~~text
-input -> model -> output
-~~~
-
-That is fine as a first scratch on a whiteboard. In an article, it usually says what everyone already knows.
-
-Better:
+"Input -> model -> output" is a useful scratch note and usually a weak article visual. A better retrieval diagram names the work:
 
 ~~~text
 query
@@ -43,13 +23,9 @@ query
   -> assemble answer context
 ~~~
 
-Now the reader can predict where permission bugs and stale-source bugs enter the system.
+Now the reader can see where permission and stale-source bugs enter.
 
-## the right visual changes one variable
-
-The best learning visuals often change one variable at a time.
-
-If I am explaining a neuron, I want the reader to see how changing a weight changes the output. If I am explaining a filter predicate, I want the reader to see which elements survive. If I am explaining vector similarity, I want the reader to see how a query moves closer to one cluster and away from another.
+Good learning visuals change one variable:
 
 ~~~text
 before threshold:
@@ -61,15 +37,9 @@ scores: [0.91, 0.72, 0.43, 0.12]
 kept:   [0.91]
 ~~~
 
-Interactive diagrams can do this with sliders or toggles, but interaction is not automatically better.
+Interaction can help, but a slider is not automatically an explanation.
 
-## time is hard to draw
-
-Architecture diagrams are bad at time.
-
-Boxes and arrows make systems look simultaneous. Real systems have delays, retries, queues, stale caches, partial failures, and human review. If time matters, the diagram has to show it.
-
-For an approval workflow, a sequence is often clearer than a component map:
+Architecture diagrams are especially bad at time. If retries, queues, delays, or review matter, use a sequence:
 
 ~~~text
 assistant proposes edit
@@ -79,24 +49,6 @@ checks run
 result is recorded
 ~~~
 
-That shape tells the reader what happens first and what can block.
+Show the failures too: an ambiguous point, a sync conflict, a disabled form, or a filtered retrieval candidate. Ask what sentence can be removed because the visual now carries it.
 
-## a diagram that teaches should be replaceable by text
-
-Good visuals show mistakes.
-
-If a chart explains classification, show the ambiguous point near the boundary. If a diagram explains sync conflicts, show two edits to the same field. If a state diagram explains form submission, show the disabled, pending, failed, and recovered states.
-
-I also like asking a brutal question during editing:
-
-~~~text
-What sentence can I delete because this visual exists?
-~~~
-
-If the answer is "none," the visual may not be doing work.
-
-Visual examples need text alternatives because not every reader sees the page the same way, and because text often clarifies the point for everyone.
-
-The best visual examples give the reader a little mental simulator. After the diagram, they should be able to predict which matrix shapes multiply, which state transition is illegal, which retrieval candidate should be filtered, or which UI state appears after an error.
-
-That is the bar. If the image cannot do that, the page probably needs a better example, not a prettier diagram.
+Every visual needs an accessible text path. The best example leaves the reader with a small mental simulator: a prediction about a shape, threshold, transition, or failure.

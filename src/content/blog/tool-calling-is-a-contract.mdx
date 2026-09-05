@@ -8,17 +8,9 @@ author: "jeremy-london"
 tags: ["tool calling", "agents", "schemas"]
 ---
 
-Tool calling is a contract between a model and a system that has consequences.
+A model can propose an action. The application decides whether it is valid, authorized, scoped, idempotent, useful, and reviewable.
 
-The model can propose an action. The application has to decide whether the proposal is valid, authorized, scoped, idempotent, useful, and reviewable. That decision cannot live in vibes. It has to live in a contract the code can enforce.
-
-## narrow authority is the first rule
-
-A syntactically valid tool call can still be wrong. The tool name may be correct while the arguments point at the wrong resource. The JSON may validate while the requested action exceeds the user's permission. The tool may return success while the system changed nothing useful.
-
-That is why I want narrow authority.
-
-`rename_document` is easier to reason about than `manage_document`. `delete_generated_artifact` is easier to trust than `deleteFile`. A narrow tool may require more application code, but it gives the model less room to improvise and the reviewer something concrete to inspect.
+Tool names should express narrow authority. rename_document is easier to reason about than manage_document. delete_generated_artifact is clearer than deleteFile. A narrow schema gives both the model and reviewer less room to improvise.
 
 ~~~ts
 type CreateTicketArgs = {
@@ -30,37 +22,21 @@ type CreateTicketArgs = {
 }
 ~~~
 
-That type is still incomplete, but it is already better than `args: Record<string, unknown>`.
-
-## identity belongs in the call
-
-A tool call without identity is a background job wearing a mask.
-
-The system should know who requested the action, which session produced it, what scope was available, and whether the model was acting as a user, assistant, automation rule, or delegated workflow. The model does not get to invent that information.
+Identity belongs in the invocation, not in model-generated text:
 
 ~~~ts
 type ToolInvocation = {
   tool: "create_ticket"
-  actor: {
-    kind: "user"
-    id: string
-  }
+  actor: { kind: "user"; id: string }
   sessionId: string
   args: CreateTicketArgs
-  scope: {
-    workspaceId: string
-    allowedProjectIds: string[]
-  }
+  scope: { workspaceId: string; allowedProjectIds: string[] }
 }
 ~~~
 
-Authorization has to be checked against trusted state, not against text the model produced.
+Authorization must use trusted application state.
 
-## retries need idempotency
-
-Side effects need idempotency.
-
-If the model creates a ticket and the network times out after the ticket is created, what happens when the agent retries? If the tool sends an email and the caller does not receive the result, does the retry send a second email? If the model updates a CRM record twice, which update counts?
+Side effects need idempotency. A timeout after creating a ticket should not create a second ticket on retry:
 
 ~~~ts
 type SideEffectToolCall<TArgs> = {
@@ -71,56 +47,14 @@ type SideEffectToolCall<TArgs> = {
 }
 ~~~
 
-The key should come from the application or a deterministic action plan, not from a fresh random value on every retry.
-
-## results should explain what happened
-
-Free-form text is tempting because the model can read it, but it is where contracts go soft.
+Results should be structured enough for code to act on:
 
 ~~~ts
 type ToolResult<T> =
-  | {
-      ok: true
-      value: T
-      evidence: string[]
-    }
-  | {
-      ok: false
-      reason:
-        | "validation_failed"
-        | "permission_denied"
-        | "not_found"
-        | "timeout"
-        | "unsafe_request"
-      message: string
-      retryable: boolean
-    }
+  | { ok: true; value: T; evidence: string[] }
+  | { ok: false; reason: "validation_failed" | "permission_denied" | "not_found" | "timeout" | "unsafe_request"; message: string; retryable: boolean }
 ~~~
 
-That shape lets the application make decisions without parsing prose. The model can still summarize the result, but it does not own the result semantics.
+Approval should attach to a concrete action, target, old value, new value, and recovery path. Logs should keep the validated arguments, actor, scope, policy decision, idempotency key, version, result, retries, and approval.
 
-## approval should attach to the action
-
-`The assistant wants to update the project` does not tell the user enough. Which project? What field? What old value? What new value? Can it be undone?
-
-~~~json
-{
-  "tool": "rename_project",
-  "project_id": "proj_123",
-  "old_name": "Migration notes",
-  "new_name": "Q3 migration notes",
-  "reversible": true
-}
-~~~
-
-Now the user is approving an action, not a vague intent.
-
-## logs are where the contract becomes visible
-
-I want to see the proposed tool name, validated arguments, actor identity, resource scope, policy decision, idempotency key, tool version, result status, retry count, and approval record when one existed.
-
-That is not because every tool call is a courtroom exhibit. It is because agent failures are slippery otherwise.
-
-The useful version is simple: language proposes, code constrains, tools act, and results come back with enough structure to decide the next step. If the model can bypass the contract through prose, the contract is decorative. If the application ignores the model's context entirely, the tool call becomes a brittle command form.
-
-That is a contract. Treat it like one.
+Language proposes. Code constrains. Tools act. Results provide evidence. That is the contract.

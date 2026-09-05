@@ -8,23 +8,16 @@ author: "jeremy-london"
 tags: ["dev servers", "scripts", "workflow"]
 ---
 
-A local development loop should tell you how to leave.
+Starting a local app is easy. Getting back to a clean baseline is where the development loop shows its quality.
 
-Starting the app is only half the contract. The other half is how you stop, reset, and recover when the port is stuck or the last session left a mess behind.
+I want the lifecycle to be legible from the command line:
 
-## stop without guessing
+- start the process
+- stop the process
+- reset local state
+- inspect the logs
 
-Local dev should make the exit visible: start, stop, reset, logs, and a clear note about what each script owns. If that path is not obvious, the loop is already too fragile.
-
-I want one command that shuts the process down cleanly, even if I started it three hours ago and forgot which terminal tab owns it. If the app wrote a PID file, use it. If it bound a port, free the port. If it opened a browser session, close the tab or at least tell me which tab still points at the old state.
-
-## reset without drama
-
-Reset is different from stop.
-
-Stop means the process is gone. Reset means the process is gone and the local junk is gone too: stale cache, old lockfile, temp data, orphaned sockets, whatever the app uses to pretend it is persistent.
-
-I like a reset script when it is explicit about scope:
+Those are different operations. A stop command should not quietly delete data, and a reset command should not leave the old process holding the port.
 
 ~~~bash
 pnpm dev:stop
@@ -32,12 +25,15 @@ pnpm dev:reset
 pnpm dev:logs
 ~~~
 
-That is enough if the scripts have narrow jobs. The first one ends the process. The second one clears local state. The third one helps me see why I needed the first two.
+The names are not the important part. The ownership is. `dev:stop` should end the process it started. `dev:reset` should say which cache, temporary data, lockfile, or socket it removes. `dev:logs` should make the failed run inspectable instead of sending me back through a browser tab and three terminal windows.
 
-## recovery is the real test
+The useful failure cases are ordinary:
 
-The failure mode that matters is not "the server crashed." The failure mode is "I do not know how to get back to a clean baseline."
+- the port is still occupied
+- a migration stopped halfway through
+- a stale cache changes the behavior
+- the previous session left an orphaned process
 
-That is where the exit ramp pays for itself. A good dev loop tells me what to do when the port is stale, the migration is half-applied, or the app is now holding onto a bad bit of local state. It should not require a ritual, a browser cache purge, and a memory of the last four commands I ran.
+Each one needs a documented path back to normal. "Restart the app" is not a recovery procedure when the thing that needs restarting is unclear.
 
-If the scripts make recovery obvious, local dev feels calm. If they do not, every small failure becomes a tiny archaeology project.
+An exit ramp is part of the local development interface. Without one, every small failure becomes archaeology. With one, stopping and recovering are routine operations instead of tribal knowledge.

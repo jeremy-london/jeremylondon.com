@@ -8,24 +8,22 @@ author: "jeremy-london"
 tags: ["liquid ai", "lfm", "small language models"]
 ---
 
-[Liquid Foundation Models](https://www.liquid.ai/blog/liquid-foundation-models-our-first-series-of-generative-ai-models) made small models feel like an architecture question.
+[Liquid Foundation Models](https://www.liquid.ai/blog/liquid-foundation-models-our-first-series-of-generative-ai-models) made small models feel like a placement question.
 
-The useful shift was not "can a small model imitate a big one." It was "where should this model live, what hardware does it want, and which local jobs can it own."
-
-I think the interesting design space opens up once the model gets a job instead of a benchmark.
+The useful choice is not whether a small model can imitate a large one. It is where the model should live, what hardware it needs, and which local job it can own.
 
 | local job | why a small model fits |
 | --- | --- |
 | prefilter obvious spam | cheap and fast |
-| redact secrets before upload | narrow and safety sensitive |
+| redact secrets before upload | narrow and sensitive |
 | classify a note or file | bounded output |
 | suggest a filename or tag | low stakes |
-| offline helper for a device | needs to work without a server |
+| offline device helper | no server required |
 
-Efficiency changes the product map. It opens up prefiltering, redaction, offline helpers, and other narrow tasks that do not deserve a remote frontier route. The point is not that the small model is smarter. The point is that it can sit closer to the work and cheaper to run.
+Local placement changes the product map. It enables privacy-sensitive preprocessing, offline helpers, and cheap first passes near the data or the user.
 
-The catch is simple: local-first still needs escalation, privacy boundaries, updates, and hardware-aware evals. Otherwise it is just a smaller box with the same old problems. The architecture question is what makes the box useful.
+The tradeoff is still a system design problem. Local-first needs escalation, update policy, privacy boundaries, and hardware-specific evals. A small model that cannot abstain or hand off safely is just a smaller version of the same failure.
 
-I would even sketch the deployment choice before I picked the model. If the device can run the model cheaply, keep the job local. If the job is sensitive, keep the raw inputs local and only escalate a narrow result. If the task needs broad reasoning, use the smaller model as a prefilter or assistant and stop pretending it has to do everything. That decision tree is the real product.
+Choose placement before choosing the model. Keep sensitive inputs local when possible. Use the small route as a prefilter when broad reasoning is needed. Put the model near the user when latency dominates.
 
-That is why small models are not a one-line efficiency win. They are a placement question. Put them near the data when privacy matters, near the user when latency matters, and near the routing layer when you want a cheap first pass. The architecture is the feature.
+The architecture is the feature. Size is only one variable.

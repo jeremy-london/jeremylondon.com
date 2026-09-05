@@ -8,21 +8,21 @@ author: "jeremy-london"
 tags: ["openai", "anthropic", "gpt-4o", "claude-3.5-sonnet"]
 ---
 
-`GPT-4o` and `Claude 3.5 Sonnet` made the frontier feel smaller.
+GPT-4o and Claude 3.5 Sonnet made frontier capability feel closer to ordinary product work.
 
-The useful part was not that one model beat the other. It was that both launches pushed capable models closer to ordinary product work. Latency, price, and multimodal input stopped feeling like special cases and started feeling like route design. Once that happened, "best model" stopped being a useful phrase on its own.
+The important comparison was not which model won. Latency, price, visual input, and coding behavior all became routing choices. "Best model" stopped being a sufficient product description.
 
-I started thinking about product routes instead of model trophies.
+The routes looked more useful:
 
-| route | what it needs | why it exists |
+| route | needs | reason |
 | --- | --- | --- |
-| quick support triage | speed and decent text understanding | answer fast and move on |
-| screenshot analysis | vision plus reliable explanation | review UI states and failures |
-| coding help | strong reasoning and patch discipline | keep diffs small and useful |
-| long-form drafting | cheaper token economics | good enough without wasting budget |
+| support triage | speed and text understanding | answer quickly |
+| screenshot analysis | vision and explanation | inspect UI states |
+| coding help | reasoning and patch discipline | keep diffs usable |
+| long-form drafting | economical tokens | avoid wasting budget |
 
-That middle layer mattered because it made capable models feel ordinary. A model did not have to be the smartest thing in the room to be the right choice. It just had to be fast enough, cheap enough, and good enough for the workflow.
+A model does not need to be globally strongest to be the right route. It needs to be fast enough, affordable enough, and reliable on the task slice that matters.
 
-The evals had to change with that. I cared less about leaderboard bragging and more about patch quality, screenshot reasoning, tool stability, and whether the route made the product calmer instead of just more impressive. A model that is slightly worse on a public benchmark can still be the better product route if it reduces latency, handles the right slice, and fails in a way the app can recover from.
+That changes evals too. Measure patch quality, screenshot reasoning, tool stability, latency, cost, and recoverability. A model that scores lower on a broad benchmark may still be the better product route if it handles the important slice and fails in a way the application can recover from.
 
-That also changed how I looked at demos. A support assistant that can read a screenshot and answer in under a second is more useful than a benchmark winner that takes long enough to feel ceremonial. A code helper that writes one readable patch beats a model that produces a nicer score but makes reviewers clean up the diff. The frontier compressed because the middle became good enough to ship.
+The frontier compressed because the middle became good enough to ship. That raised the standard around the model: route by job, verify the output, and optimize the workflow rather than the trophy.

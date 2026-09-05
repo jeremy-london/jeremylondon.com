@@ -1,0 +1,43 @@
+---
+title: "Harness engineering is the missing layer of coding agents"
+excerpt: "Coding agents are not just models with a terminal. Their reliability depends on the instructions, tools, context boundaries, hooks, and checks around the model."
+publishDate: "2026-09-05"
+category: "agent-workflows"
+draft: false
+author: "jeremy-london"
+tags: ["harness engineering", "coding agents", "context engineering", "verification"]
+---
+
+When a coding agent ignores a repository rule, edits too broadly, or loops on a simple task, the model may not be the missing component. The harness may be.
+
+The [HumanLayer harness-engineering essay](https://www.humanlayer.dev/blog/skill-issue-harness-engineering-for-coding-agents) frames the agent as the model plus the runtime around it: instructions, tools, skills, sub-agents, hooks, and back-pressure. That framing is useful because it puts reliability where the work is shaped.
+
+A harness can provide:
+
+- concise repository rules
+- focused, structured tools
+- specialized skills loaded when needed
+- isolated contexts for research or review
+- deterministic hooks
+- back-pressure for broad or unverified changes
+
+Instructions should remove ambiguity rather than describe the entire repository. Keep universal rules short: authoritative commands, content locations, protected files, validation, and what to do when a request is unclear. Put specialized procedures in focused references.
+
+Tools also consume context. Names, descriptions, parameters, and output all enter the working set. A narrow CLI with predictable output may be more useful than a large server with dozens of rarely used operations. Ask whether each tool is used enough to justify its context cost, whether its result can be smaller, and whether its dangerous capabilities have a boundary.
+
+Sub-agents are valuable mainly as context boundaries. A research task can run in a fresh context and return a compact answer with evidence. The parent does not need every intermediate search result.
+
+Hooks turn good intentions into control flow. A hook can format, typecheck, run a focused test, reject a forbidden command, or return a concise failure. That is stronger than writing "always run the tests" in a document. Keep successful output quiet when there is nothing for the agent to act on.
+
+Harness work should be failure-driven:
+
+1. give the agent a bounded task
+2. record the failure precisely
+3. place the fix in instructions, tools, context, isolation, or verification
+4. add the smallest durable change
+5. rerun the same and a nearby task
+6. remove the change if it did not help
+
+This keeps the harness connected to real work and prevents every surprising model behavior from becoming a permanent rule.
+
+The model writes code. The harness determines whether the change has a reasonable chance of being right, reviewable, and bounded.

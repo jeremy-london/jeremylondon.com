@@ -8,21 +8,23 @@ author: "jeremy-london"
 tags: ["reasoning models", "latency", "openai"]
 ---
 
-The o1 preview made it easier to say something that should have been obvious for a while: some steps deserve more time than others.
+The o1 preview made a useful distinction easier to see: a workflow does not need to spend the same amount of time on every step.
 
-Before reasoning models became a normal product category, latency conversation was too flat. Faster was better. Lower p95 was better. Stream sooner. Answer now. If quality was bad, try a bigger model or a better prompt. That is not wrong, just incomplete.
+For a long time, latency discussions collapsed into one number. Lower p95 was good. Streaming earlier was good. A response that arrived now was preferable to one that arrived later. Those are sensible goals for autocomplete and simple transformations. They become less useful when the task includes uncertainty, tool calls, or a costly mistake.
 
-### latency is part of the interface
+## Different work earns different waits
 
-A user does not experience latency as a metric. They experience it as a promise. A 200ms delay in autocomplete feels broken. A five-second delay for a careful code review can feel fine. A longer delay for a background analysis job can also be fine if the interface makes the wait legible.
+A person does not experience latency as a dashboard metric. They experience it as a promise from the interface.
 
-### route by difficulty, not prestige
+Two hundred milliseconds is already enough to make autocomplete feel wrong. Five seconds for a careful code review may be reasonable. A background analysis can take longer still, provided the product tells the user that work is happening and gives them a way to return to it.
 
-The fastest way to misuse a reasoning model is to route everything through it because it is the "smart" model. Some tasks are hard. Some are just wordy. Some are small transformations. Some need external evidence. Some need careful refusal. The route should match the shape of the work.
+The right question is not "How fast is the model?" It is "What kind of wait does this job justify?"
 
-### hard steps need visible budgets
+## Route by difficulty
 
-Reasoning time should have a budget. If the task is simple, keep it fast. If the task is risky, spend more time, but name the limit and the fallback. When the budget is gone, the system should ask for help, degrade, or stop.
+The expensive model is not automatically the correct model. Some requests are hard. Some are merely long. Some are small transformations. Some need external evidence. Others need a cautious refusal more than an elaborate chain of reasoning.
+
+Routing should follow the shape of the work. A simple rewrite should not wait behind a deep analysis, and a high-stakes review should not be forced through the same budget as a quick lookup.
 
 ~~~yaml
 routes:
@@ -40,8 +42,12 @@ routes:
     fallback: human_review
 ~~~
 
-### streaming is not the same as progress
+These limits are product decisions as much as model settings. They describe how much uncertainty the system is allowed to carry before it returns an answer, asks for help, or stops.
 
-Token streaming can make a slow model feel alive, but it does not always tell the user what is actually happening. Sometimes the useful progress is at the workflow level: reading context, searching sources, checking examples, running tools, or reviewing the result.
+## Progress needs a better signal
 
-The rule I keep coming back to is simple. Spend latency where uncertainty is expensive. That is a better use of waiting than pretending every answer should arrive at the same speed.
+Streaming makes a slow response feel active, but tokens are not necessarily progress. A user may care more about seeing that the system is reading the relevant context, checking a source, running a tool, or reviewing its result.
+
+That suggests a different interface for slower work: expose workflow milestones where they are useful, and keep the model's internal delay from becoming the only status indicator.
+
+The practical rule is simple: spend latency where uncertainty is expensive. Waiting is easier to accept when the extra time has a job.

@@ -8,19 +8,9 @@ author: "jeremy-london"
 tags: ["semantic search", "embeddings", "knowledge systems"]
 ---
 
-Semantic search feels like finding the thought.
+Semantic search follows the shape of an idea rather than its exact words. That is the useful part. The production work is everything around the vector.
 
-You do not need the exact words. You type the shape of the idea and the system surfaces the thing you meant. That is a real improvement over keyword-only search, and it is easy to get excited about.
-
-The part people skip is that production semantic search has to behave like a product, not a demo. It needs permissions, metadata, deletion, and a way to explain why a result showed up.
-
-## meaning is not permission
-
-A vector index will always find a nearest neighbor. That does not mean the user should see it.
-
-If the search path shows a title or snippet from a restricted document before the access filter runs, the system has already leaked something. Filtering has to happen with retrieval, not after the result is visible.
-
-I want the retrieval step to know the scope:
+Meaning is not permission. A nearest neighbor should not be visible before access filtering. Keep scope with the retrieval record:
 
 ~~~json
 {
@@ -32,57 +22,19 @@ I want the retrieval step to know the scope:
 }
 ~~~
 
-The model can be good at meaning and still be terrible at access control. The product has to handle both.
+Metadata also controls ranking, citation, freshness, and expiry. Keep owner, source system, timestamps, version, tenant, project, access groups, language, confidence, deletion state, and retention policy where the system can use them.
 
-## metadata is part of the answer
-
-Metadata is not just a sidecar. It is what lets the system rank, cite, and expire results.
-
-A current document should beat an old forum answer. A team-owned note should outrank a global announcement when the query is local. A deleted record should not linger in the index. A customer-specific note should never escape its tenant.
-
-Useful metadata is usually boring:
-
-- owner
-- source system
-- created and updated dates
-- document version
-- tenant
-- project
-- access groups
-- language
-- source confidence
-- deletion state
-- retention policy
-
-Without that, semantic search can find the right neighborhood and still act like a bad product.
-
-## deletion has to cover the derived stuff
-
-Deleting the source is not enough.
-
-The chunks, embeddings, cached summaries, extracted entities, rerank features, and any copied index entries should disappear too. Those are derived from the original document, but they still carry meaning and sometimes sensitive signal.
-
-If the system cannot answer where the derived records live, how to delete them, and how to reindex them, it is not ready for private data.
-
-That is the question I would ask:
+Deleting the source is not enough. Chunks, embeddings, summaries, extracted entities, rerank features, and copied index entries must have a deletion path:
 
 ~~~text
-which index entries came from this source?
+which entries came from this source?
 when were they generated?
 which model made them?
 where do they live?
 how do we delete or rebuild them?
 ~~~
 
-If the answer is vague, the search stack needs more operational discipline.
-
-## the result should show enough evidence
-
-A semantic result should not be a mysterious card.
-
-The user needs enough context to understand why it appeared: title, source, owner, updated date, and the matching passage when that helps. The team needs enough trace data to debug the retrieval path when the result is wrong.
-
-I like result records that look inspectable:
+Results should carry enough evidence to inspect:
 
 ~~~ts
 type SearchHit = {
@@ -96,55 +48,10 @@ type SearchHit = {
 }
 ~~~
 
-The user does not need every field. The system does.
+Production search is usually hybrid. Exact matching handles IDs, error codes, SKUs, function names, and version numbers. Embeddings handle paraphrase. Metadata scopes the result. A reranker combines the evidence.
 
-## exact matches still matter
+Evals need relevance and permission cases: paraphrases, old terminology, exact identifiers, stale documents, inaccessible sources, deleted records, changed visibility, and tenant boundaries. The worst failure is a correct answer from a source the user should not know exists.
 
-Semantic search is weak at the things people often care about most: error codes, issue IDs, stack traces, SKUs, function names, version numbers, and customer names.
+Indexes drift when content, permissions, chunking, models, or metadata change. Track reindex reasons and make pending, failed, and old-index traffic visible.
 
-That is why production search tends to become hybrid. Exact search handles anchors. Embeddings handle paraphrase. Metadata scopes the result. A reranker combines the evidence.
-
-The product should not make the user guess which mode it is using. If a query includes `ERR_AUTH_4017`, the exact token should have a strong voice.
-
-## evals need permission cases
-
-Search evals should include both relevance and access behavior.
-
-Relevance cases:
-
-- paraphrased query
-- old terminology
-- ambiguous term
-- exact identifier
-- stale versus current document
-
-Permission cases:
-
-- user can access source
-- user cannot access source
-- source was deleted
-- source moved teams
-- source changed visibility
-- tenant boundary
-- owner-only draft
-
-The bad failure is not just "wrong answer." It is "good answer from a place the user should not know exists."
-
-## reindexing is part of the product
-
-Semantic indexes drift.
-
-Content changes. Permissions change. Chunking changes. The embedding model changes. The metadata gets corrected. The product needs a way to catch up without pretending the old index is still trustworthy.
-
-I would track reasons for reindexing:
-
-- source content changed
-- access policy changed
-- embedding model changed
-- chunking rule changed
-- metadata backfill
-- deletion request
-
-That process should be observable. The product should know what is pending, what failed, and what traffic is still reading the old index.
-
-Semantic search is a good interface for finding thought-shaped things. It becomes trustworthy only when the product treats meaning, scope, and deletion as first-class behavior instead of afterthoughts.
+Semantic search can find thought-shaped things. It becomes trustworthy when meaning, scope, freshness, and deletion are first-class behavior.

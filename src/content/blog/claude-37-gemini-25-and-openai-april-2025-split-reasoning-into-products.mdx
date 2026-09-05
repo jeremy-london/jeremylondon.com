@@ -8,140 +8,49 @@ author: "jeremy-london"
 tags: ["openai", "anthropic", "google", "reasoning-models"]
 ---
 
-Spring 2025 made reasoning feel less like one model capability and more like a product menu.
+Spring 2025 made reasoning look less like one model capability and more like a set of product choices.
 
-Claude 3.7 Sonnet made hybrid reasoning explicit in February. Gemini 2.5 Pro arrived in March with thinking turned into part of Google's flagship story. OpenAI followed in April with GPT-4.1 as a strong coding and instruction-following API model, then o3 and o4-mini as reasoning models with different cost and speed shapes.
+Claude 3.7 exposed a thinking budget. Gemini 2.5 Pro made thinking part of its flagship path. OpenAI separated a strong coding and long-context model, GPT-4.1, from reasoning models such as o3 and o4-mini.
 
-The releases were easy to compare as a leaderboard. That was also the least useful way to think about them.
+A leaderboard comparison misses the useful part. The labs were packaging similar capabilities in different ways.
 
-## three different packaging choices
+Claude 3.7 made reasoning a knob. Gemini 2.5 made it feel like a default for complex work. OpenAI split coding and instruction following from the reasoning lane. Each choice answers a different question about who controls latency, cost, and escalation.
 
-The useful read was that the labs were packaging reasoning differently.
+Once reasoning becomes a budget, the product has to decide who turns it:
 
-Claude 3.7 made reasoning a knob. The same model path could answer quickly or spend more time on extended thinking, and API users could control how much budget it was allowed to use.
+- the user through a mode switch
+- the feature through a default route
+- the developer through a policy
+- the agent when evidence conflicts
+- an approval step before expensive work
 
-Gemini 2.5 Pro made reasoning feel like a default. Google described the model as its most advanced path for complex tasks, with thinking mode on by default for the experimental March release.
+The answer changes the experience. A manual knob gives control but adds cognitive load. Automatic routing is smoother but needs good local evals. Silent escalation is convenient until the bill or latency surprises someone.
 
-OpenAI split the story again. GPT-4.1 was positioned for coding, instruction following, and long context. o3 and o4-mini were the reasoning lane, with the smaller model aimed at making high-volume reasoning cheaper.
+Thinking by default carries a different risk. It may be right for coding, math, science, and difficult synthesis, but it can hide cost inside an apparently simple request. The product should account for the time and expense instead of treating them as invisible properties of intelligence.
 
-That split matters because "use a reasoning model" stopped being a complete design choice.
+GPT-4.1 made another distinction useful: coding strength, instruction following, and long context are not identical to deep reasoning. Much engineering work benefits from reliable edits against a large repository without needing the slowest route.
 
-## the knob changed the request
+I would separate the jobs:
 
-Claude 3.7 made the control visible.
+~~~text
+coding path:
+  edit a known file, follow explicit instructions, use long repository context
 
-Once reasoning becomes a budget, every request has to answer a few questions: does this task deserve more time, does the user want speed or care, is the answer high impact, is the latency acceptable, should the system ask before spending the extra budget?
+reasoning path:
+  diagnose an unclear failure, compare designs, solve a hard algorithmic bug
 
-Once that knob exists, teams have to decide who turns it.
-
-The user can turn it manually. The product can route automatically. The developer can set a default by feature. An agent can escalate when it gets stuck. Each choice creates a different product.
-
-The knob is useful, but it is not free. Reasoning time has to justify itself.
-
-## default reasoning hides a bill
-
-Gemini 2.5 Pro pushed a different feeling.
-
-Thinking by default is attractive for hard tasks. The product does not make the user decide whether the model should reason. The route assumes careful work. For coding, math, science, long-context synthesis, and multimodal reasoning, that can be the right default.
-
-The tradeoff is that default reasoning can hide cost and latency inside the model choice. If the product always sends certain work to the thinking path, the UI and budget model need to reflect that. The user should not be surprised that a complex answer takes longer or costs more.
-
-Thinking by default can be a good product bet. It still needs accounting.
-
-## coding and reasoning are not the same thing
-
-GPT-4.1 made the story sharper.
-
-OpenAI positioned GPT-4.1 as a strong API model for coding, instruction following, and long context. That is not the same thing as the reasoning model. The distinction matters because some coding work needs deep reasoning and some does not.
-
-A model that follows instructions well, uses long context effectively, and edits code reliably can be the right path for a lot of engineering work without being the slowest reasoning route.
-
-For builders, the routing question gets clearer when you separate the job:
-
-```text
-use coding model:
-  edit known file, follow explicit instructions, use long repo context
-
-use reasoning model:
-  diagnose unclear failure, compare designs, solve hard algorithmic bug
-
-use small route:
+small path:
   classify, extract, format, summarize low-risk context
-```
+~~~
 
-Reasoning is one capability among others. It is not a synonym for "best."
+o3 and o4-mini made the smaller reasoning lane practical to consider. If a small model handles a task slice acceptably, it may be the right default. If it fails on the hard cases, the system should know when to escalate rather than sending every request to the most expensive route.
 
-## the cheaper lane matters
-
-OpenAI's o3 and o4-mini release made the cheap, fast, smart tradeoff harder to dodge.
-
-o3 was the heavier reasoning path. o4-mini was the smaller, faster, more cost-efficient reasoning model with strong performance for its size, especially in math, coding, and visual tasks.
-
-That is a real architecture question. If a smaller reasoning model is good enough for a task, the product should probably use it. If it fails on the hard slice, the system should know when to escalate. If the small reasoning model is used because it is cheaper, the product needs evals that prove the cheaper path is still acceptable.
-
-The small reasoning lane is not a consolation prize. It is where high-volume reasoning work becomes practical.
-
-I would route plenty of work there first:
-
-- structured debugging suggestions
-- lightweight math checks
-- visual triage
-- candidate plan generation
-- first-pass code review comments
-- eval grading for low-risk fixtures
-
-Then I would measure where escalation actually improves outcomes.
-
-## the product questions changed
-
-By April 2025, the useful question was no longer "which lab has reasoning?"
-
-The product question became:
-
-- is reasoning automatic or user-controlled?
-- is thinking visible or hidden?
-- is reasoning a mode, a model, or a route?
-- how much latency is acceptable?
-- what cost tier handles the default path?
-- which tasks need long context more than deeper reasoning?
-- when does a smaller reasoning model get escalated?
-- how is improvement measured by task slice?
-
-Those questions are much more useful than one blended model ranking.
-
-A support tool, coding agent, research assistant, security workflow, and analytics product should not all package reasoning the same way. The right answer depends on task shape and user expectation.
-
-## routing became the real interface
-
-The model picker shown to users is only part of the interface.
-
-The real interface is the route the product chooses when the user asks for work. A product can expose fast and deep modes. It can hide routing entirely. It can offer a manual override. It can escalate silently. It can ask before spending more. All of those choices teach the user what the product thinks the work is worth.
-
-I like explicit routing records for this reason:
-
-```text
-request: explain failing build after dependency upgrade
-route: reasoning
-model class: high-reasoning coding path
-latency budget: 30 seconds
-fallback: summarize findings and ask before deeper repair
-```
-
-That record may never appear in the main UI, but the system should have it. Otherwise teams end up debugging reasoning behavior from anecdotes.
-
-## evals are the boring answer
-
-The release wave made one thing more obvious: local evals matter more when the model menu gets richer.
-
-If there are five plausible routes, generic benchmark scores do not tell you which route should handle your workflow. You need examples from your product. Easy cases. Hard cases. Long-context cases. Visual cases. Tool-use cases. Cheap-model traps. High-impact failures.
-
-The eval should ask route questions, not only answer quality questions:
+That requires product-specific evals. Test easy and hard tasks, long context, visual input, tool use, cheap-model traps, and high-impact failures. Then ask route questions:
 
 - did the fast path handle the easy case?
-- did the reasoning path improve the hard case?
-- did the small reasoning model fail safely?
+- did deeper reasoning improve the hard case?
+- did the smaller route fail safely?
 - did long context help or distract?
-- did visible thinking change user trust?
-- did cost increase without accepted quality improvement?
+- did extra cost produce an accepted improvement?
 
-Reasoning stopped being a single feature to admire. It became a set of product choices that need routing, budgets, labels, and evals. That is less tidy than a leaderboard, and much closer to how AI systems actually ship.
+By April 2025, "which model reasons best?" was less useful than "which route should handle this work, under what budget, with what fallback?" Reasoning had become an interface decision even when the interface hid the model picker.

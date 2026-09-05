@@ -8,13 +8,11 @@ author: "jeremy-london"
 tags: ["multimodal", "vision", "language models"]
 ---
 
-The first mistake people make with multimodal systems is treating them like a file upload demo.
+An image in a chat box is useful. It is not yet a workflow.
 
-An image in a chat box is useful. It is not yet a workflow. A workflow has source material, extracted material, a review point, and a clear answer about what happens when the model and the evidence disagree.
+A workflow has source material, extracted artifacts, a review point, and a clear response when the model and evidence disagree.
 
-### one bug report, four kinds of evidence
-
-Take a bug report with a screenshot, a browser console log, a short user note, and a screen recording. Those inputs do not fail in the same way. The note may be incomplete. The screenshot may be cropped. The log may be stale. The video may show the sequence but not the reason.
+Consider a bug report with a screenshot, console log, user note, and screen recording. Those inputs have different failure modes:
 
 ~~~ts
 type Evidence =
@@ -24,21 +22,11 @@ type Evidence =
   | { kind: "user_claim"; text: string; source: "form_field" }
 ~~~
 
-If the product keeps those separate, the answer can point back to the exact evidence it used. If it smashes them into one prompt, review becomes guesswork.
+Keep them separate so the answer can point to the evidence it used. Combining everything into one prompt makes review guesswork.
 
-### extraction is a boundary, not a shortcut
+Extraction is a boundary, not the source of truth. OCR can merge columns. Speech-to-text can miss acronyms. Frame sampling can skip the moment the UI changed. Chart extraction can catch the title and miss the axis scale.
 
-OCR, speech-to-text, chart parsing, frame sampling, table extraction, and layout detection all create new artifacts with their own failure modes. OCR can merge columns. Transcript output can miss acronyms. Frame sampling can skip the moment the UI changed. Chart extraction can catch the title and miss the axis scale.
-
-I do not mind extraction. I mind pretending the extracted layer is the source of truth.
-
-### contradictions should stay visible
-
-The interesting cases are the ones where inputs disagree.
-
-A user says the button is disabled and the screenshot shows it enabled. OCR says the total is `$1,000` and the image looks closer to `$7,000`. The transcript says the customer approved the change and the audio makes it sound uncertain. The system should not flatten all of that into "context."
-
-For those cases, the right output is often a review state:
+Contradictions should remain visible:
 
 ~~~json
 {
@@ -47,8 +35,8 @@ For those cases, the right output is often a review state:
 }
 ~~~
 
-### the interface has to show its work
+A user may say a button is disabled while the screenshot shows it enabled. OCR may report one total while the image shows another. The right result may be review, not a confident synthesis.
 
-Grounding is an interface problem as much as a model problem. If the model says an invoice is wrong, the user should see the relevant region and the extracted numbers. If it says a video proves the issue, the user should land on the right timestamp. If it says a chart supports the claim, the chart and the series need to be visible.
+Grounding is also an interface problem. If the model says an invoice is wrong, show the relevant region and extracted values. If it cites a video, link to the timestamp. If it uses a chart, show the series and scale.
 
-That is the part that keeps multimodal systems from feeling like a trick. They know what they looked at, what they extracted, and when the evidence is too thin to pretend otherwise.
+A multimodal system earns trust when it can say what it saw, what it extracted, and when the evidence was too thin to decide.

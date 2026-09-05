@@ -8,17 +8,11 @@ author: "jeremy-london"
 tags: ["codex", "admin", "security"]
 ---
 
-Codex GA made the admin work visible.
+General availability made coding-agent administration visible.
 
-During preview, you can pretend a coding agent is a feature toggle. A few people try it, the blast radius is small, and the team still knows who is poking at it. General availability changes that. The agent is no longer a side experiment. It is a managed system that writes into repositories, touches shared workflows, and creates work for other people to review.
+During a preview, a small group can treat the agent like an experiment. Once it is used across teams and repositories, the system needs owners, boundaries, and a recovery path. The agent writes into shared workflows and creates review work for other people. "Try the thing" becomes "operate the thing."
 
-That is the point where the job changes from "try the thing" to "operate the thing."
-
-## the product now has operators
-
-Once the agent leaves the demo lane, somebody has to decide who can use it, where it can run, and what it is allowed to touch.
-
-The permission model should match real work, not optimism:
+The permission model should describe real actions:
 
 ~~~text
 read only:
@@ -27,69 +21,22 @@ read only:
   inspect logs
 
 write with guardrails:
-  edit files in scoped paths
-  run tests in sandbox
+  edit scoped paths
+  run tests in a sandbox
   open pull requests for review
 
 never by default:
   touch secrets
-  change deployment config
+  change deployment configuration
   publish without approval
 ~~~
 
-That list does not belong in a prompt. It belongs in the product and the admin layer.
+That list belongs in the product and admin layer, not only in a prompt. If the policy is "be careful," there is no enforceable policy.
 
-If the only policy is "be careful," there is no policy.
+The environment is part of the contract too. Packages, shell tools, filesystem state, network rules, secret access, caches, and resource limits all affect the result. The admin surface should make basic facts easy to answer: which repository received which sandbox, whether the checkout was clean, which commands were allowed, and whether network access was granted.
 
-## environments are part of the contract
+Usage volume is a weak operational metric. Better slices include repository, team, accepted versus abandoned runs, command failures, review rework, repeated sandbox denials, and entry point. The question is whether the agent is moving work forward or producing review-shaped debris.
 
-Agents are only as good as the environment they inherit.
+Slack and SDK integrations make delegation less obvious. A thread may contain a secret, a customer detail, or a repository reference that should not flow into code. The admin layer should record which channel can start work, how it maps to a repository, which identity the run uses, and where the receipt lands.
 
-That means packages, shell tools, filesystem state, network rules, secret access, cache behavior, and resource limits all matter. A task can fail because the agent is bad, or because the workspace is dirty, or because the sandbox lets one repo see dependencies another repo does not have. Those are different problems.
-
-The admin surface should answer boring questions quickly: which repo got which sandbox, which commands were allowed, whether the run saw a clean checkout, and whether the task was allowed to reach the network. That is the difference between a reproducible failure and a mystery.
-
-## telemetry should explain usage
-
-Volume alone is a weak metric.
-
-A dashboard that only says "more tasks ran" can hide real stress. I want to know where the work is coming from, what kinds of actions the agent is taking, and which paths keep failing.
-
-The useful slices are usually the dull ones:
-
-- repository
-- team or user
-- accepted vs abandoned runs
-- command failures
-- average duration
-- review rework
-- repeated sandbox denials
-- Slack or SDK entry points
-
-That is the shape of the operational question: is the agent helping the team move, or is it making more review-shaped debris?
-
-## shared channels change delegation
-
-Slack and SDK integrations matter because they move delegation out of a single UI.
-
-That is powerful, and it shifts the boundary. A channel already has context, but not every piece of context should flow into code. A thread can mention a secret, a customer, or a repo that should not be visible to the task. A custom tool can turn a normal request into shadow automation if the identity is unclear.
-
-The admin job is to make that delegation explicit:
-
-- what channel can start work
-- which repo the request maps to
-- which identity the run uses
-- where the receipt lands
-- how sensitive work gets excluded
-
-If the agent can hop from chat to code without a receipt, it is too powerful in the wrong way.
-
-## review quality is the real gate
-
-Good admin settings shorten the path to a reviewable diff.
-
-That means small diffs for routine work, project instructions that actually exist, checks that run by default, and clear ownership when a run crosses a risky boundary. It also means the defaults should reduce the odds of a reviewer rubber-stamping a giant patch because the agent already "looked fine."
-
-The thing GA really changed is that coding agents are now normal enough to need operations. They need access rules, sandbox rules, telemetry, and a cleanup path when the experiment stops being an experiment.
-
-That is not glamorous work. It is what turns the agent from a demo into infrastructure.
+The real gate is review quality. Small diffs, real project instructions, default checks, and clear ownership make the safe path easier. General availability did not remove the need for those controls. It made them ordinary infrastructure.

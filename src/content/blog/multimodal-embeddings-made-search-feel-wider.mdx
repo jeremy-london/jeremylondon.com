@@ -8,36 +8,32 @@ author: "jeremy-london"
 tags: ["embeddings", "multimodal", "search"]
 ---
 
-Text search assumes the useful thing can be turned into words before retrieval starts. That is fine right up until the thing someone remembers is a slide layout, a chart shape, a screenshot with one red banner, or the part of a video where the terminal finally failed.
+Text search assumes the useful evidence can become words first. That breaks when someone remembers a slide layout, chart shape, screenshot, video moment, or PDF figure.
 
-Multimodal embeddings widened the search surface. Once a PDF page, image crop, frame cluster, audio window, or table snippet can become a vector, the system can look for the thing the user actually remembers instead of forcing everything through text first.
+Multimodal embeddings let those artifacts participate in retrieval. The main design choice is the retrieval unit:
 
-### the retrieval unit is the real decision
+- PDF section, page, or figure crop
+- sampled video window or scene
+- full image or object crop
+- table snippet rather than the entire document
 
-The most important choice is usually not the embedding model. It is the unit you embed.
+Segmentation decides whether the index can find the evidence at all.
 
-For PDFs, I want section chunks, page chunks, and sometimes figure crops. For video, I want a sampled window or scene boundary, not the whole file. For images, a full-image vector is often too coarse if the query is about one object in the corner. The segmentation step decides whether the index can ever find the right evidence.
+Scores need calibration too. Text-to-text, image-to-text, and video-to-text similarities may have different distributions. A score of 0.78 is not automatically comparable across lanes.
 
-### scores need calibration
-
-Cross-modal scores look interchangeable until you compare them.
-
-A text-to-text score, an image-to-text score, and a video-to-text score can sit on different distributions. A `0.78` in one lane may be strong and weak in another. If the ranking layer ignores that, the result list feels random even when the embeddings are technically doing their job.
+A mixed retrieval path can stay explicit:
 
 ~~~text
-query -> encode -> retrieve text
+query -> encode
+      -> retrieve text
       -> retrieve image
       -> retrieve video
       -> apply permission filters
       -> rerank mixed candidates
 ~~~
 
-That rerank step is where the product becomes honest. The system can say, "this is the best screenshot match" or "this is the best page match," instead of pretending every vector belongs to one universal scale.
+Reranking is where the product can distinguish the best screenshot match from the best page match instead of pretending all vectors share one scale.
 
-### hard negatives make the index grow up
+Hard negatives make the index useful: a red error banner versus a red success banner, a slide with the right title but wrong chart, two similar video clips with different actions, or a PDF page where the phrase appears only in a footer.
 
-The useful eval cases are the ones that look close and mean something else.
-
-A red error banner versus a red success banner. A slide with the right title and the wrong chart. Two video clips with the same person doing different things. A PDF page with the phrase in the footer instead of the body. Those are the examples that tell you whether the system understands semantics or just color and shape.
-
-I like multimodal embeddings because they match how people remember work. We do not always remember filenames. We remember a screenshot, a rough layout, a clip, a diagram, or the exact page where a thing looked wrong. The engineering is still all the usual work. Pick the segment. Keep the metadata. Filter permissions early. Calibrate the scores. Test the close failures. The model widens the map, but the map only works if the product keeps it readable.
+Multimodal embeddings match how people remember work. They do not remove the usual retrieval responsibilities: choose the segment, preserve metadata, filter permissions early, calibrate scores, and test the close failures. The map gets wider only when the product keeps it readable.

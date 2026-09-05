@@ -8,188 +8,80 @@ author: "jeremy-london"
 tags: ["chatgpt work", "desktop agents", "workflow"]
 ---
 
-ChatGPT Work matters because it makes the chat tab feel like the wrong container.
+ChatGPT Work makes the chat tab feel like an increasingly narrow container.
 
-Once an assistant can see files, browser state, application context, and prior work, it stops being a conversational sidecar. It becomes a work surface. The user is no longer asking for an answer beside the work. They are asking the system to participate in the work.
+Once an assistant can work across files, browser state, applications, and prior runs, it is no longer just answering beside the task. It is participating in the task. That is useful precisely because the context is close to where the work happens.
 
-That sounds like product positioning until you ask what has to be true for the work to be trusted.
+It is also where the permission problem becomes real.
 
-A chat assistant can get by with a transcript and a send button. A desktop agent needs more structure than that. It needs scoped access, visible state, approvals with real context, verifiers that can disagree with the agent, and records that survive after the conversation scrolls away.
+A desktop agent needs a structured run, not only a transcript. I want to know the request, the visible context, the allowed resources, proposed actions, approvals, verification, and final evidence. A run object can be paused, inspected, resumed, or handed to another person. A transcript mostly records that something happened.
 
-The interesting part is not that an agent can move across apps and files. The interesting part is deciding how it is allowed to move.
+The scope should be legible:
 
-## a run is the thing you can inspect
-
-The message is the wrong unit of work for a desktop agent.
-
-Messages are good for conversation. Runs are better for work. A run has a request, a scope, a context snapshot, proposed actions, tool calls, approvals, verification, and final evidence. It is the thing you can inspect, pause, resume, replay, or hand to another reviewer.
-
-I want the platform to think in objects like this:
-
-```json
+~~~json
 {
-  "runId": "desktop-agent-042",
-  "request": "revise the blog draft and verify the local page",
-  "scope": {
-    "files": ["src/content/blog"],
-    "browser": ["http://localhost:4321"],
-    "network": "ask-before-use",
-    "credentials": "none"
-  },
-  "state": "awaiting-approval",
-  "evidence": ["proposed-diff", "markdown-check-output"],
+  "files": ["src/content/blog"],
+  "browser": ["http://localhost:4321"],
+  "network": "ask-before-use",
+  "credentials": "none",
   "expires": "end-of-run"
 }
-```
+~~~
 
-The fields matter because they force the uncomfortable questions early.
+Desktop context is personal before it is productive. A project directory can sit beside private notes, old exports, credentials, and unrelated files. A browser session can contain several identities. "Use my desktop" is not a useful grant.
 
-What did the agent see? What was it allowed to touch? Which files were in scope? Was the browser logged into the right account? Did the agent have network access? Did it use a credential? Which output proved the work was done?
-
-A transcript can describe those things after the fact. A run object can enforce them while the work is happening.
-
-That is the part I care about. The product is not "chat with tools." The product is a structured work session with a beginning, a boundary, and an exit.
-
-## desktop context is personal before it is productive
-
-Desktop agents sit near the messy part of a person's life.
-
-Files are not clean product objects. A project folder may sit next to notes, exports, screenshots, SSH config, downloaded invoices, half-written drafts, and old secrets that should have been deleted years ago. Browser state is even messier. Tabs carry logins, cookies, history, personal accounts, work accounts, and pages the agent has no business reading.
-
-That is why "use my desktop" is not a permission model.
-
-The grants need to be smaller:
+The runtime needs smaller permissions:
 
 - read this directory
 - edit these files
-- use this browser origin
+- use this origin
 - run this command
 - ask before network access
 - never read secrets
-- expire when the run ends
+- expire the grant when the run ends
 
-The user should be able to see those grants without opening a policy document. More importantly, the runtime should enforce them without relying on the model to remember the rules.
+The model should not be responsible for remembering those boundaries. The environment has to enforce them.
 
-Desktop context is powerful because it is local and personal. That is exactly why it needs hard edges.
+Approval is most useful at the point of consequence. Replacing a paragraph in a local draft is different from sending mail, deleting a file, publishing a page, or moving data across accounts. The approval should show the target, the side effect, the evidence behind the proposal, and the recovery path.
 
-## approvals should interrupt at the point of consequence
-
-Approval is not there to make the product look careful. It is there to stop consequence from becoming invisible.
-
-For a desktop agent, consequence comes in different forms. Editing a local draft is one kind. Sending an email is another. Running a shell command is another. Posting to a company system, creating a ticket, deleting a file, publishing a page, or moving data across accounts each deserves a different level of friction.
-
-The approval should arrive when the agent has enough detail to make the decision concrete:
-
-```text
+~~~text
 proposed action:
   replace 6 paragraphs in src/content/blog/example.mdx
 
-evidence:
-  current draft contains repeated generated text
-
 after approval:
-  write file
+  write the file
   run pnpm markdown:check on the edited post
 
 rollback:
-  restore the previous file content from git diff
-```
+  restore the previous content from the diff
+~~~
 
-That is a real decision. "Continue?" is not.
+"Continue?" is not enough context for a consequential action.
 
-The approval surface should show the target, the side effect, the evidence, and the recovery path. If the action crosses an account boundary or uses a credential, the interface should say which identity is being used. If the action is part of a longer run, the approval should say whether the agent will continue after this step.
+The verifier also needs a separate job. A command can exit successfully while checking the wrong file. A browser click can work in the wrong account. A clean patch can still remove the important argument. Deterministic checks can confirm scope, command status, and changed files. A semantic verifier can ask whether the request was actually satisfied.
 
-The goal is not to make every step painful. The goal is to make meaningful steps legible.
+That verifier should look for gaps, not help the generator rationalize its result.
 
-## the verifier should not share the generator's job
+At the end of a run, I want a receipt rather than a victory paragraph:
 
-The annoying part of desktop agents is not getting them to call tools. The annoying part is deciding whether the work that came back is usable.
-
-A command can exit zero while checking the wrong file. A browser click can succeed in the wrong account. A file edit can apply cleanly and remove the argument the article needed. A search result can be fresh and irrelevant. A generated summary can be fluent and miss the only detail that mattered.
-
-The verifier should not be a cheerleader for the generator.
-
-Some checks can be deterministic:
-
-- did the changed file stay inside scope?
-- did the command run from the expected working directory?
-- did the build or lint command pass?
-- did the screenshot render the expected page?
-- did the diff touch only the requested files?
-
-Some checks are semantic:
-
-- did the rewrite preserve the actual idea?
-- did the agent follow the latest user instruction?
-- did the approval match the final action?
-- did the summary mention the real failure?
-- did the answer use stale context?
-
-Those semantic checks may involve another model, but the job should be framed differently. The verifier is not trying to finish the task. It is trying to find the gap between the requested work and the claimed result.
-
-That distinction matters. A desktop agent that verifies itself with the same context, same incentives, and same blind spots will miss exactly the failures the user needed help catching.
-
-## receipts are how runs stay inspectable
-
-When a desktop agent finishes, I do not want a victory paragraph.
-
-I want a receipt.
-
-What changed? Which files were read? Which files were edited? Which commands ran? Which approvals happened? Which checks passed? Which checks failed? What remains undone? What assumptions did the agent make?
-
-That record can be short, but it needs to be specific. The user should be able to decide whether they trust the result without rereading the whole transcript. Another agent should be able to pick up the work without reconstructing the previous run from vibes.
-
-For coding and writing workflows, the receipt might include:
-
-```text
+~~~text
 changed:
-  src/content/blog/chatgpt-work-made-desktop-agents-feel-inevitable.mdx
+  src/content/blog/example.mdx
 
 checked:
-  pnpm markdown:check src/content/blog/chatgpt-work-made-desktop-agents-feel-inevitable.mdx
+  pnpm markdown:check src/content/blog/example.mdx
 
 not checked:
   full site build
 
 needs review:
-  factual claims about ChatGPT Work product scope
-```
+  factual claims about product scope
+~~~
 
-That last line is important. Good receipts do not pretend uncertainty disappeared.
+The receipt lets a user decide whether to trust the result without rereading the entire conversation. It also gives the next run something concrete to inherit.
 
-## the metric is trust over time
+Task completion alone is too thin a metric for desktop agents. I would watch approval reversals, denied tool attempts, stale-context failures, verifier disagreement, scope violations, successful resumes after interruption, and the edits users make immediately afterward.
 
-Desktop agents will be judged by more than task completion.
+The work is already spread across the desktop: files, browser tabs, terminal output, local servers, screenshots, and half-finished drafts. Keeping the agent trapped in a chat window forces the user to ferry context by hand.
 
-A task-success number can hide too much. The agent may finish the task but require too many approvals. It may finish quickly but leave no evidence. It may produce correct output while touching more files than expected. It may succeed on simple runs and collapse when the user's local state is messy.
-
-I would watch metrics that say something about trust:
-
-- approval reversal rate
-- denied tool attempts
-- stale-context failures
-- verifier disagreement
-- scoped-access violations
-- runs resumed successfully after interruption
-- user edits immediately after agent completion
-- time from proposal to accepted result
-
-None of those metrics is perfect. Together they are better than pretending the only question is whether the agent eventually produced an answer.
-
-The product has to learn where friction helps and where it only annoys. Too much approval turns the agent into a form with a personality. Too little approval turns the agent into a smooth path for unclear work. The right balance will vary by task, user, and environment.
-
-My bias is to start explicit and earn convenience later.
-
-Desktop agents feel inevitable because the work is already on the desktop.
-
-The files are there. The browser state is there. The terminal output is there. The half-finished draft is there. The local server is there. The screenshot that explains the bug is there. Keeping the assistant trapped in a chat tab means forcing the user to ferry context back and forth by hand.
-
-That ferrying is waste.
-
-But removing it creates a system problem. The agent becomes useful because it gets close to the work. It becomes risky for the same reason.
-
-That is the shape of the next default: agents with access to real work surfaces, bounded by scopes that users can understand, approvals that show consequences, verifiers that can push back, and receipts that make the run inspectable afterward.
-
-The chat box was a good starting point.
-
-The work surface needs stronger bones.
+Removing that friction is the easy part. Making the access bounded, the approvals meaningful, the verification independent, and the receipt readable is the product.

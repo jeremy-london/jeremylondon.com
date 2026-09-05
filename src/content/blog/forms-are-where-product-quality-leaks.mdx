@@ -8,14 +8,14 @@ author: "jeremy-london"
 tags: ["forms", "ux", "frontend"]
 ---
 
-Forms leak quality because the screenshot is only the first scene.
+A form is not the first screenshot. It is the pause, the mistake, the retry, and the half-success after the request leaves the browser.
 
-Once a real user arrives, the form has to survive pauses, mistakes, retries, keyboard navigation, stale drafts, and the awkward half-success where one field saved and another did not. That is the part that matters. The button and the layout can look perfect while the workflow underneath is brittle.
+The layout can look finished while the workflow is brittle. Real users navigate with keyboards, lose focus, return to stale drafts, submit twice, hit a permission change, or wait through a request that succeeded even though the page timed out.
 
-What usually decides whether the form feels good is timing. Early validation should catch obvious local problems. Server validation should own uniqueness, permission, and current-state checks. Pending state should tell the user the request is alive. Partial success should say what happened instead of collapsing everything into failure.
+The implementation needs distinct ownership for those states. Local validation can catch obvious field errors. The server should own uniqueness, permission, and current-state checks. Pending state should show that the request is active and prevent duplicate intent. Partial success should say what saved and what did not.
 
-I care a lot about the shape of the error model. A user does not need "something went wrong." They need the reason, the field or action it belongs to, and the next move. That is also where idempotency shows up. If the user retries because the page froze, the server should know whether it is seeing the same intent again.
+Error copy is part of the interface contract. "Something went wrong" does not tell the user which field or action failed, why, or what to try next. A retry also needs idempotency: if the browser sends the same intent twice, the server should recognize it.
 
-Drafts and accessibility sit in the same pile. If the form can take long enough to hurt, it should keep work around. If the user cannot tell which field failed or reach it with a keyboard, the form is broken regardless of how tidy the mockup looked.
+Long forms need draft recovery. Accessible forms need labels, focus movement, and an error summary that can be reached without a mouse. Those are not polish items. They decide whether the workflow survives ordinary use.
 
-The boring states are not extras. They are the product.
+The boring states are where the product tells the truth.

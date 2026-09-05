@@ -8,19 +8,13 @@ author: "jeremy-london"
 tags: ["ai sdk", "mcp", "tool approval"]
 ---
 
-The part of AI SDK 6 that mattered to me was not that it added another agent API. It made approval feel like normal product work.
+"Do you want to continue?" is not an approval flow.
 
-For most demos, tool use is simple enough to hide. The model asks. The app runs the tool. A result comes back. Nobody has to think much about identity, scope, or review. That stops being true the moment the tool can send an email, edit a file, create a ticket, run a command, or touch private data through an MCP server.
+It is a question without a target, identity, side effect, or expiry. AI SDK 6 was interesting to me because it put tool approval closer to ordinary application state. Once an agent can edit a file, create a ticket, send a message, or call an MCP server, that is the right place to put it.
 
-At that point approval is part of the application contract.
+I want a tool request to have an explicit lifecycle:
 
-## the approval button is the least important part
-
-The button is just the visible edge of the system. What matters is the state behind it.
-
-A tool call may start as proposed, need clarification, get blocked by policy, move to user review, get approved, get denied, expire, or become stale because a newer turn changed the plan. Those states need names because the UI, server, and logs all need to describe the same object.
-
-```ts
+~~~ts
 type ToolApprovalState =
   | { status: "proposed"; toolName: string; input: unknown }
   | { status: "needs-user"; explanation: string; risk: "low" | "medium" | "high" }
@@ -29,78 +23,25 @@ type ToolApprovalState =
   | { status: "expired"; expiredAt: string }
   | { status: "executed"; resultId: string }
   | { status: "failed"; error: string; retryable: boolean }
-```
+~~~
 
-I care about that shape because it keeps the system from inventing private language. If the client says pending, the server says approved, and the trace says blocked, nobody is debugging the same event anymore.
+The names are less important than the shared vocabulary. If the client says pending, the server says approved, and the trace says blocked, nobody is debugging the same event.
 
-## mcp made the boundary real
+MCP makes the boundary more visible because the tool may come from a server with its own trust model. The user is not approving a tool in the abstract. They are approving an action against a resource under an identity.
 
-MCP widened the approval problem. It stopped being about a local helper the app author wrote yesterday and started being about tools from other servers with different trust levels.
+For a write, I want the approval to show something like:
 
-That matters because the user is not approving "a tool" in the abstract. They are approving a specific action against a specific resource under a specific identity. The approval copy has to say that plainly.
+~~~text
+action: create one issue
+server: github-workspace
+identity: jeremy
+repository: jeremy-london/jeremylondon.com
+writes: github.issue
+rollback: close or edit the issue
+~~~
 
-For a read-only lookup, the message can stay short. For a write action, I want the surface to carry the actual risk:
+The trace should retain the proposal, normalized arguments, policy decision, approval, execution result, and final answer on one timeline. That is how a reviewer finds the wrong step when the final chat message still sounds plausible.
 
-```json
-{
-  "server": "github-workspace",
-  "tool": "create_issue",
-  "identity": "jeremy",
-  "intent": "track the regression found in the blog audit",
-  "arguments": {
-    "repo": "jeremy-london/jeremylondon.com",
-    "title": "Remove repeated prose templates from blog posts",
-    "labels": ["content", "quality"]
-  },
-  "writes": ["github.issue"],
-  "rollback": "close issue or edit labels/title after creation"
-}
-```
+The same applies to copy. "Continue" is vague. "Create one GitHub issue in this repository using your account" is a decision a person can make.
 
-That object is not pretty, and it should not be. It is the minimum record that lets a human decide whether the action matches the intent.
-
-## devtools should show the work, not the mood
-
-Most agent failures are boring in the worst way. The answer looks plausible, but the wrong step happened earlier.
-
-Maybe the model never picked the tool it should have used. Maybe it picked the right tool with a stale argument. Maybe the user approved after the conversation had moved on. Maybe the tool returned a partial result and the model treated it as complete. Maybe the MCP server changed its description and the model drifted with it.
-
-You do not catch that from the final chat message.
-
-I want the trace to show the model message, the tool proposal, the normalized arguments, the policy decision, the approval state, the execution result, and the final answer on one timeline. If the run streamed, timestamps matter too. Slow approval changes the product experience.
-
-That trace does not need to be flashy. It needs to be readable enough that somebody can answer one question: what actually happened?
-
-## approval copy should carry the risk
-
-"Do you want to continue?" is too vague for anything agent-shaped.
-
-Continue what, with which data, under whose account, and with what consequence? Read, write, delete, publish, purchase, or permission change are not the same thing.
-
-The prompt should say the thing the tool will do:
-
-> Read the selected repository files so the assistant can answer the question.
-
-> Create one GitHub issue in `jeremy-london/jeremylondon.com` using your account.
-
-> Run `pnpm build` in this project. This may create local build output but should not modify source files.
-
-That is not theatrical. It is clear. The approval language becomes product policy in practice, so it has to be honest about the scope.
-
-## boring is the right shape here
-
-When I say AI SDK 6 made tool approval mainstream, I mean the center of gravity moved toward something teams can actually design.
-
-Tool approval became a normal part of state, permissions, copy, logs, schemas, timeouts, retries, and review. MCP broadened the surface. Agent APIs made the run lifecycle explicit. DevTools made hidden steps easier to inspect. Those belong together because they are all the same problem from different angles.
-
-The model proposes work.
-
-The app decides whether that work is allowed.
-
-The human gets enough context to make a judgment.
-
-The runtime executes exactly what was approved.
-
-The trace leaves enough evidence to explain the outcome later.
-
-That is not glamorous. It is just what production software looks like once agents can touch real things.
+Tool approval became mainstream when it stopped looking like a modal and started looking like state: proposed, reviewed, approved, executed, expired, or rejected. That is the difference between asking for permission and building a system that knows what permission means.

@@ -1,0 +1,43 @@
+---
+title: "Generated interfaces need a contract"
+excerpt: "Interfaces that assemble themselves around a task sound liberating, but users still need stable meaning, accessible controls, and a trustworthy way back."
+publishDate: "2026-09-05"
+category: "product-engineering"
+draft: false
+author: "jeremy-london"
+tags: ["generated ui", "multimodal", "product design", "accessibility"]
+---
+
+A task-shaped interface can be better than a permanent dashboard. It can also become impossible to learn or trust if every interaction changes the rules.
+
+Runway Solaris describes a system that generates an interface frame by frame, with clicks and images changing what appears next. That is compelling for temporary tools. It also makes the underlying contract more important.
+
+The user still needs to know:
+
+- what state the system is in
+- what an action will change
+- whether the action can be undone
+- where the result came from
+- how to continue if the generated surface disappears
+
+The layout can vary while those meanings remain stable. Selected items should look selected. Destructive actions should be distinguishable. Loading should not look like an empty result. A temporary interface needs more explicit state because it has less history.
+
+Pixels cannot be the only record. Keep durable task state beside the generated surface:
+
+~~~json
+{
+  "task": "prepare a product comparison",
+  "inputs": ["brief.md", "pricing.csv"],
+  "decisions": ["compare annual plans", "exclude enterprise"],
+  "outputs": ["comparison-draft.md"],
+  "pendingApproval": "publish"
+}
+~~~
+
+The visual layer can adapt to the moment. The task state should remain inspectable, exportable, and recoverable.
+
+Runtime generation also has to preserve accessibility: semantics, focus order, keyboard paths, contrast, stable text, and error announcements. Bounded generated surfaces are easier to make reliable than an unconstrained application. Give the system a known grammar of controls, states, and content types, then test the generated composition.
+
+Integration is part of the contract. Users should be able to copy, export, reopen, or continue the result elsewhere without rebuilding the session from screenshots.
+
+A generated interface can disappear when the task is done. The important decisions and outputs should not. Flexibility is useful when the user can understand what changed, recover what matters, and leave with something more durable than the surface itself.

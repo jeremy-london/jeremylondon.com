@@ -8,22 +8,12 @@ author: "jeremy-london"
 tags: ["forms", "frontend", "ux"]
 ---
 
-## one question at a time
+The empty state is only the opening scene.
 
-A form gets better when the team stops pretending the empty state is the whole story.
+A real form moves through empty, dirty, invalid, waiting, failed, saved, restored, and permission-blocked states. Those labels do not need to appear in the interface, but the implementation needs to account for them.
 
-The user arrives with no data, types, hesitates, makes a mistake, fixes it, submits, gets a rejection, retries, and sometimes comes back to the draft later. That is the actual interaction. If we only design the empty happy path, the implementation invents the rest and usually gets some of it wrong.
+Empty should provide enough context to start. Dirty should protect work if the page changes or the tab closes. Invalid should identify the field and the correction. Pending should keep the request alive without allowing the same intent to fire repeatedly. Success should describe what happened, especially if a background job or side effect started.
 
-## what the machine needs to know
+Recovery exposes the quality of the design. Can a user fix one field without redoing the rest? Can they distinguish a timeout from a successful submission? Can they return to a draft? Can they recover from a partial save?
 
-Even a small form has a state graph hiding under it. Empty. Dirty. Invalid. Waiting. Failed. Saved. Restored. Permission blocked.
-
-Those labels do not need to leak into the UI. They do need to exist in the implementation conversation, because once they do, it becomes harder to hand-wave away the awkward cases.
-
-## the states are where trust shows up
-
-Empty should give the user enough context to begin without guesswork. Dirty should protect the work if the page changes or the tab closes. Invalid should point to the right thing to fix, not just announce that something is wrong. Pending should keep the request alive without letting the user fire the same intent twice. Success should say what actually happened, especially when a background job or side effect started.
-
-## recovery tells the truth
-
-The best form is the one that survives interruption. Can the user edit one field without redoing the rest? Can they tell whether a submit succeeded before the timeout? Can they return to a draft? Can they recover from a partial save? If those answers are yes, the form is probably doing real work instead of staging a tidy screenshot.
+A form that survives those questions is doing product work. A form that only survives the screenshot is still a mockup.

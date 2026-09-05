@@ -8,29 +8,11 @@ author: "jeremy-london"
 tags: ["openai", "routing", "reasoning"]
 ---
 
-The o3 and o4-mini release made the model-routing conversation harder to dodge.
+o3 and o4-mini made model routing more honest because both routes could reason.
 
-That is what I liked about it.
+The choice was no longer simply small model for easy text and large model for serious work. A smaller reasoning model could own bounded tasks while the stronger route handled ambiguity and expensive failure.
 
-The interesting part was not simply that one model was stronger and one was cheaper. We already had that pattern. The useful pressure came from both being reasoning models. The choice was no longer "small cheap model for simple text, big expensive model for serious thinking." The cheaper route could reason too. The stronger route could be reserved for places where the extra capability actually mattered.
-
-That makes the cheap, fast, smart tradeoff more honest.
-
-## same family, different jobs
-
-When a model family gives you a high-capability option and a smaller cost-efficient option, it becomes harder to justify one default route for everything.
-
-The product has to ask a better question: what kind of reasoning does this task need?
-
-Some tasks need depth. A coding agent debugging a failing test across multiple files may need a stronger model because the cost of a shallow fix is high. A scientific or mathematical question with several interacting constraints may deserve the slower route. A security review with ambiguous evidence may need more careful reasoning and stronger refusal behavior.
-
-Other tasks need competent reasoning but not the most expensive path. Extracting action items, classifying support tickets, drafting routine replies, summarizing a known document, checking a small code diff, or doing first-pass triage may be excellent fits for a smaller reasoning model.
-
-The release made that distinction feel less theoretical. It gave teams a reason to define task tiers instead of arguing from vibes.
-
-## task tiers beat model fandom
-
-I would rather see a route table than a favorite-model debate.
+A route table is more useful than model preference:
 
 ~~~yaml
 routes:
@@ -47,88 +29,14 @@ routes:
     model: o4-mini
     reason: fast classification and draft routing
     escalation: human_for_billing_or_policy
-
-  adversarial_review:
-    model: o3
-    reason: high-risk reasoning and policy-sensitive analysis
 ~~~
 
-The exact model names will change. The useful artifact is the task tier.
+The exact names will change. The task tier records the expected quality, latency, cost, and failure consequence.
 
-A task tier says why the route exists. It names the expected quality, latency, cost, and failure consequence. It also gives the team something to evaluate when a new model arrives. The question becomes "which tiers move?" rather than "should we switch everything?"
+Measure cost after retries. A cheaper first pass may still be worthwhile if escalation is rare. It may be false savings if most failures go to the stronger route anyway. Track first-pass success, retry and escalation rates, human correction, p95 latency, refusal rate, cost per accepted output, and failure severity.
 
-That is a healthier maintenance conversation.
+Latency belongs in the product decision. A slow plan may be acceptable in the background and wrong for autocomplete. A coding agent may use the strong route for diagnosis and a faster route for small edits.
 
-## cost is measured after retries
+The router also needs escalation signals: low confidence, invalid schema, failed tests, missing evidence, policy-sensitive content, user correction, source contradiction, and high ambiguity.
 
-A smaller model is not cheaper if it causes too many retries, escalations, or human corrections.
-
-This is the part that makes routing practical instead of aesthetic. The unit is not cost per call. The unit is cost per accepted result.
-
-If o4-mini handles a task correctly 95 percent of the time at much lower cost, great. If it handles a task 70 percent of the time and the failed 30 percent go to o3 anyway, the route may still be worthwhile or it may be fake savings. The answer depends on latency, user experience, and how failures are detected.
-
-I would track:
-
-- first-pass success rate
-- retry rate
-- escalation rate
-- human correction rate
-- p95 latency
-- refusal rate
-- cost per accepted output
-- failure severity by task tier
-
-This is where the "mini" route has to earn its place. It is not a downgrade path. It is a production route with a measured job.
-
-## latency is a product decision
-
-Reasoning models make latency visible in a different way.
-
-A slower answer may be fine when the user asked for a careful plan. It may be irritating when the user wanted a short rewrite. It may be unacceptable inside an interactive agent loop where each step blocks the next action.
-
-The right model depends on where the wait happens.
-
-For a background analysis job, o3 might be the better route even if it takes longer. For inline autocomplete, it probably is not. For a coding agent, the strong route may be appropriate for planning and diagnosis, while a faster route handles small edits or summarization of logs. For customer support, a slower model may be acceptable for internal draft generation but not for live chat.
-
-The product should decide that explicitly. Users are more tolerant of latency when the interface shows that careful work is happening and the result justifies the wait. They are less tolerant when every small request feels like a research project.
-
-## smart defaults still need escapes
-
-A router should make the normal path easy, but it should also let the product escape the default.
-
-Some requests look small and turn out to be hard. A short bug report may hide a distributed systems failure. A two-line policy question may have legal consequences. A tiny code change may touch authentication. A simple image question may require careful visual reasoning.
-
-The route should be allowed to escalate when signals say the first choice was too weak.
-
-Signals might include:
-
-- low confidence
-- failed schema validation
-- failed tests
-- missing retrieval evidence
-- policy-sensitive content
-- user correction
-- contradiction between sources
-- unusually high ambiguity
-
-The escalation path is what makes a cheaper route safe. Without escalation, routing becomes a bet that the first model choice was correct.
-
-## evals should compare routes, not models
-
-It is tempting to run a benchmark and declare the stronger model "better." That may be true in the abstract and still not answer the product question.
-
-The eval should compare routes on product examples.
-
-For a summarization tier, compare accepted summaries, missing facts, hallucinated details, and time saved. For a coding tier, compare failing-to-passing test movement, patch size, reviewer corrections, and regressions. For a support tier, compare routing accuracy, tone, policy violations, and escalation quality.
-
-The route includes the model, prompt, context builder, verifier, and fallback. If o4-mini plus a tighter prompt and good escalation beats o3 for a routine tier, that is the route. If o3 is the only model that reliably handles a high-risk tier, pay for it and stop pretending the cheaper path is equivalent.
-
-## the useful pressure
-
-o3 and o4-mini made routing harder to dodge because they narrowed the excuse space.
-
-Teams could no longer say routing was premature because smaller models were too dumb. They also could not say the strongest model should do everything without explaining the cost and latency. The release made it natural to talk about model choice as an engineering surface.
-
-That is the healthy direction.
-
-The point is not to worship a specific model name. The point is to name the job, measure the route, and let capability, cost, latency, and risk decide where the request goes.
+Evaluate routes, not isolated models. The route includes model, prompt, context builder, verifier, and fallback. The useful question is which route produces an accepted result for the task at the cost and latency the product can support.

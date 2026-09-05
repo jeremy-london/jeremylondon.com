@@ -8,19 +8,11 @@ author: "jeremy-london"
 tags: ["local models", "small models", "privacy"]
 ---
 
-Local models are part of the platform when they own a narrow job instead of pretending to be the whole assistant.
+A local model is most useful when the application gives it one bounded responsibility.
 
-The useful jobs are boring in the best way: redact, classify, route, summarize, or help offline. That only works if the app treats the model as a real dependency with versioning, fallback, telemetry, and a privacy boundary.
+Redaction, classification, routing, and offline summarization are all plausible jobs. None of them becomes operationally simple just because the weights are running on the same machine as the data. The application still needs to know which model ran, what happens when it is uncertain, and whether the input is allowed to leave the device.
 
-## what local actually buys
-
-Small models are not simpler just because they are small. They move the work closer to the data, which means the platform has to stay honest about what gets stored, what gets logged, and what happens when the model is unsure.
-
-That matters in practice. A local model can classify a note before it ever touches a remote service. It can summarize a document while the user is offline. It can pick a route for a request without sending private context out to a bigger model. The savings are not only latency. They are control.
-
-## a small router is still a router
-
-I would still give the local path a real contract:
+For example, a request can make the boundary explicit:
 
 ~~~json
 {
@@ -32,17 +24,16 @@ I would still give the local path a real contract:
 }
 ~~~
 
-That is enough to make the choice visible. The app can log the model version, record when it fell back, and decide whether the local result is final or just a first pass.
+That small contract answers more useful questions than "is the model local?" It identifies the task, records the selected model, names the fallback, and states that the input should not be retained.
 
-## the boundary has to stay explicit
-
-The moment the model touches private data, the product has to answer a few boring questions directly:
+The platform still has to decide:
 
 - what is stored locally
-- what is allowed to sync later
-- what gets discarded after the run
-- what gets escalated to a larger model
+- what can sync later
+- what is discarded after inference
+- which results are final
+- which results are only a first pass
 
-If the answers are fuzzy, the system is pretending privacy is a feeling instead of a contract.
+These decisions affect the user-facing behavior. A local classifier can keep a private note on the device. A remote fallback may need an explicit boundary. An offline summarizer needs a way to show that its result was produced without the usual service.
 
-I like local models when they make the system more deliberate. The app can keep the quick stuff close, ship the hard stuff outward, and make the handoff obvious enough that a user can tell which path was taken.
+Small models are not automatically uncomplicated models. They are useful when they make one path through the system more controlled. The model is a platform component when its version, fallback, retention policy, and failure mode are visible enough to operate.

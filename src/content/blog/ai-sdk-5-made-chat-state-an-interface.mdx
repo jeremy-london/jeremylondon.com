@@ -8,86 +8,41 @@ author: "jeremy-london"
 tags: ["ai sdk", "chat ui", "typescript"]
 ---
 
-Chat was always easy to demo and easy to underbuild.
-
-You stream tokens into a box, you accept input in another box, and for a few minutes it feels like the whole product is alive. Then somebody edits a previous message, a tool call appears, or the app has to survive a refresh. The demo shape breaks because it was never really chat. It was a stream with a text field attached.
-
-AI SDK 5 was interesting to me because it pushed in the other direction. It treated chat as application state.
-
-## why strings are not enough
-
-The oldest mistake in AI UI is still the most common one: treat every assistant message like a string with a role label.
-
-That works until the response includes something the application has to reason about. A citation is not just text. A tool request is not just text. A pending approval, a partial result, a recoverable error, and a file reference all need structure.
-
-Once those states exist, TypeScript stops being decorative. The value is not that types magically make the model correct. The value is that the app stops pretending every reply is the same blob.
-
-The UI can ask better questions when the data is typed:
-
-- is this message still streaming?
-- did the assistant request a tool?
-- is the tool waiting on approval?
-- did the model produce structured data that the client can render?
-- which part of the conversation can be retried safely?
-- which message owns the error state?
-
-Those are product questions, not string parsing tricks.
-
-## the app owns the conversation
-
-The model does not own the conversation. The framework does not fully own it either. The app does.
-
-That matters because chat state is not one thing. It is a stack of smaller states that need names:
-
-1. idle
-2. composing
-3. submitted
-4. streaming
-5. tool pending
-6. approval required
-7. tool running
-8. recoverable error
-9. terminal error
-10. cancelled
-11. replayed
-
-If those states stay implicit, the interface drifts. One component thinks the run is active. Another shows retry. A third lets the user send a new prompt into the same conversation. That is how chat products become hard to trust.
-
-I want the state machine in the open because it gives the app enough shape to behave well when things go sideways.
-
-## a chat turn can carry more than prose
-
-The useful thing about SDK 5 was that it made a chat turn feel like a typed record instead of a transcript fragment.
-
-That is a better fit for files, citations, tool calls, and recoverable failures. It also gives the UI room to render the conversation honestly. If the assistant produced a structured part, show the part. If the tool is still running, show that. If the model yielded a partial answer, do not dress it up as final.
-
-```ts
+~~~ts
 type ChatPart =
   | { type: "text"; text: string }
   | { type: "tool-request"; name: string; status: "pending" | "approved" | "rejected" }
   | { type: "tool-result"; name: string; ok: boolean; summary?: string }
   | { type: "file"; id: string; name: string }
   | { type: "error"; retryable: boolean; message: string }
-```
+~~~
 
-The exact shape is not the point. The point is that the UI can reason about the conversation without scraping its own transcript and hoping the markup still lines up.
+The type is more interesting than the chat bubble around it.
 
-## recovery is where the real product shows up
+A streaming demo can treat every assistant message as a string with a role label. That stops working as soon as the response includes a tool call, citation, file, partial result, approval, or recoverable error. The UI needs to know what it is rendering instead of scraping its own transcript.
 
-Streaming is the easy part. Recovery is where chat systems reveal themselves.
+The states I want named are not exotic:
 
-What happens if the network drops halfway through? What happens if the tool succeeds but the model fails to summarize the result? What happens if the user rejects the tool call? What happens if the same conversation opens in two tabs? What happens if the model returns a structured part the client does not understand yet?
+~~~text
+idle
+composing
+submitted
+streaming
+tool-pending
+approval-required
+tool-running
+recoverable-error
+terminal-error
+cancelled
+replayed
+~~~
 
-Those are not edge cases once chat becomes the product. They are normal states.
+Once these are explicit, the app can answer practical questions. Can the user send another prompt while the tool is running? Does retry rerun the tool or regenerate only the text? What does a half-finished response look like after the network drops? Which message owns the error?
 
-I want the app to preserve enough information to recover without lying. Do not show a finished answer if the stream died. Do not hide a failed tool call behind a generic apology. Do not make the user guess whether retry will rerun the tool or only regenerate the text.
+That is why I found the move toward typed chat state useful. Types do not make the model correct. They stop the application from pretending every reply has the same shape.
 
-If the state is explicit, recovery can be boring. That is the goal.
+The model does not own the conversation. The app does. The app decides which parts are visible, which actions are retryable, which tool calls need approval, and what survives a refresh.
 
-## what sdk 5 really changed
+Streaming is the easy path. Recovery is the product.
 
-The part I keep coming back to is not "streaming got easier."
-
-It is that chat became a surface the application could own instead of a loose demo wrapper around a model call. Once that happens, the boring frontend work comes back into view: state transitions, retry paths, permission boundaries, replay, and rendering rules for partial data.
-
-That is the right direction. A chat product should not behave like a magic stream. It should behave like an interface with a contract.
+A chat interface is ready when it can show the incomplete, rejected, cancelled, and replayed states without lying about them.

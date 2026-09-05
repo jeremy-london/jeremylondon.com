@@ -8,27 +8,21 @@ author: "jeremy-london"
 tags: ["on-device ai", "privacy", "local models"]
 ---
 
-On-device AI is interesting because it changes where the model sits in the user's life.
+On-device AI changes where the model sits in the user's life.
 
-A hosted model is a service call. The app sends context away, waits, gets an answer back, and decides what to do next. That is fine for a lot of work. It is less fine when the work is reading local notes, classifying private photos, summarizing screenshots, or helping with files that were never meant to leave the device.
+A hosted model moves context away, waits for a response, and returns an answer. That is appropriate for some work. It is less appropriate for local notes, private photos, screenshots, and files that should not leave the device.
 
-### privacy is about movement
+Privacy is a data-movement property. Ask what leaves the device, what is logged, what is retained, and which derived artifacts sync later. On-device inference reduces how often raw material moves.
 
-I do not think of private AI as a model property. I think of it as a data movement property.
+Small local models work best with narrow jobs:
 
-What leaves the device? What gets logged? What gets retained? What gets synced later as a derived artifact? On-device inference reduces how often the raw material has to move. That is the whole appeal.
-
-### small models need narrow jobs
-
-The local model is most useful when the job is narrow and the acceptance surface is clear.
-
-- classify whether a note is a task, reference, or draft
-- extract contact info from a card image
+- classify a note as task, reference, or draft
+- extract contact information from a card
 - suggest tags for local files
 - redact obvious secrets before remote submission
-- summarize a short transcript segment
+- summarize a short transcript
 
-I do not want a local model pretending to be a frontier model with a smaller footprint. I want it to be excellent at the small jobs it can actually own.
+A hybrid pipeline can make the boundary explicit:
 
 ~~~json
 {
@@ -40,14 +34,6 @@ I do not want a local model pretending to be a frontier model with a smaller foo
 }
 ~~~
 
-That is the shape I trust. Capture locally. Tag locally. Escalate only when the local pass cannot answer with enough confidence.
+Derived state needs the same privacy review. Embeddings, summaries, tags, memories, logs, and cached outputs can leak information even when the original file stays local. The product should say what syncs, what can be deleted, and what expires.
 
-### local state changes the contract
-
-Private workflows also have to account for derived state: embeddings, summaries, tags, memories, logs, and cached outputs. Those can leak privacy even when the original file stays local.
-
-That means the app needs to say what is in scope, what can sync, what can be deleted, and what expires at the end of the session. A local index that reads everything and remembers forever is not a privacy feature. It is just a quieter server round trip.
-
-The hybrid pattern still makes the most sense to me: keep the private and fast steps local, then escalate when the user actually needs the bigger model or the broader context. On-device AI is useful when it keeps the model close to the work and the boundary close to the user.
-
-That is not a niche benefit. It is the difference between a tool that helps with a private habit and a tool that quietly turns every habit into remote data.
+Keep private and fast steps local. Escalate only when the user needs broader context or stronger reasoning. On-device AI is useful when the boundary stays close to the person doing the work.

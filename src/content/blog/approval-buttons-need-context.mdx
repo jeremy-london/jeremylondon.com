@@ -8,79 +8,40 @@ author: "jeremy-london"
 tags: ["agents", "permissions", "ux"]
 ---
 
-The first time I saw an approval card do real work, it was not because the button said the right thing. It was because the card showed enough context that I could tell whether I was approving a harmless edit or a bad idea with a nice label on it.
+"Approve tool call" is not a decision a person can make.
 
-That is the trap with approval UI. A team sees a risky action, adds a button, and assumes the system is safer. All they have really done is move the decision from the model to the user without giving the user much to decide about.
+The button may be fine. The card around it is doing the real work. I need to know what changes, where it changes, under which identity, and what happens if I say yes.
 
-If the prompt only says “approve tool call,” the human is guessing. Guessing is not review.
+For a local file edit, that might be enough:
 
-The better version names the thing that will change, shows the scope, and tells me what happens next. For a blog edit, I want the filename, the number of paragraphs, the kind of change, and the verification step. For an email, I want the recipient, subject, and body. For a calendar change, I want the time, attendees, and timezone. For a database write, I want the table, filter, row count, and fields.
+~~~text
+action: edit local file
+target: src/content/blog/example.mdx
+change: replace the current body
+after approval: write file, run markdown check
+undo: restore previous contents from git diff
+~~~
 
-Tool names are developer language. People do not approve `updateRecord` or `runCommand`; they approve a specific side effect. The product should treat arguments as the real interface.
+The exact fields vary with the side effect. An email needs recipient, subject, and body. A calendar change needs time, attendees, and timezone. A database write needs table, filter, row count, and fields. A tool name such as updateRecord is implementation language. The arguments are the real interface.
 
-```text
-action
-  edit local file
+Risk should control how much context is visible. A read-only lookup can stay compact. A file write needs the target and diff. An external write or identity boundary should start expanded. Hiding the important details behind a "more" link makes the card tidy and the decision worse.
 
-target
-  src/content/blog/approval-buttons-need-context.mdx
+Timing matters too. If an approval arrives after the agent has taken ten intermediate steps, reconnect the user to the original request. What is this step? What is already done? What remains if I approve? Approval is permission for one move, not a declaration that the whole run is correct.
 
-change
-  replace current body with a rewritten article draft
+The agent should not argue for the click. "I need this to finish your request" is pressure, not evidence. Show the file, the scope, the relevant check, and the reason the system believes this is the next action.
 
-why
-  current post still reads like generated template residue
+Denials are useful signals. "Wrong file," "too broad," "show me the diff," and "stop" should feed recovery and product improvement rather than ending as unexplained rejection events.
 
-after approval
-  write file, run markdown check
+After the action, leave a receipt:
 
-undo
-  restore previous file contents from git diff
-```
+~~~text
+approved by: jeremy
+approved action: edit local markdown file
+approved target: src/content/blog/example.mdx
+executed: yes
+verification: markdown check passed
+~~~
 
-That card is plain, which is the point. I can see the target, the scope, the reason, and the escape hatch. If I was expecting a typo fix and the agent was about to rewrite the whole post, I have a chance to stop it before the damage is committed.
+That record lets the next reviewer compare the approved plan with the actual side effect.
 
-The right amount of context also depends on risk. A read-only action can stay compact. A local file write needs more room. A destructive action needs even more. Anything that crosses an identity boundary or reaches outside the workspace should start expanded, not hidden behind a “more” link.
-
-That is where a lot of approval flows go wrong. They collapse the details that matter because the design is trying to stay tidy. Tidiness is not the goal here. Decision quality is.
-
-Timing matters too. A prompt can be technically accurate and still be useless if it arrives after the user lost the thread. When an approval appears minutes after the model has wandered through several intermediate steps, the UI needs to reconnect the person to the original request. What started this? What step is this? What is already done? What is still pending if I say yes?
-
-I like prompts that carry a little history, not just the current action:
-
-- original request
-- current plan step
-- files already inspected
-- assumptions the agent is making
-- what remains undone after this approval
-
-That last line matters more than it looks. Approval is not completion. It is permission for one move. The user should know whether the agent will stop after this, continue automatically, or come back for another decision.
-
-The agent also should not argue for the click. Models are very good at sounding reasonable. “I need to do this to complete your request” is not evidence. It is pressure with a clean interface.
-
-What helps is evidence. The prompt should show why the system believes this action is the right one: the file still contains generated residue, the requested scope is a rewrite, the current checklist item points at this path, and the follow-up command is the configured checker. Then the human can verify the chain instead of trusting the model’s confidence.
-
-Denials should be useful, not terminal. If the user says “wrong file,” “too broad,” “show me the diff,” or “stop,” that is information. It helps the system recover. It also tells you where the UI is failing. Repeated denials on expanded prompts usually mean the summary is vague. Repeated denials on shell commands usually mean the risk language is too thin.
-
-After approval, I want a receipt that reads like a record, not a victory lap.
-
-```text
-approved by
-  jeremy
-
-approved action
-  edit local markdown file
-
-approved target
-  src/content/blog/approval-buttons-need-context.mdx
-
-executed
-  yes
-
-verification
-  pnpm markdown:check passed for this file
-```
-
-That gives the next review pass a place to start. If something went wrong, the question is no longer “what did the agent do?” It becomes “where did the approved plan diverge from the result?”
-
-I do not want approval steps everywhere. Too many of them turn the user into a click-through operator. But when the action matters, the button has to earn the click.
+I do not want an approval step everywhere. Too many turn the user into a click-through operator. When the action matters, though, the button has to earn the click.

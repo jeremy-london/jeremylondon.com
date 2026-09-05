@@ -1,0 +1,52 @@
+---
+title: "GPT-6 Astra made containment part of the model"
+excerpt: "A frontier agent that can run longer and use more tools changes the release question from how smart it is to what keeps its mistakes bounded."
+publishDate: "2026-09-04T14:00:00Z"
+category: "model-watch"
+draft: false
+author: "jeremy-london"
+tags: ["openai", "gpt-6", "astra", "agents", "ai safety"]
+---
+
+GPT-6 Astra is easy to describe as a stronger model. The more consequential description is a stronger participant in a workflow.
+
+A long-running agent has time to compound a small error. It can select the wrong file, build a plan around that mistake, call tools that reinforce it, and return a polished result that is hard to unwind. Better reasoning does not remove that pattern. It gives the pattern more time and more tools.
+
+I would treat an Astra task as a bounded run:
+
+- stated objective
+- allowlist of files, tools, and network destinations
+- time or step budget
+- checkpoints when consequences change
+- verifier that can stop the run
+- receipt of actions and evidence
+
+The envelope should be narrower than the user's account. An agent should be able to do its assigned work without gaining authority to explore everything nearby.
+
+Cyber capability belongs in the same review. Ask what the model can infer from the environment, which tools it can invoke, whether state persists, whether data can cross trust zones, whether tool arguments are inspected before execution, and whether a human can reconstruct the run afterward.
+
+The safest system is not simply the one with the most refusals. It is the one whose useful actions are precise, dangerous actions are difficult to reach accidentally, and failures leave evidence.
+
+Benchmarks should include recovery cases:
+
+- a required file is missing
+- a tool returns stale information
+- repository policy conflicts with the request
+- a command fails halfway through
+- the user changes the goal after planning
+- a destructive action lacks approval
+
+Score the agent on whether it stops, asks, narrows the task, or rolls back. Continuing confidently should be a failure, not initiative.
+
+A durable receipt can stay short:
+
+~~~text
+request: update the authentication flow
+scope: src/auth, tests/auth
+actions: inspected 8 files, edited 2, ran 3 checks
+approval: required before database migration
+verification: tests passed, migration not run
+remaining: human review of schema change
+~~~
+
+Astra may be better at long-running agent work. That makes run design more important. The release question is whether the system can keep unfinished, mis-scoped, or dangerous work from becoming an invisible side effect.

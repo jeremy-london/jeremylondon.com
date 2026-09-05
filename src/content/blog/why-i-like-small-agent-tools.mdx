@@ -8,15 +8,9 @@ author: "jeremy-london"
 tags: ["mcp", "tooling", "agents"]
 ---
 
-I like small agent tools because they are easier to reason about when the agent gets weird.
+Small agent tools are easier to permission, review, and revoke.
 
-Small tools are easier to permission, easier to review, and harder for an agent to misuse quietly. They do one job with a clear input shape and a result that can be inspected.
-
-## broad tools hide policy
-
-The tempting move is to give the agent a powerful tool and trust the prompt to keep it polite. I do not like that bargain. Prompts are useful, but they are not permission boundaries.
-
-Consider a tool named `manage_files`.
+A broad tool makes the prompt carry too much policy:
 
 ~~~ts
 type ManageFilesArgs = {
@@ -26,16 +20,10 @@ type ManageFilesArgs = {
 }
 ~~~
 
-That tool is convenient. It is also doing too many jobs. The permission model now depends on action, path, caller, file type, workspace, intent, and maybe whether the write came after a review step.
-
-## narrow tools are easier to approve
-
-I would rather split it:
+Prefer narrower capabilities:
 
 ~~~ts
-type ReadWorkspaceFileArgs = {
-  path: string
-}
+type ReadWorkspaceFileArgs = { path: string }
 
 type WriteGeneratedFileArgs = {
   path: string
@@ -43,20 +31,12 @@ type WriteGeneratedFileArgs = {
   reason: string
 }
 
-type DeleteGeneratedArtifactArgs = {
-  artifactId: string
-}
+type DeleteGeneratedArtifactArgs = { artifactId: string }
 ~~~
 
-The smaller tools are less elegant as an API list. They are much easier to permission.
+The API list is less elegant. The permission boundary is easier to understand.
 
-Human approval works better when the action is specific. Approving `manage_files` is awkward because the user has to understand what the agent intends to do inside a broad capability. Approving `write_blog_post_draft` or `delete_generated_artifact` is cleaner.
-
-## composition beats hidden authority
-
-Small tools do not mean small workflows.
-
-An agent can compose tools:
+Small tools can still compose:
 
 ~~~text
 read file
@@ -66,13 +46,9 @@ run markdown check
 summarize result
 ~~~
 
-That sequence is better than one tool called `rewrite_blog_post` if the hidden tool performs all five steps internally and returns a blob of prose. The composed version exposes the intermediate state. Each tool call can be logged, denied, retried, or inspected.
+Composition exposes intermediate state. Each call can be logged, denied, retried, or inspected. A higher-level wrapper is fine when the workflow is stable and safe, but it should preserve the receipt.
 
-There are times when a higher-level tool is the right abstraction. If a workflow is stable, safe, and frequently repeated, wrapping it can reduce noise. But I want that wrapper to preserve the receipt.
-
-## logs get easier to read
-
-Small tools make logs readable.
+Logs benefit from the same granularity:
 
 ~~~text
 tool: read_workspace_file
@@ -80,43 +56,10 @@ path: src/content/blog/tool-calling-is-a-contract.mdx
 result: ok
 ~~~
 
-That log line is clear. Compare it with:
+That is more useful than a generic task result that hides ten actions.
 
-~~~text
-tool: execute_task
-task: update the blog post and check it
-result: ok
-~~~
+Tool shape should match risk. Read-only search can retry. Scoped writes can validate paths. Artifact tools can avoid user-authored files. Ticket tools can create drafts. Deploy tools can default to preview.
 
-The second log may hide ten actions. It might be fine for a human-facing summary, but it is weak as an audit record.
+Names guide behavior too. run_project_check is narrower than run_command. count_open_incidents is narrower than query_database. Names do not enforce policy, but they make mismatches easier to see.
 
-## the tool shape should match the risk
-
-Small tools limit blast radius:
-
-- read-only search tools can be retried freely
-- scoped write tools can validate paths
-- generated-artifact tools can avoid user-authored files
-- ticket tools can create drafts instead of publishing
-- deployment tools can default to preview environments
-
-The tool shape should match the risk. I do not want every agent tool to become a tiny wrapper around one line of code. I want side effects to be explicit enough that the system can reason about them.
-
-## names matter
-
-Tool names guide model behavior.
-
-`run_command` invites improvisation. `run_project_check` invites a narrower action. `query_database` is broad. `count_open_incidents` is narrow. `update_issue` is broad. `add_issue_comment` is narrower.
-
-Names do not enforce policy by themselves, but they help the model choose correctly and help reviewers spot a mismatch.
-
-The description should be equally plain:
-
-~~~text
-Read a markdown file inside the workspace. This tool cannot read files
-outside the workspace and cannot modify files.
-~~~
-
-Small tools are about narrow authority, not argument count.
-
-That is the reason I keep reaching for them. Agent systems get safer when power is split into pieces that can be named, scoped, approved, logged, and revoked.
+Small tools are narrow authority made visible.

@@ -8,22 +8,22 @@ author: "jeremy-london"
 tags: ["node", "runtime", "maintenance"]
 ---
 
-Node releases keep moving whether the project is ready or not.
+Runtime releases keep moving whether a project is ready or not.
 
-That is the boring fact behind the whole upgrade conversation. If the team waits until support is expiring, the runtime bump drags in everything at once: container images, CI, native dependencies, build scripts, local dev setup, and the weird package that only breaks when nobody is watching.
+Waiting for support to expire turns one upgrade into container, CI, native dependency, build-script, local-dev, and package work at the same time. A calendar keeps those failures separate.
 
-I like runtime upgrades when they are calendar work instead of panic work.
+A practical sequence is:
 
 1. add the candidate runtime to CI
-2. fix the failures while the old runtime still works
-3. run the scripts people forget about
+2. fix failures while the old runtime still works
+3. run the scripts people forget
 4. deploy a preview or canary
 5. switch production
-6. keep a rollback path until the new line settles
+6. keep rollback available while the new line settles
 
-The risky part is usually not the JavaScript syntax. It is the edge between Node, V8, OpenSSL, native addons, and whatever old build assumption is hiding in the repo. A Docker image may still run. A database driver may not. A watcher may behave differently. A serverless platform may default to a different line than local dev.
+The risky edge is usually between Node, V8, OpenSSL, native addons, and old build assumptions. A container may run while a database driver, watcher, or serverless default changes behavior.
 
-That is why I want the runtime version written down in more than one place. `engines`, CI, Docker, and the developer setup should all point at the same target. If the repo wants Node 26, the mismatch should be obvious instead of becoming a mystery bug in a test harness.
+Write the target in every place that controls it. CI, Docker, developer setup, and package metadata should agree:
 
 ~~~json
 {
@@ -34,4 +34,4 @@ That is why I want the runtime version written down in more than one place. `eng
 }
 ~~~
 
-The release note matters less than the maintenance habit. Know where the runtime runs, test the next line before the deadline, keep the upgrade small, and leave the system easier to move next time. That is the whole job.
+The release note is less important than the maintenance habit: know where the runtime runs, test the next line before the deadline, keep the upgrade narrow, and leave the system easier to move next time.

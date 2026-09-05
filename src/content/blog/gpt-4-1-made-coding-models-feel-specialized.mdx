@@ -8,23 +8,21 @@ author: "jeremy-london"
 tags: ["gpt-4.1", "coding", "openai"]
 ---
 
-[GPT-4.1](https://openai.com/index/gpt-4-1/) made coding models feel specialized instead of generic.
+[GPT-4.1](https://openai.com/index/gpt-4-1/) made coding models feel like tools for different jobs rather than one generic score.
 
-The useful part of the release was the shape of the family. Full, mini, and nano made the routing problem visible. A repo-level repair task is not the same thing as a quick diff summary. A migration is not the same thing as a type error. A broad rewrite is not the same thing as one small fix. One default model hides those differences and makes every code job look like a hammer job.
-
-I think of the family as a set of different tools for different failure shapes.
+Full, mini, and nano made routing visible. A repository repair, a migration review, a diff summary, and a typo fix have different failure costs.
 
 | job | route | why |
 | --- | --- | --- |
 | explain a test failure | mini | cheap read of logs and stack traces |
-| patch a tricky bug | full | needs broader context and better reasoning |
-| summarize a diff | nano | short, narrow, and low risk |
-| review a migration | full | higher cost of a bad change |
+| patch a tricky bug | full | broader context and reasoning |
+| summarize a diff | nano | narrow and low risk |
+| review a migration | full | expensive if wrong |
 
-That is the practical win. The product gets better when the route matches the job.
+The route should match the job before it spends the larger budget.
 
-Long context helped, but only if patch discipline stayed in place. I still want the model to keep the change small, respect the surrounding files, and leave a readable working tree behind. A model that can see more of the repository is useful only if it still behaves like a code editor and not like a rewrite bot.
+Long context helps only when patch discipline survives it. A model that can see more of the repository still needs to keep the change small, respect surrounding files, and leave a readable working tree. More context should not turn a code editor into a rewrite bot.
 
-For me, the specialization mattered because it made code work easier to route by intent. Not every code task deserves the same model, the same budget, or the same review path.
+The practical difference is straightforward. A typo fix can return a one-file patch through the cheap route. A schema migration may need the full model because its neighboring changes matter. A diff summary can use the smallest route and produce a review note.
 
-The practical example is boring. A typo fix can go through the cheap route and return a one-file patch. A failing migration might need the full model because the surrounding schema changes matter. A `git diff` summary can go to the nano route and produce a readable change log for a reviewer. The family only becomes useful when the product can say which job is being asked for before it burns the bigger model on everything.
+Specialization is useful when the product can name the work, choose the route, and verify the result instead of sending every coding request to the largest model.

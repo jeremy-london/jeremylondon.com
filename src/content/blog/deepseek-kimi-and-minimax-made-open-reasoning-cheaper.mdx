@@ -8,98 +8,35 @@ author: "jeremy-london"
 tags: ["deepseek", "kimi", "minimax", "reasoning models"]
 ---
 
-The useful thing about the 2025 open-weight wave is not that it made one model famous.
+The 2025 open-weight wave changed the shape of the reasoning budget.
 
-It changed the shape of the budget. DeepSeek-R1, Kimi, and MiniMax each pushed on a different part of the stack, but the combined effect was simple: reasoning stopped feeling like a luxury feature that only lived in the most expensive hosted API. It became something teams could place in more than one spot in the system.
+DeepSeek-R1, Kimi, and MiniMax pushed on different parts of the stack, but the combined result was clear: reasoning no longer had to live only inside the most expensive hosted request. Teams could place it in routing, verification, code review, eval generation, or a local fallback.
 
-That matters because reasoning is not just "better answers." It is also routing, verification, code review, eval generation, escalation, and all the little decisions around when a stronger model is worth paying for.
+DeepSeek-R1 stood out because the release format was inspectable. The training description, model family, and smaller distilled variants made it easier to compare size, task scope, and deployment options. A reasoning model that can grade an eval suite or review a patch is a different component from one reserved for a premium final answer.
 
-## deepseek made the release format feel inspectable
+Kimi made large open models feel more operational. The headline parameter count was less useful than the active compute and deployment shape. Open weights create more choices:
 
-DeepSeek-R1 stood out because it did not arrive as a black box with a marketing paragraph attached. The paper described a reinforcement-learning-heavy path, then a more usable R1 variant built with cold-start data and a multi-stage training setup. The family also included distilled models in smaller sizes.
+- closed frontier model for the hardest cases
+- open model as baseline or fallback
+- local route for private work
+- cross-family comparison before a policy change
 
-The engineering consequence was bigger than the benchmark chart.
+That leverage makes routing more important. The system now has more credible places to send a request.
 
-Once a team can see a family of reasoning models, compare sizes, and run variants locally, the model becomes easier to treat as a component. You can ask what changes when the model is smaller, when the prompt is shorter, or when the task is narrowed to grading, extraction, or code review.
+MiniMax emphasized another control: thinking budget. The product question becomes direct: how much computation does this task deserve? A short classification does not need a long reasoning pass. A high-ambiguity repair may justify it.
 
-That is a practical shift. A reasoning model that can run inside an eval pipeline is different from a reasoning model that only makes sense at the end of a premium chat request.
+Open reasoning does not make operational cost disappear. Serving, monitoring, quantizing, versioning, and evaluating the model all cost something. The right comparison includes request volume, latency tolerance, data sensitivity, batching, hardware, update cadence, and fallback behavior.
 
-## kimi pushed open weights into the serious range
+The best use of a cheaper reasoning model may be an internal step rather than the chat surface:
 
-Kimi mattered because it made large open models feel less like a hobby and more like an option.
+- classify whether escalation is needed
+- critique a plan
+- compare candidate outputs
+- generate adversarial examples
+- review code against a rubric
 
-When people talk about huge mixture-of-experts models, they usually focus on the headline parameter count. The more useful detail is active compute. A model can carry a lot of capacity and still only light up part of it at inference time. That makes the deployment story different from a dense model of the same nominal size.
+The model does not need to be globally best. It needs to be good enough for one bounded job at a cost the system can sustain.
 
-For teams building products, that opens up a few choices:
+Cheap reasoning creates its own trap: using it everywhere because it is available. Local evals should show what baseline it beats, which slices fail, whether more thinking helps, where it overthinks, and when it should escalate.
 
-- use a closed frontier model for the hardest cases
-- use an open model as a baseline or fallback
-- keep a local or self-hosted route for private work
-- compare behavior across model families before shipping a policy change
-
-The point is leverage. Open weights make the vendor decision less binary. They also make the routing layer more important, because now the system has to decide where each request belongs instead of blindly sending everything to the biggest model.
-
-## minimax made thinking budget feel like a product knob
-
-MiniMax took a different angle. The model family emphasized long context, hybrid attention, and different thinking budgets. That is a very systems-flavored way to package a reasoning model.
-
-It forces the product question into the open:
-
-How much thinking does this task deserve?
-
-Sometimes the answer is "not much." A quick classification or a short summary does not need a long reasoning pass. Sometimes the answer is "use the long budget and pay for it," because the task has enough ambiguity that a shallow pass will just create a tidy failure.
-
-That is the part I care about. Once reasoning budget becomes adjustable, the product has to decide when to spend it. The model is no longer just a smarter answer engine. It becomes a compute allocation problem.
-
-## the cheap part is not the whole story
-
-Open reasoning models are not free. Someone still has to serve them, monitor them, version them, quantize them, and keep the evals honest.
-
-The cost did not disappear. It moved.
-
-That trade can be excellent when the workload is stable and privacy-sensitive. It can also be a bad deal when a team underestimates the operational work and ends up running a model cluster just to avoid an API invoice. The right answer depends on the shape of the workload:
-
-- request volume
-- latency tolerance
-- data sensitivity
-- batching potential
-- hardware availability
-- update cadence
-- fallback behavior
-
-Those variables decide whether the open model saves money or just relocates the pain.
-
-## routing got more honest
-
-The best use of cheaper reasoning is often not the chat box.
-
-It is the internal step that decides what happens next. A reasoning model can classify escalation, critique a plan, compare candidate outputs, generate adversarial examples, or review a code change against a rubric. It can do that work even if a stronger closed model still handles the final answer.
-
-That is the architectural win. The model does not need to be globally best. It needs to be good enough for one bounded job at a cost the system can afford.
-
-Cheaper open models make that sort of split easier to justify. They also make it easier to discover which parts of a product were overusing the expensive model just because nobody had a cheaper alternative.
-
-## evals need to catch the enthusiasm
-
-Cheap reasoning creates a new failure mode: people start using it everywhere because they can.
-
-That is how a system gets heavy without getting better. The fix is not to be cynical about open weights. The fix is to measure each route carefully.
-
-For every model path I want to know:
-
-- what baseline it beats
-- which slices still fail
-- whether a longer thinking budget helps
-- where it overthinks
-- whether it regresses safety or policy behavior
-- when it should escalate instead of answering
-
-If the answer is just "it feels good," the routing layer is probably doing too much faith-based work.
-
-## what changed for me
-
-The open-weight reasoning story in 2025 made the default architecture less obvious.
-
-That is the real shift. It is no longer strange to imagine one model for quick routing, another for expensive reasoning, another for private or local work, and another as a fallback when the strongest route is not worth the cost. The frontier still matters, but it is not the only center of gravity.
-
-Reasoning is now something you can place inside the stack.
+The open-weight shift made the architecture less binary. One model can route, another can reason, another can handle private work, and a stronger path can remain available for the difficult cases. Reasoning became something you can place inside the stack.

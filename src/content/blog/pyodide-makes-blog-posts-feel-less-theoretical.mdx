@@ -8,15 +8,13 @@ author: "jeremy-london"
 tags: ["pyodide", "teaching", "python"]
 ---
 
-Pyodide changes what a technical post asks the reader to trust.
+Pyodide changes the contract of a technical example.
 
-Static code examples say, "copy this later, install the right version, hope the dependency still works." Running Python in the page says, "try it now and see what moves."
+A static snippet asks the reader to copy it later, install the right version, and trust that the dependencies will cooperate. Python running in the page offers a tighter loop: change an input, run the example, and inspect the result before leaving the argument.
 
-That makes the article feel less like a brochure and more like a tiny lab.
+### the example should invite interference
 
-### what runnable code changes
-
-If I am explaining a probability distribution, a small classifier, a parser edge case, or a ranking function, I want the reader to be able to poke the example. Change the input. Break the assumption. See the output move.
+For a probability distribution, a small classifier, a parser edge case, or a ranking function, the useful interaction is not decoration. It lets the reader alter the input, violate an assumption, and watch the output change.
 
 ~~~html
 <script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
@@ -27,16 +25,14 @@ If I am explaining a probability distribution, a small classifier, a parser edge
 </script>
 ~~~
 
-The page loads a Python runtime compiled to WebAssembly, and the browser can execute tiny examples without leaving the post.
+The page loads a Python runtime compiled to WebAssembly, so small examples can execute in the browser.
 
-### small labs beat giant notebooks
+### keep the lab smaller than the subject
 
-I do not want every post to become a notebook. A blog lab should stay small. One concept. One input. One output. Maybe a textarea, a slider, or a few editable lines.
+Not every article needs to become a notebook. A good embedded lab can have one concept, one input, and one output. A textarea, slider, or a few editable lines may be enough.
 
-Good candidates are tokenization examples, simple ranking functions, vector similarity, regex failures, small data transforms, JSON schema validation, and toy classifiers. Bad candidates are giant dependency stacks and anything that turns the environment itself into the subject.
+Useful candidates include tokenization, ranking functions, vector similarity, regex failures, small data transforms, JSON schema validation, and toy classifiers. A large dependency tree is usually a warning sign. If setting up the environment takes more attention than testing the idea, the post has changed subjects.
 
-### state has to stay visible
+The runtime state also belongs in the interface. Readers need to see whether Python is loading, a package is installing, code is running, or execution failed. Without that state, an interactive example becomes a text box that happens to be difficult to diagnose.
 
-The reader should know when the runtime is loading, when a package is being installed, when execution is running, and when something failed. Otherwise the lab is just a broken text box with extra ambition.
-
-The reason I like Pyodide is simple. For the right kind of post, it lets the reader mutate the example instead of just believing it. That is a better deal.
+The strongest version of a runnable post does not ask the reader to admire the example. It gives them a small surface they can change, then makes the consequences visible.

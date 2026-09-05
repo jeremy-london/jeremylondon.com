@@ -1,0 +1,35 @@
+---
+title: "The hard part of frontier agents is containment"
+excerpt: "As agents become better at long-running work and computer use, the product boundary around their capabilities matters as much as the model itself."
+publishDate: "2026-08-27T14:00:00Z"
+category: "security-trust"
+draft: false
+author: "jeremy-london"
+tags: ["agents", "ai security", "cybersecurity", "permissions"]
+---
+
+A more capable agent can finish a longer task. The same persistence can make a bad instruction more expensive.
+
+Frontier agents need containment as part of the product, not as a review note after launch.
+
+Ask:
+
+- which account is the tool using?
+- what data can it read?
+- what can it change?
+- what is the blast radius of one mistaken call?
+- what happens when the task becomes ambiguous?
+
+Long-running work needs checkpoints where consequence changes: read to edit, edit to publish, plan to send. Between checkpoints, the agent can continue while recording its objective, changes, and reason for the next action.
+
+Permissions should be task-shaped and expiring. A coding agent may edit a branch but not push. A research agent may browse public pages but not upload files. A support agent may draft but not send.
+
+Test recovery rather than confidence:
+
+- missing required file
+- stale or partial tool result
+- out-of-scope credential
+- ambiguous destructive action
+- interruption halfway through
+
+Success means the mistake is contained, observable, and recoverable. The model may be more capable; the surrounding system determines whether that capability remains safe to use.

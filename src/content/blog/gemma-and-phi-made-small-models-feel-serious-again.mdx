@@ -8,19 +8,11 @@ author: "jeremy-london"
 tags: ["gemma", "phi", "small language models"]
 ---
 
-[Gemma](https://blog.google/innovation-and-ai/technology/developers-tools/gemma-open-models/) and [Phi-3](https://news.microsoft.com/source/features/ai/the-phi-3-small-language-models-with-big-potential/) made small models feel serious again.
+[Gemma](https://blog.google/innovation-and-ai/technology/developers-tools/gemma-open-models/) and [Phi-3](https://news.microsoft.com/source/features/ai/the-phi-3-small-language-models-with-big-potential/) made small models feel like architecture again.
 
-## small models get to start the workflow
+The useful change was not magic. It was placement. A small model can be a local classifier, preprocessor, first pass, narrow router, or verifier with a limited blast radius while a larger model handles ambiguity.
 
-The shift was not that small models suddenly became magical. It was that the product question around them got sharper.
-
-They started to look like pieces of architecture: a local classifier, a preprocessor, a cheap first pass, a narrow router, a verifier with a small blast radius.
-
-That is the part I care about. A small model is useful when it owns a small job and does not pretend otherwise. The bigger model can stay on the hard reasoning lane.
-
-## a route that stays local
-
-I like the local-first version because it gives the system a cheap first pass and a clear escalation path. For a secret-scanning workflow, the model can do this:
+A local secret-scanning route makes the boundary clear:
 
 ~~~python
 result = model.predict_entities(
@@ -35,11 +27,9 @@ else:
     route = "redact"
 ~~~
 
-That kind of setup is interesting because the small model does one thing well and escalates when it is unsure. It is not trying to be a general assistant. It is trying to keep the bigger system calmer.
+The model owns one job and has an escape hatch. The same pattern works for document intake, obvious redaction, queue routing, and other steps where a local decision is cheaper or more private than a general model call.
 
-You can use the same pattern for intake. A small model tags the document, strips obvious secrets, or routes the message to the right queue. The larger model only sees the cleaned result or the hard cases. That is where open weights matter: you can run the model locally, test it on your hardware, and see the memory cost instead of guessing.
-
-The route looks more honest when you write it down:
+Write the route down:
 
 ~~~text
 input: local note under 20 KB
@@ -49,8 +39,8 @@ fallback: deterministic scan + human review
 route: local first
 ~~~
 
-That makes the role of the model legible. It is one stage with a narrow job and a defined failure path.
+That record makes the model's role legible. It is not a general assistant. It is a bounded component with a defined failure path.
 
-Open weights changed the debugging loop too. Once you can run the model locally, measure memory, quantize it, and point it at your actual hardware, the experiment stops feeling like an API demo. It becomes a system choice.
+Open weights also change the debugging loop. Teams can measure memory, quantize the model, test local hardware, and observe the real deployment cost rather than guessing from an API demo.
 
-I think of Gemma and Phi as a reminder that size is not the identity. Placement is.
+Gemma and Phi were a reminder that size is not the identity of a model. Placement, scope, and escalation path matter just as much.

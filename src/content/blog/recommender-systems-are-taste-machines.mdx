@@ -8,17 +8,15 @@ author: "jeremy-london"
 tags: ["recommenders", "ranking", "personalization"]
 ---
 
-Recommender systems are taste machines.
+A recommender does more than sort a list. It decides which items deserve to enter the conversation, which signals count as preference, and what the product will learn from the next interaction.
 
-That sounds a little grand until you work through what they actually do. They take a noisy world, choose a candidate set, score it, and then teach the product what to pay attention to next. The product is not just showing items. It is rehearsing a theory of taste.
+That makes it a taste machine. Not because it discovers an objective best item, but because it turns a set of product judgments into repeated exposure.
 
-I like thinking about recommendations that way because it keeps the hard part visible. The model is not only deciding what matches. It is deciding what the product will remember about the user, the catalog, and the feedback loop between them.
+## Ranking starts after a choice
 
-## taste begins before the model
+The final score gets most of the attention. Candidate generation often determines the outcome earlier.
 
-The first mistake is treating recommendations as a single scoring function.
-
-Before scoring, something decides what is even eligible:
+The eligible set might combine:
 
 - search results
 - recently viewed items
@@ -28,46 +26,29 @@ Before scoring, something decides what is even eligible:
 - sponsored placements
 - business-priority content
 
-If the right thing never enters the set, no ranking layer can rescue it. That is why feed quality often starts with candidate generation, not with the final model.
+If a useful item never enters that set, a better ranker cannot recover it. Feed quality is therefore partly a retrieval problem and partly a policy problem.
 
-For a store, taste might mean style and price fit. For a music app, it might mean mood and history. For a news product, it might mean relevance without replaying the same story forever. For an internal tool, it might mean what deserves the operator's attention first. The same machinery behaves differently once the product decides what taste means.
+The product also has to define what taste means. A store may care about style and price. A music app may care about mood, history, and a willingness to hear something unfamiliar. A news product has to balance relevance against repeating the same story. An internal dashboard may be ranking attention rather than objects.
 
-## feedback is the part that bites
+## Feedback is not neutral
 
-Recommendations are dangerous because they learn from themselves.
+The system learns from its own decisions.
 
-If the top item gets more clicks because it was top, the model receives a biased label. If popular items are shown more often, they collect more evidence and become even more popular. If the system never shows the long tail, it never learns whether the long tail was actually useful.
+An item at the top gets more chances to earn a click. Popular items collect more impressions and therefore more evidence. A long-tail item that is never shown cannot demonstrate that it would have been useful.
 
-That is not a bug in a corner. That is the product.
-
-I want recommender systems to make the feedback path obvious:
+That feedback loop belongs in the product model, not in a footnote about data quality:
 
 ~~~text
 impression -> click -> dwell -> save -> return visit -> purchase
 ~~~
 
-The team should know which signals came from exposure and which signals came from actual preference. Otherwise the system ends up optimising for visibility masquerading as taste.
+Those events do not all mean the same thing. An impression is exposure. A click may be curiosity. A save may be a stronger preference signal. The team should be able to tell which signals came from being seen and which came from being wanted.
 
-## the model should not be the only source of truth
+## Keep a reason nearby
 
-When recommendations work well, they feel obvious in retrospect. That creates a trap. People start thinking the model is reading intent directly. It is not. It is combining weak signals.
+Recommendations can look more certain than they are. In practice, the model is combining weak signals such as recency, repetition, ownership, locale, device, follows, dismissals, price, availability, and editorial constraints.
 
-Useful signals are often boring:
-
-- recency
-- repetition
-- ownership
-- locale
-- device
-- follow graph
-- past dismissals
-- price band
-- item availability
-- editorial or policy constraints
-
-The important part is not that one of these wins. It is that the product can explain why the item rose.
-
-I like outputs that leave evidence:
+I want the system to leave an explanation for the engineer who has to investigate it:
 
 ~~~json
 {
@@ -82,23 +63,19 @@ I like outputs that leave evidence:
 }
 ~~~
 
-That record is not for the end user. It is for the engineer trying to answer, "Why did the product think this was a good idea?"
+This need not become a user-facing paragraph. A compact record is enough to answer a more useful question than "What was the score?": why did the product think this was worth putting first?
 
-## diversity is a product choice
+## Variety is a policy
 
-Taste machines get boring fast if they keep serving one flavor.
+A system can become boring while its metrics improve. Repetition may be exactly right for a short playlist, but it can make a storefront feel narrow or turn a news feed into a topic tunnel.
 
-The system needs to know when repetition is good and when it is just noise. A music app may want a few similar songs in a row. A storefront may want some variety so the page does not feel like one narrow bet. A news app may need to avoid turning a user's feed into a single topic tunnel. An internal dashboard may need to surface both urgent and merely frequent issues.
+Diversity terms in a ranking function are therefore product choices. The team should name the dimension it is diversifying across, whether that means creator, topic, price, style, or novelty, and decide how much relevance it is willing to trade for variety.
 
-The product is deciding how much sameness is enough.
+## Evaluate the session, not only the row
 
-That is why diversity terms in the score are not decoration. They are a statement about product behavior. If the system boosts diversity, it should know what dimension it is diversifying across and what cost it is willing to pay.
+Offline metrics are useful. They are not the whole experience.
 
-## evaluation has to match the experience
-
-Offline metrics matter, but the useful question is whether the list feels right when a real person uses it.
-
-I care about:
+Relevant checks include:
 
 - recall of relevant items
 - top-K precision
@@ -107,8 +84,6 @@ I care about:
 - stability across repeated visits
 - business constraints that override the model
 
-And I care just as much about the things the metric does not say: does the page feel stuck, too clever, too repetitive, or oddly random?
+The missing questions are experiential. Does the feed feel stuck? Is it too random? Does every visit repeat the same safe choice? A ranker can improve a number while making the product less useful.
 
-That is the uncomfortable truth with recommender systems. They are part model, part policy, part UX, part memory. The score is only one layer. The product's taste is the rest of it.
-
-I trust recommender systems most when they admit they are making taste visible, not objective truth. The system is not discovering the best thing in the universe. It is deciding what to put first.
+Recommenders sit between model, policy, UX, and memory. The score is only one layer of the taste the product is expressing. Treating that taste as a decision rather than as objective truth makes the feedback loop easier to inspect.

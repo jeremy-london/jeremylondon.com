@@ -8,21 +8,13 @@ author: "jeremy-london"
 tags: ["model routing", "systems", "latency"]
 ---
 
-I stopped thinking about model routing as a model choice the first time I saw a support path fail for the wrong reason.
+Model routing is not a model picker. It is a control plane.
 
-The request itself was ordinary. The bad part was everything around it. The cheap model got the easy classification wrong, the expensive model was never allowed to see restricted data, and the fallback route had no clear owner. That is not a prompt bug. That is a system with a vague control plane.
+A refund summary, a CI failure, and a high-risk policy check are different product paths. They may need different context, latency, logging, approval, and fallback behavior.
 
-The route is bigger than the model.
+Routing should eliminate ineligible paths before ranking quality. Restricted data may disqualify a hosted model. A JSON contract may disqualify a route without structured output. A tight latency budget may eliminate a slow model.
 
-Consider three requests:
-
-1. A customer asks for a refund policy summary.
-2. A developer asks why a CI job is failing.
-3. A security reviewer wants a high-risk policy check.
-
-Those are not three model preferences. They are three different product paths. One can use cached documentation. One may need retrieval and a short answer. One may need a stricter model, logging, and maybe a human review step. The route matters because the consequences are different.
-
-That is why I like routing logic that trims the candidate list before it gets clever. If a request is restricted, a hosted model may never be eligible. If the output must be JSON, a route without structured output support should drop out. If the latency budget is small, a slower path should never be on the table. The policy should rule out bad routes before quality ranking starts.
+The decision should be inspectable:
 
 ~~~ts
 type RouteDecision = {
@@ -36,8 +28,8 @@ type RouteDecision = {
 }
 ~~~
 
-That record matters more than it looks like it should. When the result is bad, I want to know whether the request was misclassified, whether the route was disallowed and still chosen, or whether the route itself failed after it was selected.
+When a result is bad, that record helps separate misclassification, policy violation, route failure, and fallback failure.
 
-The route also needs a fallback that makes sense to a human. A cheap model that fails should not quietly retry forever. A high-risk route should not degrade into something unsafe just because it is available. If the route cannot recover cleanly, it should stop and say so.
+Fallbacks need human-readable behavior. A cheap route should not retry forever. A high-risk route should not silently degrade into an unsafe one. If the system cannot recover cleanly, it should stop and say what remains.
 
-The longer I work with routing, the more it looks like the other boring infrastructure pieces I trust. A load balancer does not argue with the request. It inspects what matters, applies constraints, logs the decision, and moves on. Model routing should do the same.
+The useful analogy is a load balancer: inspect the request, apply constraints, record the decision, and move on. Model routing needs the same discipline.

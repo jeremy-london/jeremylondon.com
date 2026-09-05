@@ -19,101 +19,71 @@ import BatchProcessing from "@components/blog/BatchProcessing.jsx";
   outputRows={32}
 />
 
-Batch processing is where the lesson stops pretending one example tells you enough.
+A single example is a good place to learn a neuron. It is a poor place to decide what the neuron does.
 
-A single input is still a good teaching step. You can draw the neuron, multiply a few weights, add the bias, run ReLU, and see one answer. That is manageable. The problem is that one example can hide almost everything interesting.
+With one input, the arithmetic fits in your head: multiply, add the bias, apply ReLU, inspect the result. That small loop is useful because every number has somewhere obvious to go. It also hides the model's shared behavior. A weight can look harmless. A hidden unit can look permanently useful. A bias can look like an afterthought.
 
-One input can make a bad weight look harmless. One input can hide that a hidden unit only matters for part of the batch. One input can make a bias look decorative instead of structural.
+Three inputs are enough to expose those assumptions.
 
-Three inputs are still small, but they already force the model to show its work.
+## one network, several columns
 
-## what changes when the inputs stack up
-
-The arithmetic does not become new. The shape does.
-
-With one example, the calculation looks like this:
+The operation is not different when examples are grouped together. The data shape is.
 
 ~~~text
 z = W x + b
 ~~~
 
-With a batch, `x` becomes a matrix. Each column can be one example. The same weights and the same bias are applied across several inputs at once.
+For a batch, `x` becomes a matrix:
 
 ~~~text
 Z = W X + b
 ~~~
 
-That capital `X` is the important part. It says the model is not changing its weights for each example. It is reusing one set of parameters across several cases.
+The uppercase `X` carries the important idea. The network reuses the same weights and biases for every column. This is one network answering several inputs, not three separately tuned networks.
 
-The right mental model is simple: a batch is not three tiny networks. It is one network answering three questions at the same time.
+That reuse is easy to miss when you study only one result. Batching makes it visible in the calculation itself.
 
-## the batch shows which behaviors are conditional
+## activation is a pattern, not a verdict
 
-Single-example intuition is easy to overtrust.
-
-Suppose one hidden neuron fires for the first input. It is tempting to call that neuron useful and move on. Then the second and third inputs run through the same weights and the neuron drops to zero after ReLU. The story changes.
-
-The neuron did not become useless. It became conditional.
-
-That is what batching makes visible. A weight is not good or bad by itself. It changes how a feature behaves across a set of inputs. A bias is not a tweak for one row of data. It shifts the threshold for all of them.
-
-If you change one value in the interactive grid, watch the other columns too. The column you expected to move is only half the result.
-
-## relu looks more honest in columns
-
-ReLU can feel too simple when you only run it once.
-
-Negative becomes zero. Positive stays positive. Fine.
-
-In a batch, that rule becomes a pattern. A hidden row might look like this:
+Imagine one hidden row produces:
 
 ~~~text
 [-3, 2, 5]
 ~~~
 
-After ReLU:
+ReLU changes it to:
 
 ~~~text
 [0, 2, 5]
 ~~~
 
-That row tells you something useful. For the first input, the unit contributes nothing downstream. For the second and third, it contributes. Same neuron, different effect.
+The neuron is not simply "on" or "off." It is off for the first input and active for the other two. The same rule produces different behavior because the inputs interact with the same parameters differently.
 
-That is where hidden layers stop feeling like a pile of abstract neurons and start feeling like a set of intermediate tests. Each hidden unit asks a weighted question. ReLU decides whether the answer is allowed to keep moving.
+This is a better way to think about a hidden unit: it is a weighted test whose result may survive the gate for some examples and disappear for others.
 
-## bias is not a little extra term
+## the bias belongs to the rule
 
-Bias gets under-taught because it looks small.
+Bias is easy to understate in a one-example walkthrough. It looks like a number added at the end.
 
-In a single-example walkthrough, it can feel like an extra number that got added because the formula needed one. In a batch, the bias becomes easier to understand because the same value is added to every example for that neuron.
+Across a batch, its role is harder to miss. One bias value shifts the pre-activation for that neuron in every column. If two inputs are near zero and a third is far below it, a small bias change may activate the first two while leaving the third quiet.
 
-If a hidden unit is almost active for two inputs and clearly off for the third, changing the bias may flip the first two without touching the third. That is more useful than watching one number move in isolation.
+Try that in the interactive grid. Before changing the value, predict which columns should cross zero. The useful part is not getting the prediction right every time. It is seeing that the bias moves a decision boundary shared by the examples.
 
-The bias belongs to the neuron's decision boundary. It is not attached to one example. It is attached to the rule.
+## shared weights create shared consequences
 
-That is why the interactive version is worth using slowly. Move the bias by one. Predict which columns cross zero. Then run it. A wrong guess is still useful because it tells you where your mental model was too loose.
+`W1`, `b1`, `W2`, and `b2` do not change from one column to the next. That is what separates a model from a lookup table. A parameter has to work across inputs that are related without being identical.
 
-## reuse is the real point
+The same constraint is what makes batching relevant to training. A parameter update is informed by several examples, and those examples may pull in different directions. The model cannot improve one column by quietly assigning that column its own weights.
 
-Batching matters because the same parameters have to work again and again.
+You do not need the full backpropagation story to see this. Change one weight and watch the effect appear across the batch.
 
-`W1`, `b1`, `W2`, and `b2` do not change from one column to the next. That is what makes the network a model instead of a lookup table. It has to reuse the same weights across examples that are not identical.
+## use the grid as a small experiment
 
-That reuse is also why batching connects naturally to training. During training, the model gets a signal about how shared weights behaved across a set of examples. The update is not supposed to make one input happy and wreck the others. The batch is the first place where that pressure shows up.
+Run the interactive example with a prediction in mind:
 
-You do not need backpropagation yet to feel it. Just watch one weight change affect several columns at once.
+- Which hidden values will be positive before ReLU?
+- Which columns should move when one weight changes?
+- Which outputs should change when a hidden value crosses zero?
+- What did the result reveal about your assumption?
 
-## try the grid like a lab
-
-Use the interactive grid to make predictions before you run it.
-
-Pick one input column. Guess which hidden values will be positive before ReLU. Change one weight in `W1` and see whether only the column you expected moved. Then change a bias and watch whether the activation boundary shifts across several inputs.
-
-Good questions here are boring ones:
-
-- which hidden units turn off for which inputs?
-- does one weight change affect every column?
-- which output changes after a hidden value crosses zero?
-- where did my prediction break?
-
-That last question is the useful one. A batch does not exist to make the math harder. It exists to keep one example from standing in for the whole system.
+The batch is not there to make the arithmetic look more advanced. It prevents one convenient example from pretending to describe the whole network.

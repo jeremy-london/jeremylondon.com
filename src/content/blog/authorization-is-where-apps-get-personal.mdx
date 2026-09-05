@@ -8,115 +8,51 @@ author: "jeremy-london"
 tags: ["security", "authz", "ownership"]
 ---
 
-Authentication tells you who showed up. Authorization tells you what they are allowed to touch.
+Authentication says who arrived. Authorization decides which world they can touch.
 
-That difference sounds small until the app starts holding real information. The same person can be trusted in one workspace and blocked in another. They can own a note but lose access when it gets moved. They can read a dashboard without being allowed to see the customer rows behind it. In an AI feature, they can ask for a summary of something they never had permission to open in full.
+The boundary belongs close to the object:
 
-That is when authorization stops being backend hygiene and starts being product behavior.
-
-## put the boundary in the query
-
-Most authorization bugs begin with a query that looks perfectly reasonable.
-
-The handler checks that a session exists. It pulls an `id` from the URL. It fetches the object. It returns the object. Nothing in that path feels reckless. The missing line is the one that proves the object belongs to the current user's world.
-
-```ts
+~~~ts
 const note = await db.note.findFirst({
   where: {
     id: params.noteId,
     workspaceId: session.workspaceId,
   },
 });
-```
+~~~
 
-That `workspaceId` filter is not decoration. It is the product saying: this object exists, but only inside this boundary.
+The workspace filter is the product saying that an object exists only inside the user's permitted world. Middleware can confirm identity. A route guard can confirm a broad role. The query has to carry the ownership rule because object access depends on the object.
 
-This is why I prefer authorization checks close to the data access path. Middleware can confirm identity. A route guard can confirm a broad role. The query itself has to carry the ownership rule, because object access usually depends on the object, not just the person.
+Derived data keeps the same obligation. Search indexes, embeddings, summaries, analytics tables, and AI memory stores are copies of something else. If the source is private, the copy needs the same permission shape. Otherwise retrieval becomes a side door.
 
-If the query does not carry the boundary, a later refactor can leak data without changing anything that looks obviously security-related.
+For each derived record, I want to know:
 
-## copied data keeps the same rules
-
-The mess starts when the product makes a second copy of the data.
-
-Search indexes, summaries, embeddings, recommendation tables, analytics warehouses, and AI memory stores are all derived from something else. If the source data is private, the copy has to keep the same permission shape. Otherwise the product has built a side door.
-
-AI features make this easy to miss. A document can stay private while its embedding lands in a shared index. A user without access can ask a similar question. Retrieval finds the closest chunk. The model paraphrases it. Nobody returned the original document, but the leak still happened.
-
-The fix is not "trust the model to be careful." The fix is to make the permission boundary visible before the derived data becomes context.
-
-Derived stores need to answer a few dull questions:
-
-- which source objects created this?
+- which source object created it?
 - which tenant owns it?
-- which users or groups can see it?
-- when did the source permissions last change?
-- should this copy disappear when the source is deleted?
+- who can see it?
+- when did the source permission last change?
+- should it disappear when the source is deleted?
 
-If a derived store cannot answer those questions, it is not ready for private data.
+An agent adds another pair of names. The system should know who requested a change, which process executed it, and which short-lived grant allowed the action.
 
-## delegation needs two names
-
-Modern products rarely have one actor.
-
-There are API keys, service accounts, scheduled jobs, agents, browser extensions, integrations, and support tools. They all do work on behalf of somebody else. The failure mode is recording only the executor and forgetting who initiated the action.
-
-If I ask an agent to edit a draft, the system should know both facts: I asked for it, and the agent process executed it under a grant that only lasts for this run.
-
-```text
+~~~text
 initiator: jeremy
 executor: blog-agent
 grant: edit src/content/blog for this run
 action: update markdown file
-```
+~~~
 
-That is not only an audit concern. It is an authorization concern. The executor should get the narrow permission needed to do the task, not the whole set of permissions the initiator happens to have.
+A service account should not receive a human administrator token because that was the easiest integration path. The executor needs the smallest grant that completes the task.
 
-The same rule applies to ordinary integrations. A calendar sync should not become a universal identity. A CI job should not receive a human admin token because that was the easy way to make the integration work.
+Denial is part of the interface too. Logged out, wrong workspace, missing role, deleted object, and hidden object are different states. Some can be specific. Others should stay deliberately vague to avoid leaking that a resource exists. Leaving the decision to a raw 403 guarantees inconsistent behavior.
 
-## denial is part of the interface
+The useful authorization test is not that a user can load their own note. It is that the wrong user cannot load it with a valid identifier.
 
-Authorization failures should be designed, not inherited from the nearest exception.
-
-The user should know whether they are logged out, in the wrong workspace, missing a role, hitting a deleted object, or asking for something that exists but cannot be revealed. Those are different cases, and they may need different copy.
-
-Sometimes the right message is specific:
-
-> You need workspace admin access to invite members.
-
-Sometimes the right message is deliberately vague:
-
-> This document is unavailable.
-
-The product has to choose. If it leaves the answer to whatever bubbles up from the service layer, the failure becomes either confusing or leaky. Good denial states also help support. A permission error with a clear reason, request id, and target type is easier to diagnose than a generic 403.
-
-The user may still need an admin. At least the product is not pretending mystery is security.
-
-## test the wrong person on purpose
-
-Authorization tests should create multiple users and multiple resources.
-
-The useful test is rarely "user can load their note." It is "user cannot load another user's note with a valid id." Or "workspace admin cannot edit a project in a different workspace." Or "deleted membership removes access to derived search results." Or "agent grant expires when the run ends."
-
-Happy-path tests create false confidence because authenticated access works. The bad path is where the product proves it respects boundaries.
-
-I like test names that say the rule out loud:
-
-```text
+~~~text
 member cannot read document from another workspace
-viewer cannot rotate api key
-expired agent grant cannot write file
-removed user cannot retrieve old embedding result
-```
+viewer cannot rotate API key
+expired agent grant cannot write a file
+removed user cannot retrieve an old embedding result
+~~~
 
-Those tests describe product rules, not implementation details.
-
-## personal means bounded
-
-People trust software when it respects what belongs to them.
-
-That trust is easy to lose. One missing tenant filter, one overbroad role, one derived-data leak, one integration with too much authority, and the app stops feeling personal in the good way. It starts feeling porous.
-
-Authorization is where the session becomes meaningful. Authentication says who arrived. Authorization decides what world they are allowed to inhabit.
-
-That decision should be explicit, close to the data, visible in logs, and tested against the people who should be kept apart.
+Authentication makes a session. Authorization gives that session a boundary. Keep the rule in the data access path, carry it into derived stores, record delegation, and test the person who should be kept out.

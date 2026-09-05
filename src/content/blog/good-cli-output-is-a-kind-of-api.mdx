@@ -8,11 +8,11 @@ author: "jeremy-london"
 tags: ["cli", "developer tools", "dx"]
 ---
 
-Good CLI output is an API.
+CLI output has more than one reader.
 
-The reader is not only a person at a terminal. A shell script reads stdout. CI reads the exit code and whatever the command wrote before failing. An agent may read the tail of the log and try to infer whether it should retry, stop, or ask for help. Later, somebody pastes the failure into an issue and tries to reconstruct the machine state from whatever survived.
+A person sees the terminal. A shell script reads stdout. CI reads the exit code. An agent may inspect the tail of a log and decide whether to retry, stop, or ask for help. Later, someone pastes the failure into an issue and reconstructs state from whatever survived.
 
-That means the command has to be predictable in a few boring ways. stdout should stay clean when another tool needs to parse it. stderr should carry diagnostics. exit codes should mean the same thing every time. If the command offers structured output, that shape should stay stable across releases.
+That makes a few boring contracts important:
 
 ~~~text
 good:
@@ -23,11 +23,17 @@ good:
 bad:
   stdout: mixed status text and JSON
   stderr: silent
-  exit code: 0 even when the command failed
+  exit code: 0 when the command failed
 ~~~
 
-That is the difference between a command somebody can compose and a command that only works in a demo. The user should not have to guess whether `jq` will parse the result or whether a CI step will misread a warning as data.
+Keep stdout parseable when another tool needs it. Keep diagnostics on stderr. Give the same failure the same exit code. If structured output exists, keep its shape stable across releases.
 
-I also care about failure messages because they become part of the interface. "Permission denied" is fine if that is the whole story. "Permission denied while reading `./secrets.json`; run with `--scope repo` or move the file under the workspace" is better because it tells the next step. A good CLI does not just fail. It makes the next move obvious.
+Failure messages are part of the interface too. "Permission denied" may be technically accurate. "Permission denied while reading secrets.json; use --scope repo or move the file under the workspace" gives the next action.
 
-The same rule applies to progress output. A command that prints one line per phase, or a `--json` mode that keeps machine output stable, gives scripts something to depend on. A release tool can parse `{"status":"done","path":"dist/app.tar.gz"}`. A human can still use the plain-text mode. The command is better when both can live with it.
+Progress output should also have a stable mode. A human-readable stream can show phases. A JSON mode can expose records such as:
+
+~~~json
+{"status":"done","path":"dist/app.tar.gz"}
+~~~
+
+The best command works for a person and a pipeline without making either one guess whether a warning is data or whether success actually means success.

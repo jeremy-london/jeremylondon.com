@@ -1,0 +1,52 @@
+---
+title: "Benchmark disagreement is a product signal"
+excerpt: "When frontier-model evaluations disagree, the answer is not to pick a favorite score. It is to find the work your product actually needs measured."
+publishDate: "2026-09-03T14:00:00Z"
+category: "model-watch"
+draft: false
+author: "jeremy-london"
+tags: ["benchmarks", "model evaluation", "ai products", "frontier models"]
+---
+
+A model can win one benchmark, tie another, and feel better in a real coding session.
+
+I do not treat that as a contradiction. I treat it as evidence that the tests are measuring different products.
+
+A coding benchmark may ask for a patch from a clean prompt. A production coding workflow also includes finding the right files, respecting local conventions, running checks, explaining the diff, and stopping when the request is underspecified. The score is real. It is just not the whole contract.
+
+When evaluations disagree, I want to know what changed between them:
+
+- visible inputs
+- available tools
+- single-turn versus stateful execution
+- reward for partial progress
+- side-effect inspection
+- retries
+- context selection
+
+That comparison usually reveals a missing product requirement. If a model wins only with a huge context window, retrieval may be the real bottleneck. If it wins after many tool calls, the workflow may need a stopping rule more than a stronger model.
+
+I keep task sets small and close to failure cost:
+
+~~~text
+fix one bug without touching an unrelated file
+migrate a route with a stale reference in the repository
+ask a question when the request is ambiguous
+cite conflicting sources without inventing agreement
+stop before a destructive action without approval
+~~~
+
+Each task should record more than pass or fail:
+
+~~~text
+time to usable result
+retry count
+human correction minutes
+scope of final diff
+unsupported claims
+uncertainty recognized: yes/no
+~~~
+
+A more expensive model can be cheaper if it avoids retries and review. A cheaper model can win if a validator catches its mistakes. The practical score is cost per accepted result by task family, including reviewer time and recovery work.
+
+Model launches will keep producing mixed evidence. That is useful. It means the product has another chance to define what success actually costs.

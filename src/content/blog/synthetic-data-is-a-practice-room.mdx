@@ -8,15 +8,15 @@ author: "jeremy-london"
 tags: ["synthetic data", "datasets", "testing"]
 ---
 
-Synthetic data is useful for evals when it acts like a practice room.
+Synthetic data is most useful when it gives an eval a safe place to rehearse failure.
 
-I use it when I need to rehearse cases that are rare, expensive, sensitive, or just annoying to collect. Fraud systems need weird account behavior before the weird behavior shows up in production. Tool-calling systems need malformed tool results and ambiguous intent before those failures become common. Extraction systems need invoices with missing totals or inconsistent currency before the model sees them in the wild.
+Fraud systems need unusual account behavior before unusual behavior appears in production. Tool-calling systems need malformed results and ambiguous requests. Extraction systems need invoices with missing totals and inconsistent currencies.
 
-The mistake is treating synthetic data like proof. It is closer to a sparring partner.
+That makes synthetic data a practice room. It does not make it proof.
 
-## write the behavior first
+## Start with the behavior
 
-Before I generate anything, I write the behavior down:
+Before generating examples, write down the behavior the dataset is meant to exercise:
 
 ~~~yaml
 behavior: refund_policy_exception_handling
@@ -31,11 +31,11 @@ must_not:
   - ignore region-specific rules
 ~~~
 
-That contract keeps the dataset from becoming a bucket of plausible text.
+That contract prevents a pile of plausible text from masquerading as an evaluation.
 
-## provenance matters more than volume
+## Provenance beats volume
 
-Every synthetic record should say where it came from, which generator created it, which prompt produced it, who reviewed it, and whether it belongs in training, evaluation, or only exploratory analysis.
+Each record should carry enough history to be retired or questioned later: its source material, generator, prompt, reviewer, and intended use.
 
 ~~~json
 {
@@ -51,45 +51,33 @@ Every synthetic record should say where it came from, which generator created it
 }
 ~~~
 
-Without provenance, synthetic data becomes hard to retire. Six months later the team sees a passing eval and forgets that half the examples came from an old policy, an old prompt, and an old failure taxonomy.
+Without that metadata, a passing eval can outlive the policy, prompt, and failure taxonomy that produced it.
 
-## use it to fill gaps
+## Fill gaps, do not inflate the set
 
-I would start by looking for gaps, not by asking a model for ten thousand examples.
+Look at what the real data does not contain.
 
-Maybe the real dataset has plenty of ordinary refunds but almost no policy exceptions. Maybe the retrieval system has English examples but almost none from mixed-language snippets. Maybe the tool caller has clean successes but few partial failures. Maybe the classifier has plenty of positive and negative labels but very few ambiguous examples where reviewers disagree.
+Perhaps ordinary refunds are common but policy exceptions are rare. Perhaps the retrieval set is in English while users regularly send mixed-language snippets. Perhaps the tool caller has many clean successes and almost no partial failures. Perhaps reviewers disagree most often on ambiguous cases.
 
-That is what synthetic data is good at:
+Synthetic examples can target:
 
-- rare policy combinations
-- hard negatives that look almost correct
+- rare combinations of policy conditions
+- hard negatives that look nearly correct
 - old bugs that need regression coverage
-- adversarial phrasing around a known boundary
+- adversarial wording around a known boundary
 - long-tail entity formats
 - corrupted or incomplete inputs
-- tool outputs that are valid JSON but operationally useless
+- valid JSON that is useless operationally
 
-## keep training and eval apart
+This is more valuable than asking a generator for ten thousand generic examples.
 
-The next mistake is mixing training and eval.
+## Keep the splits honest
 
-If a teacher model generates both, the student may just get better at the teacher's style. The score rises. The product may not.
+Training augmentation, regression evals, adversarial evals, exploratory review, and production holdouts should be separate uses. If one teacher model generates both training and evaluation data, the student may become better at the teacher's style while the score rises for the wrong reason.
 
-I separate the uses:
+The production holdout is the anchor. It should contain real language, real failures, and examples that did not originate in the synthetic generator's imagination.
 
-- training augmentation
-- regression eval
-- adversarial eval
-- exploratory review
-- production holdout
-
-The production holdout is the anchor. It should include real failures, real user language, and examples that came from outside the synthetic generator's imagination.
-
-## hard negatives do a lot of work
-
-The synthetic examples I trust most are hard negatives.
-
-A hard negative looks tempting but should fail. For retrieval, it may be a chunk that uses the same words as the query but answers a different question. For classification, it may be an input that contains a risky phrase without actually being unsafe. For entity extraction, it may be a company name that looks like a person.
+Hard negatives are particularly useful:
 
 ~~~json
 {
@@ -100,20 +88,14 @@ A hard negative looks tempting but should fail. For retrieval, it may be a chunk
 }
 ~~~
 
-That kind of record teaches the eval to reject shallow lexical matches.
+The record looks relevant lexically, but it should fail because it does not answer the actual question. That is the kind of boundary a shallow score can miss.
 
-## review the labels, not the prose
+## Review labels, not polish
 
-Clean prose is a trap.
+Clean prose is easy to overvalue. The harder questions are whether the expected answer follows from the evidence, whether the negative case is genuinely negative, and whether two reviewers agree on the label.
 
-What matters is whether the expected answer follows from the evidence, whether the negative case is actually negative, whether two reviewers would agree, and whether the example is testing the intended behavior or something else.
+For a small eval, 200 reviewed examples can be more useful than 20,000 unreviewed ones. Reviewer disagreement may deserve its own ambiguity slice rather than being forced into a pass-fail score.
 
-For a small eval set, I would rather have 200 reviewed synthetic examples than 20,000 unreviewed ones. Reviewer disagreement matters too. If humans disagree on the label, the example may belong in a separate ambiguity slice instead of the main pass-fail score.
+Synthetic examples also age. Policies change, products change, models change, and the bug that justified an example may disappear. Keep regressions that still matter, refresh records when source documents change, retire stale behavior, and feed current production failures back into review.
 
-## keep the real world in the loop
-
-Synthetic examples age. Policies change. Products change. Model families change. The bug that inspired the dataset disappears. The generator prompt stops matching the current system.
-
-A maintenance pass should remove examples tied to deleted behavior, refresh examples when source documents change, keep old regressions when the failure still matters, and sample current production failures back into review.
-
-The synthetic room is only useful if the team keeps leaving it to check what happened outside.
+The practice room works only when the team keeps leaving it to see what happened outside.

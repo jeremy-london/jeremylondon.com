@@ -8,19 +8,13 @@ author: "jeremy-london"
 tags: ["astro", "content", "static sites"]
 ---
 
-Astro content collections look simple until you trace what depends on them.
+An Astro content collection looks like a folder of Markdown until you trace what depends on it.
 
-There is a folder of Markdown and MDX files. Each file has frontmatter. Astro reads the collection, validates the shape, and turns the result into routes, feeds, archives, search results, and anything else that wants to talk to the posts. That feels lightweight when the site is small. It is still an interface.
+The archive, RSS feed, search index, related-post logic, route generation, and editing scripts all consume the same shape. That shape is an interface even if nobody calls it an API.
 
-The thing that changed my mind was noticing how many other pieces lean on that shape. The archive page leans on it. The RSS feed leans on it. Search indexes lean on it. Related-post logic leans on it. Any script that edits content leans on it too, whether it says so or not.
+The frontmatter is application data:
 
-## frontmatter is not decoration
-
-The frontmatter at the top of a post looks like metadata. In practice it behaves like application data.
-
-This repo’s blog collection expects fields like `title`, `excerpt`, `category`, `author`, `tags`, `publishDate`, and a few optional runtime flags for heavier pages:
-
-```ts
+~~~ts
 z.object({
   title: z.string(),
   excerpt: z.string(),
@@ -28,76 +22,34 @@ z.object({
   author: z.string().trim(),
   draft: z.boolean().optional(),
   tags: z.array(z.string()),
-  image: image().optional(),
-  publishDate: z.string().transform((str) => new Date(str)),
-  load_pyodide: z.boolean().optional(),
-  load_mathjax: z.boolean().optional(),
+  publishDate: z.string().transform((value) => new Date(value))
 })
-```
+~~~
 
-That schema is quietly doing a lot of work. It keeps draft state from turning into a magic string. It keeps tags structured instead of comma-separated noise. It keeps heavy runtime features opt-in. It keeps the site from assuming that every post is the same kind of page.
+Each field has a consumer. The excerpt is the archive promise. The category groups posts. The date orders the record. The draft flag changes visibility. Optional runtime flags decide whether a page loads something expensive such as Pyodide or MathJax.
 
-The useful habit is to treat each field as something the rest of the site actually consumes.
+That means frontmatter is not decoration. A plausible-looking field can still be a broken contract.
 
-`excerpt` is the promise shown in the archive and feed reader. `category` is how readers and scripts group posts. `publishDate` controls ordering and gives the piece a place in the record. `load_pyodide` and `load_mathjax` are not style choices; they change the page payload. If a post needs those runtimes, it should ask for them on purpose.
+The filename is part of the interface too. It becomes a route, search key, feed link, and stable identifier for editors and scripts. I prefer names that stay boring:
 
-## the slug is part of the product
-
-A filename is not just a filesystem detail.
-
-`astro-content-is-a-real-interface.mdx` becomes a route, a search key, a link target, and a stable identifier for editors and agents. It will show up in browser history, analytics, feeds, and maybe screenshots. If the slug is vague or clever in the wrong way, every one of those surfaces gets a little harder to use.
-
-I prefer filenames that survive long enough to be boring:
-
-```text
+~~~text
 approval-buttons-need-context.mdx
 queues-make-ai-workflows-calmer.mdx
 small-sites-need-smoke-tests-too.mdx
-```
+~~~
 
-They are not trying to win anything. They are just durable names. If a future cleanup script or content agent has to touch the post, a clear slug keeps it from wandering around the archive like it forgot why it opened the file.
+MDX widens the contract. Once an article imports a component or mounts an island, it is source code inside the content folder. The schema can validate the frontmatter without proving that the interactive part works. The post still needs a build, a browser check, and a fallback when the component fails.
 
-That matters because personal sites age into archives quickly. The route is one of the few labels that keeps the archive navigable.
+I want content checks to catch ordinary mistakes early:
 
-## mdx widens the contract
+- a missing field
+- a malformed date
+- a category typo
+- a stale component import
+- an unclosed code fence
+- an image path that only works locally
+- a runtime flag omitted from a post that needs it
 
-Markdown is pretty small. MDX is not.
+This matters more when an agent edits the archive. A model can produce frontmatter that reads perfectly and quietly sorts a post into the wrong place. The schema is a reviewer that does not care how confident the prose sounds.
 
-Once a post can import a component, mount an island, require a runtime flag, or depend on a client-only library, the article stops being plain prose and starts behaving like a small app. The frontmatter schema still validates the shape of the post, but it does not prove that the interactive part is correct, visible, accessible, or fast.
-
-That is why I do not like treating MDX as “Markdown with widgets.” It is source code living inside the content folder.
-
-If a post imports an interactive component, the dependency should be obvious. If it needs MathJax, the flag should be present. If it uses Pyodide, the article should justify the heavier page with something the reader can actually do. If an island breaks, the page should not collapse into a blank section with no explanation.
-
-The contract around a post has to include the boring things:
-
-- what the article loads
-- whether the component props are stable
-- what happens if the component fails
-- whether the page still builds in production
-- whether the example still matches the prose
-
-That is a lot of responsibility for a content file, which is exactly why it matters.
-
-## the checks should fail early
-
-Build checks are editorial tools. I want them to catch mistakes while the change is still cheap.
-
-A missing frontmatter field should fail before the archive quietly sorts wrong. A malformed date should fail before the post appears in the wrong place. A renamed MDX import should fail before deploy. Markdown lint should catch the small consistency problems that are annoying to discover after the fact.
-
-The site breaks in ordinary ways:
-
-- title copied from another post
-- excerpt left generic
-- draft flag forgotten
-- category typo creates a new bucket
-- date string parses differently than expected
-- imported component renamed
-- code fence left unclosed
-- image path works locally by accident
-
-None of that is dramatic. All of it is easy to catch if the content system treats the schema as a real interface.
-
-That becomes more important the moment an agent edits the files. A model can generate frontmatter that looks reasonable and is quietly wrong. The schema is the first reviewer that does not care how confident the prose sounds.
-
-This is why I like Astro’s content layer so much. It keeps the writing close to the filesystem, but it refuses to pretend that the files are inert. The files have consumers. The consumers need a contract. The contract should stay boring enough to hold up when the site gets bigger than the person writing it.
+A content system stays lightweight by making its contract explicit, not by pretending the files have no consumers.

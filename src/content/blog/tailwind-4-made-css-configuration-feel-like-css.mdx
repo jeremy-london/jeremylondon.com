@@ -8,11 +8,11 @@ author: "jeremy-london"
 tags: ["tailwind", "css", "frontend"]
 ---
 
-Tailwind CSS v4 made configuration feel more like CSS, which is a bigger change than it sounds.
+Tailwind v4 changes where a styling decision is legible.
 
-Older Tailwind projects often had a split brain. The visual decision lived in `tailwind.config.js`, the consuming code lived in class names, and the actual cascade lived somewhere else. That was workable, but it made styling feel like a tiny compiler project.
+In an older project, I might need to look in three places to answer a simple question: where did this color come from? A JavaScript config names the theme value, a class name consumes it, and the browser eventually resolves the result through the cascade. The system works, but the explanation is split across tool vocabulary and browser vocabulary.
 
-Version 4 pulls more of that work into CSS itself.
+More of that explanation now fits in CSS.
 
 ~~~css
 @import "tailwindcss";
@@ -26,23 +26,23 @@ Version 4 pulls more of that work into CSS itself.
 }
 ~~~
 
-That changes the editing loop. The configuration still feeds the utility system, but the file now looks like the medium it controls.
+The benefit is not that configuration disappears. It is that visual configuration looks like the thing it configures.
 
-## two jobs used to share one file
+## two kinds of configuration
 
-Tailwind configuration has always carried two kinds of information.
+A Tailwind project has operational settings and design decisions.
 
-The first kind is plumbing: content paths, plugins, presets, build details, compatibility knobs. That belongs in a config layer because it describes how the tool runs.
+Content paths, plugins, presets, and compatibility switches describe how the tool runs. JavaScript configuration is a reasonable home for those.
 
-The second kind is design language: colors, type scales, breakpoints, shadows, spacing, easing, and named values. That is closer to CSS. Those decisions affect the cascade, inherit through components, and eventually become visual behavior in the browser.
+Colors, type scales, breakpoints, shadows, spacing, and easing describe the visual language. Those values eventually participate in CSS behavior. Keeping them in CSS makes the relationship easier to inspect during a review or in devtools.
 
-Putting both jobs in a JavaScript config file made sense historically, but it created a weird reading experience. A designer reviewing a color decision had to leave CSS to understand the CSS.
+That distinction gives a migration a useful boundary: move the design vocabulary closer to CSS without pretending the build system no longer needs configuration.
 
-## css variables make the decision inspectable
+## the cascade becomes part of the token story
 
-`@theme` uses CSS custom properties, which gives the names a useful second life.
+CSS custom properties are useful beyond their syntax.
 
-That means a token can be referenced directly, inspected in devtools, overridden in scoped contexts, and reasoned about with the rest of the cascade.
+A named value can be read in a stylesheet, inspected in devtools, overridden in a scoped context, and traced through the cascade. The same name can connect a theme definition to the component that depends on it.
 
 ~~~css
 @theme {
@@ -56,19 +56,19 @@ That means a token can be referenced directly, inspected in devtools, overridden
 }
 ~~~
 
-That is a small thing until a project has a lot of surfaces. Then it matters that a token is readable in the same place as the exception that uses it.
+That trace matters once a project has enough surfaces for visual drift to become normal. An exception is easier to question when it sits beside the rule it is overriding.
 
-## css-first does not mean config-free
+## CSS-first still needs judgment
 
-I do not read v4 as a call to delete configuration discipline.
+Putting values in CSS does not make them good values.
 
-Large teams still need naming rules. They still need to decide whether a token is primitive, semantic, or component-specific. They still need migration plans when a color changes. They still need to decide whether a plugin belongs in the project or whether the project has grown a private dialect of Tailwind.
+A large theme block can become a junk drawer just as easily as a JavaScript object can. Teams still need naming rules, a distinction between primitive and semantic values, and a decision about which values are stable enough to expose as shared utilities. Plugins can still grow a private dialect that new contributors have to learn.
 
-CSS-first configuration can also make a mess feel more official. A giant `@theme` block with hundreds of one-off values is still a junk drawer.
+The file location changes the reading experience. It does not remove design-system maintenance.
 
-## the useful question is meaning
+## name the meaning, not only the hue
 
-The cleanup pass should ask what each theme value means.
+A useful cleanup separates palette values from product roles.
 
 ~~~css
 @theme {
@@ -78,14 +78,12 @@ The cleanup pass should ask what each theme value means.
 }
 ~~~
 
-Primitive values help with palettes. Semantic values help with product meaning. Mixing those layers casually is how a redesign turns into a scavenger hunt.
+The primitive says what the value is. The semantic names say why the product uses it. When a redesign changes the blue, the role names remain useful. When a role changes independently, the dependency is visible instead of hidden in a copied hex value.
 
-## fewer files means fewer excuses
+## the smaller win is inspectability
 
-Moving configuration closer to CSS does remove one common excuse: "I did not know where that value came from."
+The strongest case for this direction is ordinary maintenance.
 
-When a project has theme values in CSS, component overrides in CSS, and generated utilities reading from the same source, drift is easier to spot. A hardcoded border color or shadow becomes a visible decision during review instead of a hidden one.
+A developer can follow a token from its definition to the generated utility and into the rendered element. A reviewer can see a hardcoded border color or shadow as a decision instead of treating it as unexplained implementation detail. A designer can read more of the visual system without first translating it out of a build tool's config format.
 
-That is the kind of friction I want from a styling system. It should make shortcuts visible without turning every adjustment into ceremony.
-
-Tailwind v4 does not make styling simple. It does make styling decisions easier to inspect in the language the browser actually speaks at the end of the pipeline.
+Tailwind v4 does not make styling simple. It makes more of the styling system readable in the language the browser actually computes. That is a modest change with a practical payoff: fewer places to search before deciding whether a value belongs in the system at all.

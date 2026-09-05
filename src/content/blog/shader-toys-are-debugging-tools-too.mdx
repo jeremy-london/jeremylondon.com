@@ -8,19 +8,9 @@ author: "jeremy-london"
 tags: ["shaders", "webgpu", "visualization"]
 ---
 
-Shader toys look playful because they are small.
+A shader toy is a small visual instrument.
 
-That is usually the part people misread. A little fragment shader, a gradient, a field of particles, a noise pattern, a signed-distance function, a mouse-controlled distortion. It does not look like enterprise software, so it gets sorted into the toy bucket.
-
-I think that misses what the toy is for. A tiny visual program is often the fastest debugger for a system that has invisible state.
-
-## the screen is an instrument
-
-The moment a value becomes color, bugs get easier to see.
-
-You can spot a flipped axis, a bad normalization, a coordinate-space mismatch, an unstable threshold, or a value that clips to white. You can see time as motion. You can see discontinuity as a hard edge. The loop from edit to observation is short enough that the bug stops being abstract.
-
-That is why even a tiny shader sketch is useful:
+The screen turns invisible values into color, motion, edges, and fields. That makes coordinate errors, bad normalization, unstable thresholds, and clipped values easier to see than they are in logs.
 
 ~~~glsl
 vec2 uv = fragCoord.xy / iResolution.xy;
@@ -29,64 +19,19 @@ vec3 color = vec3(smoothstep(0.3, 0.31, d));
 fragColor = vec4(color, 1.0);
 ~~~
 
-Move one number and the shape changes immediately. The screen tells you whether the math is behaving.
+Move one number and the shape gives immediate feedback.
 
-## coordinate mistakes do not hide for long
+Graphics bugs often reveal themselves visually:
 
-Graphics work is full of coordinate bugs.
+- circle becomes ellipse: aspect-ratio problem
+- motion reverses: axis is flipped
+- texture swims: unstable coordinates
+- pattern changes with resolution: normalization problem
 
-Pixel space versus normalized space. Center origin versus top-left origin. Aspect ratio correction. Clip space. Texture coordinates. Matrix order. A formula can be right in one coordinate system and nonsense in another.
+The same technique works for heat maps, vector fields, confidence maps, masks, simulations, embeddings, and classification boundaries. The question is not only what value occurred. It is what shape the values made.
 
-Visualizing it makes the mistake obvious:
+The word toy is useful when the cost of being wrong is low. A browser sketch can answer one question about interpolation, noise, easing, ray marching, or feedback and then be discarded.
 
-- circle becomes ellipse -> aspect ratio bug
-- motion goes the wrong way -> axis flipped
-- texture swims -> unstable coordinates
-- pattern changes with resolution -> normalization bug
+WebGPU makes those experiments easier to place beside prose, controls, and source. A tiny visual program becomes a learning object and a debugger at the same time.
 
-That is easier to inspect than to reason through from code alone.
-
-## state fields are easier to trust when drawn
-
-This is not only about pretty graphics.
-
-Any field benefits from visualization:
-
-- heat maps
-- vector fields
-- confidence maps
-- masks
-- simulation grids
-- attention-like weights
-- signed distance functions
-- particle velocities
-
-In AI and data systems, the same habit helps with embeddings, uncertainty, cluster membership, time-series drift, and classification boundaries. If some piece of the state is hard to explain, drawing it usually helps.
-
-The question becomes simple: what does the state look like, and where does it change?
-
-## the toy keeps the stakes low
-
-The word toy is useful when it means the cost of being wrong is low.
-
-A shader sketch can be bad and still be worth the hour. It can answer one question about interpolation, noise, easing, ray marching, palette mapping, or feedback. If the idea works, carry the intuition back to the real system. If it does not, throw it away.
-
-I like that because it keeps exploration cheap.
-
-## webgpu makes the habit easier to keep
-
-WebGPU makes the browser feel like a practical graphics and compute surface.
-
-It does not remove the need for simple tools. It does make the browser a better place to do more serious experiments: compute passes, buffers, textures, simulations, image processing, and visual explanations that used to feel awkward in web land.
-
-That matters because the browser is where the experiment can live beside prose, controls, and source. A shader toy embedded in an explanation becomes more than a toy. It becomes a small learning object.
-
-## the useful question is shape, not value
-
-Logs ask what value happened.
-
-Visual debugging asks what shape the values made.
-
-That question is better for systems with spatial state, time, thresholds, interpolation, or fields. I want at least one visual handle for those. Shader toys are a good place to build the instinct because they are immediate and honest. The math either works or it does not.
-
-Cheap noticing is underrated engineering practice. If the state is visible, the bug has less room to hide.
+Cheap noticing is good engineering. If state is visible, a bug has less room to hide.

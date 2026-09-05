@@ -8,17 +8,17 @@ author: "jeremy-london"
 tags: ["css", "design systems", "frontend"]
 ---
 
-CSS gets better when it has fewer opinions.
+CSS becomes expensive when every small visual disagreement gets its own rule.
 
-That sounds like a complaint until you look at the diffs that usually hurt the most. A new margin here, a special shadow there, a button variant for one screen, a page-specific heading size because the global one was almost right. None of those changes feels expensive in the moment. Together they turn the stylesheet into a pile of exceptions that the next change has to remember.
+A margin for one page. A shadow for one card. A button variant created because one screen was almost, but not quite, aligned with the rest of the site. Each decision is cheap while it is being made. The cost appears later, when a new page has to understand all of them before it can make a safe change.
 
-The problem is not style. The problem is too many local arguments.
+The stylesheet is not suffering from a lack of creativity. It is suffering from too many local decisions.
 
-## defaults do the heavy lifting
+## Make the common case boring
 
-Good defaults are worth more than fancy variants.
+Defaults do more work than variants.
 
-The site should already know how text wraps, how links behave, how code reads, how spacing feels, and what focus looks like before a page asks for help. If those defaults are steady, most pages can stay quiet.
+Text should already know how to wrap. Links should already have a readable state. Code should already look like code. Focus should be visible without each component remembering to invent it. A page that needs fewer corrective rules is easier to extend and easier to review.
 
 ~~~css
 h1,
@@ -42,55 +42,53 @@ pre,
 }
 ~~~
 
-That kind of rule does not make a splash. It just keeps the common case from needing a patch every time.
+None of these rules is a design moment. That is the point. They remove repeated decisions from the page layer.
 
-## special cases should be hard to miss
+## Exceptions should announce themselves
 
-Special treatment is fine when the page really needs it.
+There are legitimate reasons to break the system. A homepage may need a stronger treatment. A product launch may need a temporary visual language. A dense tool may need controls that do not belong in a reading layout.
 
-A homepage treatment can be expressive. A product launch can have a visual moment. A blog card probably does not need its own private universe. If a component wants a custom radius, a new shadow, or a separate spacing scale, I want that exception to feel expensive enough that somebody will ask whether it belongs in the system.
+The danger is the ordinary component with a private vocabulary. If a blog card gets its own radius, shadow, spacing scale, and heading size, the exception should be visible enough to prompt a question: is this a real component distinction, or did the local value merely feel close?
 
-The test is simple: will I want this again?
+One useful test is whether the rule will be wanted again. If it will, promote the decision into the system. If it will not, keep the exception close to the component and make it easy to find.
 
-If the answer is yes, promote it. If the answer is no, keep it visibly local.
+## Name roles, not moods
 
-## tokens should name roles
+Custom properties should describe what a value does.
 
-CSS variables work when they describe decisions.
+`--surface-wash` gives the next person a role. `--profile-orbit-blue` gives them a history lesson about one component. `--cool-blue` records a preference without explaining where the value belongs.
 
-`--surface-wash` tells me a role. `--profile-orbit-blue` tells me a component-specific choice. `--cool-blue` mostly tells me somebody liked blue that day.
-
-I want token names that help the next person answer three questions:
+A useful token should help answer:
 
 - what role does this value play?
-- where is it allowed?
-- what breaks if it changes?
+- where is that role allowed?
+- what changes if the value moves?
 
-If the token cannot answer those questions, the system may not be ready for it yet.
+If those answers are unclear, adding the token may only spread the ambiguity.
 
-## one layout language is enough
+## Keep the layout vocabulary small
 
-Layout drift is where CSS starts feeling haunted.
+Most layout drift starts with a nearly-right wrapper.
 
-One page uses flex with gap. Another uses grid with local margins. Another creates a new wrapper because the hero needed to overlap. Another invents a slightly different container because the first one was close but not quite. The result is a site that makes every new page invent grammar instead of content.
+One page uses flex and `gap`. Another uses grid and local margins. A third adds a new container because a hero needs to overlap its neighbor. Soon, adding a page means learning a set of exceptions instead of arranging content inside a known structure.
 
-I like a small vocabulary:
+A small layout vocabulary is usually enough:
 
 - page container
 - prose container
 - dense toolbar
-- repeated item grid
+- repeated-item grid
 - full-width band
-- split layout when the content actually needs it
+- split layout when the content genuinely calls for it
 
-That is enough. The rest should stay rare.
+The value is not visual uniformity for its own sake. It is the ability to predict how a new piece of content will fit.
 
-## dark mode exposes the weak spots
+## Theme changes reveal hidden coupling
 
-Dark mode is a good lie detector.
+Dark mode exposes scattered decisions quickly.
 
-If the system is role-based, the theme swap is manageable. If colors are scattered through page-specific classes, every adjustment becomes a scavenger hunt. The same is true for shadows, borders, and low-contrast text that looked harmless in light mode.
+When colors describe roles, changing the theme means updating a manageable set of values. When colors live in page-specific selectors, the same change becomes a search through unrelated components. Borders, shadows, and muted text expose the problem too.
 
-Boring CSS survives theme changes because fewer pieces are improvising at once.
+The same principle applies beyond themes. A stylesheet with fewer independent opinions has fewer places for a refactor to surprise you.
 
-That is the version I trust: a small set of global decisions, a few component-level exceptions, and no appetite for local drama.
+I trust CSS that has a small set of global decisions, a narrow set of component exceptions, and enough restraint that the next page can use the system without negotiating with it.

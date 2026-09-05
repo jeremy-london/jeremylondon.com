@@ -8,98 +8,43 @@ author: "jeremy-london"
 tags: ["diffusion", "generative models", "images"]
 ---
 
-Generative systems get interesting only after the first good demo.
+The first good output proves that a generative model can make something. It does not prove that the product is useful.
 
-The first image, paragraph, layout, or synthetic example usually proves the model can make something. That is not the product. The product question starts a step later: what has to stay fixed, what is allowed to move, who reviews the result, and how do we know the output still fits the job after the model has made a change?
-
-Diffusion models make that question easy to see because they begin with noise. They do not start with structure and then sprinkle on randomness. They start from randomness and slowly denoise toward something that matches the conditioning signal. That means the system is really about guiding motion, not just generating content.
-
-## noise is not a bug
-
-Starting with noise sounds backwards until you look at what the model is actually doing.
-
-The model is not trying to preserve an initial image. It is trying to carve a useful sample out of a cloud of possibilities. Every denoising step nudges that cloud toward something the training distribution says is plausible. The prompt, the seed, the sampler, the guidance scale, the mask, and any conditioning image all shape the path.
-
-That gives you a useful mental model:
+Diffusion models make the distinction visible because they begin with noise and gradually denoise toward a sample shaped by conditioning. The output looks sudden. The process is incremental:
 
 ~~~text
 noise
-  -> a rough structure
-  -> a more specific structure
-  -> a sample that satisfies the constraints
+  -> rough structure
+  -> specific structure
+  -> sample that satisfies constraints
 ~~~
 
-The final image looks sudden. The underlying process is incremental.
+The controls around that process are part of the product. A seed gives reproducibility. A mask limits where change can occur. Guidance changes how tightly the sample follows its prompt. A reference image anchors the result. Samplers trade speed and fidelity.
 
-## the controls matter more than the magic
+The real question is what the user is allowed to change.
 
-People often talk about diffusion as if the model itself is the product. It is not. The controls around it are the product.
-
-A seed gives you reproducibility. A mask limits where change can happen. Classifier-free guidance changes how tightly the sample follows the prompt. A reference image can anchor the result. Different samplers can trade speed for fidelity. All of those choices change what the system is actually good at.
-
-That is why image products are so often won or lost in the interface around generation. If the user cannot lock a logo, preserve a face, keep text unchanged, or edit only one region, the model is doing more than generation. It is also doing policy enforcement, and it is not well suited to that job by itself.
-
-## conditioning is where product work begins
-
-The hard part is deciding which parts of the output are allowed to drift.
-
-For a marketing image, the composition might be flexible but the product shape should not be. For an edit tool, the user might want to change the background without moving the subject. For a diagram, the labels matter more than the color palette. For a storyboarding tool, motion and framing may vary while the characters stay recognizable.
-
-That means the prompt is only one constraint. The real question is what the system should preserve.
-
-I like to think about it as a contract with a few clauses:
+For a marketing image, composition may vary while the product shape stays fixed. For an editor, the background may change while the subject stays put. For a diagram, labels may be locked while color is flexible. A prompt is only one constraint. The product needs a contract:
 
 - these fields are locked
 - these fields can vary
 - this region may be regenerated
-- this region must stay exactly as provided
+- this region must remain exact
 - these outputs need review before export
 
-If the product cannot say that clearly, then every generation request becomes an argument with the model.
+Without that contract, the model is being asked to enforce policy through generation. It is not a good boundary.
 
-## why polished failures are hard to notice
-
-Generative systems fail in a way that looks expensive.
-
-The image is clean. The paragraph flows. The mockup feels complete. The problem is often that one constraint quietly drifted. A face changed between frames. A chart label moved. A product detail is wrong. A policy answer sounds confident but cites the wrong rule.
-
-That is why review needs to look at more than surface quality. The useful artifacts are boring:
+Polished failures are difficult because the output looks finished. A face changes between frames, a chart label moves, a product detail is wrong, or a paragraph cites the wrong rule. Review needs more than surface quality:
 
 - original input
 - generated output
-- prompt or conditioning data
-- model version
+- model and prompt version
 - seed or sampling settings
 - locked constraints
 - reviewer decision
 - reason for rejection
 
-Once you have that record, the team can stop guessing whether the model failed, the prompt was vague, or the UI hid the wrong control.
+Editing is usually more useful than regeneration. Masks, layers, locked text, object references, and region-level regeneration let users preserve one part while changing another. The same principle applies to text: pin the source, revise a paragraph, protect a required clause.
 
-## editing matters more than regeneration
+Measure the constraint the product claims to honor. For images, that might include prompt adherence, identity consistency, text rendering, and protected-asset drift. For text, it might be source faithfulness, prohibited claims, required fields, and human edit distance.
 
-Regeneration alone is a weak editing model.
-
-When a user says "keep this part but change that part," the system should not force them to re-prompt from scratch. It should give them a way to preserve one region and alter another. In image tools that can mean masks, layers, locked text, object references, or region-level regeneration. In text tools it can mean source pinning, paragraph-level revision, or protected clauses.
-
-That is where generative products start to feel usable. The output becomes something you can steer instead of something you restart.
-
-## what i would measure
-
-I would not start with a single quality score. I would measure the specific constraint the product claims to honor.
-
-For a text generator, that might be source faithfulness, prohibited-claim rate, required-field inclusion, and human edit distance after review. For an image tool, it might be prompt adherence, identity consistency, text rendering failures, protected asset drift, and how often the user abandons the result after a few tries. For synthetic data, it might be label validity, leakage, and slice coverage.
-
-The metric should tell you what to fix next. If reviewers keep rejecting outputs because locked elements drift, the problem is probably conditioning or constraint representation. If users keep regenerating without selecting a result, the issue may be the allowed variation range. If synthetic data improves one slice while hurting another, the generator is teaching shortcuts.
-
-Useful measurement turns the mess into a next step.
-
-## the part that keeps coming back
-
-The strongest generative systems are the ones that know what should stay still.
-
-That is the part people skip when they talk about creativity as if it means unconstrained output. Most useful creative work has a brief, a medium, a client, a deadline, and a review path. The model brings variation. The product brings boundaries.
-
-Without those boundaries, generation produces plausible artifacts that are hard to reproduce and hard to trust.
-
-With them, the sample has somewhere to land.
+The strongest generative systems know what should stay still. The model supplies variation. The product supplies boundaries, review, and a place for the result to land.

@@ -8,23 +8,11 @@ author: "jeremy-london"
 tags: ["notes", "systems", "writing"]
 ---
 
-Fast capture is the part of note-taking everyone optimizes first.
+Capture should be almost frictionless. Review should not be.
 
-That makes sense. If the idea disappears before it reaches the system, nothing else matters. A note app that takes fifteen seconds to open is already losing. A capture flow that demands tags, folders, links, summaries, and a perfect title is quietly telling your brain to stop writing things down.
+A note that takes fifteen seconds to open loses ideas. A capture flow that demands tags, folders, links, and a perfect title asks the writer to predict the future.
 
-But fast capture is not the whole system.
-
-The real value comes later, when a note becomes useful again. That is where most personal knowledge systems get weird. They remove every bit of friction at capture time, then accidentally create a junk drawer that is impossible to review. Or they demand so much structure up front that capture becomes a chore.
-
-Notes need friction in the right place.
-
-## capture should be almost stupid
-
-The capture step should let me write the thought in the language it arrived in.
-
-That may be a sentence, a link, a terminal command, a quote, a bug hypothesis, a half-formed architecture sketch, a reading note, or a reminder to look up something later. I do not want the capture interface asking me to predict the future category of the idea.
-
-The minimum useful capture record is small:
+The minimum useful record is small:
 
 ~~~text
 timestamp
@@ -33,104 +21,23 @@ optional source
 optional context
 ~~~
 
-If the note came from a meeting, source might be the meeting. If it came from a bug, source might be the repo or ticket. If it came from reading, source might be the URL. If it came from nowhere, fine. Let it be nowhere.
+Review is where the note becomes trash, reference, task, or writing material. That decision is easier after the idea has cooled. A review queue admits that capture is messy without making the mess permanent.
 
-The point is to get the raw material down without turning the moment into filing work.
+Ask:
 
-## review is where the system earns trust
+- is this still true?
+- where did it come from?
+- is there an action?
+- would I search for it later?
+- does it connect to current work?
+- is it a sentence worth expanding?
 
-The friction belongs in review.
+Retrieval needs boring handles. Titles, project names, subsystem names, failure modes, tools, related specs, and likely future search terms help more than a perfect folder tree. Embeddings can find neighborhoods; they do not replace useful titles.
 
-Review is where a note becomes one of four things:
+Tasks should leave the note system. A captured reminder can become an issue, checklist, calendar item, or be deleted. Otherwise notes become a guilt-based task manager.
 
-- trash
-- reference
-- task
-- writing material
+Writing notes need a smaller next move: attach the sentence to a draft, add the example, split the idea, keep it, or delete it because it only sounded good for ten minutes.
 
-That decision is hard to make at capture time because the idea is still warm. It is easier a day or week later. Some notes turn out to be noise. Some are useful but need a better title. Some belong in a project. Some are really tasks and should leave the note system. Some are seeds for posts, talks, specs, or code comments.
+The right friction depends on the failure. Lost ideas mean capture is too hard. Unused notes mean review is too soft. Unfindable notes need better handles. Hidden tasks need a clearer boundary.
 
-I like review queues more than perfect folders.
-
-A review queue admits the truth: capture is messy. The system can stay fast because it has a later moment where mess gets handled. Without that later moment, the mess becomes permanent storage.
-
-The review step should ask better questions than "which folder?"
-
-- Is this still true?
-- Do I know where it came from?
-- Is there an action hiding in it?
-- Would I search for this later?
-- Does it connect to something I am already working on?
-- Is this a sentence I should expand into writing?
-
-That is useful friction. It turns raw capture into reusable material.
-
-## retrieval needs boring handles
-
-A note is only useful if I can find it again when my memory has changed.
-
-The trick is that future-me rarely searches with the same words present-me used. I may capture "agent receipts" and later search for "audit logs." I may write "route confidence" and later think "model routing fallback." I may save a quote about "context collapse" and later look for "stale prompt state."
-
-This is why titles, aliases, and links matter during review.
-
-I do not need every note to become a wiki page. I do need important notes to acquire enough handles that they can be found from more than one direction.
-
-For technical notes, useful handles might be:
-
-- the project name
-- the subsystem
-- the decision being considered
-- the failure mode
-- the tool or library
-- the related post or spec
-- the phrase I am likely to search later
-
-This is also where embeddings can help, but embeddings do not remove the need for human handles. Semantic search is good at neighborhoods. Good titles are still good. A note called `routing idea` is less useful than one called `model routing should log rejected routes`.
-
-## tasks should leave the note system
-
-One way note systems rot is by becoming a bad task manager.
-
-Notes can contain tasks at capture time. That is fine. But during review, actionable work should move to the place where work is managed: an issue, a project board, a checklist, a calendar, or a scratch file for the current sprint.
-
-If the note system becomes the task system, review turns into guilt archaeology.
-
-I want notes to preserve thinking, references, and reusable fragments. I want task systems to preserve commitments. Mixing those too deeply makes both worse. A note that says "look into stale eval fixtures" is useful capture. After review, it should either become a real task or be deleted.
-
-The note can keep a link to the task if the context matters. The work itself should not depend on rediscovering the note.
-
-## writing is a reuse path
-
-A lot of my notes are really pre-writing.
-
-They are not drafts yet. They are observations that might become a paragraph later: a sentence about verifier loops, a complaint about flaky local dev, a small pattern from a code review, a weird thought about model routing, a reminder that some infrastructure problems are actually product problems.
-
-Those notes do not need a heavy process. They need enough shape that I can reuse them.
-
-When reviewing writing notes, I look for the smallest next move:
-
-- keep the sentence as-is
-- attach it to an existing draft
-- split one idea into two notes
-- add the example that made the idea concrete
-- delete it because it only sounded smart for ten minutes
-
-That last one is important. A note system should make deletion easy. Keeping everything is another way to avoid thinking.
-
-## the right friction depends on the failure
-
-If I am losing ideas, capture has too much friction.
-
-If I am capturing everything and using nothing, review has too little friction.
-
-If I cannot find good notes later, retrieval handles are weak.
-
-If tasks disappear inside notes, the boundary between thinking and commitments is wrong.
-
-If every note becomes a page-building exercise, structure is happening too early.
-
-That is the useful diagnostic. Do not ask whether the system is elegant. Ask where the failure is happening.
-
-My current bias is simple: make capture fast, make review unavoidable, make retrieval handles boring, and make deletion cheap.
-
-The note system does not need to feel like a second brain. It needs to be a place where a thought can land quickly and either become useful later or get out of the way.
+Make capture fast, review unavoidable, retrieval concrete, and deletion cheap.

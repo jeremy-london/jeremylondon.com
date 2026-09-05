@@ -1,0 +1,34 @@
+---
+title: "Local models need a job before they need a home"
+excerpt: "Smaller open models make local AI more practical, but the useful question is still which part of the workflow they should own."
+publishDate: "2026-08-29T14:00:00Z"
+category: "model-watch"
+draft: false
+author: "jeremy-london"
+tags: ["local ai", "open weights", "model routing", "qwen"]
+---
+
+The useful question about a local model is not whether it fits on a laptop. It is what work deserves a local path.
+
+Qwen3.8-27B is interesting in that context: an open-weight multimodal model with a long context window, a permissive license, and a size that makes consumer hardware plausible. That does not make it a universal replacement for a hosted model. It makes a narrower arrangement possible: keep some work close to the data and send harder work elsewhere.
+
+I would choose the task before choosing the model. A good first task has inputs already on the device, an output that can be checked, and a failure mode that does not silently change the source of truth. Classifying support notes, finding files, drafting a changelog, or scanning a repository fit that shape better than an unsupervised customer answer.
+
+The routing can stay simple:
+
+- local inference extracts or classifies
+- a deterministic check validates the result
+- a hosted model handles ambiguity or synthesis
+- a person reviews consequential actions
+
+The boundary should be measured. If the hosted path handles most of the workload, the task may not fit local inference, or the local model may have been assigned the wrong part of it. Useful measurements include:
+
+- tasks completed without escalation
+- operator correction time
+- sensitive data kept off the network
+- hardware or energy cost per completed task
+- failure rate with incomplete context
+
+Local also does not mean instant. A background indexer can expose progress and finish later. A live interaction may need a hosted fallback. The interface should show which route is being used instead of making local infrastructure feel like a low-latency service.
+
+Give the model a job first. Its hardware home, runtime, and fallback become easier decisions once the workflow has a boundary.

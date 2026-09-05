@@ -8,13 +8,11 @@ author: "jeremy-london"
 tags: ["gpt-4o", "multimodal", "product"]
 ---
 
-[GPT-4o](https://openai.com/index/hello-gpt-4o/) made multimodal product work feel real.
+[GPT-4o](https://openai.com/index/hello-gpt-4o/) made text, vision, and audio feel like one product surface rather than a chain of conversions.
 
-Before that launch, multimodal often meant a chain of conversions with a chat box on top. Speech to text. OCR. Vision captioning. Then a language model reasoning over the leftovers. GPT-4o changed the expectation by making text, vision, and audio feel like one surface.
+That changes the product contract. The application has to know what was captured, what the model saw, and how a reviewer can locate the evidence later.
 
-The product lesson was not subtle. The input surface is part of the model contract. The system has to know what was captured, what the model actually saw, and how the result can be reviewed later.
-
-One practical shape looks like this:
+A request can keep those anchors explicit:
 
 ~~~json
 {
@@ -28,10 +26,8 @@ One practical shape looks like this:
 }
 ~~~
 
-That is the part that matters to me. Once the input is multimodal, the app has to keep anchors, timestamps, regions, and receipts around or the answer turns into blind trust. If the UI cannot point back to the exact crop or the exact second, the model has done perception work but the product has not done its job.
+If the UI cannot point to the exact crop, timestamp, or text source, the model may have done the perception work while the product lost the evidence.
 
-The launch made that work feel less theoretical and more like normal product plumbing. That's the useful shift. Multimodal stopped being a demo and started being a workflow with evidence.
+Multimodal input should be treated as a record rather than a blob. Keep asset IDs, regions, timestamps, model version, and review links next to the result. When a user reports a miss, the system should be able to distinguish "the model did not see it" from "the application dropped the anchor afterward."
 
-I think the simplest implementation pattern is to treat every multimodal request as a small record, not a blob. Store the source asset IDs, the visible region or timestamp, the model version, and the review link next to the result. That way a later bug report can answer a basic question: did the model miss the thing, or did the product lose the anchor after the fact?
-
-That sounds mundane, which is exactly why it works. The app becomes easier to debug when the sightline from input to answer stays intact.
+That is the practical shift GPT-4o represented. Multimodal stopped being a demo category and became ordinary workflow plumbing.

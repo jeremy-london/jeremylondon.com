@@ -8,27 +8,15 @@ author: "jeremy-london"
 tags: ["embeddings", "semantic search", "vectors"]
 ---
 
-Embeddings are useful because they make search, memory, deduping, and retrieval feel less brittle.
+An embedding is a useful hint about similarity, not an answer.
 
-The demo version always looks magical. You ask a messy question and the system finds the right paragraph even though the words do not match. That is a real win, but it is also the easy part. In a product, embeddings are plumbing. They decide what counts as similar, what gets stored, what gets filtered out, and what happens when the nearest thing is still wrong.
+It turns text, images, audio, or code into a vector that preserves some relationships and discards others. That loss is what makes search work. It is also why a refund policy and a cancellation policy can be close while answering different questions.
 
-## the vector is a hint, not the answer
+Vector distance is a first pass. The retrieval system still needs metadata filters, reranking, citations, and a way to ask a clarifying question when the nearest result is not good enough.
 
-An embedding is a lossy representation. That loss is the point. The model turns a paragraph, an image, an audio window, or a code block into a vector that preserves some kinds of similarity and discards the rest.
+Chunking decides what can be found. A chunk that is too small loses context. One that is too large mixes unrelated ideas. Splitting a code block, table, or policy section at the wrong point creates results that are semantically nearby and practically useless.
 
-That makes embeddings useful and dangerous at the same time. A refund policy and a cancellation policy may sit near each other because they both talk about account changes. That can help broad search and hurt support automation. A deploy note and an incident review may share vocabulary about logs, services, and owners. That can be great for discovery and awful if the user asked only for incidents.
-
-So I do not treat vector distance as truth. I treat it as a first pass. The retrieval system still needs metadata filters, a second ranking step, citations, or a human question if the nearest match is still vague.
-
-## chunking decides what can be found
-
-The most common embedding bug is pretending chunking is just preprocessing.
-
-It is not. Chunking decides the unit that can be found. If the chunk is too small, the result may have the right phrase and the wrong context. If the chunk is too large, the vector turns into a smoothie of unrelated ideas. If the chunk split cuts a code block, table, or policy section in the wrong place, the index can retrieve something technically related and practically useless.
-
-For documentation, I usually want chunks that respect headings. For code, I want the unit to be a function, class, route handler, or test case. For support data, I want to keep the customer message, the agent response, and the resolution separate because each one answers a different query.
-
-The record shape matters because it keeps the source shape visible:
+The record should keep source context visible:
 
 ~~~ts
 type EmbeddedChunk = {
@@ -49,32 +37,20 @@ type EmbeddedChunk = {
 }
 ~~~
 
-That metadata is not decoration. It is what keeps retrieval from turning into a semantic junk drawer. If someone searches current billing docs, a stale migration note may look close and still be wrong. Metadata gives the system a way to say "nearby, but not eligible."
+Metadata is what lets the system say "nearby, but not eligible." A stale migration note may be close to current billing documentation. Similarity does not grant permission or freshness.
 
-## memory needs a boundary
-
-Embeddings become weird when they are used for memory.
-
-It is tempting to save everything, embed it, and call that memory. The result remembers too much and understands too little. Old preferences, stale plans, abandoned drafts, temporary instructions, and one-off exceptions all become retrievable later unless somebody defines what should expire.
-
-For personal tools, I would rather split memory into a few classes:
+Memory needs an even clearer boundary. Saving everything and embedding it creates a system that retrieves old preferences, abandoned plans, temporary instructions, and one-off exceptions. I would separate memory by lifecycle:
 
 ~~~text
-preference: durable user choice, user editable
-project note: scoped to one project, expires when archived
-recent context: short-lived, decays quickly
+preference: durable and user editable
+project note: scoped to one project
+recent context: short-lived
 blocked fact: explicitly excluded from future use
 ~~~
 
-That is not a fancy taxonomy. It is a way to stop the system from dragging last week's context into every new answer.
+In an agent system, stale memory becomes authority. The fix is lifecycle design, not a larger vector database.
 
-This matters more in agent systems because memory becomes authority. If the agent can retrieve a stale note and act on it, the bug is no longer just search quality. It is a permission boundary problem. The fix is lifecycle design, not a bigger vector database.
-
-## test the misses, not the demo
-
-Embedding systems are hard to evaluate from the happy path. A few good queries can make the system feel smarter than it is. The real work is collecting misses.
-
-I want a small test set with the query, the expected result, acceptable alternates, and known bad matches:
+Evaluate the misses rather than the demo:
 
 ~~~json
 {
@@ -85,16 +61,8 @@ I want a small test set with the query, the expected result, acceptable alternat
 }
 ~~~
 
-That `bad` field is useful because semantic search often finds the wrong neighbor with confidence. An API reference for creating a webhook may be close to secret rotation. The product still needs the rotation runbook.
+Recall@K and nDCG are useful, but opening the wrong neighbors matters too. A relevant document at rank 12 suggests reranking. A stale document at rank 1 points to a content or freshness problem. If the right document never appears, the issue may be chunking or the embedding model.
 
-I care about Recall@K and nDCG, but I still want to open the misses by hand. If the right document never appears in the top 50, the model or chunking may be wrong. If it appears at rank 12, reranking might help. If it appears at rank 2 but the product chooses rank 1, the scoring logic needs work. If the document is outdated, retrieval did its job and the content system failed.
+The map metaphor is fine as long as it stays a map. Distance is not relevance, similarity is not permission, and a retrieved chunk is not an answer.
 
-## the map works until it starts pretending to be the territory
-
-I still like the map metaphor. It is a decent way to explain why embeddings help. Nearby points tend to be related. Clusters can reveal themes. Search can finally start from meaning instead of exact wording.
-
-But the map is not the territory, and this one was drawn by a model with its own blind spots. Distance does not equal relevance. Similarity does not equal permission. A retrieved chunk does not equal an answer.
-
-That is why embeddings stay in the plumbing category for me. They are most useful when the rest of the system respects what they are: a fast way to propose neighbors. The product value comes from the parts around them, which is where the real work lives. Chunking, metadata, reranking, citations, review, deletion, and the evaluation set built from the misses are the pieces that make the system trustworthy.
-
-That is a less magical story than the demo. I think that is a better one.
+Embeddings are plumbing. Chunking, metadata, reranking, citations, deletion, and a test set built from misses are what make the plumbing useful.

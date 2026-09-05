@@ -8,87 +8,32 @@ author: "jeremy-london"
 tags: ["anthropic", "google", "claude-sonnet-4.5", "gemini-3"]
 ---
 
-Coding became the cleanest way to compare frontier models because code is rude. It either runs or it does not. The diff is readable or it is not. The tests pass or they do not.
+Coding is a useful frontier comparison because it leaves evidence. Code runs or does not. The diff is reviewable or it is not. Tests pass or fail.
 
-That does not make coding benchmarks perfect. It just makes the failure easier to inspect than a charming paragraph in a chat window.
+That does not make coding benchmarks complete. It makes the failure easier to inspect than a charming paragraph.
 
-## the benchmark is only the first filter
+For Sonnet 4.5 and Gemini 3, the useful questions are operational:
 
-Sonnet 4.5 and Gemini 3 were both positioned around coding, agents, and computer use. That matters because the contest had moved from "can it answer?" to "can it keep working after the first answer?"
+- did the model read surrounding code?
+- did it keep the patch small?
+- did it run relevant checks?
+- did it leave the repository easier to continue?
+- did it explain a tradeoff a reviewer could challenge?
 
-The useful questions are more operational than leaderboard culture usually admits:
+Computer-use systems add physical state. A model can click the wrong account, accept the wrong modal, or type into the wrong field. Screenshots, focus, browser state, and timing become part of the evidence.
 
-- did it read the surrounding code before editing?
-- did it keep the change small?
-- did it run the right checks?
-- did it leave the repo easier to continue from?
-- did it explain the tradeoff in a way a reviewer can challenge?
-
-That last one matters more than the benchmark score.
-
-## computer use makes mistakes physical
-
-Computer-use models leave tracks in the interface.
-
-A text model can hallucinate an API and move on. A computer-use model can click the wrong account, accept the wrong modal, type into the wrong field, or scroll past the warning. The model did not almost succeed. It changed state.
-
-That means screenshots, focus, browser state, and page timing matter. The same is true for coding agents. The state is not just the final diff. It is the path the agent took to get there.
-
-I want receipts:
+Receipts should include:
 
 - files read
 - commands run
 - tests attempted
 - generated patches
-- failures encountered
-- assumptions made
-- checks skipped and why
+- failures
+- assumptions
+- skipped checks and why
 
-Without that trace, review becomes harder than writing the patch manually.
+The model is only one component. A serious coding setup also needs scoped workspaces, permission boundaries, logs, intermediate state, relevant tests, and a reviewer allowed to reject confident nonsense.
 
-## workflow beats model fandom
+Different surfaces change the job. An IDE exposes diagnostics. A sandbox exposes snapshots and command logs. A browser exposes visual state. A CLI exposes shell history and repository context.
 
-The model is only one part of the system.
-
-A serious coding setup needs a scoped workspace, permission boundaries, useful logs, a way to inspect intermediate state, tests that match the requested change, and a reviewer loop that is allowed to reject confident nonsense.
-
-That is the real battleground. Some models are better first-draft writers. Some are better debuggers. Some are more disciplined about local conventions. Some are better at stopping when context is missing. Routing should follow that behavior instead of brand loyalty.
-
-The important product question is not "which model wins coding?" It is "which model behaves well inside the loop the team actually runs?"
-
-## the surface changes the job
-
-An agent in an IDE has open files and diagnostics. An agent in a sandbox has filesystem snapshots and command logs. A browser-using agent has visual state and click targets. A CLI agent has shell history and repo context.
-
-Those surfaces change what good means.
-
-For a serious coding agent, I want the environment to answer:
-
-- what files can it read?
-- what files can it edit?
-- which commands are allowed?
-- what happens if a command hangs?
-- can it access the network?
-- can it see test output?
-- can it restore a checkpoint?
-
-The model may be excellent. A sloppy surface can still make it dangerous or exhausting.
-
-## what i would measure
-
-I would measure patch acceptance, review comment density, test relevance, command failure recovery, file-touch count, and how often a human has to unwind an over-broad edit.
-
-I would also separate task classes:
-
-- small local refactor
-- failing test repair
-- dependency upgrade
-- UI implementation
-- bug reproduction
-- codebase explanation
-- security review
-- migration planning
-
-The same model will not win every class. The local eval suite should show that instead of pretending coding is one generic job.
-
-That is where the frontier battleground actually is. It is code generation, but it is also whether the model can participate in the maintenance loop without turning every task into archaeology.
+Measure patch acceptance, reviewer corrections, test relevance, recovery after command failure, file-touch count, and over-broad edits by task class. The real battleground is not generic coding skill. It is participation in a maintenance loop without turning every task into archaeology.

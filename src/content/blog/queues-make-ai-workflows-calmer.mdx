@@ -8,11 +8,11 @@ author: "jeremy-london"
 tags: ["queues", "workers", "ai workflows"]
 ---
 
-Queues make AI workflows calmer because they stop pretending every request should finish inside the user's patience window.
+Queues give AI workflows an honest place to put slow work.
 
-As soon as a task needs retrieval, model calls, tool execution, retries, file processing, verifier passes, or human review, a synchronous request starts lying about the shape of the work. Some work should stay inline. A short classification, a route decision, or a small rewrite can still fit in the request path. The rest needs somewhere honest to live.
+A request that performs retrieval, model calls, tool execution, retries, file processing, verifier passes, or human review has already outgrown a single patience window. Short classification or routing decisions can remain inline. The longer path needs a durable boundary.
 
-The first thing I want is identity.
+That boundary starts with identity.
 
 ~~~json
 {
@@ -24,15 +24,15 @@ The first thing I want is identity.
 }
 ~~~
 
-The idempotency key matters because AI jobs sit behind flaky systems all the time. The model call may succeed while the worker crashes before recording the result. A tool may finish while the network drops. The user may hit the button again. The queue may redeliver after a visibility timeout. Identity is what keeps that from turning into duplicate work.
+The idempotency key is the important field here. A model call can succeed just before a worker crashes. A tool can finish while the network connection disappears. A user can press the button twice. A visibility timeout can cause the queue to deliver the same job again. Without a stable identity, each event looks like new work.
 
-I also like input references more than giant payloads in the queue message. Put the big document, image, prompt bundle, or repository snapshot somewhere durable. The job points to it. That makes retries read the same input version instead of whatever happened to be in memory when the worker woke up.
+Large inputs also deserve a durable home outside the queue message. Store the document, image, prompt bundle, or repository snapshot, then let the job reference a specific version. Retries should read the same input rather than whatever happened to remain in memory.
 
-### retries need reasons
+### retries should explain themselves
 
-"Retry on failure" is too crude.
+“Retry on failure” collapses several different operational decisions into one.
 
-Some failures are transient, like a provider timeout or a network issue. Some are permanent until the input changes, like malformed schema, missing permission, deleted source material, or a verifier that rejected the result for a deterministic reason. Those should not share the same loop.
+A provider timeout or network error may be transient. A malformed schema, missing permission, deleted source, or deterministic verifier rejection will not be fixed by repeating the same attempt. The queue should record that distinction.
 
 ~~~ts
 type JobFailure =
@@ -46,10 +46,10 @@ type JobFailure =
 
 ### dead letters are a review queue
 
-Dead-letter queues are not failure closets. They are evidence that the workflow does not know what to do with a case. Better to inspect them and learn than to let them disappear into a counter nobody reads.
+A dead-letter queue is evidence that the workflow reached a case it could not classify or recover from. Treating it as a failure closet throws away information. Treating it as a review queue creates a place to inspect the input, the attempts, and the missing decision.
 
-### backpressure is the point
+### backpressure is a feature
 
-A queue also gives the system a place to say "not yet." That is healthier than letting every agent workflow compete for model capacity, database connections, reviewer attention, and budget at once.
+“Not yet” is a useful system response. A queue can keep agent workflows from competing all at once for model capacity, database connections, reviewer attention, and budget.
 
-The calm part is not that queues make AI easy. The calm part is that they give slow, expensive, failure-prone work a shape software already knows how to operate.
+Queues do not make AI work simple. They make the slow, expensive, failure-prone parts legible: a job has an identity, an input version, an attempt history, a failure reason, and a place to wait. That is a calmer shape for software to operate.

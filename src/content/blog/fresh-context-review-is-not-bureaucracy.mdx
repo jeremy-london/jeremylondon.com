@@ -8,47 +8,33 @@ author: "jeremy-london"
 tags: ["verification", "agents", "review"]
 ---
 
-Fresh context review is what keeps the builder from reviewing their own story.
+Fresh-context review keeps the builder from reviewing the story they told themselves.
 
-The builder always has extra information. They remember the false starts, the awkward workaround, the reason a strange line exists, and the command that almost worked. That memory is useful while building. It is a liability when it is time to decide whether the work actually stands on its own.
+The builder remembers false starts, workarounds, and the command that almost worked. That context helps create the change. It can also make a missing edge case feel handled because it was discussed.
 
-I prefer a reviewer who gets a thin packet: goal, diff, verification, risk, question. If the reviewer needs the whole history, they can ask for it. Starting cold makes the important thing harder to dodge.
-
-## why the builder is the wrong final judge
-
-After a long session, the intended solution starts to look more real than the actual artifact. The missing edge case feels handled because it was discussed. The test feels run because a similar command happened earlier. The requirement feels satisfied because the patch moved in the right direction.
-
-That is exactly the bias fresh review is supposed to break.
-
-## the handoff should be small
+A reviewer should start with a thin packet:
 
 ~~~text
 goal:
   one sentence about the change
 
 changed:
-  files that matter
+  relevant files
 
 verified:
   commands that actually ran
 
 risk:
-  what still makes me uneasy
+  what remains uncertain
 
 question:
-  the one thing the reviewer should decide
+  the decision the reviewer should make
 ~~~
 
-If the handoff cannot fit in that shape, it is probably trying to smuggle in too much explanation.
+A cold start makes the artifact carry more of the argument. If the reviewer needs the full history, they can ask for it. The first pass should not depend on the builder's memory.
 
-## receipts matter more than confidence
+"Tests pass" is not a receipt. Which command ran? Did it exit zero? Did it cover the changed path or merely exercise the project broadly? Agent output often sounds more complete than its evidence. Fresh review checks whether the claim and proof are in the same room.
 
-“Tests pass” is not a receipt. Which tests. Which command. Did it exit zero. Did it cover the changed path or just the whole project by habit.
+Use the extra review where it buys safety: public writing, authorization, migrations, automation, and changes with a wide blast radius. A typo fix does not need the same ceremony.
 
-That sounds fussy until you see how often agent output sounds more complete than the verification behind it. Fresh review is the part that checks whether the claims and the evidence are actually in the same room.
-
-## pay the cost where it buys safety
-
-I would use fresh review for public writing, auth changes, migrations, automation, and anything with a wide blast radius. I would not spend the same effort on a typo fix.
-
-The point is not to create ceremony. The point is to make sure the diff has to satisfy the goal without leaning on the builder’s memory to explain away the gaps.
+The point is not ritual. It is making the diff satisfy the goal without borrowing credibility from the person who built it.

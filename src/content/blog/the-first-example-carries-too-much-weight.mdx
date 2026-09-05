@@ -8,25 +8,17 @@ author: "jeremy-london"
 tags: ["teaching", "examples", "writing"]
 ---
 
-The first runnable example in a technical post does more work than we admit.
+The first runnable example teaches more than the paragraph around it.
 
-Readers build their mental model from it. They copy its naming. They infer which parts are essential and which parts are incidental. They decide what kind of system they are looking at before the article has a chance to explain itself.
+Readers copy its naming, infer its boundaries, and decide what kind of system they are seeing. That example needs to be honest about the subject.
 
-That is why the first example has to be honest.
-
-## start with the real boundary
-
-A first example explains the idea and quietly designs the interface.
-
-If a library starts with this:
+A simple call:
 
 ~~~ts
 const result = await run(input)
 ~~~
 
-the reader assumes the tool is simple, stateless, and probably safe to call anywhere. That may be true. It may also hide authentication, retries, cancellation, streaming, rate limits, and a bunch of state that will appear later.
-
-If the real shape is closer to this:
+implies a stateless, broadly safe operation. If the real boundary includes cancellation and a timeout, show some of it:
 
 ~~~ts
 const result = await client.run({
@@ -36,89 +28,17 @@ const result = await client.run({
 })
 ~~~
 
-then the first example should probably show a little of that shape. The extra lines tell the reader that execution has a boundary.
+Names teach too. A variable called "value" hides whether it is raw, parsed, trusted, or cached. Distinguishing raw response from parsed profile shows the boundary.
 
-## names teach harder than people think
+Include the error path that defines the topic. A tool example may need schema validation. A file example may need workspace scope. A form example may need the failure state.
 
-Variable names in first examples carry a lot of weight.
+Keep the unit small enough to teach one idea, but real enough not to teach the wrong rule. An eval case, one embedding query, one cache key, or one sync conflict can carry the subject without introducing an imaginary architecture.
 
-~~~ts
-const data = await fetchData()
-~~~
+Before publishing, ask:
 
-That tells me almost nothing. `data` could be raw JSON, parsed records, trusted input, cached state, or a response object. The reader has to guess.
-
-~~~ts
-const rawProfileResponse = await fetchProfile(userId)
-const profile = await rawProfileResponse.json()
-~~~
-
-That is not beautiful code, but it teaches the boundary between response and parsed value. For a first example, that may be worth the extra words.
-
-The same is true in AI examples. `prompt`, `context`, and `result` are often too vague. If the article is about retrieval, call the value `retrievedPolicyChunks`. If it is about evals, call the value `expectedToolCall`. If it is about embeddings, call the value `normalizedQueryVector`.
-
-## include the error path that defines the subject
-
-Readers notice which errors the first example ignores.
-
-If a tutorial starts with a database call and no missing-record handling, readers infer that the missing case is unimportant. If an agent tool example has no permission check, readers infer that tool identity is somebody else's problem. If a file upload example has no size limit, readers infer that validation can wait.
-
-For a tool-calling article, that may be schema validation:
-
-~~~ts
-const parsed = ToolInput.safeParse(args)
-
-if (!parsed.success) {
-  return { ok: false, error: "invalid_tool_input" }
-}
-~~~
-
-For a local file workflow, it may be path scope:
-
-~~~ts
-if (!path.startsWith(workspaceRoot)) {
-  throw new Error("refusing to read outside the workspace")
-}
-~~~
-
-For a form article, it may be the empty state after submission fails.
-
-## keep the unit small
-
-Some examples fail because they are too tiny. Others fail because they pretend to be architecture.
-
-I do not want an opening example that introduces a `PipelineManager`, `ExecutionCoordinator`, `ResultEnvelope`, and `ObservabilityAdapter` before the reader knows the problem. That teaches ceremony.
-
-A better first example starts with the smallest unit that carries the real idea.
-
-For an evals article, that unit might be one case:
-
-~~~json
-{
-  "input": "Cancel my plan after the trial ends.",
-  "expected": {
-    "intent": "cancel_subscription",
-    "requires_follow_up": true
-  }
-}
-~~~
-
-For an embeddings article, it might be one query and two candidates. For a cache article, it might be one key and one invalidation rule. For a sync article, it might be one local edit and one remote edit.
-
-## the first example is a promise
-
-A good first example should still make sense after the article gets deeper.
-
-If chapter two has to say, "the first example was simplified, but real systems do the opposite," the opening probably did damage. It is fine to say the first example omitted a detail. It is worse to say the first example taught the wrong rule.
-
-Before publishing, I like asking:
-
-- what assumption will the reader copy from this example?
-- which line will they paste into their project?
+- what assumption will readers copy?
+- which line will they paste?
 - what important boundary is invisible?
-- what would I regret teaching here?
-- does the next section contradict this shape?
+- does a later section contradict this shape?
 
-The first example tells the reader what the article values: speed, safety, minimal syntax, explicit state, readable names, production realism, or conceptual clarity. You cannot value all of those equally in one snippet. The tradeoff shows up in the code.
-
-Pick the first example like it will become somebody's starting point, because it probably will.
+The first example is a promise about what the article values. Write it as if it will become somebody's starting point.

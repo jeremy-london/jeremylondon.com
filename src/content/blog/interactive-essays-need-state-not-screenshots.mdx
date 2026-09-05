@@ -8,30 +8,24 @@ author: "jeremy-london"
 tags: ["interactive essays", "visualization", "teaching"]
 ---
 
-Interactive essays are good when the reader can change the system.
+An interactive essay earns its name when the reader can change the thing being explained.
 
-A screenshot shows one answer. State shows the thing that produced it.
+A screenshot records one output. State exposes the relationship that produced it. Give the reader a parameter, an input, or a choice, and the explanation has to survive the resulting change.
 
-That is why interactive essays work: the reader can change the input, see the system respond, and check whether the explanation still holds. The controls should be few and tied to the concept, and the current state should be visible enough to inspect.
+The controls should be modest. A slider that changes the variable under discussion is useful. Six decorative toggles that do not alter the argument are interface noise. The current values should remain visible, and the essay should have a meaningful default state so a reader can understand the first result before experimenting.
 
-If the essay cannot return to an interesting state later, it is probably pretending to be interactive instead of teaching through interaction.
+There is also a useful test: can the reader return to an interesting state later? If the answer is no, the piece may be showing an animation rather than teaching a system.
 
 ## maintenance is part of the choice
 
-Interactive essays cost more than static prose.
+Interaction adds obligations that a static page does not have. Dependencies change. Layouts collapse on narrow screens. Keyboard and screen-reader users need a path through the controls. JavaScript can fail to load. A demo can become misleading when its initial data no longer matches the prose.
 
-They can break when dependencies change. They need responsive layout. They need keyboard and screen-reader consideration. They need defaults that still work when viewed on a phone. They need tests or at least smoke checks. They need graceful failure when JavaScript does not load.
+That cost is not an argument against interactive work. It is a reason to reserve it for ideas that need manipulation. If the concept is linear, write the explanation. If one image makes the relationship obvious, use the image. If a table is enough, use the table.
 
-That means interaction should earn its place.
-
-If the concept is linear and the state does not matter, write prose. If one image explains it, use the image. If a small table is enough, use the table. But if the reader needs to manipulate the system to understand it, build the interaction properly.
-
-The worst version is an interactive-looking essay that is really a screenshot with a fake control surface. That teaches the reader to admire the artifact instead of interrogating the system.
+Build the interaction when the reader needs to probe the system. Then test the boring states as seriously as the impressive one: reset, invalid input, a small viewport, and a missing script.
 
 ## the point
 
-Interactive essays are at their best when they make the author's claim falsifiable.
+The strongest interactive essays make a claim that can be challenged. The prose says a parameter matters. The reader changes it. The system responds, including in ways that may complicate the explanation.
 
-The prose says a parameter matters. The reader changes it. The system responds. The failure appears. The explanation has to survive contact with the controls.
-
-That is why state matters more than screenshots. State lets the reader participate in the argument.
+That exchange is the teaching mechanism. The reader is not admiring a captured result; they are checking whether the argument still works when the state changes.

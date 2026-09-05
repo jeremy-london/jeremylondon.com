@@ -8,24 +8,18 @@ author: "jeremy-london"
 tags: ["offline first", "sync", "product"]
 ---
 
-Offline-first is usually sold as an architecture. Local storage, sync, queues, maybe conflict resolution if the conversation gets serious.
+Offline-first is not primarily a storage architecture. It is a promise about what remains trustworthy when the network disappears.
 
-That part matters, but it is not the point. The point is what the user can still trust when the network disappears.
+The product should say:
 
-Can I keep writing? Can I reopen the thing I was just reading? Can I queue this action? Can I tell whether the change is saved locally? Can I close the laptop and come back later without losing work?
+1. what works offline
+2. what queues
+3. what becomes stale
+4. what needs a connection
+5. what a conflict looks like
 
-If the product cannot answer those questions, the promise is weak.
+"Saved on this device" is different from "waiting to sync." "Conflict needs review" is different from "sync failed." "Remote status unavailable" is different from "cached value." The interface should expose those distinctions rather than leaving the user to infer them from a spinner.
 
-1. name what works offline
-2. name what queues
-3. name what stays stale
-4. name what needs a connection
-5. name what conflicts look like
+An offline action records intent; it does not prove that the server agreed. Queues therefore need idempotency keys, visible pending state, and recovery when sync fails or permission changes before the action lands.
 
-That list sounds basic because it is basic. A note app, a field app, a banking app, and a coding tool all have different answers, and the user should not have to infer them from a spinner.
-
-The state names matter just as much as the storage layer. "Saved on this device" is different from "waiting to sync." "Conflict needs review" is different from "sync failed." "Remote status unavailable" is different from "cached value." The interface should say the boring thing clearly.
-
-The queue is part of the promise too. If the user acts offline, the app is recording intent, not pretending the server already agreed. That means idempotency keys, visible pending state, and a recovery path when sync fails or permission changes before the action lands.
-
-I like offline-first products when they are honest about the tradeoff. The network can go away, and the user can keep working. The app just has to say what is real, what is pending, and what may be stale. That is what makes the promise believable.
+A note app, field tool, banking app, and coding tool will make different promises. The implementation is honest when the user can tell what is real, what is pending, and what may be stale.

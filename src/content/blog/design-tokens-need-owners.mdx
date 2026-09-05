@@ -8,44 +8,28 @@ author: "jeremy-london"
 tags: ["design tokens", "design systems", "frontend"]
 ---
 
-Design tokens need owners.
+A design token is a product decision with a name attached.
 
-Without ownership, tokens become prettier hardcoded values. The names look systematic for a while, then nobody can explain what they mean, who is allowed to change them, or why two almost identical values exist. That is when a design system starts lying to the people who use it.
+Without an owner, it becomes a prettier hardcoded value. The name looks systematic for a while, then nobody can explain what it means, who may change it, or why two nearly identical tokens exist.
 
-## what a token is for
+Role names age better than mood names. surface, surface-muted, border-subtle, text-muted, accent, and danger describe use. They survive a theme change better than names that only make sense while one person remembers the original palette.
 
-A token is a decision with a name attached. It says this gray is a surface, this spacing step is a compact gap, this radius belongs to cards, this shadow means elevation. If the name does not point to a decision, the token is just indirection with a nicer wardrobe.
+Ownership is more than approving a hex value. The owner decides whether a token should exist, whether it belongs globally or beside one component, whether an existing token already covers the case, and how usage moves when the name changes. Sometimes the right answer is a local value for a one-off experiment rather than another global token.
 
-I care more about role names than mood names. `surface`, `surface-muted`, `border-subtle`, `text-muted`, `accent`, `danger` all survive theme changes better than a pile of values that only make sense while one designer still remembers why they were picked. The names do not have to be poetic. They do have to mean something.
-
-## ownership is the boring part that keeps it honest
-
-The owner of a token is not only approving a hex value. They are deciding whether the token should exist at all, whether it should be global or component-local, whether another token already covers the same case, and who has to move the old usage when the name changes.
-
-That means a token owner has to be willing to say no. If a team wants a new token for every slight variation in a screen, the system starts to rot in place. Sometimes the right answer is a local value next to the component instead of a new global token. That is especially true for one-off surfaces like a campaign block, a profile flourish, or a temporary product experiment.
-
-## migration is part of the contract
-
-Changing a token is changing the product. That sounds dramatic until a spacing update shifts half the site or a subtle color adjustment breaks contrast in a place nobody was watching.
-
-When a token changes, I want a migration path, not just a new value:
+Migration is part of the contract:
 
 ~~~text
 old token: --color-muted-border
 new token: --border-subtle
 plan:
-  - keep the old token as an alias for one release
-  - update components that still reference it
-  - remove the alias once usage reaches zero
+  keep old token as an alias for one release
+  update remaining consumers
+  remove alias when usage reaches zero
 ~~~
 
-That process is boring. Good. Token systems usually fail through boring neglect, not through some grand architectural mistake.
+Changing a token changes screens. Review should show the affected surfaces, contrast impact, dark-mode behavior, focus states, usage counts, and migration notes. A raw token diff is not enough.
 
-## exceptions should stay close to the component
-
-Design systems do need exceptions. A data-dense table may need tighter spacing. A warning state may need contrast that the normal palette does not provide. A branded interaction may need one weird color that should never escape its corner of the product.
-
-I like exceptions that sit near the thing they belong to:
+Exceptions are healthy when they stay close to their component:
 
 ~~~css
 .profile {
@@ -54,14 +38,10 @@ I like exceptions that sit near the thing they belong to:
 }
 ~~~
 
-That tells the next engineer that the value is part of the profile treatment, not a new global color family waiting to spread everywhere.
+That signals that the values belong to the profile treatment rather than starting a new global color family.
 
-## review has to show the surfaces, not just the diff
+AI-generated UI raises the same issue. A model can copy a token name while missing its meaning. Review has to inspect the resulting surfaces, not only whether the code compiles.
 
-Raw token diffs are easy to misread. A change from `--surface-muted` to `--surface-soft` means very little unless the reviewer can see the affected screens, the contrast impact, the dark mode behavior, and whether focus states still read correctly.
+Unused aliases, stale names, and duplicate values make the system harder to reason about. Fewer tokens with clear ownership are more useful than a large catalog nobody trusts.
 
-The review surface should include screenshots, usage counts, and migration notes. If the change touches a UI kit, I also want to know which components consume the token and which ones are deliberately left alone. AI-generated UI makes this worse, not better. A model can copy a token name and still miss what the token is actually for.
-
-Unused tokens should not stick around just because removing them feels tedious. Duplicate aliases, stale names, and values that no longer match their role all turn the token set into a guessing game. Fewer tokens with clearer meaning are easier to maintain than a huge catalog that only looks organized from far away.
-
-Somebody has to protect that meaning. It can be a designer, a frontend engineer, or a small design-system group. The title matters less than the job: keep the token language coherent so the product can change without forgetting what its own values mean.
+Somebody needs to protect the language. The title can be designer, engineer, or design-system lead. The responsibility is the same: keep the named decisions coherent enough that the product can change without forgetting what its values mean.

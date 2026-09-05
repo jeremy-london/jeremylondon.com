@@ -8,32 +8,28 @@ author: "jeremy-london"
 tags: ["openai", "gpt-4-turbo", "model-watch"]
 ---
 
-[GPT-4 Turbo](https://openai.com/index/new-models-and-developer-products-announced-at-devday/) made context feel like a product budget.
+[GPT-4 Turbo](https://openai.com/index/new-models-and-developer-products-announced-at-devday/) made context feel like a budget.
 
-The 128K window mattered because it changed the temptation. Once the prompt can hold a lot more, teams stop asking "can we fit it" and start asking "should we pay for it." That is a better question. Context competes with latency, cost, privacy, and user attention.
+A larger window changes the question from "can this fit?" to "should this be included?" Context competes with latency, cost, privacy, and the user's attention.
 
-I think about the budget in three buckets:
+A request assembler can make the trade explicit:
 
 ~~~yaml
 context_budget:
   essential:
-    - the current user request
-    - the few facts needed to answer safely
+    - current user request
+    - facts needed to answer safely
   helpful:
     - recent turns that prevent re-asking
-    - a couple of examples
+    - a few examples
   expensive:
-    - long conversation history
+    - long history
     - every retrieved chunk
-    - stale notes that may or may not matter
+    - stale notes
 ~~~
 
-The useful change is not that everything can go in. It is that the product has to decide what earns a spot. Retrieval becomes less desperate when the context window is bigger, but retrieval also gets more expensive if the team starts stuffing in everything it can find.
+A large window is not a reason to send everything. Retrieval may become less desperate, but stuffing every result into the prompt can make the answer slower, harder to debug, and more likely to trust irrelevant context.
 
-The part I care about most is policy. Conversation history should not behave like a memory leak. Example blocks should not pile up just because the window is large. A prompt that grows without a rule becomes harder to debug and easier to trust for the wrong reason.
+Conversation history should not behave like a memory leak. Example blocks need a reason to remain. A growing prompt needs a policy for what enters, what expires, and what gets excluded.
 
-So yes, the launch made context feel bigger. It also made context feel accountable. That is the part worth keeping.
-
-I like the budget framing because it is easy to apply in code. A request assembler can reserve the first chunk for the user request, keep a small fixed window for recent turns, and only pull in retrieval results if the answer actually needs them. That gives you a place to say no to extra context instead of pretending extra tokens are free.
-
-The moment I started thinking that way, I stopped treating long prompts as a default and started treating them as a deliberate trade. That is a healthier habit for product teams than just filling the window because it is available.
+The useful habit is simple: reserve space for the current request, keep a bounded recent window, and add retrieval only when the task needs it. More tokens create room for judgment. They do not remove the need for it.

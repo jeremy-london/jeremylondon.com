@@ -8,23 +8,11 @@ author: "jeremy-london"
 tags: ["tooling", "automation", "quality"]
 ---
 
-Tooling should make the safe path short.
+If the careful workflow takes five commands and the risky workflow takes one, the risky workflow usually wins.
 
-That sounds obvious until you watch a team under pressure.
+Command length becomes unofficial policy. A fast build gets run more often than a slow check. A deploy command that skips tests becomes the real release process. A frightening rollback path gets avoided when it matters most.
 
-If the careful workflow takes five commands and the risky workflow takes one, people will use the risky workflow. They will mean well. They will know better. They will tell themselves this change is tiny. Then the one-command path becomes the real process and the documented careful path becomes theater.
-
-## command length is policy
-
-Every repo has an unofficial policy encoded in command length.
-
-If `pnpm build` is fast and `pnpm check` is slow, developers will build more often than they check. If the deploy command skips tests, that is the deploy process, regardless of what the wiki says. If opening a PR is easy and writing a useful description is manual, descriptions will rot. If the rollback command is scary, people will hesitate during the window when speed matters.
-
-The tool path becomes the culture.
-
-## boring scripts beat heroic memory
-
-I like boring scripts because they turn the careful thing into one handle.
+Give the careful operation one boring handle:
 
 ~~~json
 {
@@ -36,13 +24,7 @@ I like boring scripts because they turn the careful thing into one handle.
 }
 ~~~
 
-Those names are not clever. They give people a short handle for the careful thing.
-
-## safety should be the default branch
-
-Dangerous operations should require extra intent. Safe operations should be cheap.
-
-For example, a deploy tool should probably default to a preview or staged environment:
+Safe operations should be cheap. Dangerous operations should require extra intent:
 
 ~~~text
 deploy              -> preview
@@ -50,15 +32,7 @@ deploy --prod       -> production
 deploy --prod --yes -> production without prompt
 ~~~
 
-The flags tell a story. Production is possible, but it is not the accidental path.
-
-The same principle applies to database tools, migration runners, file cleanup scripts, AI agents, and local reset commands.
-
-## receipts matter
-
-A short safe path should not be invisible.
-
-If the tool fixes formatting, it should say which files changed. If it runs migrations, it should print the migration names. If it deploys, it should print the version, commit, environment, and URL. If it asks an AI agent to edit code, it should record the goal and the verification command.
+The safe path should leave a receipt:
 
 ~~~text
 preflight
@@ -69,21 +43,9 @@ preflight
   artifact: dist/
 ~~~
 
-That output is small, but it gives the next person a receipt.
+Recovery belongs in the same design. Clean stale servers, explain failed migrations, restore the last good deploy, and make half-written generated files removable.
 
-## the recovery path is part of safety
-
-It is not enough to prevent mistakes. Tools should help recover from ordinary ones: stale dev servers, stuck ports, failed migrations, half-written generated files, dirty build artifacts, abandoned branches, broken caches.
-
-`pnpm dev:clean` is a better command than making everyone remember a sequence of stop, reset, and start steps. The same logic applies to production: a deploy tool should know the last good version, and a migration tool should say whether rollback exists.
-
-Safety without recovery becomes anxiety.
-
-## cheap checks belong near the change
-
-A check that takes twenty minutes has a different job than a check that takes ten seconds.
-
-I like layered checks:
+Layer checks by cost:
 
 ~~~text
 save:      format touched file
@@ -93,8 +55,6 @@ ci:        full test and build matrix
 release:   smoke deployed artifact
 ~~~
 
-Put the cheap signal close to the person making the change. Put the expensive signal where it can run without blocking every thought.
+Put cheap signals near the change and expensive signals where they can run without blocking every thought. This applies to agents too: if verification takes more effort than editing, verification will be skipped.
 
-If the only safe path is slow, people will invent a faster unsafe path.
-
-That applies hard to agent workflows too. If asking the agent to verify the change is harder than asking it to edit the file, verification will be skipped. The safe path should be the short one.
+Make the safe path the short path.

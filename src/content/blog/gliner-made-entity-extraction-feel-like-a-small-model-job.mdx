@@ -10,17 +10,9 @@ tags: ["gliner", "ner", "classification"]
 
 [GLiNER](https://github.com/urchade/GLiNER) made entity extraction feel like a small-model job.
 
-That sounds obvious, but it is easy to forget when the default answer is to hand the paragraph to a large model and ask for JSON back.
+The task is narrower than asking a large model for JSON. Find the span, label it, keep the offsets, and let the next stage decide what to do.
 
-Entity extraction is narrower than that. Find the span. Label it. Keep the offsets. Let the next stage do the rest.
-
-The useful part of GLiNER is the output shape. It gives you text, label, span boundaries, and a score. That is enough to build a reviewable extraction step without pretending the model is also the resolver, the normalizer, and the policy engine.
-
-## spans are the contract
-
-That shape matters because it keeps the work honest. If I am scanning a support note, I do not want a generated paragraph about the note. I want exact spans I can point to later.
-
-For example, the model can return:
+That output shape is the useful part. A result can carry text, label, span boundaries, and score:
 
 ~~~text
 "sk-123..." -> api_key
@@ -28,11 +20,9 @@ For example, the model can return:
 "-----BEGIN PRIVATE KEY-----" -> private_key
 ~~~
 
-Those spans can feed a redaction pass, a review panel, or a deterministic validator. They are not the final policy. They are the evidence.
+Those spans can feed redaction, review, or deterministic validation. They are evidence, not a complete policy.
 
-## what the model actually returns
-
-For a local redaction pass, I like a shape like this:
+A local extraction pass can stay explicit:
 
 ~~~python
 from gliner import GLiNER
@@ -45,42 +35,18 @@ high_risk = [span for span in spans if span["score"] >= 0.8]
 needs_review = [span for span in spans if span["score"] < 0.8]
 ~~~
 
-The model is not trying to invent a document schema. It is trying to find a span that lines up with the text the user actually wrote. That matters because the product can keep offsets, show the user the source sentence, and let a deterministic step decide whether the span is safe to redact.
+The model finds a span in the text. The surrounding system keeps the source sentence, applies the threshold, and decides whether to redact automatically.
 
-## the routing is the product
-
-That is enough to power a useful product path:
+The route is the product:
 
 ~~~text
 high confidence -> redact automatically
-medium confidence -> show in review panel
-low confidence -> ignore or send to deterministic check
+medium confidence -> show in review
+low confidence -> ignore or run deterministic check
 ~~~
 
-The product gets a span, a score, and a reason to route. It does not get fake certainty.
+A weak "password" match should not disappear silently. It can be shown as a possible secret so a person can distinguish a real credential from a harmless sentence.
 
-If the model says "password" is present but the span score is weak, I would not hide the result. I would surface it as "possible secret" and keep the original text visible. That lets a human confirm whether the model found a real credential or just matched a suspicious word in a harmless sentence.
+Thresholds are an interface choice. Lower them and the review queue fills with noise. Raise them and the model misses messy cases. Report precision, recall, and the labels that need a different threshold.
 
-## the threshold is part of the interface
-
-I also care about where the threshold sits. If I make it too low, the review queue fills with junk. If I make it too high, the model misses the messy cases that were the whole point of using it.
-
-An eval table makes that trade visible:
-
-~~~text
-label           precision   recall   note
-api_key            0.98      0.91    good at obvious keys
-password           0.96      0.84    misses some pasted text
-private_key        1.00      0.79    threshold is conservative
-company            0.89      0.85    aliases need resolution later
-~~~
-
-That is enough to tell me whether the model is usable in front of a user. I do not need it to be poetic. I need it to be predictable enough that the surrounding system can make a good choice.
-
-## why this is easier to trust
-
-A classifier-style extraction step is easier to trust than a generic prompt when the job is local and repetitive. The label list is explicit, the threshold is visible, and the output can feed a second pass that knows how to behave when confidence is low.
-
-That is the part I like here. The model is not the whole workflow. It is one piece of it, and a pretty small one at that. Small is not a downgrade. For entity extraction, small is often the reason the rest of the system stays legible.
-
-Labels become a contract. Thresholds become a product choice. Abstention becomes acceptable instead of embarrassing. The first pass is allowed to be small, which is exactly what the job asks for.
+A classifier-style extraction step is easier to reason about when the labels, score, and abstention behavior are visible. The model is one bounded stage, not the whole workflow. For this job, that is the strength.

@@ -8,120 +8,43 @@ author: "jeremy-london"
 tags: ["ai cost", "budgets", "governance"]
 ---
 
-The first version of an AI budget usually shows up in the wrong room.
+The first version of an AI budget usually lives in the billing console.
 
-Somebody opens the billing console, sets a cap, maybe adds an alert at 80 percent, and calls it governance. That is better than discovering the invoice by surprise, but it is still not product design. The user does not experience a spend cap as a finance rule. They experience it as the moment the product changes what it is willing to do.
+That is useful until a user reaches the limit and the product changes behavior without warning. A model disappears. A batch pauses halfway through. A long document refuses to process. The user experiences the billing policy as a product failure because the interface never explained the transition.
 
-## the user sees behavior, not billing
+A cap is a state machine whether the team calls it one or not.
 
-The product gets shorter. The expensive model disappears. A batch job pauses halfway through. A document analysis run refuses the next file. An agent that was happily working through a queue suddenly asks for permission to continue.
+At 90 percent, perhaps the product warns an admin. At 100 percent, background jobs pause while short interactive requests use a cheaper route. Above the hard limit, high-cost work requires explicit approval. Different products will choose different states. The important part is that the user can tell which state they are in and what happens next.
 
-If the product has not designed that moment, the cap feels arbitrary even when the policy is reasonable.
-
-The thing that makes AI spend especially awkward is that cost is often hidden until after the request has already been shaped. A prompt can trigger retrieval. Retrieval can expand the input. The model can call tools. The tool output can get fed back into the model. The user thinks they asked one question. The platform sees a chain of metered operations.
-
-That means the product should know when a request is likely to cross a meaningful threshold and say something before the work starts. It does not need to show a receipt for every sentence. It does need to avoid the worst version of this:
-
-> Your workspace has reached its AI budget.
-
-The user gets no agency there. They just get cleanup.
-
-## a cap is policy with a user attached
-
-Spend controls answer product questions whether the team names them or not.
-
-Who owns the budget? Personal, project, team, or organization? Can admins set the cap while individual users spend against it? Can a high-priority workflow borrow from a shared pool? Do evals count the same way as user-facing requests? Are background jobs allowed to continue after interactive use is blocked?
-
-Those are policy decisions, but they shape the interface immediately. A personal research tool can be blunt about a daily limit. A team product needs to explain who owns the budget, who can approve more spend, who sees the usage, and who gets notified when behavior changes.
-
-I do not think every AI feature needs a giant budget dashboard. I do think every serious AI product needs one clear answer: when cost changes behavior, who is supposed to understand that change?
-
-If the answer is "nobody until support gets a ticket," the cap is unfinished.
-
-## degradation should be named, not implied
-
-The useful design work begins when the team decides what happens at 90 percent, 100 percent, and 110 percent of budget.
-
-At 90 percent, maybe admins get a warning and users start seeing cheaper paths. At 100 percent, maybe large batch jobs stop while short interactive requests keep going. At 110 percent, maybe only explicitly approved requests run. Different products will choose different cutoffs, but the states should exist.
-
-AI products have more ways to degrade than traditional SaaS features because there are several ways to answer the same request:
+There are several ways to degrade:
 
 - use a smaller model
-- reduce context size
+- reduce context
 - skip expensive reranking
-- process fewer files per run
-- delay background work until the next budget window
+- process fewer files
+- delay background work
 - ask the user to narrow the request
-- require approval for high-cost paths
+- require approval
 
-Some of those are honest. Some of those are dangerous.
+Those options are not interchangeable. A cheap summary can move to a smaller model. A security-sensitive classifier probably should not silently do so. Reducing context for brainstorming is different from reducing context for contract review.
 
-Using a cheaper model for a low-risk summary may be fine. Using a cheaper model for a security-sensitive classification path without telling anyone is a quality regression hiding inside a cost policy. Reducing context for a casual brainstorm is not the same thing as reducing it for contract review.
+The interface should name the downgrade:
 
-If the system degrades, the contract has to change too:
+~~~text
+Using the low-cost path for this request.
+Large-file analysis is paused until the project budget resets.
+~~~
 
-> Using the low-cost path for this request.
+Rough estimates are useful even when exact prediction is impossible:
 
-> Large-file analysis is paused until the workspace budget resets.
-
-That kind of copy is not decoration. It keeps a controlled downgrade from looking like the normal path.
-
-## rough estimates are better than mystery
-
-Teams sometimes avoid previews because exact estimates are hard. That is true, and it is still not a good excuse.
-
-The product usually does not need perfect prediction. It needs enough information to avoid absurd surprises. A rough estimate can still distinguish a cheap chat reply from a 400-page document analysis, a one-off completion from a thousand-row batch, or a small classification run from a long-context reasoning pass with tools.
-
-I like estimates that show their own uncertainty:
-
-```text
+~~~text
 expected cost: about $0.40 to $0.70
 reason: 183 pages, OCR enabled, long-context model selected
 budget impact: 7 percent of today's project limit
-```
+~~~
 
-That helps because it connects cost to cause. The user can see the levers. If OCR is driving the cost, maybe they upload cleaner source files. If the long-context model is the issue, maybe they split the document. If the project limit is the blocker, maybe the request should wait or require approval.
+That gives the user a lever. They can upload cleaner files, choose a smaller model, split the document, or ask for approval. A meter without a cause teaches nobody anything.
 
-Cost feedback should teach the user how the system behaves. A mystery meter does the opposite.
+Budget events should leave a trail too. Record which project reached its limit, which jobs paused, which fallback route stayed available, and which requests needed approval. Cost is operational state. It belongs beside the run, not in a separate export nobody checks until the invoice arrives.
 
-## budget events should leave a trail
-
-If a cap blocks a workflow, the product should preserve enough context to explain what happened without making somebody dig through billing exports.
-
-Useful records are boring:
-
-- project `customer-risk-review` reached 95 percent of its monthly AI budget
-- background extraction jobs were paused
-- interactive chat stayed enabled on the low-cost model tier
-- three requests required manager approval
-- one request was denied because it would have exceeded the hard cap
-
-That trail helps engineering, finance, product, and support have the same conversation. It also keeps budget policy from becoming folklore.
-
-The artifact matters even more when spend controls interact with evals or agents. If a nightly eval stops because the workspace hit a cap, the team can lose quality signal without noticing. If an agent pauses halfway through a long run, the next run needs to know whether it paused because of cost, policy, failure, or user choice.
-
-Cost is operational state. It deserves the same respect as any other state that changes product behavior.
-
-## test it like a feature
-
-I would test spend caps with product scenarios, not only billing-unit checks.
-
-Can a user understand why a request is blocked? Can an admin see which feature consumed the budget? Does a batch job pause cleanly and resume later? Does the product avoid starting work it already knows it cannot finish? Are low-cost fallback paths labeled clearly? Do evals and background jobs have separate limits? Does support have enough detail to answer a complaint?
-
-Those are product quality questions, not accounting questions.
-
-The awkward part is that a cost cap is easiest to test after something expensive happens. Good systems create smaller fixtures. A staging workspace should be able to run with a tiny fake budget. A test user should be able to hit a cap with a few requests. The UI should show warning, blocked, degraded, and approval-required states without needing a real bill to arrive.
-
-I want the expensive path to be boring before it becomes expensive.
-
-## the budget is part of the promise
-
-AI features made software feel variable in a new way. The same button can cost different amounts depending on model, context, retrieval, tools, file size, and reasoning effort.
-
-That variability is manageable only if the product treats it as part of the design. A spend cap should protect the user without surprising them. It should give admins control without forcing individual users to decode finance policy. It should let the product degrade gracefully when that is acceptable and refuse clearly when it is not.
-
-The goal is not to make everybody stare at token math all day. The goal is to keep cost from becoming an invisible product dependency.
-
-When budgets live only in billing settings, the product discovers them at the worst possible time.
-
-Put them in the interface earlier. Give them names. Give them owners. Give them states the user can understand.
+I would test caps with small staging budgets. Hit warning, degraded, blocked, approval-required, and resume states before a real customer does. The expensive path should be boring before it becomes expensive.

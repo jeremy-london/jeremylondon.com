@@ -8,46 +8,13 @@ author: "jeremy-london"
 tags: ["vector search", "retrieval", "product"]
 ---
 
-The vector database rush in 2023 made semantic search easy to demo and surprisingly easy to ship without product discipline.
+Vector search answers a similarity question. The product still has to define what similarity means.
 
-That year had a very specific smell: take a pile of docs, embed the chunks, ask a question, get a plausible answer, declare retrieval solved. The demo felt like magic because keyword search had been annoying for so long.
+For support, it may mean the same customer problem. For legal discovery, the same clause. For code search, the same behavior. For incidents, the same failure pattern. Those are different products.
 
-The prototype was real progress. It also let a lot of teams skip the product questions.
+Search and answering also have different failure modes. Search exposes documents. Answering synthesizes a claim that can hide a bad retrieval result. The system should know whether it is building search, Q&A, recommendations, research, triage, or memory.
 
-## what kind of likeness should win
-
-Vector search answers a similarity question. The product has to define what similarity should mean.
-
-For support search, similar might mean "answers the same customer problem." For legal discovery, it might mean "discusses the same clause." For code search, it might mean "implements the same behavior." For incident response, it might mean "shares the same failure pattern." For a writing tool, it might mean "has the same tone."
-
-Those are different products.
-
-If the product does not choose, the embedding model chooses. That can work for a demo because the examples are friendly. It gets weird when users bring their actual language, half-remembered terms, product nicknames, acronyms, screenshots, and questions that mix two jobs.
-
-## search and answering are different surfaces
-
-A lot of 2023 retrieval demos quietly changed the product from search to answering.
-
-Search returns documents or passages. Answering returns a synthesized response. Both can use vector search, but they have different failure modes.
-
-If search returns a bad result, the user may notice and keep browsing. If answering uses a bad result, the model may produce a confident sentence that hides the retrieval mistake.
-
-That means the product has to decide which surface it is building:
-
-- a better document search
-- a question-answering assistant
-- a recommendation surface
-- a research workflow
-- a triage tool
-- a memory layer for another agent
-
-Each one needs different ranking, citation, filtering, and evaluation.
-
-## similarity is only one signal
-
-Vector search did not delete ranking. It made ranking easier to ignore.
-
-Similarity is one signal. It may need to be combined with recency, authority, permissions, popularity, source quality, freshness, user role, or workflow state.
+Similarity is only one signal. Combine it with authority, freshness, permissions, source quality, role, and workflow state:
 
 ~~~text
 score =
@@ -57,15 +24,7 @@ score =
   user_affinity * 0.10
 ~~~
 
-That toy score is not the point. The point is that "nearest vector wins" is rarely the whole product.
-
-## empty results are part of quality
-
-Semantic search makes it tempting to always return something. That is dangerous.
-
-A vector index will find nearest neighbors even when none of them answer the question. The top result may be "closest" in a mathematical sense and useless in a product sense.
-
-The product needs an empty-result strategy:
+Empty results are part of quality. A nearest neighbor is not necessarily an answer:
 
 ~~~text
 No strong match found.
@@ -73,41 +32,12 @@ No strong match found.
 Try searching by customer name, invoice ID, or policy section.
 ~~~
 
-Or:
-
-~~~text
-I found related documents, but none answer the refund exception question.
-The closest match is the standard refund policy.
-~~~
-
-That distinction matters. "Related" and "answers the question" are not the same label.
-
-## permissions and citations are part of the interface
-
-Real products are scoped by workspace, team, account, document permission, retention policy, and sometimes legal boundary.
-
-A search system that retrieves a chunk the user cannot read has already failed, even if the UI hides it later. Permissions affect relevance because unavailable documents should not compete. The system should search inside the user's allowed space, or at least filter before anything reaches the model.
-
-Once retrieval feeds an AI answer, citations become part of the product, not a compliance garnish.
+Filter permissions before a result reaches the model. Once retrieval feeds an answer, citations are part of the interface:
 
 ~~~text
 Source: Refund policy v3, "regional exceptions", updated 2023-09-14
 ~~~
 
-That is enough for a human to judge the answer.
+Test near misses: account deletion versus workspace deactivation, trial refund versus renewal refund, API-key rotation versus session revocation, production outage versus staging failure.
 
-## the hard cases are the near misses
-
-Friendly demos prove almost nothing.
-
-If the docs contain "reset your password" and the query is "how do I reset my password", vector search should work. The interesting cases are the ones that look close:
-
-- "delete my account" versus "deactivate my workspace"
-- "refund after trial" versus "refund after renewal"
-- "rotate API key" versus "revoke user session"
-- "production outage" versus "staging deployment failed"
-- "SOC 2 report" versus "security questionnaire"
-
-Those pairs tell you whether the product understands the user's job or merely finds nearby language.
-
-The vector-search boom was useful because it made semantic retrieval accessible. The product questions were the part that decided whether it should ship.
+The 2023 vector-search wave made retrieval accessible. The product questions decided whether it was useful.

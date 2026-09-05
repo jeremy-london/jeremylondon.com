@@ -8,15 +8,11 @@ author: "jeremy-london"
 tags: ["codex", "sandboxing", "agents"]
 ---
 
-Codex sandboxing matters because coding agents do real work against real state.
+Coding agents work against real state, so sandboxing matters more than personality.
 
-A diff by itself is only half the story. A diff produced inside a clear filesystem boundary, a command policy, network rules, and secret isolation is the version that can survive review. That is the agent story I care about: not personality, but containment.
+A diff is only half the story. The other half is the filesystem boundary, command policy, network access, secret isolation, and recovery path around it. Those controls are what make an agent run reviewable.
 
-## the repo is not one permission
-
-Reading source, editing a blog post, changing a migration, and peeking at secrets are different actions.
-
-The sandbox should say that plainly. A task may need broad read access and narrow write access. It may need tests but not network. It may need package metadata but not lockfile edits. If the agent crosses a boundary, the runtime should notice.
+Reading source, editing a post, changing a migration, and inspecting credentials are different permissions. A task may need broad read access and narrow write access. It may need tests but not network access. The runtime should make a boundary crossing visible.
 
 ~~~json
 {
@@ -27,13 +23,7 @@ The sandbox should say that plainly. A task may need broad read access and narro
 }
 ~~~
 
-That shape is useful because it turns drift into a visible event instead of a surprise later.
-
-## command policy keeps the shell honest
-
-Shell access deserves the same scoping.
-
-Running checks is different from installing dependencies. Formatting is different from wiping generated state. A sandbox should not pretend all commands are equally safe.
+Shell commands need the same treatment. Running checks is not equivalent to installing dependencies, formatting a file, or deleting generated state.
 
 ~~~json
 {
@@ -45,13 +35,7 @@ Running checks is different from installing dependencies. Formatting is differen
 }
 ~~~
 
-That policy will not solve every shell problem, but it gives the runtime a place to start and gives the user a reason to review.
-
-## network and secrets are the sharp edges
-
-Agents can leave the local problem through the network or through leaked credentials.
-
-Localhost is one thing. Package registries are another. Arbitrary web access is another again. Internal services should not be reachable by default. The same goes for secrets. A workspace may contain `.env` files, shell history, credential helpers, or cloud auth state. The agent should not get that just because it is curious.
+Network and secrets are the sharp edges. Localhost is different from a package registry, which is different from an internal service. A workspace can contain environment files, shell history, credential helpers, and cloud auth state. The agent should not inherit all of that because the task is convenient.
 
 ~~~text
 network:
@@ -66,13 +50,7 @@ secrets:
   credential helpers: unavailable
 ~~~
 
-That sounds strict. It is. The point is not to make the agent timid. The point is to keep the trust boundary readable.
-
-## recovery matters as much as prevention
-
-Sandboxing is also about making cleanup cheap.
-
-If the agent edits inside a worktree, the diff can be inspected or discarded. If commands are logged, failures are easier to replay. If network calls are recorded, weird dependencies are easier to explain. Recovery is what makes the sandbox practical instead of ceremonial.
+Prevention is only half the value. Recovery makes the sandbox usable. A worktree makes the diff discardable. Command logs make failures replayable. Network records make unexpected dependencies explainable.
 
 ~~~text
 before:
@@ -85,38 +63,14 @@ after:
   show diff, checks, denied actions, and cleanup steps
 ~~~
 
-That receipt is the thing a reviewer actually needs.
+Authority often drifts through reasonable-looking steps: a failing check points to a helper, the helper needs a fixture, the fixture exposes a dependency issue, and suddenly the run wants a broader write path and network access. Each escalation should become an explicit decision:
 
-## authority drift is the failure mode
+- new write path
+- new command
+- network access
+- secret lookup
+- external write
 
-The task starts small. The agent reads a file, finds a failing check, and then wants a helper edit. The helper depends on another module. The test needs a fixture update. A dependency is stale. Soon the run wants broader write access, a new command, and network access to look something up.
+The useful metrics are plain: files touched, denied writes, permission escalations, commands run, network requests, discarded runs, accepted runs, and differences between the receipt and the final diff.
 
-Some of that may be legitimate. Some of it is the task expanding because nobody named the next step.
-
-The sandbox should force each escalation into the open:
-
-- new write path requested
-- new command requested
-- network requested
-- secret lookup requested
-- external write requested
-
-Those are decision points, not automatic failures.
-
-## the numbers should be boring
-
-I want to know how often the sandbox is doing its job:
-
-- files touched
-- denied writes
-- permission escalations
-- commands run
-- failed commands
-- network requests
-- discarded runs
-- accepted runs
-- mismatches between receipt and diff
-
-Those numbers tell you whether the sandbox is helping the team operate or just getting in the way.
-
-Sandboxes are not for timid agents. They are for agents that can do real work without making the system impossible to understand.
+A sandbox is not a way to make an agent timid. It is a way to let a capable agent work without making the system impossible to understand.

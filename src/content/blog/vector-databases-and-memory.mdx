@@ -8,21 +8,11 @@ author: "jeremy-london"
 tags: ["vector databases", "memory", "retrieval"]
 ---
 
-Vector stores help AI systems remember, but memory is a product feature before it is a database feature.
+A vector store can remember nearest neighbors. The product still has to define memory.
 
-The demo version is easy. Split documents into chunks, embed them, put the vectors in a database, search by similarity, and stuff the top results into a prompt. That can look good in an afternoon.
+Chunking decides what can be retrieved. Prose, tables, code, policies, slide decks, and chat transcripts need different boundaries. A bad chunk can omit the exception, import, header, or speaker note that gives the result meaning.
 
-The production version is pickier.
-
-## chunking decides what can be remembered
-
-Chunking is where a lot of retrieval quality is decided.
-
-A paragraph-sized chunk may work for prose. A table may need row context and column headers. A code file may need function boundaries. A policy document may need section hierarchy. A slide deck may need speaker notes, title text, and image captions. A chat transcript may need turns grouped by topic instead of by token count.
-
-Bad chunks create weird answers. The model retrieves half a policy, loses the exception, and answers with confidence. Or it retrieves a code snippet without the import that explains the type. Or it retrieves a table row without the column name that gives the number meaning.
-
-I like storing chunk metadata that explains the source shape:
+Keep source shape in metadata:
 
 ~~~json
 {
@@ -35,27 +25,9 @@ I like storing chunk metadata that explains the source shape:
 }
 ~~~
 
-That metadata is not decoration. It gives retrieval a way to filter, cite, expire, and debug.
+Metadata is control, not decoration. Include workspace, document version, owner, permissions, language, content type, timestamps, retention, embedding version, and chunker version.
 
-## metadata is control
-
-Vectors are good at similarity. Metadata is good at control.
-
-A production vector store should usually index more than the embedding and text:
-
-- workspace ID
-- document ID and version
-- source system
-- owner
-- permissions
-- language
-- content type
-- created and updated timestamps
-- retention policy
-- embedding model version
-- chunking strategy version
-
-The metadata lets the application ask a narrower question:
+Filter before context assembly:
 
 ~~~ts
 const results = await vectorStore.search({
@@ -70,41 +42,11 @@ const results = await vectorStore.search({
 })
 ~~~
 
-Without that filter, semantic search becomes a very confident leak.
+If the user cannot open the source document, the model should not retrieve its chunk.
 
-## permissions belong before the prompt
+Changing embedding models is a migration. Dimensions, similarity, multilingual behavior, and code retrieval can change. Stage a sample, compare results, build a shadow index, run evals, and keep rollback available.
 
-Retrieval permissions are easy to get wrong because the interface feels read-only.
-
-The model is "only" retrieving context. But context can contain customer data, internal notes, incident reports, secrets, salary bands, unreleased product plans, or private support history. If the user could not open the source document, the model should not retrieve its chunk on their behalf.
-
-I would rather duplicate permission metadata into the retrieval index than rely on a fragile join after the fact. The source of truth should still live in the product system, but the vector store needs enough scope information to prevent obviously invalid candidates from entering the prompt.
-
-## embedding versions are migrations
-
-Changing embedding models is a schema migration.
-
-The vector dimensions may change. Similarity behavior may change. Multilingual behavior may improve. Code retrieval may get better while policy retrieval gets worse. Distances from one model are not comparable to distances from another model unless the system explicitly accounts for that.
-
-I like storing embedding model version on every record:
-
-~~~json
-{
-  "embedding_model": "text-embedding-model-2024-07",
-  "embedding_dimensions": 1536,
-  "chunker": "policy-section-chunker:v2"
-}
-~~~
-
-Then migration can be staged. Re-embed a sample. Compare retrieval results. Rebuild a shadow index. Run evals. Switch traffic by collection or tenant. Keep rollback possible until the new index has earned trust.
-
-## evals should ask about recall, not vibes
-
-End-to-end answer quality matters, but retrieval deserves its own evals.
-
-An answer can be wrong because the model ignored the right chunk. It can also be wrong because retrieval never found the right chunk. Those are different failures.
-
-I would keep eval cases like this:
+Retrieval evals need required and forbidden results:
 
 ~~~json
 {
@@ -115,22 +57,6 @@ I would keep eval cases like this:
 }
 ~~~
 
-The retrieval score should report recall at K, missed required chunks, stale source usage, permission-filter failures, and hard negative rank. The answer score can sit on top of that.
+Memory also needs deletion. Source documents, chunks, embeddings, cached summaries, and derived features all need a removal and rebuild path. Prove deletion through scoped retrieval tests rather than a successful delete request alone.
 
-## deletion is part of memory
-
-Memory that cannot forget is a liability.
-
-Documents are deleted. Permissions change. Customers leave. Policies expire. Incident notes become misleading. A source system corrects bad data. The vector store needs a deletion and reindexing path that is as real as the ingestion path.
-
-The ingestion pipeline should answer:
-
-- how do we delete every chunk for a source document?
-- how do we rebuild chunks after source edits?
-- how do we detect stale embeddings?
-- how do we remove data after a retention deadline?
-- how do we prove a deleted document no longer appears in retrieval?
-
-That last question matters. "We sent a delete request" is weaker than "the deleted document no longer appears in scoped retrieval tests."
-
-Vector stores are useful when they are treated like a memory system with rules, not a magical pile of semantic proximity.
+Vector stores become useful when they are treated as memory systems with rules, not magical piles of semantic proximity.

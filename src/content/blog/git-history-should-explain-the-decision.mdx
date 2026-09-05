@@ -8,15 +8,9 @@ author: "jeremy-london"
 tags: ["git", "commits", "workflow"]
 ---
 
-Git history should explain the decision, not just the diff.
+The diff explains what changed. The commit message should explain why.
 
-## the diff is the what
-
-The diff already shows what changed. The commit message should tell future-me why it changed at all.
-
-That matters because the first person to read old history is usually annoyed and debugging something. They want the decision, not a vibe.
-
-I like messages that carry a small amount of structure:
+The first person reading old history is usually debugging something. They need the decision, the constraint, and the verification, not a mood:
 
 ~~~text
 auth: preserve invite token through callback
@@ -29,33 +23,10 @@ verified with:
   pnpm test tests/auth/invite-callback.test.ts
 ~~~
 
-Bad commit messages do the opposite:
+"fix", "updates", and "cleanup" are placeholders. They make future archaeology slower.
 
-~~~text
-fix
-updates
-wip
-cleanup
-~~~
+A useful commit body answers three questions: what broke, why this patch shape, and what still needs watching. Say when a change is a workaround or a deliberate product choice. Include the rollback path when it is not obvious.
 
-Those are not explanations. They are placeholders that make future archaeology slower.
+That history is especially useful for agent-written changes. A mechanically correct diff can still be hard to recover if nobody recorded the assumption that changed. A plain reason and a test note give the next human a place to start.
 
-## a commit body i can actually use
-
-That is enough to explain the point without turning git history into a diary.
-
-It is also enough to keep the next person from reopening an old argument. If the change was a workaround, say that. If it was a deliberate product choice, say that too.
-
-I want the body to answer three plain questions: what broke, why this patch shape, and what still needs watching. If I cannot get those out of the commit, I probably do not understand the change well enough yet.
-
-That usually produces better history than a pile of tiny `fix` commits. A single commit with a short reason and a real rollback path is easier to read six months later than five commits that all say the same thing with different verbs.
-
-It also makes agent-written history less painful. A generated diff without a message is hard to recover. A diff with a plain reason and a test note gives the human a place to start when they need to understand why the change exists.
-
-## when the author was an agent
-
-This matters more when the author was an agent or a script. The diff can be mechanically correct and still be useless for the human who has to recover the intent. If the agent changed a redirect, a validation rule, or a rollback path, I want the commit to say which assumption changed and what broke when that assumption was wrong.
-
-That is the difference between history that explains the work and history that only records that the work happened.
-
-Good history makes blame, revert, and archaeology less miserable. It also helps when the change was made by an agent and the human needs to recover the intent from a pile of generated text.
+Good history helps with blame, revert, and debugging. Its job is to preserve intent after the original conversation is gone.

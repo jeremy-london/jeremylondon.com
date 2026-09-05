@@ -8,13 +8,9 @@ author: "jeremy-london"
 tags: ["testing", "astro", "quality"]
 ---
 
-Small sites need smoke tests because small sites still break in public.
+A small site still has a public contract.
 
-The site can be tiny and still depend on routing, RSS, content collections, generated images, redirects, scripts, and deployment behavior. The failure is usually not dramatic. It is a broken post page, a missing feed item, or a build that passes while the important route renders the wrong thing.
-
-## check the public contract
-
-The shortest useful smoke test is boring:
+The shortest useful smoke test is a route list:
 
 ~~~text
 /                     200
@@ -24,96 +20,31 @@ The shortest useful smoke test is boring:
 /not-real             404
 ~~~
 
-That is enough to catch a surprising amount of breakage. The homepage is not the whole site.
+That catches more than opening the homepage. Other common failures include bad frontmatter, empty tag pages, malformed RSS, missing production images, changed redirects, failed MDX hydration, and draft content leaking.
 
-## the usual misses
-
-Small-site testing often stops at "the homepage loads." That misses the places static sites actually fail:
-
-- a blog post route with bad frontmatter
-- a tag page with no posts
-- an RSS feed with malformed XML
-- an image path that works locally but not after build
-- a redirect that changed during a redesign
-- a content query that sorts incorrectly
-- an MDX island that fails hydration
-- a draft post leaking into production
-
-The smoke test should cover the public contract, not the one page everyone remembers to open.
-
-## feeds deserve direct checks
-
-Feeds do not get enough attention because nobody sees them in the browser during normal development.
-
-For RSS:
+Feeds deserve direct checks:
 
 - XML parses
-- latest post appears
-- draft posts are absent
-- item links are absolute or intentionally relative
-- dates are valid
-- duplicate item IDs are absent
+- the latest post appears
+- drafts are absent
+- dates and item IDs are valid
+- sitemap routes are public and canonical
 
-For sitemap:
+Images are content when a post depends on them. Check the logo, Open Graph image, representative post image, and generated assets. Local serving can hide production path and case-sensitivity failures.
 
-- XML parses
-- public routes appear
-- draft routes are absent
-- canonical URLs use the production origin
+Old URLs need intentional redirects or clear 404s. A missing route that renders the homepage is confusing to readers and crawlers.
 
-These checks are not glamorous. They protect the readers and machines that consume the site without visiting the homepage.
+Content collections are small databases. Frontmatter is schema, slugs are keys, dates drive ordering, tags create indexes, and draft flags control publication. Check required fields, date validity, unique slugs, excerpts, categories, and draft behavior.
 
-## images are part of the content
-
-Image bugs are common on small sites.
-
-The local dev server may serve an asset that the production build does not include. A generated image may have the wrong path. A remote image may time out. A case-sensitive filesystem may reject a path that worked locally.
-
-At minimum I want checks for:
-
-- site logo or avatar
-- Open Graph image
-- one blog post image
-- one generated asset if the site creates them
-
-If the post depends on visual examples, the images are not decoration. They are the content.
-
-## redirects and missing routes
-
-Old URLs keep living after a redesign.
-
-If a post slug changes, a project page moves, or `/feed.xml` becomes `/rss.xml`, the site should either redirect intentionally or return a clear 404. Accidental 200s are bad too. A missing route that renders the homepage can confuse readers, crawlers, and debugging tools.
-
-I like including one known redirect and one known missing route. That proves the site handles both memory and absence.
-
-## content collections are small databases
-
-Static sites with content collections are basically tiny databases.
-
-Frontmatter is schema. Slugs are keys. Dates drive sorting. Tags drive indexes. Draft flags drive publishing behavior. Excerpts show up in feeds and cards.
-
-If the schema gets loose, the site breaks quietly. I want checks for required title, valid publish date, draft behavior, unique slugs, non-empty excerpt, valid category, tags shaped consistently, and any site-specific heading convention.
-
-## preview needs the same check
-
-Small sites often deploy through preview URLs. That is great, but the preview should be smoke-tested with the same route list.
-
-Some bugs only show up with the deployed origin: canonical URLs, feed links, asset prefixes, redirects, and environment-specific config.
-
-The flow can stay simple:
+Run the same smoke test against a preview URL:
 
 ~~~text
 build
-  -> start static preview
+  -> start preview
   -> request route list
   -> parse feed and sitemap
   -> check key assets
-  -> deploy preview
-  -> repeat route smoke test against preview URL
+  -> repeat against preview origin
 ~~~
 
-The point is not coverage for its own sake. The point is to make breakage cheap to notice.
-
-Small sites still have public contracts. Routes should load. Feeds should parse. Images should resolve. Content should publish when intended.
-
-A tiny smoke test respects that contract without turning a personal site into enterprise theater.
+The point is cheap detection. Routes load, feeds parse, images resolve, and intended content publishes.

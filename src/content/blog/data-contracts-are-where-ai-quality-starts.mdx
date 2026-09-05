@@ -8,15 +8,15 @@ author: "jeremy-london"
 tags: ["data contracts", "ai quality", "pipelines"]
 ---
 
-Model quality work starts before the prompt.
+When a model gives a bad answer, the prompt is an obvious suspect. Add an instruction. Ask for citations. Tell it to prefer current data.
 
-That is easy to forget because prompts are visible and contracts are not. When a model produces a bad answer, the instinct is to rewrite the instruction. Be more precise. Be more careful. Cite sources. Prefer fresh data. Sometimes that is the fix. Often the prompt is carrying a data contract that should have existed upstream.
+Sometimes that fixes the problem. But prompts often end up carrying assumptions that belong in the data pipeline: what a field means, whether a value is current, who can see the source, and whether a missing value is actually missing.
 
-## what the model is allowed to assume
+A data contract makes those assumptions explicit before they reach the model.
 
-A data contract says what the downstream system can trust.
+## Define the safe assumptions
 
-For an AI feature, that usually means field names, field types, null semantics, freshness expectations, ownership, permission metadata, deletion behavior, label meaning, and allowed enum values. It is not paperwork. It is the list of assumptions the model is allowed to make.
+For an AI feature, a contract can specify field names, types, null semantics, freshness, ownership, deletion behavior, label definitions, allowed enum values, and permission metadata.
 
 ~~~text
 ticket.id: stable unique identifier
@@ -27,13 +27,13 @@ ticket.updated_at: source system update time
 ticket.permissions: users and groups allowed to view source
 ~~~
 
-If that shape is not defined, the model becomes the place where every ambiguity lands.
+This is not administrative detail. It is the boundary around what a downstream system may safely infer. Without it, every ambiguity arrives at the model as a reasoning task.
 
-## nulls and labels need a contract first
+## Give nulls and labels a meaning
 
-Nulls are where weak contracts show up fast.
+Null handling is one of the quickest ways to expose a weak contract.
 
-Unknown, unavailable, redacted, not applicable, not collected, and deleted are different states. A prompt can try to explain all of them after the fact, but the data should already carry the difference.
+Unknown, unavailable, redacted, not applicable, not collected, and deleted are different conditions. A prompt can describe those differences, but the data should carry them in a form the pipeline can validate.
 
 ~~~text
 owner_state:
@@ -44,13 +44,13 @@ owner_state:
   unknown
 ~~~
 
-Labels need the same treatment. `severity`, `priority`, `risk`, and `status` are not just strings. They are history, policy, and process wrapped into one field. If a model or evaluator depends on them, the label needs an owner, a definition, and a migration path.
+Labels need the same discipline. `severity`, `priority`, `risk`, and `status` can look like interchangeable strings while encoding different policies and workflows. If an evaluator or model depends on one, the field needs an owner, a definition, and a way to represent change.
 
-## freshness is part of the shape
+## Freshness is part of correctness
 
-AI systems usually move through a chain of derived data: source table, export job, parser, chunks, embeddings, index, retrieval result, prompt context.
+AI features commonly pass through several derived layers: source table, export job, parser, chunks, embeddings, index, retrieval results, and prompt context.
 
-Any one of those can be technically successful while the result is stale. A useful contract should say how fresh the consumer can expect the data to be:
+Every layer can succeed technically while serving stale information. A contract should describe the freshness the consumer is allowed to expect:
 
 ~~~text
 source: customer_docs
@@ -59,13 +59,13 @@ delete_slo: removed from index within 5 minutes of source deletion
 permission_slo: permission changes reflected before retrieval
 ~~~
 
-If a user asks about a policy update and the retrieval layer serves yesterday's chunk, the model may answer fluently and still be wrong.
+If a policy changed this morning and retrieval still returns yesterdays chunk, a fluent answer is still a wrong answer.
 
-## permissions have to travel
+## Carry permissions with the object
 
-Any data that can be retrieved, summarized, embedded, or used as context needs permission metadata attached to it.
+Permission checks at the source application do not automatically protect a derived index.
 
-If the source application enforces access but the downstream index drops the boundary, the AI feature can still expose private data. That is the failure mode a contract is supposed to prevent.
+Any object that may be retrieved, summarized, embedded, or added to context needs enough metadata for downstream systems to preserve its access boundary:
 
 ~~~text
 source_object_id: required
@@ -76,13 +76,13 @@ allowed_user_ids: required when visibility = user
 permission_version: required
 ~~~
 
-That does not solve every authorization problem. It does keep the private-data path visible.
+This does not solve authorization by itself. It prevents the permission boundary from disappearing silently as data moves through the system.
 
-## checks belong before the model
+## Turn the contract into checks
 
-Contracts are useful when they are executable.
+A contract earns its keep when a pipeline can enforce it.
 
-A few checks can catch the boring regressions that make AI systems look flaky:
+Useful checks are often plain and unglamorous:
 
 ~~~text
 required field missing
@@ -94,13 +94,13 @@ chunk without source hash
 label distribution moved beyond threshold
 ~~~
 
-Those checks should fail loudly enough that the pipeline gets fixed instead of the prompt getting longer.
+Those failures should stop or quarantine the affected data. Otherwise the team will discover the regression through a bad answer and respond by adding more instructions to the prompt.
 
-## evals are downstream of contracts
+## Evals need stable inputs
 
-Evals depend on stable input assumptions.
+An evaluation set is only as meaningful as the assumptions behind it.
 
-If the eval set comes from undocumented fields, stale permissions, or labels that changed meaning, the model is being graded against a moving target. A contract gives the eval something concrete to reference:
+If its fields are undocumented, its permissions are stale, or its labels changed meaning, the model is being graded against a moving target. A contract gives the evaluation something concrete to name:
 
 ~~~text
 eval_set: support_escalation_holdout_v4
@@ -111,6 +111,6 @@ excluded_after: 2025-03-01
 permission_model: tenant_group_v2
 ~~~
 
-When the contract changes, the eval may need to change too.
+When the contract changes, the evaluation may need a new version too. That is not process for its own sake; it is how a score remains interpretable.
 
-The broader point is simple. The model is only one piece of the system that produces an answer. The contract decides what the inputs mean. If that layer is weak, every later layer spends time compensating for it.
+The model is one part of the answer-producing system. The contract defines what the inputs mean, what may be trusted, and what must fail before the model sees it.

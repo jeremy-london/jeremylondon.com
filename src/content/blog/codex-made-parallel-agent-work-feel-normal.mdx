@@ -8,77 +8,37 @@ author: "jeremy-london"
 tags: ["codex", "software agents", "openai"]
 ---
 
-Codex made parallel agent work feel like a normal software move.
+Codex made parallel agent work feel like a normal engineering move.
 
-The thing I cared about was not "the model can write code." That part was already obvious. The useful change was subtler: multiple agent runs could live in separate sandboxes instead of one long, overloaded thread. Once that becomes normal, the user stops acting like someone chatting with a single assistant and starts acting like a dispatcher.
+The useful change was not merely that a model could write code. Multiple runs could live in separate sandboxes instead of one overloaded thread. The user starts to act less like someone chatting with one assistant and more like someone dispatching bounded jobs.
 
-That is a better shape for engineering work.
+A single thread is a poor container for unrelated work. It accumulates stale context, keeps side quests alive, and forces one stream of supervision. Engineering is already parallel: a test runs while a fix is investigated, documentation moves while a bug is isolated, and a speculative branch can be discarded without damaging the main task.
 
-## one thread is the wrong container
-
-A single chat thread is a poor place to hold several unrelated tasks.
-
-It accumulates old context. It keeps side quests alive longer than they deserve. It makes the user supervise one stream even when the work is naturally separable. Real engineering work is already parallel. A test runs while a fix is being thought through. Documentation can move while a bug gets investigated. A branch can be abandoned without poisoning the rest of the day.
-
-The agent should fit that rhythm instead of flattening it.
-
-## isolation is what makes the pattern useful
-
-Parallel work only helps if each run has a clear boundary.
-
-I want each run to own its workspace, branch or worktree, logs, diff, and command history. If two runs touch the same file, that should be visible before the merge step. If one run goes off the rails, the rest should survive without cleanup drama.
+Isolation is what makes parallelism useful. Each run should own its workspace, branch or worktree, logs, diff, and command history. A collision should be visible before merge:
 
 ~~~text
-agent a
+agent a:
   task: fix markdown lint in three posts
   workspace: worktree-a
   allowed: src/content/blog
 
-agent b
-  task: investigate rss build failure
+agent b:
+  task: investigate RSS build failure
   workspace: worktree-b
   allowed: src/pages, src/lib
 ~~~
 
-That is more useful than one conversation that keeps revising itself.
-
-## small tasks survive parallelism better
-
-The shape of the task matters more than the number of agents.
-
-Five vague tasks produce five vague diffs. That is not parallelism, that is just faster ambiguity. Good delegation starts with slicing the work into pieces that have distinct outputs.
-
-I would rather assign:
+The task slice matters more than the agent count. Five vague assignments produce five vague diffs. Better units have distinct outputs:
 
 - report repeated phrases in the archive
-- rewrite one post and preserve frontmatter
-- verify markdown and build checks
+- rewrite one post while preserving frontmatter
+- verify Markdown and build checks
 - inspect RSS output for malformed excerpts
 
-Those tasks can be compared without forcing the user to reconstruct intent from a giant transcript. One run reports. One edits. One verifies. One inspects.
+Parallel work moves the bottleneck to review. That is fine, but the product has to make review cheap: changed files, commands run, checks passed, assumptions, and conflicts. Without those surfaces, parallelism is a pile of output.
 
-## review becomes the main interface
+Overlap can be useful when it is intentional. One run can make the minimal fix while another traces the deeper cause or writes a test. Label the experiment and keep speculative work away from the mainline until it is reviewed.
 
-Parallel agents move the bottleneck from generation to review.
+The merge step is the truth. A local pass can still conflict with another accepted diff, stale a documentation change, or rely on a different dependency state. Final checks belong on the combined result.
 
-That is fine. It is also the truth. If four agents work at once, the user still needs to decide what lands, what conflicts, and what to rerun. The product should make that review cheap: changed files, commands run, checks passed, assumptions, and conflicts with other runs.
-
-Without that surface, parallel work turns into a pile of output. A pile of output is not throughput.
-
-## duplicate effort is okay when it is visible
-
-There is nothing wrong with two agents exploring the same bug if the overlap is intentional.
-
-One can make the minimal fix. Another can trace the deeper cause. A third can write the test. Humans do this too, but agents make the duplication cheaper. The trick is to label the experiment so accidental overlap does not look like progress.
-
-If two runs are competing, say so. If one run is speculative, keep it away from the mainline until it is reviewed. Parallelism is useful when it creates options. It is wasteful when it creates hidden collisions.
-
-## the merge step tells the truth
-
-A local success is not the same as integrated success.
-
-One agent can pass its checks and still conflict with another accepted diff. A doc update can describe code that another run just changed. A migration can look fine in one workspace while a dependency bump changes the setup in another.
-
-That is why the final checks have to run on the combined state. The agents can propose. The owner decides what lands.
-
-Codex made that workflow feel normal because it matched software's real shape: bounded jobs, isolated workspaces, diffs, review, and a final merge check. That is ordinary engineering discipline, just with better parallelism.
+Codex made parallel agent work feel normal because it matched software's existing shape: bounded jobs, isolated workspaces, diffs, review, and an integration check.

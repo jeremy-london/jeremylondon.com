@@ -8,13 +8,11 @@ author: "jeremy-london"
 tags: ["scripts", "automation", "developer tools"]
 ---
 
-The best project scripts can be run twice without making the second run weird.
+A good project script can run twice without making the second run strange.
 
-That is the test I keep coming back to. Local work gets interrupted. Docker hangs around. Ports stay open. A file already exists. A migration half-ran. The next command should be able to recover instead of making the mess larger.
+Local work is interrupted. Ports remain open. A file already exists. A migration partially runs. The next invocation should converge on the desired state instead of making the mess larger.
 
-## start from what exists
-
-An idempotent script checks before it creates.
+Check before creating:
 
 ~~~sh
 if [ ! -d "node_modules" ]; then
@@ -26,34 +24,9 @@ if ! docker volume inspect app_pgdata >/dev/null 2>&1; then
 fi
 ~~~
 
-That kind of check is plain, but it saves people from stupid failures. The pattern applies to build output, local databases, certificate files, generated docs, fixture directories, cache folders, and anything else the script wants to create.
+Stable names make cleanup possible: container, volume, network, log, lock, and generated-file paths should be predictable.
 
-If the desired state already exists, the script should converge on it instead of blindly making another copy.
-
-## stable names make cleanup possible
-
-Scripts get harder to recover when they create unnamed things.
-
-A container with a stable name is easier to stop than one with a random suffix. A cache directory with a known path is easier to clear than one written by timestamp only. A PID file or lock file only helps if the script can find it again.
-
-I want local tooling to have predictable names:
-
-- container names
-- volume names
-- network names
-- log paths
-- lock paths
-- generated file paths
-
-Predictability is what makes `stop.sh` and `reset.sh` possible instead of decorative.
-
-## the halfway point matters
-
-The script should assume it can fail in the middle.
-
-Maybe the database starts but the migration fails. Maybe a download stops halfway. Maybe a health check times out after the service has already written state. The next run should still know how to continue or clean up.
-
-I like scripts that print the phases they are in:
+Assume failure in the middle. Print phases so the user can locate the stop:
 
 ~~~text
 checking dependencies
@@ -65,27 +38,9 @@ writing env file
 done
 ~~~
 
-That output gives the user a map when the script breaks.
+Idempotent does not mean harmless. Keep destructive work separate: init, serve, stop, reset, and test should have distinct commands. A reset should say clearly that it removes local state.
 
-## destructive commands should say so
-
-Idempotent is not the same as harmless.
-
-Resetting state may be the right thing to do. The command should say that clearly. I prefer separate commands for separate jobs:
-
-- `init.sh` creates or updates the local environment
-- `serve.sh` starts it
-- `stop.sh` stops it
-- `reset.sh` removes local state
-- `test.sh` checks the expected path
-
-That split keeps the dangerous path obvious. A command that deletes data should not hide behind the same name as a command that starts a server.
-
-## locking prevents duplicate work
-
-Some commands should not run twice at the same time.
-
-Starting two dev servers on one port is annoying. Running two seed jobs against one database can be worse. A lock file is enough for a lot of these cases:
+Locks prevent duplicate work:
 
 ~~~sh
 LOCKFILE=".tmp/init.lock"
@@ -100,25 +55,9 @@ trap 'rm -f "$LOCKFILE"' EXIT
 touch "$LOCKFILE"
 ~~~
 
-The lock should also have a recovery story. If the process died, the user needs to know how to clear the stale file safely.
+Check prerequisites before mutating. A missing Docker daemon or wrong Node version should fail before half the environment is written.
 
-## fail before mutating
-
-An idempotent script checks its prerequisites before it changes anything.
-
-If it needs `pnpm`, Docker, `psql`, or a specific Node version, it should say that before writing half the environment and then dying on the last step. Early failure produces better errors.
-
-~~~text
-missing: docker
-expected: Docker running locally before init
-fix: start Docker Desktop and rerun ./init.sh
-~~~
-
-That is a lot easier to use than a stack trace from deep inside a shell pipeline.
-
-## output should make reruns feel safe
-
-Good script output is a receipt, not a transcript.
+The output should be a receipt:
 
 ~~~text
 database: already running
@@ -127,12 +66,4 @@ fixtures: seeded 14 records
 server: http://localhost:4321
 ~~~
 
-The user can tell what changed and what was skipped. That is what makes rerunning the script feel ordinary.
-
-The second run is the real test.
-
-Run the script. Run it again. Interrupt it halfway. Run it again. If it creates duplicates, fails because a file exists, starts another service, or needs manual cleanup after a normal interruption, the script is not ready.
-
-Local tooling is part of the product experience for developers. A repo that can recover from a messy run is calmer to work in. A repo that cannot turns every setup issue into a small crisis.
-
-Good scripts make recovery boring. That is the job.
+Run the script, run it again, interrupt it, and run it again. Recovery is the real test. Good scripts make that recovery boring.

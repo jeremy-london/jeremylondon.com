@@ -8,17 +8,9 @@ author: "jeremy-london"
 tags: ["google", "gemini", "model-watch"]
 ---
 
-[Gemini 1.0](https://deepmind.google/blog/2023-a-year-of-groundbreaking-advances-in-ai-and-computing/) felt like Google changing the shape of the model race.
+[Gemini 1.0](https://deepmind.google/blog/2023-a-year-of-groundbreaking-advances-in-ai-and-computing/) changed the shape of the model race by making multimodality and model placement part of the launch.
 
-## three sizes, one launch
-
-Yes, it was a direct answer to GPT-4. That part was obvious.
-
-The more interesting move was the product shape: Ultra, Pro, and Nano; multimodal from the start; and a launch that made placement part of the conversation instead of just raw benchmark ranking.
-
-That mattered because it forced a more honest question. Where should intelligence live. On the device. In the product flow. In the expensive frontier route. The answer was not one model for everything, and Gemini said so out loud.
-
-I remember the launch mostly for the way it changed the default architecture sketch:
+Ultra, Pro, and Nano implied different jobs. Intelligence could live on the device, in the normal product route, or behind an expensive frontier call. The architecture no longer had to pretend one model was the right answer for every task:
 
 ~~~text
 small on-device model -> quick local work
@@ -26,24 +18,18 @@ pro model -> normal multimodal product flow
 ultra model -> hard reasoning or expensive review
 ~~~
 
-That is a real shift. Once you have that ladder, the product stops pretending there is one correct route for every task.
+Mixed input also stopped feeling like an exception. A screenshot, voice note, chart, and document could belong to the same request. That is useful only if the product keeps those inputs together long enough for the model to see their relationship.
 
-The other thing Gemini 1.0 did was make mixed input feel less like an exception. A screenshot, a voice note, a chart, and a document all belonged in the same conversation. That sounds obvious now. It did not feel obvious before.
-
-## remove the glue first
-
-If I were shipping against that model family, I would strip out the glue code before adding more prompt text. For a billing flow, the request could look more like this:
+A billing flow might look like:
 
 ~~~text
 user uploads a screenshot of a charge
-user adds: "this is not mine"
-client keeps the image, visible text, and account context together
-pro model handles the first answer
-ultra only gets the case if the first pass cannot tell whether this is fraud or a duplicate charge
+user says: "this is not mine"
+client keeps image, visible text, and account context together
+pro route handles the first answer
+ultra route handles unresolved fraud or duplicate-charge cases
 ~~~
 
-That is the point. The model size tells you where the work should sit, but the product still has to keep the important inputs intact long enough for the model to see them.
+The model tier does not remove the routing work. The product still has to decide which requests stay local, which belong in the normal app path, and which justify the expensive route.
 
-If I were writing the brief, I would have to say which route answers on-device, which route stays in the app, and which route is worth the expensive call. That is more annoying to write and much easier to operate.
-
-Gemini 1.0 made that trade visible early, and once you notice it you stop designing as if all intelligence belongs in one place.
+Gemini 1.0 made that split visible early. Once intelligence has a location, model selection becomes part of product architecture.

@@ -8,28 +8,20 @@ author: "jeremy-london"
 tags: ["google", "gemini-1.5", "long-context"]
 ---
 
-[Gemini 1.5 Pro](https://blog.google/innovation-and-ai/products/google-gemini-next-generation-model-february-2024/) made long context feel like the headline instead of the footnote.
+[Gemini 1.5 Pro](https://blog.google/innovation-and-ai/products/google-gemini-next-generation-model-february-2024/) made long context feel like a product primitive instead of a footnote.
 
-## one manifest is better than three summaries
+That does not mean every request should include every document. Retrieval still decides what is relevant and permitted. The difference is that useful source material does not have to be compressed immediately into a summary that may discard the one clause that matters.
 
-The obvious temptation was to ask whether we should just throw the whole document set into the prompt. I do not think that is the right move.
-
-But Gemini 1.5 made the question worth asking in the first place.
-
-What changed for me was the default instinct. With enough context, the system does not have to chop everything down immediately. It can keep more of the original material intact, which is useful when summaries flatten the one detail that matters.
-
-The useful version of this is easy to write down:
+For a policy comparison, the workflow can stay explicit:
 
 ~~~text
-user asks: compare refund language across current policy and old policy
-retrieval: pull the full policy section, not three paragraphs
-context window: keep both sections intact
-answer: cite the clause that differs, not just the summary
+request: compare current and old refund language
+retrieval: select the full policy sections
+context: keep both sections intact
+answer: cite the clause that differs
 ~~~
 
-That does not remove the need for retrieval or for context design. It just changes the balance. Retrieval still decides what is eligible and relevant. Long context keeps more of it alive.
-
-I would still want a manifest that says what went in:
+The input manifest is part of the evidence:
 
 ~~~json
 {
@@ -50,16 +42,8 @@ I would still want a manifest that says what went in:
 }
 ~~~
 
-That manifest is the part I would show in review. It tells me whether the model saw the right source, whether the comparison was fair, and whether the question was too broad for the slice that was provided.
+That record shows whether the model saw the right sources and whether the comparison was fair. It also preserves source shape: a policy section, contract clause, and changelog entry are not interchangeable.
 
-It also keeps the source shapes visible. A policy section, a contract clause, and a changelog entry are not interchangeable. If the system compresses them into a single summary, the answer may still look fine while quietly dropping the one line that matters.
+A short context window can omit the controlling clause before reasoning begins. A large one can keep the evidence available even when the answer is wrong, which makes the failure easier to inspect.
 
-## where the long window earns its keep
-
-The part that matters is not that the model can ingest more. It is that the model can keep the parts of the source that usually get collapsed into one summary sentence.
-
-If I were comparing refund language, I would rather keep both policy versions intact and ask for the clause that differs than force the system to reconstruct the answer from a thin extract. That is where the longer window earns its keep. It reduces the amount of meaning that gets dropped on the floor before the model even starts thinking.
-
-That also changes the failure mode. With a short window, the system can miss the clause entirely. With a larger one, the evidence is present even when the answer is wrong, which makes the bug much easier to debug.
-
-The part I remember most is that long context stopped sounding like a weird experiment. It started sounding like a product primitive.
+That was the practical shift. Long context stopped sounding like an experiment and started looking like a system component.

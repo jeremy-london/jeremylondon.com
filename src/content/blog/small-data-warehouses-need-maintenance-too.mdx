@@ -8,40 +8,15 @@ author: "jeremy-london"
 tags: ["analytics", "maintenance", "warehouse"]
 ---
 
-Small data warehouses fail in small ways first.
+Small warehouses fail quietly first.
 
-The metric gets renamed. A nullable field becomes mostly null. A dashboard keeps loading after the meaning changed. Size does not remove the need for maintenance. It just makes the neglect feel harmless for longer.
+A metric is renamed. A nullable field becomes mostly null. A dashboard keeps loading after the meaning changed. Size only delays the cost.
 
-The biggest mistake is assuming the meaning is obvious because the warehouse is small. It usually is not.
+Start with grain: what does one row mean? Event, user, day, account, file, model run, or generated answer? A vague grain turns joins into folklore.
 
-## grain is the first question
+Dimensions drift too. Status, plan, severity, source, category, route, model, and region values change with the product. Record allowed values, owner, source, deprecated values, null behavior, backfill rules, and dashboard dependencies.
 
-Before I trust a table, I want to know what one row means.
-
-One row can be an event, a user, a day, an account, a file, a model run, or a generated answer. If the grain is vague, joins become folklore.
-
-A table called `usage` does not tell me enough. `daily_account_usage` is better. A comment that says "one row per account per UTC day, counted from accepted billing events" is better still.
-
-That naming answers questions the warehouse will eventually need:
-
-- can this table be joined to users?
-- can one account appear more than once?
-- are deleted records preserved?
-- are late-arriving events included?
-- does the date represent creation, observation, or processing?
-- can the row be updated after it first appears?
-
-## dimensions drift quietly
-
-Status, plan, severity, source, category, route, model, and region fields change as the product changes.
-
-Someone adds a new enum. A plan gets renamed. A status value is reused. A category becomes obsolete but still appears in historical rows. The dashboard keeps working. That is the dangerous part.
-
-For each important dimension, I want a place where the allowed values, owner, source system, deprecated values, null behavior, backfill rules, and dashboard dependencies are written down.
-
-## freshness should be measured directly
-
-If freshness matters, measure it.
+Freshness should be measured:
 
 ~~~sql
 select metric_name, max(observed_at) as last_seen
@@ -49,72 +24,12 @@ from metric_observations
 group by metric_name;
 ~~~
 
-That query is boring. It is also the difference between a page that loaded and a page that reflected reality.
+Every decision-facing table needs an expectation: event freshness within 15 minutes, daily facts by 06:00 UTC, model summaries hourly, billing snapshots daily. If freshness does not matter, say so.
 
-Every decision-facing table should have a freshness expectation:
+Retention is policy. Name it by data class, including raw-log lifetime, aggregate lifetime, deletion or anonymization behavior, prompt redaction, and derived metrics.
 
-- events arrive within 15 minutes
-- daily facts close by 06:00 UTC
-- model-run summaries update hourly
-- billing snapshots update once per day
-- archival dimensions can lag because they are not operational
+Null rates, duplicate keys, and join coverage catch cheap failures. A dimension miss can disappear through an inner join; unknown is often better than invisible.
 
-If freshness does not matter, label it so people do not panic when the number is old.
+Metrics need versioned definitions: name, owner, source tables, filters, and effective date. A stable number with a changed meaning is not stable.
 
-## retention is a policy, not a leftover
-
-Keeping everything forever is easy to say and often wrong.
-
-Long retention can be expensive. It can preserve personal data longer than needed. It can make deletes harder. It can produce misleading analysis when old product behavior no longer matches the current product.
-
-Dropping data too early is also wrong. Trend analysis, incident review, seasonality, model evaluation, and support often need history.
-
-Retention should be named by table or data class:
-
-- raw event logs kept for 30 days
-- aggregated daily facts kept for three years
-- deleted-user rows anonymized after 90 days
-- model prompts redacted after seven days
-- derived metrics kept indefinitely because they contain no raw personal data
-
-## nulls and joins find real problems
-
-Null rates and join coverage are the cheapest checks I know that still catch real issues.
-
-A field that used to be 2 percent null and becomes 80 percent null is a production signal. Maybe the source changed. Maybe an integration failed. Maybe a new client stopped sending the field. Maybe the field is no longer meaningful.
-
-A warehouse can also look healthy while joins silently drop rows. The fact table has account IDs. The dimension table is missing some accounts. An inner join removes them and the dashboard looks clean because the bad rows disappeared.
-
-I want join coverage checks:
-
-- what percentage of facts match the dimension?
-- which keys are unmatched?
-- did coverage change after a deploy?
-- are unmatched rows concentrated in one source?
-- should the query use a left join and expose unknowns?
-
-Unknown is often better than invisible.
-
-## metric definitions change
-
-Metrics need versioning because definitions move.
-
-Active user might mean login, page view, workflow completion, or paid activity. Model success might mean accepted output, no retry, user thumbs-up, or reviewer approval. If the definition changes, the warehouse should leave a trail.
-
-At minimum, a metric should have a name, owner, definition, source tables, filters, and effective date. If old dashboards still use the old meaning, say that. If history was backfilled, say that too.
-
-The worst metric is one whose number stayed stable because nobody noticed the definition changed.
-
-Small does not mean informal. The habits are straightforward:
-
-- table grain documented
-- important dimensions owned
-- freshness checked
-- null rates watched
-- schema changes reviewed
-- duplicate keys detected
-- join coverage measured
-- metric definitions versioned
-- retention named
-
-A warehouse becomes useful when people can trust what a field means. Maintenance is how that meaning survives the next product change.
+A small warehouse stays useful when grain, dimensions, freshness, nulls, joins, retention, and metric definitions remain explicit.

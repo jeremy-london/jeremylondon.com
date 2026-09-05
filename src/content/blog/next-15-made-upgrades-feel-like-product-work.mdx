@@ -8,20 +8,20 @@ author: "jeremy-london"
 tags: ["nextjs", "react", "frameworks"]
 ---
 
-Next.js 15 was one of those releases that made a framework upgrade feel like a product decision.
+Next.js 15 made a framework upgrade look like product work.
 
-The diff looked like dependency maintenance. The impact was bigger. When request APIs become async, caching defaults change, or route behavior shifts, the thing that changes is not just build output. Users feel it as freshness, loading, metadata, or a page that used to behave one way and now behaves another.
+Async request APIs, changed caching defaults, and route behavior affect freshness, loading, metadata, and access control. The dependency diff is not the user-facing diff.
 
-#### what I checked first
+The first checks should be route-level:
 
-- dynamic route params still resolved the right page
-- query strings still reached the component that needed them
-- metadata still matched the page
-- auth-gated routes still blocked the right users
-- cached pages were still cached on purpose
-- live pages were still live on purpose
+- dynamic params resolve the right page
+- query strings reach the intended component
+- metadata matches the page
+- protected routes still block correctly
+- cached pages are cached deliberately
+- live pages remain live deliberately
 
-The async request API change was the one that exposed hidden assumptions fastest. `params`, `searchParams`, `cookies()`, and `headers()` no longer belonged in the same mental bucket as plain synchronous props. That pushed route code to admit that request data is dynamic and should be treated that way.
+The async request change exposes assumptions quickly:
 
 ~~~tsx
 type Params = Promise<{ slug: string }>
@@ -32,6 +32,6 @@ export default async function Page({ params }: { params: Params }) {
 }
 ~~~
 
-The caching change was similar. "Fetch" no longer implied the same default everywhere, which is inconvenient and useful at the same time. A dashboard should not behave like a blog post. A pricing page should not behave like a private workspace. The upgrade forced those decisions into view.
+The caching change asks the same product question in another form. A dashboard should not behave like a blog post. A pricing page should not behave like a private workspace. The upgrade forces those choices into code.
 
-I do not think framework upgrades need ceremony for their own sake. I do think they need route-level smoke tests, a small preview rollout, and a rollback path that does not require guessing which behavior changed. The real test is whether the product still tells the truth after the framework moves underneath it.
+Framework upgrades do not need ceremony for its own sake. They need smoke tests, a preview rollout, and a rollback path that does not require guessing which behavior changed. The test is whether the product still tells the truth after the framework moves underneath it.

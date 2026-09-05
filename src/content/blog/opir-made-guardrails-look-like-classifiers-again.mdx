@@ -8,11 +8,11 @@ author: "jeremy-london"
 tags: ["opir", "classification", "guardrails"]
 ---
 
-[Opir](https://github.com/Knowledgator/Opir) reminded me that a lot of guardrail work is really classification.
+[Opir](https://github.com/Knowledgator/Opir) is a reminder that much guardrail work is classifier-shaped.
 
-The conversation around safety often drifts toward judge models and verbose explanations. That can help, but it is a strange default for every decision. Is the prompt safe? Is this a jailbreak attempt? Does the response violate policy? Which category is involved? Those are classifier-shaped questions.
+Is the prompt a jailbreak? Is the response in a policy category? Should the request be allowed, blocked, redacted, routed, or reviewed? A judge model with a long explanation is not the only possible tool.
 
-The useful part of Opir is that it makes that shape easy to see again.
+The request path can stay explicit:
 
 ~~~text
 prompt or response
@@ -22,10 +22,10 @@ prompt or response
   -> allow, block, route, redact, or review
 ~~~
 
-The labels matter because "unsafe" is too blunt for most products. Harassment is not the same thing as malware. Prompt injection is not the same thing as self-harm. A benign explanation of a risky topic is not the same thing as an instruction to do harm. The taxonomy is what turns a safety score into something the product can act on.
+Labels matter because "unsafe" is too blunt. Harassment, malware, prompt injection, self-harm, and benign discussion of a risky topic need different product actions.
 
-That also means false positives matter. A classifier that blocks ordinary security education, research content, or benign mentions of dangerous terms creates product damage even when the system is catching bad actors correctly. The hard negatives are what keep the boundary sane.
+False positives are part of the product cost. A classifier that blocks security education or research content may protect one boundary while damaging another. Hard negatives keep the taxonomy and threshold honest.
 
-I like the edge variants because they make the guardrail cheap enough to sit in front of the expensive model or next to a local tool path. That gives the app options: block, route, redact, or send to review. It does not remove judgment. It just makes the judgment inspectable.
+A small classifier can sit before an expensive model or beside a local tool path. It does not eliminate judgment. It gives the system labels, thresholds, and a place in the request path where policy can act.
 
-The framing I trust is simple. Safety is not magic text. It is labels, thresholds, policies, and a place in the request path where those things can actually do work.
+Safety becomes more manageable when it is treated as inspectable classification rather than magic text.

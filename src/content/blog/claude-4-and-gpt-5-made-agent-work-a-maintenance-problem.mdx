@@ -10,78 +10,41 @@ tags: ["anthropic", "openai", "claude-4", "gpt-5", "agents"]
 
 Claude 4 and GPT-5 pushed agent work into a less glamorous category: maintenance.
 
-That is not a complaint. It is the sign that the technology became real enough to operate.
+That is a sign the technology became operational enough to own. A short answer can disappear into a transcript. A long-running agent accumulates state: files inspected, edits made, commands run, checks skipped, assumptions carried, and approvals granted.
 
-Claude 4 arrived in May 2025 with Opus 4 and Sonnet 4, and Anthropic was explicit about coding, advanced reasoning, and AI agents. Claude Code also moved into the center of the story. GPT-5 later made automatic reasoning the default ChatGPT path, with the product choosing when a request benefited from more reasoning instead of asking users to manage every model choice themselves.
+If that state exists only in the conversation, interruption is expensive. The next run reconstructs the work from memory and guesses.
 
-Those releases were easy to describe as capability jumps. They were also maintenance events.
+A durable run record can stay plain:
 
-## agent runs create state
-
-A short chat answer can disappear into the transcript.
-
-A long-running coding agent cannot. It has state. It has a plan. It has files it inspected, edits it made, commands it ran, checks it skipped, assumptions it carried, and user approvals it relied on. If that state is only implied by the conversation, the workflow gets brittle fast.
-
-Claude 4 made this easier to see because the agent-shaped coding story got stronger. A capable model can stay with a task longer, which also means it can accumulate more hidden context.
-
-The platform needs a durable run record:
-
-```text
-request
+~~~text
+request:
   fix failing markdown validation in blog posts
 
-state
+state:
   editing batch 3 of 8
 
-inspected
-  src/content/blog/*.mdx
-
-changed
+changed:
   12 files
 
-checks
+checks:
   markdown:check passed for changed files
 
-open questions
+open questions:
   full build not yet run
-```
+~~~
 
-Without that record, every interruption becomes expensive. The next run has to reconstruct what happened. The user has to remember. The agent guesses. That is not autonomy. That is unmanaged state.
+That is not administrative overhead. It is the difference between a resumable workflow and unmanaged state.
 
-## automatic reasoning still needs accounting
+GPT-5 made a related issue visible by making automatic reasoning a default product behavior. Routing the request for the user is convenient, but the choice still needs a budget, a log, and an evaluation. Which tasks got deeper reasoning? Did it improve accepted output? How much latency and cost did it add? Did hard tasks stay on the cheap route?
 
-GPT-5 made another maintenance problem obvious: reasoning can become an automatic product behavior.
+Automatic does not mean unowned.
 
-That is useful. Most users do not want to decide whether a model should reason every time they ask a question. A good product should route the request. But automatic routing still needs budgets, logs, and evaluation.
+Prompts, tool descriptions, policies, and verifier instructions age alongside the model. A model upgrade can turn a previously harmless tool description into a broad permission, or make a verifier miss a new kind of false success. Model upgrades are behavior migrations, not only dependency bumps.
 
-If the system decides when to spend more thinking time, the team needs to know when it did that and whether it helped.
+I want an inventory that connects the route to its surrounding assets:
 
-The maintenance questions are concrete:
-
-- which tasks used deeper reasoning?
-- how often did automatic reasoning improve accepted output?
-- how much latency did it add?
-- how much cost did it add?
-- did users cancel or retry slow answers?
-- did reasoning get used for tasks that should have stayed fast?
-- did hard tasks fail because the route stayed too cheap?
-
-Automatic does not mean unowned. It means the product owns the choice.
-
-## prompts and tools age together
-
-Agent workflows depend on prompts, tool descriptions, policies, and verifier instructions.
-
-Those assets change. They also rot.
-
-A prompt that worked with one model may become too heavy with another. A tool description that was clear enough for a weaker agent may become dangerously broad for a stronger one. A verifier instruction may fail to catch a new kind of false success. A policy phrase may move from harmless guidance to a confusing conflict after the model changes.
-
-This is why model upgrades are not only dependency bumps. They are behavior migrations.
-
-When a model changes, I want to know which prompt paths are affected:
-
-```text
-model route:
+~~~text
+route:
   coding-agent-default
 
 prompts:
@@ -94,80 +57,18 @@ tools:
   file-write
   shell-check
 
-eval suites:
+evals:
   focused-edit
   no-unrelated-files
   markdown-repair
-```
+~~~
 
-That inventory is boring until it saves the team from debugging a personality change as if it were a random user complaint.
+Agent evals should inspect the path, not only the final prose. Did the agent inspect the right files? Keep scope? Ask at the right boundary? Run the intended checks? Stop when uncertain? Leave a usable handoff?
 
-## evals need to follow the workflow
+A plausible completion message can conceal a broken repository.
 
-Agent evals cannot stop at final answer quality.
+Approvals need maintenance too. "Allow file edit" is weak when the agent can restructure a directory. The prompt should name the target, show the command or diff, identify the account in use, explain what happens after approval, and describe recovery.
 
-The workflow matters. Did the agent inspect the right files? Did it avoid unrelated edits? Did it ask for approval at the right moment? Did it run the correct checks? Did it stop when it hit uncertainty? Did it leave a useful handoff?
+When a model is retired or replaced, treat it like an operational migration: map affected workflows, run local evals, compare cost and latency, inspect changed failure modes, update prompts and tools, review approval copy, and monitor the first production runs.
 
-Long-running agents can fail while still producing a plausible final summary. That is the annoying part. The answer can say "completed" while the repo is broken, the tests were never run, or the wrong file was edited.
-
-The eval should inspect the path:
-
-- plan quality
-- scope discipline
-- tool choice
-- edit locality
-- verification behavior
-- recovery after failure
-- honesty in final report
-
-Model releases change those behaviors. A better model may be more ambitious. More ambition can be useful, but it can also create bigger diffs, broader plans, and more confident final summaries. The eval needs to catch that.
-
-## approvals are maintenance surfaces
-
-Approvals also need maintenance.
-
-As agents get more capable, approval prompts that used to feel adequate may become too vague. "Allow file edit" is weak when the agent can restructure a directory. "Run command" is weak when the command can mutate generated files, hit the network, or consume a large budget.
-
-Approval language should be reviewed when the agent's capability changes.
-
-The product needs to ask whether the prompt still describes the real side effect:
-
-- does it name the target?
-- does it show the diff or command?
-- does it say which identity is used?
-- does it explain what happens after approval?
-- does it describe the rollback path?
-
-The approval system is not set and forget. It is part of the agent runtime, and the runtime changes when models change.
-
-## retirement is operational work
-
-By 2025, model menus already felt less permanent.
-
-That has consequences for agents. A normal chat feature can often survive a model migration with some prompt tuning. An agent workflow has more moving parts: route, prompt, tools, approvals, evals, logs, and user expectations.
-
-When a model is retired or replaced, the team should treat it like an operational migration:
-
-1. map workflows using the model
-2. run local evals against the replacement
-3. compare cost and latency
-4. inspect changed failure modes
-5. update prompts and tool descriptions
-6. review approval copy
-7. monitor post-migration regressions
-
-That is not overkill for a workflow that edits files, touches customer data, or performs security analysis. It is normal maintenance.
-
-## the system owns the loop
-
-The main lesson from Claude 4 and GPT-5 was not that agents became finished.
-
-It was that agent work became system work.
-
-The model is one dependency. The prompt is another. Tools are another. The verifier is another. The approval UI is another. The run ledger, cost controls, routing policy, and eval suite are all part of the same product.
-
-Once those pieces exist, they have to be maintained.
-
-That sounds less exciting than "the agent can code for hours." Good. Excitement is cheap. A maintained agent workflow is much more useful.
-
-The releases made the future feel closer, but they also made the responsibility clearer: if an agent is doing real work, somebody owns the loop after launch.
+The model is one dependency in an agent system. The route, prompts, tools, verifier, approvals, run ledger, and cost controls all shape the result. Once agents do real work, keeping that loop healthy becomes part of the product.

@@ -8,16 +8,20 @@ author: "jeremy-london"
 tags: ["security", "validation", "product"]
 ---
 
-Input validation is where the product says what it believes.
+Validation is one of the places where a product makes a claim about reality.
 
-It is easy to treat validation as defensive plumbing. Check the type, trim the string, reject nonsense, move on. That is only half the story.
+The code may look like plumbing: check a type, trim a string, reject a value. But each rule answers a product question. What counts as a name? When is a date complete? Which files belong in this workflow? Is a partially typed value invalid, or merely unfinished?
 
-Validation decides what counts as a real name, a valid slug, a finished date, an allowed file, or an intermediate state that is still okay while the user is typing. A form can accept `0` as a number but reject `0` as a title. A filename can allow spaces but reject path traversal. A date can be valid in the browser and invalid for the business rule because the booking window is closed.
+Those decisions become visible at the edges of the system. A number field may accept `0`, while a title field must reject an empty string. A filename may contain spaces but must not escape its directory. A date can be valid according to the browser and still fail because the booking window has closed.
 
-That means the product should be able to explain the rule in plain language. If the rule is hard to explain, the product probably does not believe it clearly enough yet.
+Consider a workspace that requires lowercase, hyphenated, unique project slugs. A useful contract is specific:
 
-A concrete example helps. Suppose a workspace only allows project slugs that are lowercase, hyphenated, and unique within the org. The validation layer should reject `New Project`, `new_project`, and `new-project` if that slug already exists. The UI should show the rule before submission, and the server should enforce the same rule after submission. If those two layers disagree, the product is telling two different stories.
+- `New Project` fails because it contains spaces and uppercase characters.
+- `new_project` fails because underscores are outside the format.
+- `new-project` fails when another project already owns it.
 
-I care most about the server boundary because that is where the system stops pretending input is only a UI concern. The validation rule is the product's opinion about reality. The code should say it out loud.
+The interface can explain those rules before submission. The server still has to enforce them after submission. If the browser says a slug is available and the server rejects it without a usable explanation, the product has presented two different contracts.
 
-That means validation should return something a client can work with. Not just `400 bad request`, but "slug already taken" or "file type must be PDF" or "date must be in the next 30 days." The user should be able to fix the input without reading the source code.
+The server boundary is where validation stops being a UI preference. It protects the system, but it also states what the system believes. That belief should be legible in the response: "slug already taken," "file type must be PDF," or "date must be within the next 30 days" gives a person a path forward. `400 Bad Request` mostly gives them another attempt.
+
+Good validation narrows ambiguity without making ordinary work mysterious. The rule should be strict where the system needs certainty, flexible where input is naturally incomplete, and explained in the same terms the product uses everywhere else.

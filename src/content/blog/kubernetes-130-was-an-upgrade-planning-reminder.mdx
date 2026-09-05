@@ -10,9 +10,7 @@ tags: ["kubernetes", "operations", "upgrades"]
 
 [Kubernetes 1.30](https://kubernetes.io/blog/2024/04/17/kubernetes-v1-30-release/) was a reminder that cluster upgrades are calendar work.
 
-The release itself is not the point. The point is that Kubernetes moves on a schedule and the rest of the stack has to keep a calendar for it. If the team waits too long, the upgrade stops being a cluster task and becomes an application task, a tooling task, and a rollback task all at once.
-
-I treat the cluster like a dependency with dates, owners, and a test window.
+The release is only the date. The plan needs an owner, a test window, affected workloads, and a rollback path:
 
 ~~~yaml
 cluster_upgrade_plan:
@@ -27,10 +25,6 @@ cluster_upgrade_plan:
     - workload autoscaling
 ~~~
 
-The useful part is not the release note. It is the checklist that tells application teams what might break first and who is on point when it does. A good upgrade plan says where the risk is, not just when the new version exists.
+A preview cluster can expose ingress and storage changes before they become an application outage. Run a deployment, roll it back once, watch the metrics, and widen the blast radius only after the checks are boring.
 
-The upgrade is boring when it is planned. That is the whole goal. Boring means the calendar is doing its job before the cluster starts doing surprise work.
-
-That usually means running a preview cluster, checking ingress and storage behavior, and making sure the control plane change does not sneak in an app-level outage. The release is not the work. The work is knowing which workloads care before the version is already live.
-
-I want the plan to name the boring verification too: run one deployment, roll it back once, watch metrics, and only then widen the blast radius. If a cluster upgrade never makes application teams nervous, the calendar did its job.
+The release is not the work. The work is knowing which workloads care before the new version is live. A calendar with dates and owners is what keeps the upgrade from becoming surprise application work.

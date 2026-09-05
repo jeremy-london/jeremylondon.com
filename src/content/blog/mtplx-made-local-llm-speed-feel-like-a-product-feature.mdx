@@ -1,0 +1,37 @@
+---
+title: "MTPLX made local LLM speed feel like a product feature"
+excerpt: "MTPLX is a native Apple Silicon runtime for local models that makes speed, exactness, and API compatibility part of the same workflow."
+publishDate: "2026-09-05"
+category: "developer-tools"
+draft: false
+author: "jeremy-london"
+tags: ["mtplx", "local ai", "apple silicon", "mlx", "coding agents"]
+---
+
+I have been using [MTPLX](https://mtplx.com/) because it makes local inference feel like a development route rather than a hardware experiment.
+
+The native Apple Silicon app and CLI use multi-token prediction, draft several tokens, verify them in a batched forward pass, and retain tokens that preserve the target distribution. The interesting claim is not simply "local, but faster." It is faster without quietly changing the model's output behavior.
+
+The compatibility layer makes that useful in an existing workflow. OpenAI-compatible and Anthropic-compatible endpoints let a local model occupy a familiar slot for agents and clients:
+
+~~~sh
+brew install youssofal/mtplx/mtplx
+mtplx start
+~~~
+
+A short switch cost makes local comparison more likely. That matters for repository exploration, small edits, test triage, drafts, and repeated agent turns whose context is already on the Mac.
+
+Exactness still needs measurement. Acceptance varies with model, prompt, temperature, context, and MTP depth. A runtime should explain whether acceleration changes the distribution and how that claim was tested.
+
+The benchmark curve matters more than the peak number. [MTPLX's benchmarks](https://mtplx.com/benchmarks/) separate short generations, chat, coding, long answers, rewrites, and long-context agent sessions. Context length changes decode behavior, memory pressure, and warm-session cost.
+
+For an agent, measure:
+
+- time to first useful token
+- speed at real workflow context length
+- warm-session restore time
+- memory pressure
+- correction time after a bad edit
+- request-to-accepted-change time
+
+MTPLX does not need to replace hosted inference. It needs to create a useful local lane for privacy, offline work, low marginal cost, and fast iteration. Familiar APIs, native performance, and an explicit exactness boundary make that lane practical.

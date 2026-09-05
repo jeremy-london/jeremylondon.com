@@ -8,17 +8,11 @@ author: "jeremy-london"
 tags: ["feature flags", "release", "product"]
 ---
 
-Feature flags look like release plumbing. They are that, but they are also the record of a decision that has not settled yet.
+A feature flag is a decision that has not settled yet.
 
-If I see a flag, I assume someone wanted a way back. I assume the default was not obvious enough to bake in yet. I assume the team knew there was more than one path and did not want to pretend otherwise.
+It says the team wants a way back, needs a staged rollout, or is still comparing paths. That makes flags a kind of product memory. Memory becomes debt when nobody can explain why it exists.
 
-That makes flags a kind of product memory. The problem is that memory rots if nobody keeps track of what it was for.
-
-## name the uncertainty, not the color of the switch
-
-A good flag name should tell me what risk it protects.
-
-`new_dashboard` is close to useless. New compared to what? `dashboard_v2_enabled` is only a little better. I want names that point at the decision:
+Names should describe the uncertainty rather than the color of the switch:
 
 ~~~text
 dashboard_query_cache_rollout
@@ -27,7 +21,7 @@ agent_file_write_approval_required
 search_reranker_experiment
 ~~~
 
-Those names are longer, but they make the risk legible. I can look at one and guess what part of the product still feels unfinished.
+The record around the flag matters as much as the key:
 
 ~~~ts
 type FeatureFlagRecord = {
@@ -42,73 +36,28 @@ type FeatureFlagRecord = {
 }
 ~~~
 
-That is the kind of metadata that keeps a flag from turning into archaeology.
+Turning a flag off is only rollback if the old path still works. A database migration, new API shape, or changed user state can make the flag forward-only while the switch still looks reversible. Every flag should answer what happens if it flips now.
 
-## rollback has to mean something
+Ownership starts after launch. Someone needs to remove the branch, delete dead tests, update analytics, close the rollout note, or explicitly document why the flag remains. The useful questions are:
 
-Turning a flag off is only rollback if the old path still works.
-
-That sounds obvious until the database migrates, the API shape changes, the old component loses coverage, or the new format leaks into user state. Then the flag still exists, but it no longer protects anything.
-
-Every flag should answer one question: what happens if we flip this right now?
-
-Sometimes the answer is clean. Traffic goes back. Sometimes the answer is partial. Existing records stay on the new path. In that case, the flag is not rollback. It is a visibility control sitting on top of a forward-only change.
-
-## ownership gets real after launch
-
-Before launch, everybody remembers the flag. After launch, attention moves and the flag stays.
-
-That is when ownership matters. Someone has to remove the branch, delete dead tests, update docs, clean up analytics filters, and close the rollout note. If the flag remains because a customer depends on it, that needs to be explicit too.
-
-The boring questions are the useful ones:
-
-- is this flag still needed?
 - who owns it?
-- what would break if it changed state?
 - is it rollout, experiment, permission, pricing, or migration?
+- what breaks when its state changes?
 - what is the removal plan?
 
-If nobody can answer, the flag is product debt with a Boolean interface.
-
-## ai makes flags stranger
-
-AI flags are harder because the change is probabilistic.
-
-Turning on a new summarizer, retriever, router, prompt, model, or verifier is not like changing a button color. The output may vary by slice. Rollback may be awkward if the new path already wrote content, stored embeddings, changed memory, or triggered tools.
+AI flags make rollback harder. A new model route may already have generated content, stored embeddings, changed memory, or triggered tools. The record should say what the flag can undo:
 
 ~~~json
 {
   "key": "support_answer_gpt56_route",
-  "owner": "ai-platform",
   "kind": "model-route",
   "baseline": "support_answer_sonnet5_route",
   "evalSuite": "support-policy-regression",
-  "rollbackMeaning": "new requests route to baseline; existing generated drafts remain visible",
+  "rollbackMeaning": "new requests return to baseline; existing drafts remain visible",
   "watch": ["refund_policy_slice", "citation_missing_rate", "p95_latency"]
 }
 ~~~
 
-That record says what the flag can and cannot undo. I want that spelled out before rollout, not after somebody asks why the old behavior is gone forever.
+A flag is not complete at 100 percent rollout. The old path should be removed or deliberately retained, tests should stop covering dead branches, and dashboards should stop splitting traffic on a switch that no longer moves.
 
-## cleanup is part of the release
-
-The flag is not done at 100 percent rollout.
-
-Done means the decision has been absorbed into the product. The old path is removed or intentionally documented. Tests stop pretending a dead branch is alive. Dashboards stop splitting traffic on a flag that no longer moves. Runbooks stop telling people to toggle a switch that should not exist.
-
-I like putting cleanup into the original rollout ticket:
-
-~~~text
-ship:
-  - add flag
-  - enable for internal users
-  - ramp to 10 percent
-  - ramp to 100 percent
-  - remove old path
-  - delete flag
-  - close rollout note
-~~~
-
-If the team decides to keep the flag, that should be a real product decision, not a memory leak.
-
-Feature flags are useful because they remember uncertainty. They only stay useful when somebody is willing to retire the memory after the decision lands.
+Flags are useful because they remember uncertainty. They stay useful when somebody retires the memory after the decision lands.

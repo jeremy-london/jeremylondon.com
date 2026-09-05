@@ -8,76 +8,46 @@ author: "jeremy-london"
 tags: ["incident review", "ai ops", "models"]
 ---
 
-The first thing I want in an AI incident review is the exact path the system took before the user saw anything.
+The incident record says "the model failed."
 
-"The model failed" is usually the last sentence people reach for because it is the easiest one to say. It is rarely useful. By the time an answer lands in front of a user, the request may have passed through prompt assembly, retrieval, route selection, fallback logic, tool execution, and one or more approval steps. Any of those can be the first wrong move.
+That sentence is usually where the useful investigation stops. Before the answer reached the user, the request may have passed through prompt assembly, retrieval, routing, fallback logic, tool execution, and approval. Any of those may have been the first wrong step.
 
-## start with the symptom
+I want the review to start with the user's symptom and end at that first divergence.
 
-The incident record should preserve what the user actually saw. Not a compressed internal summary. Not a generic "wrong answer."
+~~~json
+{
+  "model": "model-id",
+  "route": "reasoning-fallback",
+  "prompt": "rendered prompt snapshot",
+  "retrieval": ["doc-184", "doc-219"],
+  "tools": ["update_ticket_priority"],
+  "approval": "shown-diff-approved",
+  "firstMismatch": "stale retrieval result"
+}
+~~~
 
-If the product claimed a file was updated and the write never happened, write that down. If the assistant approved a destructive action without showing the diff, say that. If a user lost access to a document and the model still quoted it, preserve the access mismatch. The next engineer needs the seam, not the slogan.
+The rendered prompt matters more than the template. A template can be correct while the assembled prompt contains a stale retrieval block, a changed tool description, or a safety instruction buried below irrelevant context.
 
-Once the symptom is clear, I want the review to pin the exact run:
+Retrieval needs its own evidence: query text, index version, document IDs, timestamps, ranking, and permission filters. A missing source is a different incident from a source that existed but was ranked out of view.
 
-- model and deployment identifier
-- route, fallback path, and any reroute trigger
-- rendered prompt, not just the template
-- retrieval snapshot, permissions, and ranking order
-- tool call arguments and tool output
-- approval state as the user saw it
-- the first point where the path diverged from the expected one
+Tool output needs to stay intact too. A tool can return ok and still leave the workflow wrong:
 
-That list is not bureaucracy. It is the minimum set of facts needed to stop people from arguing from memory.
-
-## the evidence has to match the system
-
-If the app routes requests, the review needs route context. A cheap answer path behaves differently from a reasoning path. A local classifier fails differently from a judge model. A fallback path can make a bad answer look ordinary if nobody records that the fallback fired.
-
-Prompts need the same treatment. The template can look fine while the rendered prompt is wrong. A stale retrieval block can land above fresh context. A tool description can drift just enough that the model starts forming the wrong arguments. A safety note can get buried under too much text to matter.
-
-The point of the review is not to prove the prompt was "bad." The point is to show what the model actually saw.
-
-Retrieval deserves its own trail as well. For a RAG incident, I want query text, index version, document IDs, chunk timestamps, ranking scores, and permission filters. I also want to know whether the correct source existed at the time. Missing source and failed retrieval are different bugs, and they usually lead to different fixes.
-
-## tool receipts are part of the incident
-
-The model can call the right tool with the wrong argument. The tool can return `ok` and still leave the workflow wrong. That is why tool output belongs in the review instead of getting flattened into "tool succeeded."
-
-```json
+~~~json
 {
   "tool": "update_ticket_priority",
   "arguments": {
     "ticketId": "INC-1842",
     "priority": "high"
   },
-  "result": {
-    "status": "ok"
-  },
-  "verification": "ticket priority changed, no customer impact check"
+  "result": { "status": "ok" },
+  "verification": "no customer-impact check"
 }
-```
+~~~
 
-That record is honest, and it also shows the problem. The ticket changed. The workflow may still be wrong. A good review leaves room for that distinction.
+The ticket changed. That does not mean the incident is resolved.
 
-Approval state belongs in the same place for the same reason. A human approval only means something if we know what the human saw. Was the diff visible? Was the account visible? Was the rollback path visible? Was the action shown as a write, a delete, a publish, or just a vague "continue" button? If one approval covered a whole chain of actions, the review should say that too.
+Approval belongs in the same record. What did the user see? Was the action presented as a write, delete, publish, or vague continuation? Did the approval cover one action or an entire chain? If the final side effect differs from the approved action, the mismatch is part of the cause.
 
-## replay is the test
+Replay is the standard I use. The team should be able to rerun the prompt, route, retrieval snapshot, tool schema, and approval state closely enough to test a fix. Perfect reconstruction may be impossible. No reconstruction is an operational failure of its own.
 
-The real test is whether the team can replay the path with enough fidelity to debug it.
-
-I do not need perfect reconstruction. I do need enough information to rerun the same prompt, same route, same retrieval snapshot, same tool schema, and same approval state. If the logs are incomplete or the model version is vague, that is part of the failure. The system did not just produce a bad answer. It failed to leave evidence that explained itself.
-
-This is also where after-action notes matter. Did the team pin the prompt version? Did they snapshot retrieval results? Did they separate the judge model from the generator? Did they tighten the approval copy? Did they find out the bug lived in the tool output instead of the model?
-
-Those outcomes point to different fixes, and you only get there if the review preserves enough detail to separate them.
-
-## what I do not want
-
-I do not want a review that ends at "model bad."
-
-I do not want a review that hides the user-visible symptom behind internal shorthand.
-
-I do not want a review that treats prompt assembly, retrieval, routing, approvals, and tools as interchangeable background noise.
-
-If the team can walk from symptom to first wrong step to fix, the review did its job. If it cannot, it just produced another layer of fog.
+An AI incident review should leave a path from symptom to first wrong step to change made. "Model bad" is not a diagnosis.

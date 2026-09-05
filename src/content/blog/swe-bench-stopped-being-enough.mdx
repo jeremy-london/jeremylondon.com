@@ -8,93 +8,59 @@ author: "jeremy-london"
 tags: ["benchmarks", "coding agents", "evals"]
 ---
 
-SWE-bench was useful because it made coding models answer to code.
+SWE-bench did something important: it made coding models answer to code.
 
-That was a big step up from vibes. A model could talk a good game in chat and still fail to patch a real issue. SWE-bench forced the question into a repository with tests and a target behavior.
+A model could sound competent in a chat window and still fail to change a real repository. SWE-bench put the model in a project with tests, dependencies, and a target behavior. That was a useful correction.
 
-The problem is that every useful benchmark eventually becomes less useful as a separator.
+The next correction is accepting that a public benchmark cannot stay a perfect proxy for every repository.
 
-## saturation is a success state
+## Saturation is a signal
 
-A benchmark getting saturated is not a failure of the benchmark.
+When a benchmark becomes crowded, that does not mean it failed. It means the field learned to optimize for the thing being measured. Models improved, agents got better at repository-level patches, and the task became part of the evaluation culture.
 
-It means the field got better at the thing it measured. Models improved. Tooling adapted. Agents learned to patch more realistic issues. The leaderboard got crowded because the task became part of the evaluation culture.
+The mistake is treating the leaderboard as a permanent oracle.
 
-That is progress.
+Once several systems perform well, a small score difference may tell you little about a particular codebase. The system with the higher score might still make broader edits, miss local conventions, or recover poorly from a flaky test.
 
-The mistake is treating the benchmark as a permanent oracle.
+## Repositories have texture
 
-Once several systems score well, the small differences may not predict local usefulness. A model that wins by a few points may still be worse in your repo because it edits too broadly, ignores conventions, or handles flaky tests badly.
+Every serious codebase contains rules that a public task cannot fully capture:
 
-## local repos have local weirdness
+- generated files that should never be edited directly
+- service boundaries that are architectural boundaries too
+- migrations with a required rollback path
+- lint and test commands with very different costs
+- helper APIs that reviewers expect agents to reuse
+- flaky tests whose failures need interpretation
+- directories owned by a different team
 
-Every serious codebase has texture.
+Those details are not incidental. They determine whether an agent can move the repository safely.
 
-There are naming conventions, generated files, service boundaries, lint rules, migration habits, and commands nobody runs casually. A coding agent has to navigate that texture.
+## Make the local task real
 
-Public benchmarks rarely know:
+The strongest local eval tasks are usually recovered from actual work:
 
-- which tests are flaky
-- which generated files should not be edited
-- which directories are owned by another team
-- which migrations need rollback
-- which helper APIs should be used
-- which style choices reviewers care about
-- which commands are too expensive to run casually
+- a closed bug
+- a small refactor
+- a dependency update
+- a test failure
+- a documentation change
+- a UI fix
+- a migration review
+- a security patch
 
-Those details decide whether the agent feels helpful or reckless.
+For each task, record the starting commit, prompt, allowed tools, expected behavior, required checks, known pitfalls, and reviewer rubric. The point is not to rebuild a public benchmark with fewer examples. The point is to measure whether an agent can handle the work your team actually has.
 
-## local evals should use real tasks
+## Green tests are one measurement
 
-The best local coding evals come from real work.
+Tests are necessary. They are not sufficient.
 
-Closed bugs. Small refactors. Dependency updates. Test failures. UI fixes. Documentation edits. Migration reviews. Security patches. The eval should contain tasks your team actually wants agents to handle.
+A patch can pass while touching too many files, introducing an abstraction nobody asked for, bypassing an existing helper, or hiding a behavior change inside a cleanup. I would score the final result on correctness, patch size, convention fit, test relevance, explanation quality, command choice, and failure recovery.
 
-For each task, capture:
+Reviewer cleanup deserves its own line item. Saving twenty minutes of typing and creating thirty minutes of cleanup is a negative product result, even when the benchmark says pass.
 
-- starting commit
-- task prompt
-- allowed tools
-- expected behavior
-- required checks
-- known pitfalls
-- reviewer rubric
+The run itself also contains evidence. Did the agent read the relevant files? Did it inspect the failing test? Did it try a targeted check before an expensive one? Did it notice a command failure? Did it keep repeating a broken approach? Did it stop when the task was complete?
 
-The goal is not to recreate SWE-bench badly. The goal is to measure local usefulness.
+The trace shows whether the system is operable, not just whether the last diff compiles.
 
-## tests pass is necessary and insufficient
-
-Tests matter. If the agent cannot get the test green, that is a clear signal.
-
-But "tests pass" is not the whole review. A coding agent can still touch too many files, introduce unnecessary abstraction, ignore existing helpers, or hide a behavior change inside a cleanup.
-
-I would score:
-
-- correctness
-- patch size
-- convention fit
-- test relevance
-- explanation quality
-- command choice
-- failure recovery
-- reviewer cleanup required
-
-That last one is underrated. If the agent saves twenty minutes of typing and creates thirty minutes of cleanup, the benchmark pass is not the product result.
-
-## traces belong in the eval
-
-For coding agents, evaluate the run as well as the final diff.
-
-Did the agent read the right files? Did it inspect failing tests? Did it run a targeted check before a broad one? Did it notice a command failure? Did it keep trying the same broken path? Did it ask for missing context? Did it stop when the task was done?
-
-The trace shows whether the system is operable.
-
-## the local eval is the product eval
-
-For coding agents, the product is not "can produce code." The product is "can move this repo safely."
-
-That means local evals should include the boring parts: setup, commands, flaky tests, repo conventions, reviewer expectations, and failure recovery.
-
-SWE-bench made coding models more serious. The next step is making evaluation closer to the work.
-
-When the public benchmark stops being enough, that is not a reason to trust vibes again. It is a reason to build the eval harness the repo already needed.
+SWE-bench made coding systems more serious by attaching them to real code. When its scores stop separating the systems you are considering, the answer is not to return to vibes. Build an eval around the repository already in front of you.

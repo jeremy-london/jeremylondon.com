@@ -8,15 +8,11 @@ author: "jeremy-london"
 tags: ["private ai", "local first", "workflow"]
 ---
 
-Private AI workflows want local state.
+Private AI is a boundary choice before it is a model choice.
 
-That sounds like an implementation choice, but I think it is really a boundary choice. Once an AI tool starts reading notes, screenshots, drafts, files, browser state, or local project data, the app is no longer handling generic prompts. It is handling private working material that the user expected to stay nearby.
+Once a tool reads notes, screenshots, drafts, browser state, or local project files, it is handling working material the user expected to stay nearby.
 
-### scope should start small
-
-The useful question is not which model runs. It is what the model can see.
-
-For a file assistant, that might mean the current file before the whole folder. For a notes assistant, the selected note before the whole vault. For a coding assistant, the current diff before the repository. The product should make that scope explicit instead of burying it in settings nobody reads.
+Start with narrow scope:
 
 ~~~json
 {
@@ -28,14 +24,10 @@ For a file assistant, that might mean the current file before the whole folder. 
 }
 ~~~
 
-### derived artifacts can leak too
+A file assistant may need the current file, not the whole folder. A notes assistant may need one note, not the vault. A coding assistant may need the current diff, not the repository.
 
-Privacy does not stop at the source file.
+Derived artifacts need the same boundary. Summaries, embeddings, tags, memories, logs, and cached outputs can contain the private material even when the source never leaves the device.
 
-Summaries, embeddings, tags, memories, logs, and cached outputs can all contain the thing the user meant to keep private. A local summarizer may still write a sentence that should never sync. A local embedding index may make sensitive material searchable. A debug log may capture unredacted text. The derived state needs the same boundary as the source state.
+If the app builds a local index, the user should know where it lives, how it updates, and how to delete it. Removing a folder from scope should remove its derivatives too. Deleting a note should not leave an invisible searchable copy.
 
-### local indexes need ownership
-
-If the app builds an embedding index over notes or files, the user should know where that index lives, how it updates, and how to delete it. If a folder leaves scope, the vectors should leave too. If a note is deleted, the derivative should not hang around quietly.
-
-I like private AI best when it is honest about that line. Keep the private work local, let the user choose what syncs, and show a receipt when anything moves. That is enough structure for the product to feel respectful instead of overeager.
+Keep private work local, let the user choose what syncs, and leave a receipt when anything moves. That is the structure that makes the workflow feel respectful.

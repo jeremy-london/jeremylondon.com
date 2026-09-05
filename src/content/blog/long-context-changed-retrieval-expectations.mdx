@@ -8,19 +8,13 @@ author: "jeremy-london"
 tags: ["long context", "gemini", "retrieval"]
 ---
 
-Long context changed what retrieval is expected to do.
+Long context changed my default unit for retrieval.
 
-It did not make retrieval disappear. It made tiny shards feel too cramped.
+The old instinct was to make every chunk smaller. Smaller chunks were easier to index, easier to rank, and easier to fit into a prompt. They were also easy to misunderstand once the surrounding argument had been removed.
 
-## retrieve units, not scraps
+With a larger window, a retrieved result can be a section, a policy, or a complete page. That gives the model enough context to interpret the evidence instead of receiving a handful of sentences whose references point somewhere outside the prompt.
 
-With larger windows, retrieval can select coherent source units instead of paragraph fragments. The hard part moves to eligibility, ordering, and citations: what the model is allowed to see, what it should trust, and where the answer came from.
-
-If the context window is generous, I would rather give the model a whole section, a whole policy, or a whole page than a few sentence fragments that lose the thread the moment they arrive. The retrieval layer becomes more about choosing the right unit than about stuffing the tiniest possible chunk into the prompt.
-
-## a simple selection loop
-
-The implementation shape is not mysterious:
+The selection loop can stay simple:
 
 ~~~python
 def select_context(query, candidates):
@@ -29,19 +23,11 @@ def select_context(query, candidates):
     return dedupe_by_section(ordered)[:8]
 ~~~
 
-The point is not the code. The point is that larger windows give you room to be conservative. You can keep a section intact, preserve citations, and avoid the weird middle state where the model has seen part of a source but not enough to trust it.
+The difficult decisions are elsewhere:
 
-## what still needs judgment
+- Is this source unit coherent?
+- Does the ordering preserve the argument?
+- Does the citation still identify the evidence?
+- Was the source eligible for this answer?
 
-Long context does not solve retrieval quality by itself. It just changes the questions.
-
-Now I care about:
-
-- whether the source unit is coherent
-- whether the order preserves the argument
-- whether the citation still points at the right place
-- whether the answer used a source that was eligible in the first place
-
-That is why long context feels operational rather than magical. It gives the system more breathing room, but the retrieval layer still has to earn its keep.
-
-The practical win is simpler than the hype: fewer chopped-up prompts, fewer missing references, and fewer answers that look right only because the relevant evidence was spread across too many tiny chunks.
+Long context does not remove retrieval judgment. It changes the tradeoff. There is more room to keep evidence together, so retrieval can optimize for meaning and traceability instead of only minimizing token count.

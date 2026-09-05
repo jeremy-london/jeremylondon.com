@@ -8,30 +8,37 @@ author: "jeremy-london"
 tags: ["dependencies", "security", "maintenance"]
 ---
 
-Dependencies are part of the threat model.
+A dependency changes more than the import graph.
 
-That sounds like a tidy security slogan until a small package becomes the reason a build breaks on arm64, a patch waits a week longer than it should, or nobody can tell which code is actually running at install time.
+It can alter install-time behavior, production authority, native build requirements, patch speed, and the amount of code a team must trust. A formatter, an HTML sanitizer, an image library, and a browser package do not have the same surface.
 
-On this site, the dependency graph is not huge, but it is real. Astro, MDX, React islands, Tailwind, `sharp`, `sanitize-html`, `zod`, `biome`, and `rumdl` all have different jobs, different failure modes, and different levels of trust. A formatter is not the same thing as an HTML sanitizer. A build-time image library is not the same thing as a browser dependency. That distinction matters.
+On this site, Astro, MDX, React islands, Tailwind, sharp, sanitize-html, zod, biome, and rumdl each do different work. The useful review question is not whether a package is popular. It is what the package can do, where it runs, and how painful it would be to remove.
 
-The part people miss is that a dependency is not only a convenience trade. It changes who gets to act on your system and when. If a package parses untrusted HTML, runs a postinstall script, or ships native binaries, it has more authority than a string helper that only runs during a local build. I want that authority named before the package lands, not after a vulnerability turns the question into a fire drill.
-
-For a package I do not already know, I want a boring review note that says what it does, where it runs, and what would make me remove it later.
+A small review note is often enough:
 
 ~~~text
 adds: sanitize-html
 purpose: strip unsafe markup before rendering content
 surface: build/server only
-why not custom code: too easy to miss an edge case
-watch item: keep up with security fixes and changelogs
+why not custom code: edge cases are easy to miss
+watch item: security fixes and changelog activity
 ~~~
 
-That note is better than a thumbs-up in a pull request. It tells the next person what the package bought, what surface it touches, and what kind of headache it could become.
+That note gives the next maintainer a reason, a boundary, and a removal signal.
 
-The other place this gets real is install time. Postinstall scripts, native builds, and binary downloads happen when everyone thinks they are just installing the project. That is exactly why they deserve extra attention. A package that needs install-time work is not bad by default. `sharp` needs that behavior. So do a lot of native tools. The question is whether the team knows it is there and can tolerate the failure mode when the platform changes.
+Install time deserves special attention. Postinstall scripts, native builds, and binary downloads happen while everyone thinks they are simply installing the project. A package that needs that work is not automatically wrong. The team should know it is happening and understand what breaks when the platform changes.
 
-I care about how fast a package can be patched for the same reason I care about how fast it can be removed. If a library is actively maintained, has normal release habits, and fits the ecosystem cleanly, updating it is usually boring. If the maintainer disappeared, the peers are frozen, or the build steps are weird enough to scare everyone away, patching becomes archaeology. A small feature that drags in a large dependency tree is not free just because the import line is short.
+Maintenance is part of the threat model too. A library with active releases and a clean ecosystem is easier to patch than an abandoned package with frozen peers and unusual build steps. A short import can still bring a large transitive tree. Removal cost is part of the original decision.
 
-That is why I keep the questions simple before I approve a new package: does it run at install time, does it run in production, does it parse untrusted input, does it touch the filesystem, does it bring a messy transitive tree, and how painful would removal be if the answer later turns bad? That is threat modeling in plain English. It also happens to be a decent checklist for code review.
+Before approving a package, I want answers to a short set of questions:
 
-I am not trying to run a dependency-free museum piece. I just want the project to stay explainable. Packages are fine when they earn their place and when somebody can still describe the boundary after the novelty wears off. The minute nobody remembers why the package exists, it has already started to cost you more than it should.
+- Does it run during install?
+- Does it run in production?
+- Does it parse untrusted input?
+- Does it touch the filesystem or network?
+- What does its transitive tree add?
+- How quickly could the team patch or remove it?
+
+That is threat modeling in ordinary review language. It keeps the project explainable without pretending a dependency-free system is the goal.
+
+Packages earn their place when their authority is understood, their maintenance path is visible, and somebody can still explain why they exist after the original feature has shipped.

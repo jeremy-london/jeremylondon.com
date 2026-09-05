@@ -8,23 +8,31 @@ author: "jeremy-london"
 tags: ["RAG", "retrieval", "language models"]
 ---
 
-RAG is usually sold as a generation pattern, but most of the quality lives in retrieval.
+RAG is usually described as a generation pattern. In practice, much of the quality is decided before generation begins.
 
-The generator can only reason over the evidence it sees. If the wrong chunks arrive, the model can answer from bad context, answer from memory, or refuse. None of those feels like the product people thought they were building.
+The model can only reason over the evidence it receives. If the wrong chunks arrive, it may produce a confident answer from irrelevant context, fall back to memory, or refuse a question that the knowledge base could have answered. The retrieval problem is easy to hide because fluent output can disguise it.
 
-### the question is not the query
+### search language is not user language
 
-Users ask messy questions. They use old names, acronyms, error strings, screenshots, and language that does not match the docs. The retrieval layer has to turn that into something searchable without erasing the detail that matters.
+Users do not ask questions in document titles. They use old names, acronyms, error strings, screenshots, and shorthand from a conversation. A retrieval layer has to expand or reinterpret the query without throwing away the exact token that identifies the problem.
 
-### chunks are product decisions
+The question sent to search is an interface between two vocabularies: the user's and the corpus's.
 
-Chunking is where a lot of RAG systems quietly lose.
+### chunk boundaries carry meaning
 
-Docs want headings and section paths. Code wants function or class boundaries. Tickets want conversation turns. PDFs want pages or regions. Policies want clauses and definitions. One chunking strategy rarely fits all of that.
+Chunking is not a preprocessing detail. It decides what evidence can arrive together.
 
-### metadata does real work
+- Documentation benefits from headings and section paths.
+- Code benefits from function and class boundaries.
+- Tickets benefit from conversation turns.
+- PDFs benefit from pages, regions, and layout.
+- Policies benefit from clauses and definitions.
 
-Vector similarity is not enough. Metadata filters permissions, ranks fresh over stale, keeps tenants separate, and makes citations inspectable. Without it, the system is just finding similar text and pretending that is enough.
+A chunk that is semantically similar but missing its scope can be worse than no result at all.
+
+### metadata is part of correctness
+
+Vector similarity cannot enforce permissions, tenant boundaries, freshness, or document type. Metadata filters and ranks the candidate set, while citations make the selected evidence inspectable.
 
 ~~~text
 user question
@@ -35,8 +43,10 @@ user question
   -> pass evidence to model
 ~~~
 
-### eval retrieval before generation
+Each step can improve relevance, but each step can also remove the only useful source. That makes the pipeline worth measuring as a pipeline rather than treating retrieval as one opaque score.
 
-I would rather test whether the expected document appears in top K than argue about an answer that may have been built on bad evidence. Retrieval and generation need different evals because they fail in different ways.
+### evaluate the evidence separately
 
-RAG works when the boring part is boringly good. The right source shows up. The wrong source stays out. The citation points at something the user can inspect. A clever prompt can make a bad retrieval system sound better for a while, but it cannot make the right document appear.
+Before judging an answer, ask whether the expected document appears in the top K results. Retrieval and generation fail differently, so they need separate checks. A response can be well written and still be grounded in the wrong policy.
+
+RAG becomes dependable when the unglamorous parts behave predictably: the right source appears, the wrong source is excluded, and the citation leads somewhere a reader can verify. Prompt cleverness cannot compensate for missing evidence.

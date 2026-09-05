@@ -8,41 +8,15 @@ author: "jeremy-london"
 tags: ["fine-tuning", "training", "datasets"]
 ---
 
-Fine-tuning is the part people reach for when the decision already exists and they want the model to absorb it.
+Fine-tuning is usually an attempt to make a decision permanent inside the model.
 
-## decide the task first
+That is useful only after the decision is clear. Freeze the base model, prompt, retrieval path, eval set, scoring rule, and known failures first. The question is not whether the checkpoint is "better." It is what behavior should change.
 
-If the team is still arguing about what the task is, training will not settle that argument. It will just encode the argument badly.
+Maybe the model misses security escalations, normalizes messy entities, emits invalid JSON, or needs a huge prompt because the workflow was never simplified. If the target cannot fit in one sentence, training will encode the ambiguity rather than resolve it.
 
-That is why I want the boring parts frozen first: the base model, the prompt, the retrieval path if there is one, the eval set, the scoring rule, and the failures we already know about.
+The dataset should teach one job. A narrow classifier needs hard negatives and explicit labels. A formatter needs valid and invalid examples. A style model needs real examples of the intended style, not generic professionalism. Synthetic data can help, but it belongs outside the holdout and should not become the model's only voice.
 
-The useful question is not whether the checkpoint is "better." It is what should change.
-
-Maybe the model should stop missing security escalations. Maybe it should normalize messy entities. Maybe it should produce valid JSON without a repair loop. Maybe it should replace a huge prompt that exists only because the workflow never got cleaned up.
-
-The moment you can write down the target behavior in one sentence, you can start checking whether training is the right lever at all. If the sentence is still mushy, the model will not rescue you from that. It will only make the mushy part harder to unwind later.
-
-I also want a baseline that stays boring on purpose. A frozen prompt, a fixed retrieval path, and a named evaluation slice tell me what fine-tuning is trying to beat. Without that, the checkpoint comparison is just theater.
-
-## let the data teach one thing
-
-That choice determines the data.
-
-A narrow classifier wants ugly negatives and explicit label definitions. A formatter wants valid and invalid examples. A style model wants real examples of the style, not generic professionalism. Synthetic data can help, but only if it stays out of the holdout and does not teach the model the generator's accent.
-
-For a support router, I want the training set to look like the thing the model will actually see:
-
-~~~text
-security_high: 420
-security_medium: 610
-billing_escalation: 980
-product_bug: 740
-unknown: 300
-~~~
-
-That table says more than a paragraph of optimism. It tells me where the model will get lazy. It tells me whether the rare class is rare enough to need a weighting trick or a better label definition.
-
-For a task like support escalation routing, I want the training rows to expose the edge, not just the happy path:
+A useful training record names the boundary:
 
 ~~~text
 task: classify support escalations
@@ -54,7 +28,7 @@ primary metric: macro f1
 guardrails: no regression on billing, vip, or ambiguous policy
 ~~~
 
-Then I want a small eval table that can actually surprise me:
+Then compare slices rather than one headline score:
 
 ~~~text
 slice                  baseline   ckpt_a   ckpt_b
@@ -65,9 +39,9 @@ json_validity             0.93      0.97     0.98
 out_of_domain_f1          0.71      0.69     0.60
 ~~~
 
-Checkpoint B looks nice if you only care about the headline slice. It is a bad pick if billing noise or ambiguous policy matters to the product.
+Checkpoint B wins one row and loses the product.
 
-One concrete example helps here. If the model is supposed to create a ticket, I want the record to carry the exact output shape and not just a vague natural-language instruction:
+The same applies to structured actions. If the model creates a ticket, the expected shape should be explicit:
 
 ~~~json
 {
@@ -80,20 +54,6 @@ One concrete example helps here. If the model is supposed to create a ticket, I 
 }
 ~~~
 
-That kind of example teaches the structure and the behavior together. If the model can only guess at the shape, the team still needs repair code. If the model can output the shape but not the class, the label set is wrong.
+Fine-tunes often break at adjacent slices. A support router learns the label vocabulary without learning the boundary between security and billing. An output becomes polished while losing caution. A model becomes too eager to sound certain.
 
-## where it usually breaks
-
-This is where fine-tunes usually go wrong. The target slice improves, then the adjacent slice gets weird. Or the output looks polished while losing caution. Or the model starts mirroring the label language instead of the task itself.
-
-That is why I keep adjacent checks around. Not because they are elegant. Because they catch the model when it has learned the wrong lesson.
-
-One concrete failure mode is the model that learns the naming pattern but not the decision boundary. A support router can look excellent on "security" versus "billing" and still fail on the tickets that mention both. The metric goes up while the product gets harder to trust.
-
-If the fine-tune works, the payoff is simplification: less prompt, less repair, less latency, less ceremony.
-
-If the team is training because labels are fuzzy or the behavior is disputed, the checkpoint will not fix that. It will just store the confusion in weights.
-
-The thing I watch next is calibration. A checkpoint can be right and still be annoying if it becomes too eager to sound certain in the exact places where the workflow wants a second look. That usually means the model learned the naming pattern but not the product boundary.
-
-Once it ships, treat it like a versioned dependency. Record the lineage. Keep the rollback. Note why this checkpoint won. Otherwise the next person is left guessing why the model suddenly got a little different.
+Keep neighboring checks, calibration, lineage, and rollback. The payoff of a successful fine-tune is simplification: less prompt, less repair, less latency, or less ceremony. If the training data is still arguing about the task, a checkpoint will only store the argument.

@@ -8,13 +8,13 @@ author: "jeremy-london"
 tags: ["meta", "llama", "open weights"]
 ---
 
-[Llama 3](https://ai.meta.com/blog/meta-llama-3/) and [Llama 3.1](https://ai.meta.com/blog/meta-llama-3-1/) changed the default baseline conversation.
+[Llama 3](https://ai.meta.com/blog/meta-llama-3/) and [Llama 3.1](https://ai.meta.com/blog/meta-llama-3-1/) changed the starting point for model comparisons.
 
-Before 2024, open weights felt like a special track. Llama 3 and 3.1 made them the thing you compare against by default.
+Open weights used to be easy to place in a separate category: useful for certain teams, interesting for experimentation, and not necessarily part of the first production conversation. These releases made that separation harder to defend. The open route became something worth testing before choosing a hosted provider.
 
-That matters because open weights are not only about quality. They give you a real baseline, a deployment choice, and a way to decide what belongs in your own stack.
+The point is not that open weights win every workload. They change the questions a team can ask. A real comparison now includes deployment control, latency, hardware, privacy, update responsibility, and operating cost alongside output quality.
 
-I think of the baseline as a test matrix instead of a slogan:
+I think of the baseline as a small test matrix:
 
 ~~~text
 hosted frontier
@@ -23,10 +23,8 @@ quantized self-hosted
 small local fallback
 ~~~
 
-Once the open route is strong enough, you have to explain why you skipped it. Maybe the latency budget is wrong. Maybe the operating cost is too high. Maybe the product needs a provider-managed update path. Maybe the local deployment cannot meet the hardware or privacy constraints. That is a better conversation than pretending hosted is the only serious option.
+Once those routes are measured against the same examples, the decision becomes easier to explain. A hosted model may win on capability or support. A local model may win on latency, privacy, or cost. A quantized version may be good enough for a narrow workflow. The important part is that the tradeoff is observed rather than assumed.
 
-The shift is practical, not ideological. Llama 3 and 3.1 made open weights the default thing to test, which is the real change.
+That also makes the open route useful even when it is not selected. If it fails on the tasks that matter, the team has evidence. If it performs well, the team has to name the reason for paying for a hosted route: managed updates, operational simplicity, policy controls, or a capability gap.
 
-That baseline matters when you are deciding where a workflow lives. A routing service can compare hosted, open, quantized, and local fallback routes against the same examples. If the open route is good enough, the team has to explain why they are paying for the hosted one. If it is not, the failure is visible instead of assumed. That is a better starting point than treating open weights like a side quest.
-
-In practice, that means the open route belongs in the first eval pass, not the optional one. The team can still choose hosted for support, policy, or capability reasons, but the choice has to be made after looking at the local baseline instead of before it.
+Llama 3 and 3.1 did not make deployment choices ideological. They made open weights practical enough to belong in the first evaluation pass. That is the baseline shift.

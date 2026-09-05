@@ -10,50 +10,30 @@ tags: ["claude", "coding agents", "review"]
 
 Claude 4 made long-running agent work feel less hypothetical.
 
-That does not mean every agent should be left alone for hours. It means the model capability was good enough that the supervision problem became more concrete. If an agent can stay with a coding task, inspect files, revise a plan, run checks, and keep going, then the product has to decide how that run is planned.
+The important consequence was not that every agent should run for hours. It was that sustained work became plausible enough for supervision to need a design. A capable agent can inspect files, revise a plan, run checks, and keep going. It can also accumulate a wrong assumption while looking productive.
 
-The planning problem is different from the chat problem.
+That is a different problem from supervising a chat answer.
 
-A chat answer can be wrong and still be contained. A long-running agent can be wrong while accumulating state. It can make a broad plan, touch several files, run partial checks, and write a confident summary. The work may look finished from far away while the actual system is now harder to review.
-
-Claude 4 pushed that concern toward the everyday version of agent tooling: how do you supervise sustained work without turning the user into a babysitter?
-
-## the plan should create stopping points
-
-A good long-running agent plan is not a giant to-do list.
-
-It should create stopping points. The user and the system need places where the run can pause, review evidence, change direction, or stop safely.
-
-For a coding task, I want phases like:
+A plan for long-running work should create stopping points rather than one giant to-do list:
 
 ~~~text
-phase 1: inspect failure and identify likely files
-phase 2: propose smallest fix
-phase 3: apply focused edit
-phase 4: run targeted verification
-phase 5: summarize diff and remaining risk
+inspect failure and identify likely files
+propose smallest useful fix
+apply focused edit
+run targeted verification
+summarize diff and remaining risk
 ~~~
 
-That is intentionally plain. The value is not the formatting. The value is that each phase has a natural review boundary.
+Each phase gives the user and the runtime somewhere to review evidence or change direction. If the proposed fix suddenly requires six unrelated modules, that is a new planning event. If verification fails, the agent should explain the failure instead of editing forever.
 
-If the agent discovers that phase 2 requires touching six unrelated modules, that is a planning event. It should not quietly turn the run into a larger project. If targeted verification fails, the agent should not keep editing forever without explaining what changed.
-
-Long-running work needs gates because momentum can hide drift.
-
-## inspection should not mutate
-
-The first phase of an agent run should often be read-only.
-
-That sounds conservative, but it saves a lot of mess. Before the agent edits, it should understand the repo shape, the failure, the relevant files, and the likely verification command. A read-only inspection phase gives the user a chance to see whether the agent is looking in the right place.
-
-The plan after inspection should be more specific than the initial guess:
+The first phase should often be read-only. A useful inspection result is specific:
 
 ~~~text
 found:
   failing markdown rule in three MDX posts
 
 likely cause:
-  generated code fences use backticks while repo expects tildes
+  code fences conflict with repository conventions
 
 proposed edit:
   replace affected fences only
@@ -62,102 +42,39 @@ verification:
   pnpm markdown:check changed files
 ~~~
 
-That is the moment where the agent earns permission to edit.
+That is the point where permission to edit becomes meaningful.
 
-Skipping this step makes long-running work feel magical until it does something strange. I would rather spend a minute on inspection than ten minutes unwinding a confident wrong path.
+Supervision should be proportional. Reading files in scope can be automatic. A visible diff makes sense for a named edit. A new directory, dependency change, destructive command, publish action, or external write deserves a stronger pause. The agent should recognize when the run has changed category.
 
-## supervision should be proportional
-
-The user should not approve every keystroke.
-
-That is the wrong lesson from agent safety. Excessive approval turns supervision into noise. The product needs proportional supervision: light touch for low-risk phases, stronger review when the agent crosses a boundary.
-
-Examples:
-
-- reading files inside the requested scope can happen automatically
-- editing one named file may require a visible diff
-- touching a new directory should pause
-- running a destructive command should require explicit approval
-- changing dependencies should create a separate plan
-- publishing, deploying, or external writes need a stronger confirmation
-
-The important part is that the agent knows when the run has changed category.
-
-Claude 4-level agent work made this more urgent because better agents are more willing to continue. A weaker agent stops because it gets stuck. A stronger agent may find a path forward that the user did not mean to authorize.
-
-That is useful only when the boundaries are visible.
-
-## interruption is normal
-
-Long-running work will be interrupted.
-
-The user closes the laptop. The model times out. A tool fails. A command hangs. A permission prompt sits unanswered. Another urgent thing happens. The agent may need to resume later, or another agent may need to continue the work.
-
-That means the run needs a handoff before the end, not only a final summary after success.
-
-A good intermediate handoff says:
+Interruption is normal. The laptop closes, a tool times out, a command hangs, or an approval waits too long. The run needs a handoff before it ends:
 
 ~~~text
 current phase:
   targeted verification
 
 completed:
-  edited two posts to fix fence style
+  edited two posts
 
 blocked:
-  third post has mixed MDX component syntax, needs manual read before edit
+  third post uses mixed MDX component syntax
 
 safe next step:
-  inspect src/content/blog/example.mdx lines 40-90
+  inspect the component import before editing
 
 do not do:
-  run full rewrite until component import is understood
+  run the full rewrite batch yet
 ~~~
 
-That record is how long-running work avoids becoming a half-finished maze.
-
-I care about this more than I care about slick final summaries. The hard case is not the agent that finishes perfectly. The hard case is the agent that stops in the middle and still leaves the next person oriented.
-
-## plans should shrink the blast radius
-
-Planning is not there to make the agent sound thoughtful. It is there to shrink the blast radius.
-
-The plan should identify the smallest useful change, the files likely to be touched, the checks that prove success, and the conditions that would require a new plan. If the agent cannot name those things, it probably is not ready to mutate state.
-
-This applies especially to coding agents because codebases are full of tempting side quests. A failing test may expose a helper that could be refactored. A lint error may reveal old style drift. A content issue may sit next to other broken posts. A capable agent can see all of that and decide to be helpful in the most dangerous way: by expanding scope.
-
-I want the plan to say what it will not do.
+Planning is not there to make the agent sound thoughtful. It shrinks the blast radius by naming the smallest change, likely files, verification, and exclusions:
 
 ~~~text
 out of scope:
   no dependency upgrades
   no formatting outside changed files
-  no category/tag changes
-  no generated prose templates
+  no category or tag changes
+  no generated templates
 ~~~
 
-Those exclusions are not bureaucracy. They protect review.
+Verification should be selected before edits. The check may be a focused test, Markdown validation, screenshot pass, or permission review depending on the work. Choosing it afterward encourages the agent to search for any green result instead of the right evidence.
 
-## verification should be chosen before edits
-
-The agent should know how it will verify the work before it starts changing things.
-
-For small edits, the check may be a targeted lint or test command. For UI work, it may include a screenshot and interaction pass. For content work, it may include Markdown validation and a read-through against the prompt. For security-sensitive work, it may include permission and input checks.
-
-Choosing verification afterward creates a subtle bias. The agent finishes a change, then looks for a check that passes. That is how weak process gets a green checkmark.
-
-The plan should include the intended verification and the fallback if verification fails.
-
-If the agent cannot verify locally, it should say that before making the change. Sometimes that is acceptable. Sometimes it means the run should stay in proposal mode.
-
-## long-running does not mean unsupervised
-
-The dream version of agents is often described as "go do this and come back when done."
-
-Sometimes that will be fine. Most serious work needs more shape.
-
-Long-running agent work should feel like delegating to a careful engineer, not launching a script into a fog. The run should have phases, scope, inspection, approvals, verification, and handoff. The user should not have to micromanage, but they should be able to understand where the work is and why it is still safe to continue.
-
-Claude 4 made that conversation feel less theoretical because the model was capable enough to keep going.
-
-That is exactly why the plan matters more.
+Long-running should mean resumable and inspectable, not unsupervised. Claude 4 made that distinction more urgent because the model was capable enough to keep going. The plan is what tells the system where it is allowed to stop.

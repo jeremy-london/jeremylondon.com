@@ -8,15 +8,9 @@ author: "jeremy-london"
 tags: ["math", "learning", "deep learning"]
 ---
 
-Math usually starts making sense to me after the shapes stop moving.
+I understand a new operation faster when I can hold one example still.
 
-## freeze one example
-
-I like visual explanations, but motion can hide the relationship. The useful move is to freeze one example, keep the notation stable, and change one value at a time until the pattern appears.
-
-For me that usually means writing out a tiny case by hand. One vector. One matrix. One output. Then I look at how the same symbols behave when the input moves a little.
-
-## a tiny concrete pass
+For a dot product, that can be as small as:
 
 Suppose the input is:
 
@@ -30,18 +24,14 @@ and the weight vector is:
 w = [0.5, -1]
 ~~~
 
-Then the dot product is not mysterious. It is just:
+Then the dot product is:
 
 ~~~text
 2 * 0.5 + 1 * -1 = 0
 ~~~
 
-That is the part that helps me. The formula stops being an abstract object and becomes a small system I can perturb.
+Once the example is fixed, I can change one thing at a time. Change the first input and the first term changes. Change the second weight and the second term changes. The equation becomes a small system I can perturb instead of a line of symbols I am trying to memorize.
 
-## why repetition helps
+This is why animated explanations sometimes lose me. Motion is useful for showing a transition, but it can also make the relationship disappear as soon as it appears. Stable notation gives me somewhere to look.
 
-Small examples and repeated contrast do more for intuition than a tour through every formula. The reader needs enough stillness to inspect the idea.
-
-If the notation keeps changing, I spend all my attention tracking symbols instead of relationships. If the example stays put, I can see what the operation is actually doing. That is usually where the click happens.
-
-Math often feels like a shape problem before it feels like an equation problem. The stable shape is what makes the equation memorable.
+The formula is still important. It just becomes easier to remember after the shape of the operation has stayed still long enough to inspect.
