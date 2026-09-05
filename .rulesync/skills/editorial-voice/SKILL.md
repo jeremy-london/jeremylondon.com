@@ -77,7 +77,7 @@ Invent other shapes whenever the material suggests one.
 
 ### Tiny observation
 
-Roughly 50–400 words.
+Roughly 50-400 words.
 
 One interesting thing.
 
@@ -858,10 +858,10 @@ Never target a standard article length.
 
 Use approximately:
 
-* 50–250 words for fragments and tiny discoveries
-* 250–700 words for notes and reactions
-* 600–1,500 words for normal technical posts
-* 1,500–3,500 words for substantial investigations
+* 50-250 words for fragments and tiny discoveries
+* 250-700 words for notes and reactions
+* 600-1,500 words for normal technical posts
+* 1,500-3,500 words for substantial investigations
 * 3,000+ words when creating a genuine reference or deep dive
 
 These are permissions, not quotas.
