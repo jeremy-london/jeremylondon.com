@@ -1,0 +1,118 @@
+---
+title: "Engineering instincts are built from old prices"
+excerpt: "AI changes the cost of making a first version. It does not automatically change the cost of understanding, validating, or owning the result."
+publishDate: "2026-11-12T16:00:00Z"
+category: "product-engineering"
+draft: false
+author: "jeremy-london"
+tags: ["engineering judgment", "AI", "experiments", "leadership"]
+---
+
+A lot of engineering advice is an old cost model wearing the clothes of a universal rule.
+
+“Don’t do that” often means: we tried something similar when it took six months, required three teams, and left us maintaining two systems. That advice might still be right. But the conditions that made it right are part of the advice, even when nobody says them out loud.
+
+The part I keep turning over is how much of our judgment is really a memory of the costs we used to pay.
+
+A useful instinct compresses experience. It lets someone recognize a risky migration, an abstraction that will spread, or an experiment that is likely to stall before the team has to rediscover every failure. The problem comes when the shortcut survives after its inputs change.
+
+AI has made some first steps dramatically cheaper. A prototype, a code search, a test fixture, a migration sketch, a comparison of two implementations: these can be produced quickly enough to change what is worth exploring. That does not make the full project cheap. It moves the expensive part.
+
+The first implementation may take an hour. Finding the hidden requirement, deciding whether the design fits the domain, checking the edge cases, and operating it after launch still take judgment. Sometimes they take more attention because there are now more plausible implementations to choose from.
+
+I would separate the cost of a change into a few pieces:
+
+- **Creation:** how long does it take to make a candidate solution?
+- **Understanding:** how much context does someone need to work on it?
+- **Verification:** how do we know it behaves correctly for the cases that matter?
+- **Coordination:** how many people or systems must line up?
+- **Ownership:** who carries it when the novelty wears off?
+- **Failure:** how hard is it to undo if our assumption is wrong?
+
+AI can reduce some of these costs. It can also leave them untouched. A model can explain an unfamiliar code path, but the person making a change still needs to know what behavior must be preserved. It can produce a new tool, but someone still owns its access controls, data handling, and upgrades. It can suggest tests, but a passing test suite only means something if the tests cover the intended contract.
+
+That is why I’m wary of turning “AI makes this faster” into a new universal answer. Faster creation changes the threshold for trying something. It does not erase the threshold for shipping it.
+
+## The first draft is only one part of the price
+
+When a team says a task used to take two weeks and now takes two days, I want to know which two weeks disappeared. Was the work mostly typing? Was it searching a codebase? Waiting for feedback? Finding the actual requirement? Checking whether the change broke something subtle? Those are different bottlenecks, and a productivity tool will not affect them equally.
+
+Suppose a team wants to add an internal workflow that summarizes an operational report and routes it to the right person. A model can draft the UI, wire up a parser, and suggest some tests in very little time. That helps answer whether the workflow is technically possible. It does not answer whether the report contains all the context needed for the routing decision, whether the summary will hide a detail the recipient needs, or whether sending the result to an external service is acceptable.
+
+The prototype changes the next question. The team can get to a visible artifact before spending a week estimating the whole project. But then the work shifts into testing the workflow against real reports, deciding what data can leave the system, defining what happens when the model is uncertain, and giving someone the ability to correct or stop the automation.
+
+The first version is cheaper. The cost of being wrong can still be high.
+
+This distinction matters because code has always been only one part of software work. It is simply the part that is easiest to see. When implementation was expensive, it made sense for teams to spend a lot of time reducing the number of implementations they would have to write. When implementation gets cheaper, the scarce resource may become attention: what is worth trying, what evidence counts, and what deserves to remain in the system?
+
+That is not an argument for making more software just because we can. A cheap implementation can still create expensive obligations. Each new path needs a place in the architecture, a security boundary, a deployment story, someone who understands it, and a decision about when to remove it. Cheap code can create long-lived surface area.
+
+## Find the assumption underneath the advice
+
+When a familiar warning comes up, I try to translate it into the risk it was meant to control.
+
+“Keep the design simple” might mean that abstractions have a maintenance cost, and premature abstractions are based on requirements we do not yet know. “Don’t automate a process that is still changing” might mean we will encode unstable behavior and then pay to unwind it. “Avoid adding another service” might mean our team already has more operational responsibility than it can support.
+
+Those are not outdated concerns. The useful question is whether the new tools changed the cost or likelihood of the thing we are worried about.
+
+If generating a candidate implementation is cheap, an experiment may be worthwhile earlier. If a model can help someone navigate an unfamiliar codebase, a handoff may require less setup. If a test fixture can be produced quickly, we can examine more edge cases before deciding to ship. Each of those changes one part of the decision. None of them cancels ownership, operational risk, or the need to understand the domain.
+
+The original advice may still be right for reasons other than the ones that made it persuasive ten years ago. “Do not add another dependency” might once have been mostly about the time required to evaluate and integrate it. Today the integration may be trivial, but patching, licensing, data access, and vendor continuity still matter. The conclusion can stay the same while the reasoning changes.
+
+That is important for experience. A senior engineer may be right to feel uneasy before they can name the concern. Pattern recognition often notices a shape before conscious reasoning can explain it. But unease is a signal to inspect the decision, not evidence that the old answer applies unchanged.
+
+I want the instinct to produce a better question: which cost am I anticipating, and what would I need to see to believe it has changed?
+
+## Cheap experiments need boundaries
+
+If the economics favor trying something, the experiment still needs a shape. Otherwise “we can test it quickly” quietly becomes “we have put it into production and will see what happens.”
+
+A bounded experiment has a few properties:
+
+- It answers one question that would change the next decision.
+- It has an owner who can interpret the result and clean up afterward.
+- It uses data and permissions appropriate to the risk.
+- It can be stopped or rolled back without relying on the tool that created it.
+- It defines what counts as a useful result before the result arrives.
+
+The question might be whether a local model can classify a particular kind of request well enough to remove a manual step. Then the experiment should include examples the model has not seen, a baseline to compare against, a way to catch uncertain predictions, and a plan for what happens to the model if it misses the target. “It worked on my sample” is not a decision rule.
+
+The same applies to generated code. Ask the tool to explore a small slice, but keep the test in a place where the implementation can be inspected. Compare alternatives on behavior, integration cost, and failure modes. If the result is not useful, delete it. If it is useful, the next decision is whether it has earned the maintenance it will bring.
+
+A cheap prototype is valuable partly because it can be discarded. The moment a team attaches a deadline, a production dependency, or a customer promise to it, the experiment has become a product decision. The review should change with it.
+
+## More options create a selection problem
+
+AI can expand the number of plausible paths a team can try. That is useful when discussion is stuck because nobody can picture the tradeoffs. A working example often reveals details a design document cannot.
+
+It also creates a new way to waste time. A team can ask for five versions, compare them without a meaningful criterion, then keep the one that looks most complete. That is not necessarily learning. It may be activity without an information gain.
+
+Before generating alternatives, name the uncertainty. Are we unsure whether users understand the workflow? Whether one architecture can handle the expected volume? Whether a model can make a decision with enough precision? Whether a dependency supports a required environment? Then choose the smallest experiment that can answer that uncertainty.
+
+This keeps exploration separate from commitment. If the uncertainty is about the interface, a prototype with realistic user tasks may be more useful than a polished backend. If it is about throughput, a benchmark with representative inputs is better than another mock screen. If it is about operational ownership, an architecture diagram and a runbook review may tell us more than a working happy path.
+
+A tool that makes implementation faster does not choose the right experiment for us. It makes it easier to run the wrong one at speed.
+
+## Keep the costs visible after the trial
+
+A lot of experiments produce a convincing first result and then disappear into the codebase. That is how temporary prototypes become permanent dependencies without an explicit decision.
+
+For a trial, I would record a small amount of context alongside the code: what question it was meant to answer, what data was used, what it did not test, who owns the result, and what event would trigger cleanup or a production review. This can be a short note, an issue, or a section in the pull request. The format is less important than preserving the reasoning after the people who made the experiment move on.
+
+It is also worth revisiting the expected costs after the trial. Maybe the prototype reduced the implementation estimate but revealed that evaluation data is scarce. Maybe a model handled the common path but required too many manual escalations. Maybe the runtime was easy to integrate but hard to observe. The point is not to defend the original estimate. It is to update it.
+
+Teams can do the same with recurring engineering rules. If a rule exists because a step was once slow, track whether that step is still slow. If a review gate exists because changes were hard to understand, ask whether the review is still finding those problems and whether it sees the product risk the automation misses. If onboarding takes weeks, measure which parts are explanation, access, domain context, and environment setup. Different problems call for different remedies.
+
+A policy with no stated reason is hard to adapt. It may remain in place because nobody remembers what it was protecting, or disappear because it feels inconvenient. Either way, the team is making a decision without the original tradeoff in view.
+
+## Experience is a starting estimate
+
+Engineering judgment is still valuable when tools change. In fact, experience can help identify the parts of a task that are likely to be underestimated. Someone who has lived through migrations, incident response, and long-term maintenance may see costs that a first draft does not expose.
+
+The adjustment is treating experience as a starting estimate rather than a final verdict. The engineer who has seen a bad abstraction spread should be able to explain the path from a local shortcut to a system-wide tax. The team can then test whether that path exists in this case: how many callers will use it, whether the boundary is stable, and how hard it is to change later.
+
+That kind of explanation is more useful than a rule because it can be checked against new conditions. It gives people a way to disagree with the conclusion while still respecting the experience behind it.
+
+AI has changed the prices on some parts of engineering work. It has not made all work cheap, and it has not made old lessons worthless. It has made the assumptions inside those lessons more important to say out loud.
+
+A useful engineering instinct should come with its assumptions attached. When the assumptions change, the instinct deserves another look.
