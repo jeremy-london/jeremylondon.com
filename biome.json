@@ -19,6 +19,8 @@
       "!**/.codex",
       "!**/.mcp.json",
       "!**/dist",
+      "!DESIGN.md",
+      "!**/coverage",
       "!**/node_modules",
       "!**/*.github",
       "!**/.github",
