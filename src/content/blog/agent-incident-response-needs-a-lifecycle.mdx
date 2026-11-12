@@ -1,0 +1,27 @@
+---
+title: "Agent incident response needs a lifecycle"
+excerpt: "New NIST, NSA, and CISA guidance maps agent incidents onto the familiar stages of preparation, detection, response, recovery, and reporting."
+publishDate: "2026-10-16T14:00:00Z"
+category: "security-trust"
+draft: false
+author: "jeremy-london"
+tags: ["agents", "incident response", "nist", "security"]
+---
+
+An agent crossing a boundary is an incident with a timeline, not just a bad model answer.
+
+On October 16, NIST, NSA, and CISA published [ten voluntary practices](https://www.nist.gov/news-events/news/2026/10/key-practices-incident-readiness-and-response-super-intelligence-training) for incidents during frontier model training and evaluation. The document is aimed at a specific setting, but its lifecycle is familiar: preparation, detection, response, recovery, and reporting.
+
+That structure is useful for agent systems outside a lab too. If an agent takes a significant action outside its intended scope, responders need to know what happened, what authority it had, and how to contain the effects.
+
+I would translate the lifecycle into five operational questions:
+
+- **Preparation:** Do we know which agent runs, under whose identity, with what tools and permissions?
+- **Detection:** Can we see the tool call, target, policy decision, and result in one timeline?
+- **Response:** Can we stop the run and revoke credentials without taking unrelated services down?
+- **Recovery:** Can we identify and reverse the changes the agent made?
+- **Reporting:** Can we produce a reviewable record that explains the event without reconstructing it from scattered logs?
+
+The hard parts tend to show up between these steps. A kill switch is not enough if credentials remain valid. A detailed trace is not enough if it omits the approval state. A rollback is not enough if the agent also sent a message or triggered an external workflow.
+
+The guidance is voluntary and focused on training and evaluation, so it is not a ready-made production standard. Still, the lifecycle framing is a useful design test: for every agent action with real consequences, know how the system would detect it, stop it, recover from it, and explain it afterward.

@@ -1,0 +1,29 @@
+---
+title: "Agent APIs are starting to sell the harness"
+excerpt: "OpenAI's Agents API packages context management, tools, sandboxes, and subagents as a managed product surface."
+publishDate: "2026-09-10T14:00:00Z"
+category: "agent-workflows"
+draft: false
+author: "jeremy-london"
+tags: ["agents", "openai", "agent harness", "infrastructure"]
+---
+
+The model call is becoming the least interesting part of an agent API.
+
+OpenAI's [Agents API announcement](https://openai.com/index/introducing-the-agents-api/) describes a managed harness around the model: long-running sessions, context compaction, tool search, programmatic tool calls, subagents, and sandbox environments. Developers can use an OpenAI-managed sandbox, bring their own infrastructure, or work through a supported sandbox partner.
+
+That is a meaningful product boundary. The provider is offering to operate the loop that keeps an agent useful after the first response: preserving state, choosing tools, running code, and recovering across a longer task.
+
+There is a practical upside. A team that does not want to build session recovery and sandbox orchestration can spend more time on the workflow itself. Keeping the harness alongside the model may also reduce the integration work that comes with each new model capability.
+
+There is a cost to that convenience. The harness becomes part of the runtime contract. It influences what context survives, when tools are exposed, how work is split, and where files and secrets live. Those choices affect security and debugging just as much as the model choice does.
+
+Before moving a workflow onto a managed agent API, I would want to answer a few operational questions:
+
+- Can I inspect the full sequence of model and tool events?
+- Can I put the sandbox inside the network boundary the task requires?
+- What state survives a retry, timeout, or deployment change?
+- Can the workflow be paused or handed to a person without losing its work?
+- How do I compare a harness change separately from a model change?
+
+The interesting competition may be between complete runtimes, not just models. That makes portability and observability part of the product evaluation. A strong model inside an opaque loop is still an opaque system.

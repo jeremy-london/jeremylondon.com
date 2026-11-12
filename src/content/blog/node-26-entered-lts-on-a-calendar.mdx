@@ -1,0 +1,29 @@
+---
+title: "Node 26 entering LTS is a calendar reminder"
+excerpt: "Node 26 moved into long-term support on October 28, with a useful Linux dependency note buried in the release details."
+publishDate: "2026-10-28T14:00:00Z"
+category: "developer-tools"
+draft: false
+author: "jeremy-london"
+tags: ["node", "runtime", "lts", "maintenance"]
+---
+
+Node 26 moved into Long Term Support on October 28. The [26.13.0 release note](https://nodejs.org/en/blog/release/v26.13.0) says the line, codenamed Lithium, is scheduled to receive updates through the end of April 2029.
+
+The release itself was mostly a status transition: aside from metadata updates, it contains no changes from 26.12.1. That is exactly why it is useful to put on a calendar. An LTS transition is a maintenance window, not necessarily a feature launch.
+
+There is one migration detail worth checking before upgrading older Linux environments: Node's official Linux binaries have been linked against `libatomic` since Node 25. Depending on the distribution, that library may need to be installed separately.
+
+For a runtime upgrade, I would check the whole path rather than only the local version:
+
+~~~sh
+node --version
+pnpm --version
+pnpm install --frozen-lockfile
+pnpm check
+pnpm build
+~~~
+
+Then run the same commands in the project's CI image. Native dependencies, container base images, and deploy platforms can lag behind a developer laptop.
+
+Node's [release schedule](https://nodejs.org/en/about/previous-releases) is also changing with Node 27, so it is worth checking the support table before choosing the next target. For Node 26, the immediate task is simpler: try the LTS line while the current runtime is still easy to roll back.
