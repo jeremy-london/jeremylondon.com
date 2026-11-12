@@ -1,0 +1,82 @@
+---
+title: "System One models are for bounded decisions"
+excerpt: "Jev-style decision models return typed choices and probabilities when software needs a route, score, or yes-or-no answer."
+publishDate: "2026-10-08T10:00:00Z"
+category: "agent-workflows"
+draft: false
+author: "jeremy-london"
+tags: ["jev", "system one", "decision models", "agents"]
+---
+
+A lot of software asks a language model a question and then spends the next few steps trying to turn the answer into a decision.
+
+“Which team should own this ticket?” becomes a paragraph. The application parses the paragraph, checks whether the team name is valid, handles the case where the model invented a team, and decides what to do with the model’s uncertainty. A typed decision model starts closer to the end of that path.
+
+The [System One model Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev) takes a state and typed questions, then returns bounded answers such as a choice from supplied options, an ordinal score, or a yes-or-no value with probabilities. The API is designed to return data that code can consume directly.
+
+That is what I mean here by a decision model. It is a model whose useful output is a decision over a declared space, rather than a generated explanation.
+
+## “System One” is a useful analogy, with limits
+
+The name borrows from the familiar distinction between fast, intuitive thinking and slower, more deliberate reasoning. It does not mean a neural network has a human cognitive system. It describes a product role: make a narrow decision quickly, then let ordinary software decide what that result permits.
+
+A System One call might classify a support request as billing, technical, or sales. It might rank three candidate tools, assign a risk level, or estimate whether a document matches a policy. The caller defines the question and the possible answers. The model supplies scores over those answers.
+
+That makes it a good fit when the decision is repeated, the answer space is bounded, and the next step is already known. It is less useful when the job is to discover what the question should be, make a long plan, explain conflicting evidence, or invent a response for a person. Those are still good reasons to use a generative model.
+
+## Put the decision in the interface
+
+The API shape helps make this concrete. A request might include a short state and fields like these:
+
+~~~json
+{
+  "questions": {
+    "team": {
+      "type": "choice",
+      "instructions": "Which team should handle this?",
+      "criteria": {
+        "billing": "Payments, invoices, and refunds",
+        "technical": "Errors, outages, and configuration",
+        "sales": "Plans and upgrades"
+      }
+    },
+    "urgent": {
+      "type": "noul",
+      "instructions": "Does this need immediate attention?"
+    }
+  }
+}
+~~~
+
+A choice answer is constrained to the caller’s options. A score uses a caller-defined scale. A `noul` is a yes-or-no output. The response can also include probabilities for the available outcomes. The [API reference](https://jev-api.com/docs/api) shows the request and response shapes.
+
+The schema is useful in two ways. It makes the model easier to connect to code, and it forces the team to say what the decision means before asking the model to make it. “Classify this ticket” is underspecified. “Choose one of these teams based on ownership; return uncertain when none fit” can become an evaluation set and a routing rule.
+
+That does not make the decision automatically safe. A valid value can still be wrong. A confidence score is only operationally useful when it behaves well on the data the application will see. Measure it on held-out examples, check calibration, and choose the escalation threshold from the cost of mistakes. “The response parsed” is a syntax check, not a quality metric.
+
+## Where a small decision model earns its place
+
+The strongest use cases tend to sit in the high-volume middle of a workflow:
+
+- **Triage:** route a ticket, alert, email, or review request.
+- **Gating:** decide whether a request meets a policy or needs a more capable review.
+- **Tool selection:** pick from a defined set of tools when the input contains enough evidence.
+- **Scoring:** put a result on a rubric that downstream code understands.
+- **Filtering:** reduce a large stream to the items that deserve human attention.
+- **Extraction:** identify a value or category when the output schema is known.
+
+A decision model can sit in front of a larger model. If the answer is clear and the action is reversible, the application may follow the route. If the model is uncertain, the state is incomplete, or the consequence is high, send the case to a person or a reasoning model with more context and time.
+
+That pattern is useful because not every branch in an agent needs an essay. Some branches need a consistent score, a route, or a refusal to decide. The application can keep the branching logic explicit while using a model for the fuzzy judgment that rules alone handle poorly.
+
+## Why run one locally?
+
+A local model changes the system boundary. Inputs can stay on a workstation or inside a private network, and the decision can avoid a round trip to an external API. It can also make experimentation cheaper when you are labeling examples, changing a schema, or replaying a benchmark.
+
+Local does not mean free. The model still uses compute, needs packaging and monitoring, and can be harder to update than a hosted service. A compact encoder may be fast and cheap at inference while requiring careful work to collect labels and evaluate edge cases. The useful question is the full cost per correct decision, including fallback and human review.
+
+I’ve been playing with local models in this space, including TinyBERT, ModernBERT, and UltraBERT. They are not interchangeable implementations of Jev’s proprietary model. They are encoder backbones that can be adapted to bounded classification and scoring tasks, with different tradeoffs in size, sequence length, and training approach.
+
+The first experiment should be a decision that already has examples and a clear definition of “wrong.” Ticket routing, duplicate detection, or a policy gate are easier to evaluate than a vague goal like “make the agent smarter.” Give the model the smallest authority that makes the test useful. Then compare it with the baseline rules and the larger model it might replace.
+
+A good decision model is not a tiny general assistant. It is a component whose job can be written down as a question, a set of possible answers, and a consequence for each answer.

@@ -1,0 +1,60 @@
+---
+title: "Multimodal decision models need grounded labels"
+excerpt: "A model that chooses from typed options using an image can help with screen state, visual triage, and inspection, but only if its decisions stay tied to the pixels."
+publishDate: "2026-10-29T14:00:00Z"
+category: "advance-deep-learning"
+draft: false
+author: "jeremy-london"
+tags: ["multimodal", "decision models", "vision", "jev", "fine-tuning"]
+---
+
+A screenshot is often the state an application needs help interpreting.
+
+Is the checkout button disabled? Which of these controls is selected? Does this photo show a damaged package? Is this screen in a state where an agent should continue, ask for help, or stop? Those are decisions over visual evidence. A model that can choose from typed answers may fit more naturally than a vision model asked to narrate the image first.
+
+The Jev-style interface makes the decision space explicit: state in, typed questions and options, probabilities out. With text-only models, the state is text. With a multimodal decision model, the state can include an image, video frames, or audio as well.
+
+Cloudflare’s [Clef models](https://blog.cloudflare.com/clef-decision-models/) added a vision encoder to a decision-model interface, and its later [Clef-omni release](https://blog.cloudflare.com/clef-faster-cheaper-multimodal/) describes audio, video, image, and text inputs. An independent early study, [PixelJev](https://arxiv.org/abs/2609.29283), explores image plus instruction plus candidate options, returning a choice and scores conditioned on those candidates.
+
+That interface opens useful workflows. It does not make the model a reliable visual authority.
+
+## Where a visual decision belongs
+
+A multimodal decision model can help when the image changes the answer and the set of outcomes can be described ahead of time:
+
+- **UI automation:** choose whether to click, wait, scroll, or ask a person based on a screenshot.
+- **Document intake:** route a scanned form by document type or flag a missing field for review.
+- **Moderation:** decide whether an image needs review under a defined policy.
+- **Inspection:** score a visible defect against a rubric, with a human handling borderline cases.
+- **Video triage:** classify an event from selected frames before paying for a deeper analysis.
+
+The model should not be asked to infer hidden state that the image does not show. A screenshot may suggest that a payment failed, but it cannot prove whether the charge settled. A photo may show a crack, but not whether the component is safe to use. Connect the decision to the evidence the model actually receives, and fetch authoritative system data for the rest.
+
+## Training is about alignment between evidence and outcome
+
+A training example needs more than an image and a class name. For an option-based decision, I would keep the image, the state text, the question, the candidate options, the expected answer, and the reason an evaluator chose it. If the candidate options change at runtime, train with varied wording and option order rather than baking one fixed label list into the classifier.
+
+That data design lets the model learn the relationship between visual details and the decision. It also creates tests for shortcuts. If every damaged package photo has a warehouse watermark, the model can learn the watermark instead of damage. If all “continue” screenshots come from one browser theme, it can memorize the theme.
+
+Useful evaluations include:
+
+- change option order and wording while preserving the underlying choice
+- crop, resize, blur, or partially obscure the relevant region
+- compare the same question with and without the image
+- include examples where the right answer is “unknown” or “ask for a clearer image”
+- measure calibration and error rates separately for each visual condition
+- hold out devices, cameras, layouts, or environments from training
+
+The PixelJev paper reports promising results on a small set of vision tasks, including improvement from source-task adaptation, while also warning that better accuracy did not guarantee calibrated probabilities on a new target. That is exactly the distinction I care about. A model may pick the right option more often and still be too confident when it is wrong.
+
+## When to fine-tune
+
+A hosted multimodal decision model can be a good starting point if the task is still changing. You can test whether the question and options make sense before collecting enough examples to train a local model. Fine-tuning is more attractive when the task repeats, you have representative labeled examples, or the image data should remain inside your own environment.
+
+For a local model, the vision encoder and text encoder have to agree on the task. Some systems use a shared vision-language backbone; others connect a visual encoder to a language model. A decision head then scores the allowed answers. The training objective can reward the correct choice, while a calibration objective helps align the probabilities with observed accuracy. The exact recipe depends on the backbone and available training code.
+
+I would keep a deliberate abstain path in the schema. “None of these,” “image is unreadable,” and “needs human review” are real outcomes, not failures to hide. In a UI agent, a false click can be more costly than an extra question. In a safety review, an unreviewed false negative may be worse than a false positive. The threshold should reflect the actual workflow.
+
+The image also changes the privacy and retention question. Screenshots can contain account details, customer information, or internal tools. Local inference can reduce the number of systems that see those pixels, but only if the logs, caches, and training pipeline follow the same boundary.
+
+The most useful multimodal decision model is not the one that can say the most about an image. It is the one that answers a narrow question from the image, shows how uncertain it is, and knows when the evidence is too weak to act.

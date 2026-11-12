@@ -1,0 +1,77 @@
+---
+title: "Fine-tuning local encoders for typed decisions"
+excerpt: "TinyBERT, ModernBERT, and UltraBERT offer different starting points for local classifiers; the dataset and decision contract matter just as much as the backbone."
+publishDate: "2026-10-21T12:00:00Z"
+category: "deep-learning-networks"
+draft: false
+author: "jeremy-london"
+tags: ["fine-tuning", "tinybert", "modernbert", "ultrabert", "jev"]
+---
+
+I’ve been playing with local Jev-style models by fine-tuning TinyBERT, ModernBERT, and UltraBERT. The part I keep coming back to is not the optimizer. It is the question the model is supposed to answer.
+
+A decision model only helps if the application can describe its job precisely. Given this state, choose one of these routes. Given this evidence, score the request on this scale. Given this image and policy, say whether the item needs review. Training starts by making those questions and answers consistent enough to learn from.
+
+## Encoder choice is a tradeoff, not a leaderboard
+
+These models all come from the encoder side of language modeling. An encoder reads the input as a whole and produces representations useful for classification, ranking, and retrieval. It does not need to generate an explanation token by token.
+
+The original [TinyBERT work](https://arxiv.org/abs/1909.10351) focused on distilling a larger BERT teacher into a smaller student. Its recipe used distillation during general pretraining and again for task-specific learning. TinyBERT is interesting when a small footprint matters and the task can tolerate a compact representation.
+
+[ModernBERT](https://arxiv.org/abs/2412.13663) is a newer bidirectional encoder built with more recent attention and training optimizations. Its authors describe a native 8,192-token context length, efficient inference, and strong classification and retrieval results. It is a plausible starting point when the decision depends on more of a document than a short message can hold.
+
+[UltraBERT](https://arxiv.org/abs/2610.15028) revisits the pretraining recipe itself. Its paper studies the effects of masking ratios, pruning, and distillation, then uses separate language-model heads for low and high masking ratios to target classification and retrieval together. The released model is another local option when those tasks overlap.
+
+Those descriptions come from the papers and model releases. They do not tell me which one will work best on a particular decision. A bigger context window cannot repair ambiguous labels. A smaller model may be enough if the input is short and the categories are distinct. I want to compare them on the same held-out data and deployment hardware.
+
+## Write the label contract first
+
+Suppose the job is to decide whether an inbound message is routine, needs a specialist, or requires immediate escalation. Before training, define:
+
+- what evidence belongs in the input state
+- whether each example has one answer or can have several
+- what “immediate” means in operational terms
+- how to label ambiguous or incomplete cases
+- what should happen when no category fits
+- which mistakes cost the most
+
+A model trained on labels from different interpretations of “urgent” will learn the disagreement. A class called `other` can become a bin for every case nobody wanted to decide. Those are dataset design problems, and more epochs tend to make them more expensive.
+
+For a Jev-style interface, the runtime answer space can be supplied as `choice`, `score`, or yes/no (`noul`) questions. A conventional encoder classifier usually has a fixed output vocabulary. To support options that change at runtime, the training and inference code needs to represent the question and candidate options as part of the input, then score each option. That is an architectural choice to make deliberately, not something that happens automatically because the model is an encoder.
+
+## A practical training loop
+
+I would start with the smallest possible slice of the job:
+
+1. **Build a labeled set from real decisions.** Keep the input, label, source, timestamp, and reason a reviewer chose the label. Remove personal data that the model does not need.
+2. **Hold out examples by source or time.** Random row splits can put near-duplicates in both training and evaluation. If the model will see next month’s traffic, reserve a later period as a test set.
+3. **Establish a baseline.** Compare a rule, the pretrained encoder with a simple head, and the fine-tuned model. If the label set is small, a baseline tells you whether tuning is learning signal or just fitting noise.
+4. **Train the head before unfreezing everything.** A task head over a frozen encoder is a useful first check. Then fine-tune the encoder layers or use parameter-efficient adapters if the data and hardware justify it.
+5. **Evaluate decisions and probabilities.** Accuracy alone hides the expensive errors. Check per-class precision and recall, confusion pairs, calibration, and behavior on out-of-scope examples.
+6. **Set the fallback threshold on validation data.** Low-confidence cases can go to a larger model or a person. Pick the threshold based on the cost of a wrong route and the volume the fallback can handle.
+
+The 2026 paper [Releasing the Inner Jev](https://arxiv.org/abs/2610.17205) is a useful reference for one route through this problem. Its authors adapt open instruction-tuned language models with LoRA and a decision head, and evaluate both accuracy and calibration. That is not the same as fine-tuning a BERT encoder, but it demonstrates the broader point: the decision interface, training objective, and calibration test are part of the model design.
+
+TinyBERT has a specific relationship to distillation; ModernBERT and UltraBERT have different pretraining and efficiency goals. For my local experiments, I would separate backbone comparisons from recipe comparisons. First hold the dataset, head, and evaluation fixed. Then change the backbone. If several things change at once, a better score does not explain what improved.
+
+## Why the local part matters
+
+A local model is useful when latency, privacy, predictable availability, or volume makes a remote call awkward. It also gives you control over the training loop. You can keep examples in your own environment, test data perturbations, and ship an update on your schedule.
+
+But a model on a laptop is not a production system by itself. You still need versioned weights, a repeatable preprocessing path, a record of the label schema, a serving process, and a way to detect distribution changes. Tokenizer mismatch is enough to invalidate a careful experiment. So is an evaluation set that accidentally includes the same customer or document in train and test.
+
+I would keep a small experiment record beside each checkpoint:
+
+~~~text
+model: modernbert-base
+schema: support-route-v3
+train split: through 2026-10-31
+validation split: November week 1
+labels: 4 routes + abstain
+metric: macro-F1, escalation recall, Brier score
+fallback: human review below validated threshold
+~~~
+
+That gives the score some context. It also makes it possible to retrain later without guessing which labels, data, or threshold produced the deployed behavior.
+
+The goal is not to squeeze a general assistant into a smaller package. It is to see whether a bounded decision can be made accurately, consistently, and cheaply enough by a local model that the surrounding software can own the consequences.
